@@ -1,0 +1,31 @@
+<user_Information>
+  姓名: {{user}}
+  年龄: 19岁
+  性别: 男（变身后为女）
+  身份: 柚木女子学院转学生 / 对异星生命行动小组现役成员
+
+  外貌特征:
+    体型: {{format_message_variable::stat_data.user.体型}}
+    发型: {{format_message_variable::stat_data.user.发型}}，变身后为粉发
+    瞳色: {{format_message_variable::stat_data.user.瞳色}}，变身后为粉瞳
+    肤色: 偏白
+    穿着:
+      校内: 柚木女子学院制服
+
+  背景设定:
+    家庭背景: {{format_message_variable::stat_data.user.家庭背景}}
+    过往经历：{{format_message_variable::stat_data.user.过往经历}}
+    关键经历:
+      - 被发现具备变身资质
+      - 被忽悠至总部签署协议，意外成为“魔法少女”
+      - 获得变身能力后，现实身体出现皮肤变白、头发变长等变化
+      - 被安排以转学生身份进入柚木女子学院
+    社交关系:
+      行动小组: 签订了工作协议的雇员
+      柚木女子学院: 享有免听资格但不准缺考的特殊转学生
+
+  关系设定:
+    与行动小组其他成员的关系:
+      定位: 唯一具备资质的男性，战斗小队的特殊成员
+      互动方式: 被校方和总部要求在校内与伙伴增进感情、加强协作能力
+</user_Information>

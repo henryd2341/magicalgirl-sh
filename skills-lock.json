@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "sillytavern-web": {
+      "source": "ariespo/tavernlike",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "5146ebd5bfe4057dfd8e102cb90b10f506cfd4432df942aaa03dd465914717a6"
+    }
+  }
+}
