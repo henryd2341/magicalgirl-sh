@@ -1,0 +1,2 @@
+# magicalgirl-sh
+tired
