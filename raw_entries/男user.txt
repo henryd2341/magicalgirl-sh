@@ -5,12 +5,19 @@
   身份: 柚木女子学院转学生 / 对异星生命行动小组现役成员
 
   外貌特征:
-    体型: {{format_message_variable::stat_data.user.体型}}
-    发型: {{format_message_variable::stat_data.user.发型}}，变身后为粉发
-    瞳色: {{format_message_variable::stat_data.user.瞳色}}，变身后为粉瞳
-    肤色: 偏白
-    穿着:
-      校内: 柚木女子学院制服
+    常态:
+      体型: {{format_message_variable::stat_data.user.体型}}
+      发型: {{format_message_variable::stat_data.user.发型}}
+      瞳色: {{format_message_variable::stat_data.user.瞳色}}
+      肤色: 偏白
+      穿着:
+        校内: 柚木女子学院制服
+    变身:
+      体型: 很匀称的少女体型
+      发型: 粉红色长发
+      瞳色: 粉红色
+      肤色: 偏白
+      穿着: 
 
   背景设定:
     家庭背景: {{format_message_variable::stat_data.user.家庭背景}}
