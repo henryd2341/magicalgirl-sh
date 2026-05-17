@@ -17,11 +17,11 @@
       发型: 粉红色长发
       瞳色: 粉红色
       肤色: 偏白
-      穿着: 
+      穿着:
 
   背景设定:
-    家庭背景: {{format_message_variable::user.家庭背景}}
-    过往经历：{{format_message_variable::user.过往经历}}
+    家庭背景: {{format_message_variable::stat_data.user.家庭背景}}
+    过往经历：{{format_message_variable::stat_data.user.过往经历}}
     关键经历:
       - 被发现具备变身资质
       - 被忽悠至总部签署协议，意外成为“魔法少女”
