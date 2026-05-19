@@ -1,6 +1,7 @@
 import { CommandBus } from "@/engine/commandBus";
 import type { SessionManager, SessionSnapshot } from "@/engine/sessionManager";
 import type { DomainCommand } from "@/types/commands";
+import type { PipelineState } from "@/types/pipeline";
 
 export class GameEngineFacade {
   private readonly commandBus: CommandBus;
@@ -18,6 +19,31 @@ export class GameEngineFacade {
       type: "BEGIN_AI_REQUEST",
       requestId,
       pipelineState: "PROMPT_BUILDING",
+    });
+  }
+
+  public advancePipeline(pipelineState: PipelineState): void {
+    this.commandBus.dispatch({
+      type: "ADVANCE_PIPELINE",
+      pipelineState,
+    });
+  }
+
+  public completeAiRequest(): void {
+    this.commandBus.dispatch({
+      type: "COMPLETE_AI_REQUEST",
+    });
+  }
+
+  public enterErrorRecovery(): void {
+    this.commandBus.dispatch({
+      type: "ENTER_ERROR_RECOVERY",
+    });
+  }
+
+  public resetToIdle(): void {
+    this.commandBus.dispatch({
+      type: "RESET_TO_IDLE",
     });
   }
 
