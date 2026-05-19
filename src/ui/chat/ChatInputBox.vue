@@ -34,9 +34,7 @@ function submitDraft(): void {
     </header>
 
     <form class="chat-input-box__form" @submit.prevent="submitDraft">
-      <label class="chat-input-box__label" for="story-input-box"
-        >故事输入框</label
-      >
+      <label class="chat-input-box__label" for="story-input-box">故事输入框</label>
       <textarea
         id="story-input-box"
         v-model="draft"
