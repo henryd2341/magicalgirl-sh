@@ -1,0 +1,37 @@
+:root {
+  color-scheme: dark;
+  --font-heading: "Space Grotesk", "Segoe UI", sans-serif;
+  --font-body: "Inter", "Segoe UI", sans-serif;
+  --bg-canvas: #090414;
+  --bg-elevated: rgba(17, 10, 37, 0.72);
+  --bg-elevated-strong: rgba(27, 17, 54, 0.88);
+  --surface-border: rgba(255, 255, 255, 0.14);
+  --surface-border-strong: rgba(255, 255, 255, 0.24);
+  --text-primary: #f8f5ff;
+  --text-secondary: rgba(238, 232, 255, 0.76);
+  --text-muted: rgba(220, 208, 255, 0.58);
+  --accent-pink: #ff5fd2;
+  --accent-blue: #6fb7ff;
+  --accent-lime: #d5ff5f;
+  --accent-peach: #ffb38a;
+  --accent-violet: #8b6bff;
+  --shadow-soft: 0 20px 60px rgba(6, 4, 16, 0.45);
+  --shadow-glow-pink: 0 0 40px rgba(255, 95, 210, 0.24);
+  --shadow-glow-blue: 0 0 42px rgba(111, 183, 255, 0.2);
+  --radius-xl: 32px;
+  --radius-lg: 24px;
+  --radius-md: 18px;
+  --radius-sm: 999px;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --transition-fast: 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  --transition-medium: 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  --transition-slow: 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  --max-width: 1280px;
+}

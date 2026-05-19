@@ -1,11 +1,5 @@
-# magicalgirl-sh
+# Vue 3 + TypeScript + Vite
 
-[先看这个](./CONTRIBUTING.md)
+This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
 
----
-
-## 许可证
-
-所有源代码性质的文件：[AGPL v3](./LICENSE)
-
-`raw_entries/` 下的所有文件：All Rights Reserved.
+Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
