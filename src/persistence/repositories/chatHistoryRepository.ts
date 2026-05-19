@@ -23,4 +23,8 @@ export class InMemoryChatHistoryRepository implements ChatHistoryRepository {
   public async list(): Promise<ChatMessage[]> {
     return [...this.records.values()].map((message) => ({ ...message }));
   }
+
+  public clear(): void {
+    this.records.clear();
+  }
 }
