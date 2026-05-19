@@ -1,5 +1,7 @@
 /* eslint-disable no-unused-vars */
 
+import type { ChatMessage } from "@/types/chat";
+
 export interface TestRecordRow {
   id: string;
   label: string;
@@ -23,6 +25,7 @@ export interface DbWorkerStateSnapshot {
   tables: Set<string>;
   initialized: boolean;
   testRecords: Map<string, TestRecordRow>;
+  chatHistory: Map<string, ChatMessage>;
 }
 
 export type DbWorkerRequest =
@@ -35,6 +38,19 @@ export type DbWorkerRequest =
     }
   | {
       type: "list_test_records";
+    }
+  | {
+      type: "save_chat_message";
+      payload: ChatMessage;
+    }
+  | {
+      type: "get_chat_message_by_id";
+      payload: {
+        id: string;
+      };
+    }
+  | {
+      type: "list_chat_messages";
     };
 
 export type DbWorkerSuccessResponse =
@@ -51,6 +67,20 @@ export type DbWorkerSuccessResponse =
   | {
       type: "list_test_records_result";
       payload: TestRecordRow[];
+    }
+  | {
+      type: "save_chat_message_result";
+      payload: {
+        savedId: string;
+      };
+    }
+  | {
+      type: "get_chat_message_by_id_result";
+      payload: ChatMessage | null;
+    }
+  | {
+      type: "list_chat_messages_result";
+      payload: ChatMessage[];
     };
 
 export type DbWorkerErrorResponse = {
