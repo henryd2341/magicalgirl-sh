@@ -29,5 +29,9 @@ export const migration001Init: DbMigration = {
     if (!state.testRecords) {
       state.testRecords = new Map();
     }
+
+    if (!state.chatHistory) {
+      state.chatHistory = new Map();
+    }
   },
 };

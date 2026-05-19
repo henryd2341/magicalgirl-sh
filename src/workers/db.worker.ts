@@ -19,6 +19,7 @@ function createInitialState(): DbWorkerStateSnapshot {
     tables: new Set(),
     initialized: false,
     testRecords: new Map(),
+    chatHistory: new Map(),
   };
 }
 
@@ -89,6 +90,48 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
           return {
             type: "list_test_records_result",
             payload: [...state.testRecords.values()],
+          };
+        }
+
+        case "save_chat_message": {
+          const maybeError = ensureInitialized(state);
+          if (maybeError) {
+            return maybeError;
+          }
+
+          state.chatHistory.set(request.payload.id, { ...request.payload });
+          return {
+            type: "save_chat_message_result",
+            payload: {
+              savedId: request.payload.id,
+            },
+          };
+        }
+
+        case "get_chat_message_by_id": {
+          const maybeError = ensureInitialized(state);
+          if (maybeError) {
+            return maybeError;
+          }
+
+          const message = state.chatHistory.get(request.payload.id);
+          return {
+            type: "get_chat_message_by_id_result",
+            payload: message ? { ...message } : null,
+          };
+        }
+
+        case "list_chat_messages": {
+          const maybeError = ensureInitialized(state);
+          if (maybeError) {
+            return maybeError;
+          }
+
+          return {
+            type: "list_chat_messages_result",
+            payload: [...state.chatHistory.values()].map((message) => ({
+              ...message,
+            })),
           };
         }
       }

@@ -4,6 +4,7 @@ import SplashScreenView from "@/pages/SplashScreenView.vue";
 import StartScreenView from "@/pages/StartScreenView.vue";
 import { router } from "@/router";
 import { render, screen } from "@testing-library/vue";
+import { createPinia } from "pinia";
 import { describe, expect, it } from "vitest";
 
 describe("application page layering", () => {
@@ -68,7 +69,11 @@ describe("application page layering", () => {
   });
 
   it("renders the main game page and mounts chat components as child modules of the game view", () => {
-    render(MainGameView);
+    render(MainGameView, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    });
 
     expect(screen.getByRole("main")).toHaveAttribute("id", "main-game-view");
     expect(
