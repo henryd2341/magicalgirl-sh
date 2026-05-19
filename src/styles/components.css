@@ -48,14 +48,79 @@
 .hero-header,
 .story-grid__hero,
 .story-grid__features,
-#system-notification-center {
+#system-notification-center,
+.start-screen-view,
+.splash-screen-view,
+.new-game-setup-view,
+.settings-view,
+.save-export-view,
+.game-top-bar,
+.game-status-banner {
   padding: var(--space-8);
 }
 
-.main-story-hub {
+.start-screen-view,
+.splash-screen-view,
+.new-game-setup-view,
+.settings-view,
+.save-export-view,
+.main-game-view {
   display: grid;
-  gap: var(--space-8);
-  margin-top: var(--space-8);
+  gap: var(--space-6);
+}
+
+.start-screen-view {
+  min-height: calc(100dvh - 5rem);
+  place-items: center;
+}
+
+.start-screen-view__panel,
+.new-game-setup-view__panel,
+.settings-view__panel,
+.save-export-view__panel {
+  display: grid;
+  gap: var(--space-4);
+  width: min(100%, 720px);
+}
+
+.splash-screen-view__menu,
+.new-game-setup-view__actions,
+.game-top-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.splash-screen-view__menu-button {
+  min-width: 180px;
+}
+
+.new-game-setup-view__form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.new-game-setup-view__input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.9rem 1rem;
+  border: 3px solid rgba(255, 107, 157, 0.36);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    180deg,
+    rgba(26, 12, 31, 0.98) 0%,
+    rgba(18, 8, 20, 1) 100%
+  );
+  color: var(--text-primary);
+}
+
+.main-story-hub,
+.main-game-view,
+.game-conversation-panel,
+.notification-stack,
+.stat-chip-list {
+  display: grid;
+  gap: var(--space-4);
 }
 
 .story-nav {
@@ -119,9 +184,7 @@
 .hero-marquee,
 .hero-sticker-board,
 .sticker-note-grid,
-.feature-card-grid,
-.notification-stack,
-.stat-chip-list {
+.feature-card-grid {
   display: grid;
   gap: var(--space-4);
 }
@@ -181,6 +244,7 @@
 }
 
 #hero-title,
+#splash-title,
 .section-heading h2,
 .section-heading--playful {
   margin: 0;
@@ -189,7 +253,8 @@
   line-height: 1.06;
 }
 
-#hero-title {
+#hero-title,
+#splash-title {
   font-size: clamp(2.8rem, 5vw, 5.2rem);
 }
 
@@ -198,7 +263,8 @@
 .sticker-note p,
 .feature-card p,
 .notification-card p,
-.chat-message-card__content {
+.chat-message-card__content,
+.game-status-banner__text {
   color: var(--text-secondary);
   line-height: 1.7;
 }
@@ -224,10 +290,6 @@
   );
 }
 
-.hero-sticker-board {
-  align-content: start;
-}
-
 .floating-sticker {
   display: inline-flex;
   align-items: center;
@@ -246,22 +308,6 @@
   font-weight: 700;
   box-shadow: 5px 5px 0 rgba(24, 13, 31, 0.8);
   animation: stickerBounce 3s ease-in-out infinite;
-}
-
-.floating-sticker--star {
-  background: linear-gradient(
-    135deg,
-    var(--accent-lilac) 0%,
-    var(--accent-blue) 100%
-  );
-}
-
-.floating-sticker--grid {
-  background: linear-gradient(
-    135deg,
-    var(--accent-green) 0%,
-    var(--accent-yellow) 100%
-  );
 }
 
 .stat-chip-list {
@@ -284,14 +330,6 @@
   color: var(--text-primary);
   font-size: 0.88rem;
   font-weight: 700;
-}
-
-.stat-chip__label {
-  color: var(--text-muted);
-}
-
-.stat-chip__value {
-  color: var(--accent-cream);
 }
 
 .sticker-note-grid,
@@ -332,26 +370,6 @@
     transform var(--transition-fast),
     box-shadow var(--transition-fast),
     border-color var(--transition-fast);
-}
-
-.feature-card:hover,
-.feature-card:focus-within {
-  transform: translate(-2px, -4px) rotate(-1deg);
-  border-color: rgba(255, 107, 157, 0.58);
-  box-shadow:
-    10px 10px 0 rgba(24, 13, 31, 0.86),
-    var(--shadow-glow-pink);
-}
-
-.feature-card__sticker {
-  width: fit-content;
-  padding: 0.28rem 0.7rem;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 228, 237, 0.12);
-  color: var(--accent-cream);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
 }
 
 .notification-card {
@@ -491,24 +509,6 @@
   background: linear-gradient(135deg, var(--accent-yellow) 0%, #ff9a62 100%);
 }
 
-.primary-cta:hover,
-.primary-cta:focus-visible,
-.secondary-cta:hover,
-.secondary-cta:focus-visible {
-  transform: translate(-2px, -3px) rotate(-1deg);
-  box-shadow:
-    8px 8px 0 rgba(24, 13, 31, 0.88),
-    var(--shadow-glow-pink);
-  filter: saturate(1.08);
-}
-
-.primary-cta:disabled,
-.secondary-cta:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-  box-shadow: 3px 3px 0 rgba(24, 13, 31, 0.45);
-}
-
 .chat-message-list,
 .chat-input-box,
 .failed-draft-actions {
@@ -576,13 +576,6 @@
   transform: rotate(-0.8deg);
 }
 
-.chat-message-card--provisional {
-  box-shadow:
-    5px 5px 0 rgba(24, 13, 31, 0.78),
-    inset 0 0 0 1px rgba(255, 245, 251, 0.03),
-    0 0 0 2px rgba(255, 217, 61, 0.18);
-}
-
 .chat-message-card__meta {
   display: flex;
   flex-wrap: wrap;
@@ -621,19 +614,10 @@
   font: inherit;
   line-height: 1.6;
   resize: vertical;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 245, 251, 0.04),
-    inset 0 0 18px rgba(255, 45, 120, 0.08);
 }
 
 .chat-input-box__textarea::placeholder {
   color: var(--text-muted);
-}
-
-.chat-input-box__textarea:focus-visible {
-  outline: 3px solid var(--accent-yellow);
-  outline-offset: 3px;
-  border-color: rgba(255, 217, 61, 0.58);
 }
 
 .chat-input-box__actions,
@@ -660,13 +644,22 @@
   .story-grid__hero,
   .story-grid__features,
   #system-notification-center,
+  .start-screen-view,
+  .splash-screen-view,
+  .new-game-setup-view,
+  .settings-view,
+  .save-export-view,
+  .game-top-bar,
+  .game-status-banner,
   .chat-message-list,
   .chat-input-box,
   .failed-draft-actions {
     padding: var(--space-5);
   }
 
-  .hero-header__actions,
+  .splash-screen-view__menu,
+  .new-game-setup-view__actions,
+  .game-top-bar__actions,
   .chat-input-box__actions,
   .failed-draft-actions__buttons {
     flex-direction: column;
