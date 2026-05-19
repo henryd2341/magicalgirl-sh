@@ -20,7 +20,7 @@ const notifications: NotificationItem[] = [
     tone: "success",
     badge: "VISUAL CORE",
     title: "高规格视觉骨架已加载",
-    body: "已启用霓虹玻璃、果冻触感按钮、动态光晕、精细排版与内部通知系统，作为后续剧情与战斗界面的视觉母板。",
+    body: "已启用贴纸式导航、粉黑对撞、玩具感描边、糖果高光与内部通知系统，作为后续剧情与战斗界面的视觉母板。",
   },
   {
     id: "notice-local-feedback",
@@ -35,12 +35,12 @@ const notifications: NotificationItem[] = [
 <template>
   <section
     id="system-notification-center"
-    class="notification-center glass-panel"
+    class="notification-center scrapbook-panel"
     aria-label="系统通知中心"
     role="region"
   >
-    <header class="section-heading">
-      <p class="eyebrow">Signal Relay</p>
+    <header class="section-heading section-heading--playful">
+      <p class="eyebrow eyebrow--pink">Signal Relay</p>
       <h2 id="heading-notification-center">系统通知中心</h2>
     </header>
 

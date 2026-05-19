@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/vue";
 import { describe, expect, it } from "vitest";
 
 describe("AppShell", () => {
-  it("renders the premium landing shell with semantic sections and internal notification center", () => {
+  it("renders the scrapbook-style egirl kidcore shell with themed navigation and signal boards", () => {
     render(AppShell);
 
     const appShell = screen.getByRole("application", {
@@ -14,6 +14,10 @@ describe("AppShell", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: /magicalgirl shell/i }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: /主导航/i })).toHaveAttribute(
+      "id",
+      "nav-story-index",
+    );
 
     const main = screen.getByRole("main");
     expect(main).toHaveAttribute("id", "main-story-hub");
@@ -29,6 +33,9 @@ describe("AppShell", () => {
       "system-notification-center",
     );
 
+    expect(screen.getByText(/Cute \/\/ Edge \/\/ Play/i)).toBeInTheDocument();
+    expect(screen.getByText(/Scrapbook Runtime/)).toBeInTheDocument();
+    expect(screen.getByText(/视觉贴纸板/)).toBeInTheDocument();
     expect(screen.getByText(/原型验证阶段/)).toBeInTheDocument();
     expect(screen.getByText(/高规格视觉骨架已加载/)).toBeInTheDocument();
     expect(screen.getByText(/单请求状态机/)).toBeInTheDocument();
