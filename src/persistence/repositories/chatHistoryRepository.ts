@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 
+import type { DbWorkerClient } from "@/persistence/dbClient";
 import type { ChatMessage } from "@/types/chat";
 
 export interface ChatHistoryRepository {
@@ -26,5 +27,25 @@ export class InMemoryChatHistoryRepository implements ChatHistoryRepository {
 
   public clear(): void {
     this.records.clear();
+  }
+}
+
+export class DbChatHistoryRepository implements ChatHistoryRepository {
+  private readonly client: DbWorkerClient;
+
+  public constructor(client: DbWorkerClient) {
+    this.client = client;
+  }
+
+  public async save(message: ChatMessage): Promise<void> {
+    await this.client.saveChatMessage(message);
+  }
+
+  public async getById(id: string): Promise<ChatMessage | null> {
+    return this.client.getChatMessageById(id);
+  }
+
+  public async list(): Promise<ChatMessage[]> {
+    return this.client.listChatMessages();
   }
 }
