@@ -1,6 +1,10 @@
 /* eslint-disable no-unused-vars */
 
 import type { ChatMessage } from "@/types/chat";
+import type {
+  VariableChangeLogRecord,
+  VariableValueRecord,
+} from "@/types/variables";
 
 export interface TestRecordRow {
   id: string;
@@ -26,6 +30,8 @@ export interface DbWorkerStateSnapshot {
   initialized: boolean;
   testRecords: Map<string, TestRecordRow>;
   chatHistory: Map<string, ChatMessage>;
+  variableValue: VariableValueRecord | null;
+  variableChangeLog: Map<string, VariableChangeLogRecord>;
 }
 
 export type DbWorkerRequest =
@@ -51,6 +57,20 @@ export type DbWorkerRequest =
     }
   | {
       type: "list_chat_messages";
+    }
+  | {
+      type: "save_current_variable_value";
+      payload: VariableValueRecord;
+    }
+  | {
+      type: "get_current_variable_value";
+    }
+  | {
+      type: "append_variable_change_log";
+      payload: VariableChangeLogRecord;
+    }
+  | {
+      type: "list_variable_change_logs";
     };
 
 export type DbWorkerSuccessResponse =
@@ -81,6 +101,26 @@ export type DbWorkerSuccessResponse =
   | {
       type: "list_chat_messages_result";
       payload: ChatMessage[];
+    }
+  | {
+      type: "save_current_variable_value_result";
+      payload: {
+        savedRootId: string;
+      };
+    }
+  | {
+      type: "get_current_variable_value_result";
+      payload: VariableValueRecord | null;
+    }
+  | {
+      type: "append_variable_change_log_result";
+      payload: {
+        savedChangeId: string;
+      };
+    }
+  | {
+      type: "list_variable_change_logs_result";
+      payload: VariableChangeLogRecord[];
     };
 
 export type DbWorkerErrorResponse = {

@@ -6,6 +6,10 @@ import type {
   TestRecordRow,
 } from "@/persistence/dbProtocol";
 import type { ChatMessage } from "@/types/chat";
+import type {
+  VariableChangeLogRecord,
+  VariableValueRecord,
+} from "@/types/variables";
 
 export class DbWorkerClient {
   private readonly endpoint: DbWorkerEndpoint;
@@ -81,6 +85,64 @@ export class DbWorkerClient {
     if (response.type !== "list_chat_messages_result") {
       throw new Error(
         `Unexpected response type for listChatMessages: ${response.type}`,
+      );
+    }
+
+    return response.payload;
+  }
+
+  public async saveCurrentVariableValue(
+    record: VariableValueRecord,
+  ): Promise<void> {
+    const response = await this.dispatch({
+      type: "save_current_variable_value",
+      payload: record,
+    });
+
+    if (response.type !== "save_current_variable_value_result") {
+      throw new Error(
+        `Unexpected response type for saveCurrentVariableValue: ${response.type}`,
+      );
+    }
+  }
+
+  public async getCurrentVariableValue(): Promise<VariableValueRecord | null> {
+    const response = await this.dispatch({
+      type: "get_current_variable_value",
+    });
+
+    if (response.type !== "get_current_variable_value_result") {
+      throw new Error(
+        `Unexpected response type for getCurrentVariableValue: ${response.type}`,
+      );
+    }
+
+    return response.payload;
+  }
+
+  public async appendVariableChangeLog(
+    record: VariableChangeLogRecord,
+  ): Promise<void> {
+    const response = await this.dispatch({
+      type: "append_variable_change_log",
+      payload: record,
+    });
+
+    if (response.type !== "append_variable_change_log_result") {
+      throw new Error(
+        `Unexpected response type for appendVariableChangeLog: ${response.type}`,
+      );
+    }
+  }
+
+  public async listVariableChangeLogs(): Promise<VariableChangeLogRecord[]> {
+    const response = await this.dispatch({
+      type: "list_variable_change_logs",
+    });
+
+    if (response.type !== "list_variable_change_logs_result") {
+      throw new Error(
+        `Unexpected response type for listVariableChangeLogs: ${response.type}`,
       );
     }
 

@@ -33,5 +33,13 @@ export const migration001Init: DbMigration = {
     if (!state.chatHistory) {
       state.chatHistory = new Map();
     }
+
+    if (!state.variableValue) {
+      state.variableValue = null;
+    }
+
+    if (!state.variableChangeLog) {
+      state.variableChangeLog = new Map();
+    }
   },
 };

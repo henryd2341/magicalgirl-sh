@@ -20,6 +20,8 @@ function createInitialState(): DbWorkerStateSnapshot {
     initialized: false,
     testRecords: new Map(),
     chatHistory: new Map(),
+    variableValue: null,
+    variableChangeLog: new Map(),
   };
 }
 
@@ -41,6 +43,10 @@ function ensureInitialized(
     code: "DB_WORKER_NOT_READY",
     message: "Database worker must be initialized before writes.",
   });
+}
+
+function cloneValue<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 export function createDbWorkerRuntime(): DbWorkerRuntime {
@@ -132,6 +138,67 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
             payload: [...state.chatHistory.values()].map((message) => ({
               ...message,
             })),
+          };
+        }
+
+        case "save_current_variable_value": {
+          const maybeError = ensureInitialized(state);
+          if (maybeError) {
+            return maybeError;
+          }
+
+          state.variableValue = cloneValue(request.payload);
+          return {
+            type: "save_current_variable_value_result",
+            payload: {
+              savedRootId: request.payload.rootId,
+            },
+          };
+        }
+
+        case "get_current_variable_value": {
+          const maybeError = ensureInitialized(state);
+          if (maybeError) {
+            return maybeError;
+          }
+
+          return {
+            type: "get_current_variable_value_result",
+            payload: state.variableValue
+              ? cloneValue(state.variableValue)
+              : null,
+          };
+        }
+
+        case "append_variable_change_log": {
+          const maybeError = ensureInitialized(state);
+          if (maybeError) {
+            return maybeError;
+          }
+
+          state.variableChangeLog.set(
+            request.payload.id,
+            cloneValue(request.payload),
+          );
+          return {
+            type: "append_variable_change_log_result",
+            payload: {
+              savedChangeId: request.payload.id,
+            },
+          };
+        }
+
+        case "list_variable_change_logs": {
+          const maybeError = ensureInitialized(state);
+          if (maybeError) {
+            return maybeError;
+          }
+
+          return {
+            type: "list_variable_change_logs_result",
+            payload: [...state.variableChangeLog.values()].map((record) =>
+              cloneValue(record),
+            ),
           };
         }
       }

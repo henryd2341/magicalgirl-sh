@@ -1,17 +1,54 @@
 import { CommandBus } from "@/engine/commandBus";
 import type { SessionManager, SessionSnapshot } from "@/engine/sessionManager";
+import { VariablePatchService } from "@/engine/variablePatchService";
+import {
+  InMemoryVariableChangeLogRepository,
+  InMemoryVariableRepository,
+  type VariableChangeLogRepository,
+  type VariableRepository,
+} from "@/persistence/repositories/variableRepository";
 import type { DomainCommand } from "@/types/commands";
 import type { PipelineState } from "@/types/pipeline";
+import type {
+  VariablePatchEnvelope,
+  VariablePatchResult,
+} from "@/types/variables";
+
+export interface GameEngineFacadeDependencies {
+  variableRepository?: VariableRepository;
+  variableChangeLogRepository?: VariableChangeLogRepository;
+  variablePatchService?: VariablePatchService;
+}
+
+export interface VariablePatchCommitResult extends VariablePatchResult {
+  committed: true;
+}
 
 export class GameEngineFacade {
   private readonly commandBus: CommandBus;
+
   private readonly sessionManager: SessionManager;
 
-  public constructor(sessionManager: SessionManager) {
+  private readonly variablePatchService: VariablePatchService;
+
+  public constructor(
+    sessionManager: SessionManager,
+    dependencies: GameEngineFacadeDependencies = {},
+  ) {
     this.sessionManager = sessionManager;
     this.commandBus = new CommandBus((command) => {
       this.handle(command);
     });
+
+    const variableRepository =
+      dependencies.variableRepository ?? new InMemoryVariableRepository();
+    const variableChangeLogRepository =
+      dependencies.variableChangeLogRepository ??
+      new InMemoryVariableChangeLogRepository();
+
+    this.variablePatchService =
+      dependencies.variablePatchService ??
+      new VariablePatchService(variableRepository, variableChangeLogRepository);
   }
 
   public beginAiRequest(requestId: string): void {
@@ -49,6 +86,12 @@ export class GameEngineFacade {
 
   public getSessionSnapshot(): SessionSnapshot {
     return this.sessionManager.getSnapshot();
+  }
+
+  public applyVariablePatchEnvelope(
+    envelope: VariablePatchEnvelope,
+  ): Promise<VariablePatchCommitResult> {
+    return this.variablePatchService.applyPatchEnvelope(envelope);
   }
 
   private handle(command: DomainCommand): void {
