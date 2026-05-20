@@ -18,6 +18,16 @@ import type {
   VariablePatchResult,
 } from "@/types/variables";
 
+interface ApplyVariablePatchCommand {
+  type: "APPLY_VARIABLE_PATCH";
+  envelope: VariablePatchEnvelope;
+}
+
+interface TriggerBattleCommand {
+  type: "TRIGGER_BATTLE";
+  payload: TriggerBattleCommandPayload;
+}
+
 export interface GameEngineFacadeDependencies {
   variableRepository?: VariableRepository;
   variableChangeLogRepository?: VariableChangeLogRepository;
@@ -98,25 +108,19 @@ export class GameEngineFacade {
     return this.variablePatchService.applyPatchEnvelope(envelope);
   }
 
-  public dispatchCommand(command: {
-    type: "APPLY_VARIABLE_PATCH";
-    envelope: VariablePatchEnvelope;
-  }): Promise<VariablePatchCommitResult>;
-  public dispatchCommand(command: {
-    type: "TRIGGER_BATTLE";
-    payload: TriggerBattleCommandPayload;
-  }): Promise<TriggerBattleCommandResult>;
   public dispatchCommand(
-    command:
-      | {
-          type: "APPLY_VARIABLE_PATCH";
-          envelope: VariablePatchEnvelope;
-        }
-      | {
-          type: "TRIGGER_BATTLE";
-          payload: TriggerBattleCommandPayload;
-        },
+    command: ApplyVariablePatchCommand,
+  ): Promise<VariablePatchCommitResult>;
+  public dispatchCommand(
+    command: TriggerBattleCommand,
+  ): Promise<TriggerBattleCommandResult>;
+  public dispatchCommand(
+    command: ApplyVariablePatchCommand | TriggerBattleCommand,
   ): Promise<VariablePatchCommitResult | TriggerBattleCommandResult> {
+    if (command.type === "APPLY_VARIABLE_PATCH") {
+      return this.handleAsync(command);
+    }
+
     return this.handleAsync(command);
   }
 
@@ -156,35 +160,24 @@ export class GameEngineFacade {
     }
   }
 
-  private handleAsync(command: {
-    type: "APPLY_VARIABLE_PATCH";
-    envelope: VariablePatchEnvelope;
-  }): Promise<VariablePatchCommitResult>;
-  private handleAsync(command: {
-    type: "TRIGGER_BATTLE";
-    payload: TriggerBattleCommandPayload;
-  }): Promise<TriggerBattleCommandResult>;
   private handleAsync(
-    command:
-      | {
-          type: "APPLY_VARIABLE_PATCH";
-          envelope: VariablePatchEnvelope;
-        }
-      | {
-          type: "TRIGGER_BATTLE";
-          payload: TriggerBattleCommandPayload;
-        },
+    command: ApplyVariablePatchCommand,
+  ): Promise<VariablePatchCommitResult>;
+  private handleAsync(
+    command: TriggerBattleCommand,
+  ): Promise<TriggerBattleCommandResult>;
+  private handleAsync(
+    command: ApplyVariablePatchCommand | TriggerBattleCommand,
   ): Promise<VariablePatchCommitResult | TriggerBattleCommandResult> {
-    switch (command.type) {
-      case "APPLY_VARIABLE_PATCH":
-        return this.variablePatchService.applyPatchEnvelope(command.envelope);
-      case "TRIGGER_BATTLE":
-        this.sessionManager.enterCombatPending();
-        return Promise.resolve({
-          accepted: true,
-          battleState: "pending",
-          encounterId: command.payload.input.encounter_id,
-        });
+    if (command.type === "APPLY_VARIABLE_PATCH") {
+      return this.variablePatchService.applyPatchEnvelope(command.envelope);
     }
+
+    this.sessionManager.enterCombatPending();
+    return Promise.resolve({
+      accepted: true,
+      battleState: "pending",
+      encounterId: command.payload.input.encounter_id,
+    });
   }
 }

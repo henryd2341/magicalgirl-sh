@@ -41,10 +41,10 @@ export class ToolExecutor {
   }
 
   public async execute(
-    _envelope: UpdateVariablesToolEnvelope,
+    envelope: UpdateVariablesToolEnvelope,
   ): Promise<UpdateVariablesToolResult>;
   public async execute(
-    _envelope: TriggerBattleToolEnvelope,
+    envelope: TriggerBattleToolEnvelope,
   ): Promise<TriggerBattleToolResult>;
   public async execute(
     envelope: ToolEnvelope,
@@ -84,6 +84,10 @@ export class ToolExecutor {
             output: result,
           };
         }
+        default:
+          throw new Error(
+            `[TOOL_UNSUPPORTED] Unsupported tool: ${String(envelope.tool_name)}`,
+          );
       }
     } catch (error) {
       return {

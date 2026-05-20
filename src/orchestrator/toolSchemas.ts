@@ -132,10 +132,10 @@ export function validateTriggerBattleToolInput(
 }
 
 export function validateToolEnvelope(
-  _envelope: UpdateVariablesToolEnvelope,
+  envelope: UpdateVariablesToolEnvelope,
 ): UpdateVariablesToolEnvelope;
 export function validateToolEnvelope(
-  _envelope: TriggerBattleToolEnvelope,
+  envelope: TriggerBattleToolEnvelope,
 ): TriggerBattleToolEnvelope;
 export function validateToolEnvelope(envelope: ToolEnvelope): ToolEnvelope {
   if (!envelope.request_id || !envelope.tool_call_id) {
@@ -175,5 +175,9 @@ export function validateToolEnvelope(envelope: ToolEnvelope): ToolEnvelope {
       };
       return validatedEnvelope;
     }
+    default:
+      throw new Error(
+        `[TOOL_UNSUPPORTED] Unsupported tool: ${String(envelope.tool_name)}`,
+      );
   }
 }
