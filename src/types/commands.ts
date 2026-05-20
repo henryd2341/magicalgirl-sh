@@ -1,4 +1,6 @@
+import type { TriggerBattleCommandPayload } from "@/orchestrator/toolEnvelope";
 import type { PipelineState } from "@/types/pipeline";
+import type { VariablePatchEnvelope } from "@/types/variables";
 
 export type DomainCommand =
   | {
@@ -27,4 +29,12 @@ export type DomainCommand =
     }
   | {
       type: "RESET_TO_IDLE";
+    }
+  | {
+      type: "APPLY_VARIABLE_PATCH";
+      envelope: VariablePatchEnvelope;
+    }
+  | {
+      type: "TRIGGER_BATTLE";
+      payload: TriggerBattleCommandPayload;
     };

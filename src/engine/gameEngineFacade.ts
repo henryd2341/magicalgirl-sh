@@ -1,6 +1,10 @@
 import { CommandBus } from "@/engine/commandBus";
 import type { SessionManager, SessionSnapshot } from "@/engine/sessionManager";
 import { VariablePatchService } from "@/engine/variablePatchService";
+import type {
+  TriggerBattleCommandPayload,
+  TriggerBattleCommandResult,
+} from "@/orchestrator/toolEnvelope";
 import {
   InMemoryVariableChangeLogRepository,
   InMemoryVariableRepository,
@@ -94,6 +98,28 @@ export class GameEngineFacade {
     return this.variablePatchService.applyPatchEnvelope(envelope);
   }
 
+  public dispatchCommand(command: {
+    type: "APPLY_VARIABLE_PATCH";
+    envelope: VariablePatchEnvelope;
+  }): Promise<VariablePatchCommitResult>;
+  public dispatchCommand(command: {
+    type: "TRIGGER_BATTLE";
+    payload: TriggerBattleCommandPayload;
+  }): Promise<TriggerBattleCommandResult>;
+  public dispatchCommand(
+    command:
+      | {
+          type: "APPLY_VARIABLE_PATCH";
+          envelope: VariablePatchEnvelope;
+        }
+      | {
+          type: "TRIGGER_BATTLE";
+          payload: TriggerBattleCommandPayload;
+        },
+  ): Promise<VariablePatchCommitResult | TriggerBattleCommandResult> {
+    return this.handleAsync(command);
+  }
+
   private handle(command: DomainCommand): void {
     switch (command.type) {
       case "BEGIN_AI_REQUEST":
@@ -123,6 +149,42 @@ export class GameEngineFacade {
       case "RESET_TO_IDLE":
         this.sessionManager.resetToIdle();
         break;
+      case "APPLY_VARIABLE_PATCH":
+        break;
+      case "TRIGGER_BATTLE":
+        break;
+    }
+  }
+
+  private handleAsync(command: {
+    type: "APPLY_VARIABLE_PATCH";
+    envelope: VariablePatchEnvelope;
+  }): Promise<VariablePatchCommitResult>;
+  private handleAsync(command: {
+    type: "TRIGGER_BATTLE";
+    payload: TriggerBattleCommandPayload;
+  }): Promise<TriggerBattleCommandResult>;
+  private handleAsync(
+    command:
+      | {
+          type: "APPLY_VARIABLE_PATCH";
+          envelope: VariablePatchEnvelope;
+        }
+      | {
+          type: "TRIGGER_BATTLE";
+          payload: TriggerBattleCommandPayload;
+        },
+  ): Promise<VariablePatchCommitResult | TriggerBattleCommandResult> {
+    switch (command.type) {
+      case "APPLY_VARIABLE_PATCH":
+        return this.variablePatchService.applyPatchEnvelope(command.envelope);
+      case "TRIGGER_BATTLE":
+        this.sessionManager.enterCombatPending();
+        return Promise.resolve({
+          accepted: true,
+          battleState: "pending",
+          encounterId: command.payload.input.encounter_id,
+        });
     }
   }
 }

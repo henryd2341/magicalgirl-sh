@@ -197,4 +197,61 @@ describe("GameEngineFacade", () => {
       activeRequestId: null,
     });
   });
+
+  it("enters COMBAT_PENDING through the facade trigger_battle command from IDLE", async () => {
+    const facade = new GameEngineFacade(createSessionManager());
+
+    const result = await facade.dispatchCommand({
+      type: "TRIGGER_BATTLE",
+      payload: {
+        request_id: "req-facade-trigger-001",
+        context_version: 1,
+        state_hash: "initial",
+        tool_call_id: "tool-facade-trigger-001",
+        input: {
+          encounter_id: "enc-facade-trigger-001",
+          enemies: [{ enemy_id: "shadow-graffiti", count: 1 }],
+          narrative_reason: "空闲态进入战斗挂起。",
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      accepted: true,
+      battleState: "pending",
+      encounterId: "enc-facade-trigger-001",
+    });
+    expect(facade.getSessionSnapshot()).toMatchObject({
+      sessionState: "COMBAT_PENDING",
+      pipelineState: null,
+      activeRequestId: null,
+    });
+  });
+
+  it("enters COMBAT_PENDING through the facade trigger_battle command from GENERATING", async () => {
+    const facade = new GameEngineFacade(createSessionManager());
+
+    facade.beginAiRequest("req-facade-trigger-002");
+
+    await facade.dispatchCommand({
+      type: "TRIGGER_BATTLE",
+      payload: {
+        request_id: "req-facade-trigger-002",
+        context_version: 1,
+        state_hash: "initial",
+        tool_call_id: "tool-facade-trigger-002",
+        input: {
+          encounter_id: "enc-facade-trigger-002",
+          enemies: [{ enemy_id: "shadow-graffiti", count: 1 }],
+          narrative_reason: "生成态进入战斗挂起。",
+        },
+      },
+    });
+
+    expect(facade.getSessionSnapshot()).toMatchObject({
+      sessionState: "COMBAT_PENDING",
+      pipelineState: null,
+      activeRequestId: null,
+    });
+  });
 });
