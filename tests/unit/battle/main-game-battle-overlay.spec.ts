@@ -1,3 +1,4 @@
+import type { TriggerBattleToolEnvelope } from "@/orchestrator/toolEnvelope";
 import MainGameView from "@/pages/MainGameView.vue";
 import { router } from "@/router";
 import { useBattleStore } from "@/stores/battleStore";
@@ -50,5 +51,37 @@ describe("MainGameView battle overlay entrypoint", () => {
     expect(
       screen.getByText("教学楼楼梯间的影子突然鼓胀起来。"),
     ).toBeInTheDocument();
+  });
+
+  it("stages the battle overlay automatically after executeTriggerBattle succeeds", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
+
+    const result = await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-trigger-overlay-001",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-trigger-overlay-001",
+      input: {
+        encounter_id: "enc-overlay-auto-001",
+        enemies: [{ enemy_id: "shadow-graffiti", count: 1 }],
+        narrative_reason: "镜面里的涂鸦影魔忽然探出了半个身子。",
+      },
+    } satisfies TriggerBattleToolEnvelope);
+
+    expect(result.ok).toBe(true);
+    expect(sessionStore.snapshot.sessionState).toBe("COMBAT_PENDING");
+    expect(battleStore.pendingEncounterId).toBe("enc-overlay-auto-001");
+    expect(battleStore.lastNarrativeReason).toBe(
+      "镜面里的涂鸦影魔忽然探出了半个身子。",
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: "战斗进行中遮罩" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("enc-overlay-auto-001")).toBeInTheDocument();
   });
 });
