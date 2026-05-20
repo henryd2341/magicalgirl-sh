@@ -42,6 +42,10 @@ export interface BaseToolEnvelope {
   tool_call_id: string;
 }
 
+export interface ToolEnvelopeCandidate extends BaseToolEnvelope {
+  input?: unknown;
+}
+
 export interface UpdateVariablesToolEnvelope extends BaseToolEnvelope {
   tool_name: "update_variables";
   input: UpdateVariablesToolInput;

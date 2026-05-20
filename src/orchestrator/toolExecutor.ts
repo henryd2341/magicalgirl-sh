@@ -1,7 +1,8 @@
 import type { GameEngineFacade } from "@/engine/gameEngineFacade";
 import {
-  type ToolEnvelope,
+  type ToolEnvelopeCandidate,
   type ToolExecutionError,
+  type ToolExecutionFailureResult,
   type TriggerBattleToolEnvelope,
   type TriggerBattleToolResult,
   type UpdateVariablesToolEnvelope,
@@ -10,6 +11,18 @@ import {
   toVariablePatchEnvelope,
 } from "@/orchestrator/toolEnvelope";
 import { validateToolEnvelope } from "@/orchestrator/toolSchemas";
+
+type UnknownToolResult =
+  | UpdateVariablesToolResult
+  | TriggerBattleToolResult
+  | ToolExecutionFailureResult<string>;
+
+type ToolExecutorResult<TEnvelope extends ToolEnvelopeCandidate> =
+  TEnvelope extends UpdateVariablesToolEnvelope
+    ? UpdateVariablesToolResult
+    : TEnvelope extends TriggerBattleToolEnvelope
+      ? TriggerBattleToolResult
+      : UnknownToolResult;
 
 function parseToolExecutionError(error: unknown): ToolExecutionError {
   if (error instanceof Error) {
@@ -40,25 +53,20 @@ export class ToolExecutor {
     this.gameEngineFacade = gameEngineFacade;
   }
 
-  public async execute(
-    envelope: UpdateVariablesToolEnvelope,
-  ): Promise<UpdateVariablesToolResult>;
-  public async execute(
-    envelope: TriggerBattleToolEnvelope,
-  ): Promise<TriggerBattleToolResult>;
-  public async execute(
-    envelope: ToolEnvelope,
-  ): Promise<UpdateVariablesToolResult | TriggerBattleToolResult> {
+  public async execute<TEnvelope extends ToolEnvelopeCandidate>(
+    envelope: TEnvelope,
+  ): Promise<ToolExecutorResult<TEnvelope>> {
     try {
-      switch (envelope.tool_name) {
+      const validatedEnvelope = validateToolEnvelope(envelope);
+
+      switch (validatedEnvelope.tool_name) {
         case "update_variables": {
-          const validatedEnvelope = validateToolEnvelope(envelope);
           const result = await this.gameEngineFacade.dispatchCommand({
             type: "APPLY_VARIABLE_PATCH",
             envelope: toVariablePatchEnvelope(validatedEnvelope),
           });
 
-          return {
+          const executionResult: UpdateVariablesToolResult = {
             ok: true,
             tool_name: "update_variables",
             tool_call_id: validatedEnvelope.tool_call_id,
@@ -68,26 +76,25 @@ export class ToolExecutor {
               nextHash: result.nextHash,
             },
           };
+
+          return executionResult as ToolExecutorResult<TEnvelope>;
         }
         case "trigger_battle": {
-          const validatedEnvelope = validateToolEnvelope(envelope);
           const result = await this.gameEngineFacade.dispatchCommand({
             type: "TRIGGER_BATTLE",
             payload: toTriggerBattleCommandPayload(validatedEnvelope),
           });
 
-          return {
+          const executionResult: TriggerBattleToolResult = {
             ok: true,
             tool_name: "trigger_battle",
             tool_call_id: validatedEnvelope.tool_call_id,
             commitAck: true,
             output: result,
           };
+
+          return executionResult as ToolExecutorResult<TEnvelope>;
         }
-        default:
-          throw new Error(
-            `[TOOL_UNSUPPORTED] Unsupported tool: ${String(envelope.tool_name)}`,
-          );
       }
     } catch (error) {
       return {
@@ -96,7 +103,7 @@ export class ToolExecutor {
         tool_call_id: envelope.tool_call_id,
         commitAck: false,
         error: parseToolExecutionError(error),
-      };
+      } as ToolExecutorResult<TEnvelope>;
     }
   }
 }

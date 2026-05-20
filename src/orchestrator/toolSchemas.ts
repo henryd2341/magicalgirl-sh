@@ -1,4 +1,5 @@
 import type {
+  ToolEnvelopeCandidate,
   ToolEnvelope,
   TriggerBattleEnemyInput,
   TriggerBattleToolEnvelope,
@@ -132,12 +133,8 @@ export function validateTriggerBattleToolInput(
 }
 
 export function validateToolEnvelope(
-  envelope: UpdateVariablesToolEnvelope,
-): UpdateVariablesToolEnvelope;
-export function validateToolEnvelope(
-  envelope: TriggerBattleToolEnvelope,
-): TriggerBattleToolEnvelope;
-export function validateToolEnvelope(envelope: ToolEnvelope): ToolEnvelope {
+  envelope: ToolEnvelopeCandidate,
+): ToolEnvelope {
   if (!envelope.request_id || !envelope.tool_call_id) {
     throw new Error(
       "[TOOL_ENVELOPE_INVALID] request_id and tool_call_id are required.",
@@ -164,6 +161,7 @@ export function validateToolEnvelope(envelope: ToolEnvelope): ToolEnvelope {
     case "update_variables": {
       const validatedEnvelope: UpdateVariablesToolEnvelope = {
         ...envelope,
+        tool_name: "update_variables",
         input: validateUpdateVariablesToolInput(envelope.input),
       };
       return validatedEnvelope;
@@ -171,6 +169,7 @@ export function validateToolEnvelope(envelope: ToolEnvelope): ToolEnvelope {
     case "trigger_battle": {
       const validatedEnvelope: TriggerBattleToolEnvelope = {
         ...envelope,
+        tool_name: "trigger_battle",
         input: validateTriggerBattleToolInput(envelope.input),
       };
       return validatedEnvelope;
