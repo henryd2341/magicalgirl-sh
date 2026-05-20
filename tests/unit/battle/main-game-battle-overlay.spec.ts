@@ -3,7 +3,7 @@ import MainGameView from "@/pages/MainGameView.vue";
 import { router } from "@/router";
 import { useBattleStore } from "@/stores/battleStore";
 import { useSessionStore } from "@/stores/sessionStore";
-import { render, screen } from "@testing-library/vue";
+import { fireEvent, render, screen, within } from "@testing-library/vue";
 import { createPinia, setActivePinia } from "pinia";
 import { describe, expect, it } from "vitest";
 
@@ -61,7 +61,6 @@ describe("MainGameView battle overlay entrypoint", () => {
     await renderMainGameWithStores();
 
     const sessionStore = useSessionStore();
-    const battleStore = useBattleStore();
 
     const result = await sessionStore.executeTriggerBattle({
       tool_name: "trigger_battle",
@@ -78,25 +77,6 @@ describe("MainGameView battle overlay entrypoint", () => {
 
     expect(result.ok).toBe(true);
     expect(sessionStore.snapshot.sessionState).toBe("COMBAT_PENDING");
-    expect(battleStore.pendingBattle).toEqual({
-      lifecycleState: "PENDING",
-      encounterId: "enc-overlay-auto-001",
-      narrativeReason: "镜面里的涂鸦影魔忽然探出了半个身子。",
-      enemies: [
-        {
-          instanceId: "enemy-1",
-          enemyId: "shadow-graffiti",
-          displayName: "shadow-graffiti",
-          side: "enemy",
-        },
-        {
-          instanceId: "enemy-2",
-          enemyId: "shadow-graffiti",
-          displayName: "shadow-graffiti",
-          side: "enemy",
-        },
-      ],
-    });
 
     expect(
       await screen.findByRole("dialog", { name: "战斗进行中遮罩" }),
@@ -107,10 +87,11 @@ describe("MainGameView battle overlay entrypoint", () => {
     expect(screen.getByText("×2")).toBeInTheDocument();
   });
 
-  it("renders the active battle overlay when the session enters IN_COMBAT and activeBattle exists", async () => {
+  it("renders the active battle overlay from formalized active battle view data", async () => {
     await renderMainGameWithStores();
 
     const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
 
     const result = await sessionStore.executeTriggerBattle({
       tool_name: "trigger_battle",
@@ -145,12 +126,203 @@ describe("MainGameView battle overlay entrypoint", () => {
     ]);
 
     expect(sessionStore.snapshot.sessionState).toBe("IN_COMBAT");
+    expect(battleStore.activeBattle?.turnCount).toBe(1);
+    expect(battleStore.activeBattle?.selectedEnemyId).toBe("enemy-1");
+    expect(battleStore.activeBattle?.currentActorId).toBe("player-heroine-1");
+    expect(battleStore.activeBattle?.selectedActionId).toBe("attack");
+    expect(battleStore.activeBattle?.actionMenu).toEqual([
+      {
+        id: "attack",
+        label: "Attack",
+        description: "使用基础攻击对单体敌人造成伤害。",
+      },
+      {
+        id: "skill",
+        label: "Skill",
+        description: "施放角色技能并消耗对应资源。",
+      },
+      {
+        id: "guard",
+        label: "Guard",
+        description: "进入防御姿态，减少即将受到的伤害。",
+      },
+      {
+        id: "item",
+        label: "Item",
+        description: "使用背包中的道具支援当前战斗。",
+      },
+    ]);
+
     expect(
       await screen.findByRole("dialog", { name: "战斗进行中遮罩" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Battle Active")).toBeInTheDocument();
     expect(screen.getByText("PLAYER_COMMAND")).toBeInTheDocument();
     expect(screen.getByText("鹿目真昼")).toBeInTheDocument();
-    expect(screen.getByText("corridor-shadow")).toBeInTheDocument();
+    expect(screen.getAllByText("corridor-shadow").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("敌人区域")).toBeInTheDocument();
+    expect(screen.getByLabelText("玩家队伍区域")).toBeInTheDocument();
+    expect(screen.getByLabelText("行动指令区域")).toBeInTheDocument();
+    expect(screen.getByLabelText("回合与 Press Turn 区域")).toBeInTheDocument();
+    expect(screen.getByText("Enemy Sprite Placeholder")).toBeInTheDocument();
+    expect(screen.getByText("Selected Enemy")).toBeInTheDocument();
+    expect(screen.getByText("LV 1")).toBeInTheDocument();
+    expect(screen.getByText("Portrait Placeholder")).toBeInTheDocument();
+    expect(screen.getByText("当前行动者")).toBeInTheDocument();
+    expect(screen.getByText("正常")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Attack" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Skill" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(
+      screen.getByText("使用基础攻击对单体敌人造成伤害。"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Turn Counts")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByText("Press Turn Icons")).toBeInTheDocument();
+  });
+
+  it("switches selected action in the overlay and updates the action description through battleStore", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
+
+    const result = await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-trigger-overlay-003",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-trigger-overlay-003",
+      input: {
+        encounter_id: "enc-overlay-active-002",
+        enemies: [{ enemy_id: "clock-shadow", count: 1 }],
+        narrative_reason: "钟楼投下的影子开始逆时针旋转。",
+      },
+    } satisfies TriggerBattleToolEnvelope);
+
+    expect(result.ok).toBe(true);
+
+    sessionStore.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+      },
+    ]);
+
+    const attackButton = await screen.findByRole("button", { name: "Attack" });
+    const skillButton = screen.getByRole("button", { name: "Skill" });
+
+    expect(attackButton).toHaveAttribute("aria-pressed", "true");
+    expect(skillButton).toHaveAttribute("aria-pressed", "false");
+    expect(battleStore.activeBattle?.selectedActionId).toBe("attack");
+    expect(
+      screen.getByText("使用基础攻击对单体敌人造成伤害。"),
+    ).toBeInTheDocument();
+
+    await fireEvent.click(skillButton);
+
+    expect(attackButton).toHaveAttribute("aria-pressed", "false");
+    expect(skillButton).toHaveAttribute("aria-pressed", "true");
+    expect(battleStore.activeBattle?.selectedActionId).toBe("skill");
+    expect(
+      screen.getByText("施放角色技能并消耗对应资源。"),
+    ).toBeInTheDocument();
+  });
+
+  it("switches selected enemy in the overlay and updates the selected enemy detail through battleStore", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
+
+    const result = await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-trigger-overlay-004",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-trigger-overlay-004",
+      input: {
+        encounter_id: "enc-overlay-active-003",
+        enemies: [{ enemy_id: "split-shadow", count: 2 }],
+        narrative_reason: "分裂的影子在地面上互相追逐。",
+      },
+    } satisfies TriggerBattleToolEnvelope);
+
+    expect(result.ok).toBe(true);
+
+    sessionStore.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+      },
+    ]);
+
+    const enemyRegion = await screen.findByLabelText("敌人区域");
+    const enemyButtons = within(enemyRegion).getAllByRole("button", {
+      name: /split-shadow/,
+    });
+
+    expect(enemyButtons[0]).toHaveAttribute("aria-pressed", "true");
+    expect(enemyButtons[1]).toHaveAttribute("aria-pressed", "false");
+    expect(battleStore.activeBattle?.selectedEnemyId).toBe("enemy-1");
+
+    await fireEvent.click(enemyButtons[1]);
+
+    expect(enemyButtons[0]).toHaveAttribute("aria-pressed", "false");
+    expect(enemyButtons[1]).toHaveAttribute("aria-pressed", "true");
+    expect(battleStore.activeBattle?.selectedEnemyId).toBe("enemy-2");
+
+    const selectedEnemyHeading =
+      within(enemyRegion).getByText("Selected Enemy");
+    const selectedEnemyPanel = selectedEnemyHeading.parentElement;
+
+    expect(selectedEnemyPanel).not.toBeNull();
+    expect(
+      within(selectedEnemyPanel!).getByText("split-shadow"),
+    ).toBeInTheDocument();
+    expect(within(selectedEnemyPanel!).getByText("LV 1")).toBeInTheDocument();
+  });
+
+  it("provides a temporary main game test entry that boots directly into an active battle overlay", async () => {
+    await renderMainGameWithStores();
+
+    const launchButton = screen.getByRole("button", {
+      name: "测试用：启动预置战斗",
+    });
+
+    await fireEvent.click(launchButton);
+
+    expect(
+      await screen.findByRole("dialog", { name: "战斗进行中遮罩" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Battle Active")).toBeInTheDocument();
+    expect(screen.getByText("enc-main-game-debug-battle")).toBeInTheDocument();
+    expect(screen.getByText("鹿目真昼")).toBeInTheDocument();
+    expect(screen.getAllByText("debug-shadow").length).toBeGreaterThan(0);
   });
 });

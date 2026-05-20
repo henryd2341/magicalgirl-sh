@@ -32,6 +32,7 @@ export interface BattleParticipant {
   id: string;
   side: CombatantSide;
   displayName: string;
+  level?: number;
   hp: {
     current: number;
     max: number;
@@ -41,11 +42,18 @@ export interface BattleParticipant {
     max: number;
   };
   isDown: boolean;
+  statusEffects?: string[];
 }
 
 export interface PressTurnState {
   totalIcons: number;
   spentIcons: number;
+}
+
+export interface BattleActionMenuItem {
+  id: string;
+  label: string;
+  description: string;
 }
 
 export interface PendingBattleSnapshot {
@@ -61,6 +69,11 @@ export interface BattleSnapshot {
   encounterId: string;
   participants: BattleParticipant[];
   pressTurn: PressTurnState;
+  turnCount?: number;
+  selectedEnemyId?: string | null;
+  currentActorId?: string | null;
+  selectedActionId?: string | null;
+  actionMenu?: BattleActionMenuItem[];
   resultSummary?: string;
 }
 
@@ -110,11 +123,20 @@ export function createPendingBattleSnapshot(
 export function createBattleSnapshotFromPendingBattle(
   input: CreateBattleSnapshotFromPendingBattleInput,
 ): BattleSnapshot {
+  const playerParticipants: BattleParticipant[] = input.playerParty.map(
+    (participant) => ({
+      ...participant,
+      level: participant.level ?? 1,
+      statusEffects: participant.statusEffects ?? [],
+    }),
+  );
+
   const enemyParticipants: BattleParticipant[] =
     input.pendingBattle.enemies.map((enemy) => ({
       id: enemy.instanceId,
       side: "enemy",
       displayName: enemy.displayName,
+      level: 1,
       hp: {
         current: 1,
         max: 1,
@@ -124,16 +146,43 @@ export function createBattleSnapshotFromPendingBattle(
         max: 0,
       },
       isDown: false,
+      statusEffects: [],
     }));
 
   return {
     lifecycleState: "ACTIVE",
     phase: "PLAYER_COMMAND",
     encounterId: input.pendingBattle.encounterId,
-    participants: [...input.playerParty, ...enemyParticipants],
+    participants: [...playerParticipants, ...enemyParticipants],
     pressTurn: {
-      totalIcons: input.playerParty.length,
+      totalIcons: playerParticipants.length,
       spentIcons: 0,
     },
+    turnCount: 1,
+    selectedEnemyId: enemyParticipants[0]?.id ?? null,
+    currentActorId: playerParticipants[0]?.id ?? null,
+    selectedActionId: "attack",
+    actionMenu: [
+      {
+        id: "attack",
+        label: "Attack",
+        description: "使用基础攻击对单体敌人造成伤害。",
+      },
+      {
+        id: "skill",
+        label: "Skill",
+        description: "施放角色技能并消耗对应资源。",
+      },
+      {
+        id: "guard",
+        label: "Guard",
+        description: "进入防御姿态，减少即将受到的伤害。",
+      },
+      {
+        id: "item",
+        label: "Item",
+        description: "使用背包中的道具支援当前战斗。",
+      },
+    ],
   };
 }

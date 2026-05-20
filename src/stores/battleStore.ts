@@ -39,5 +39,19 @@ export const useBattleStore = defineStore("battle", {
       });
       this.pendingBattle = null;
     },
+    selectEnemy(enemyId: string) {
+      if (this.activeBattle === null) {
+        return;
+      }
+
+      this.activeBattle.selectedEnemyId = enemyId;
+    },
+    selectAction(actionId: string) {
+      if (this.activeBattle === null) {
+        return;
+      }
+
+      this.activeBattle.selectedActionId = actionId;
+    },
   },
 });

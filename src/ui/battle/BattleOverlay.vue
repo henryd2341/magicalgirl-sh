@@ -34,6 +34,58 @@ const activeParticipants = computed(() => {
   return activeBattle.value?.participants ?? [];
 });
 
+const activeEnemies = computed(() => {
+  return activeParticipants.value.filter(
+    (participant) => participant.side === "enemy",
+  );
+});
+
+const activePlayers = computed(() => {
+  return activeParticipants.value.filter(
+    (participant) => participant.side === "player",
+  );
+});
+
+const selectedEnemy = computed(() => {
+  return (
+    activeParticipants.value.find(
+      (participant) => participant.id === activeBattle.value?.selectedEnemyId,
+    ) ??
+    activeEnemies.value[0] ??
+    null
+  );
+});
+
+const currentActor = computed(() => {
+  if (activeBattle.value === null) {
+    return null;
+  }
+
+  return (
+    activeParticipants.value.find(
+      (participant) => participant.id === activeBattle.value?.currentActorId,
+    ) ?? null
+  );
+});
+
+const actionMenu = computed(() => {
+  return activeBattle.value?.actionMenu ?? [];
+});
+
+const selectedAction = computed(() => {
+  return (
+    actionMenu.value.find(
+      (action) => action.id === activeBattle.value?.selectedActionId,
+    ) ??
+    actionMenu.value[0] ??
+    null
+  );
+});
+
+const selectedActionDescription = computed(() => {
+  return selectedAction.value?.description ?? "行动描述框";
+});
+
 const overlayMode = computed(() => {
   if (activeBattle.value !== null) {
     return "active";
@@ -45,6 +97,14 @@ const overlayMode = computed(() => {
 
   return "empty";
 });
+
+function selectEnemy(enemyId: string) {
+  battleStore.selectEnemy(enemyId);
+}
+
+function selectAction(actionId: string) {
+  battleStore.selectAction(actionId);
+}
 </script>
 
 <template>
@@ -91,19 +151,78 @@ const overlayMode = computed(() => {
         <span class="battle-overlay__label">Phase:</span>
         <span>{{ activeBattle?.phase }}</span>
       </p>
-      <ul
-        v-if="activeParticipants.length > 0"
-        class="battle-overlay__participant-list"
-      >
-        <li
-          v-for="participant in activeParticipants"
-          :key="participant.id"
-          class="battle-overlay__participant-item"
-        >
-          <span>{{ participant.displayName }}</span>
-          <span>{{ participant.side }}</span>
-        </li>
-      </ul>
+
+      <section aria-label="回合与 Press Turn 区域">
+        <h3>Turn Counts</h3>
+        <p>{{ activeBattle?.turnCount ?? 1 }}</p>
+        <h3>Press Turn Icons</h3>
+        <p>
+          {{ activeBattle?.pressTurn.spentIcons ?? 0 }}/
+          {{ activeBattle?.pressTurn.totalIcons ?? 0 }}
+        </p>
+      </section>
+
+      <section aria-label="敌人区域">
+        <h3>Enemies</h3>
+        <ul>
+          <li v-for="enemy in activeEnemies" :key="enemy.id">
+            <button
+              type="button"
+              :aria-pressed="selectedEnemy?.id === enemy.id"
+              @click="selectEnemy(enemy.id)"
+            >
+              <span>Enemy Sprite Placeholder</span>
+              <span>{{ enemy.displayName }}</span>
+            </button>
+          </li>
+        </ul>
+
+        <div v-if="selectedEnemy !== null">
+          <p>Selected Enemy</p>
+          <p>LV {{ selectedEnemy.level ?? 1 }}</p>
+          <p>{{ selectedEnemy.displayName }}</p>
+          <progress
+            :value="selectedEnemy.hp.current"
+            :max="selectedEnemy.hp.max"
+          />
+        </div>
+      </section>
+
+      <section aria-label="玩家队伍区域">
+        <h3>Players</h3>
+        <ul>
+          <li v-for="player in activePlayers" :key="player.id">
+            <p>Portrait Placeholder</p>
+            <p>{{ player.displayName }}</p>
+            <p>HP {{ player.hp.current }}/{{ player.hp.max }}</p>
+            <p>MP {{ player.mp.current }}/{{ player.mp.max }}</p>
+            <p>
+              {{
+                player.statusEffects?.length
+                  ? player.statusEffects.join(", ")
+                  : "正常"
+              }}
+            </p>
+            <p v-if="currentActor?.id === player.id">当前行动者</p>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-label="行动指令区域">
+        <h3>Actions</h3>
+        <ul>
+          <li v-for="action in actionMenu" :key="action.id">
+            <button
+              type="button"
+              :aria-pressed="selectedAction?.id === action.id"
+              @click="selectAction(action.id)"
+            >
+              {{ action.label }}
+            </button>
+          </li>
+        </ul>
+        <p>{{ selectedActionDescription }}</p>
+      </section>
     </div>
   </section>
 </template>

@@ -138,6 +138,7 @@ describe("battleStore", () => {
           id: "player-heroine-1",
           side: "player",
           displayName: "鹿目真昼",
+          level: 1,
           hp: {
             current: 120,
             max: 120,
@@ -147,11 +148,13 @@ describe("battleStore", () => {
             max: 48,
           },
           isDown: false,
+          statusEffects: [],
         },
         {
           id: "enemy-1",
           side: "enemy",
           displayName: "antenna-shadow",
+          level: 1,
           hp: {
             current: 1,
             max: 1,
@@ -161,11 +164,13 @@ describe("battleStore", () => {
             max: 0,
           },
           isDown: false,
+          statusEffects: [],
         },
         {
           id: "enemy-2",
           side: "enemy",
           displayName: "antenna-shadow",
+          level: 1,
           hp: {
             current: 1,
             max: 1,
@@ -175,13 +180,73 @@ describe("battleStore", () => {
             max: 0,
           },
           isDown: false,
+          statusEffects: [],
         },
       ],
       pressTurn: {
         totalIcons: 1,
         spentIcons: 0,
       },
+      turnCount: 1,
+      selectedEnemyId: "enemy-1",
+      currentActorId: "player-heroine-1",
+      selectedActionId: "attack",
+      actionMenu: [
+        {
+          id: "attack",
+          label: "Attack",
+          description: "使用基础攻击对单体敌人造成伤害。",
+        },
+        {
+          id: "skill",
+          label: "Skill",
+          description: "施放角色技能并消耗对应资源。",
+        },
+        {
+          id: "guard",
+          label: "Guard",
+          description: "进入防御姿态，减少即将受到的伤害。",
+        },
+        {
+          id: "item",
+          label: "Item",
+          description: "使用背包中的道具支援当前战斗。",
+        },
+      ],
     });
+  });
+
+  it("updates selectedEnemyId and selectedActionId through store actions while battle is active", () => {
+    const store = useBattleStore();
+
+    store.stagePendingEncounter({
+      encounterId: "enc-battle-store-004",
+      narrativeReason: "影子分裂成了两个目标。",
+      enemies: [{ enemy_id: "dual-shadow", count: 2 }],
+    });
+
+    store.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+      },
+    ]);
+
+    store.selectEnemy("enemy-2");
+    store.selectAction("skill");
+
+    expect(store.activeBattle?.selectedEnemyId).toBe("enemy-2");
+    expect(store.activeBattle?.selectedActionId).toBe("skill");
   });
 
   it("throws when startBattle is called without a pending battle snapshot", () => {
@@ -256,6 +321,7 @@ describe("battleStore", () => {
           id: "player-heroine-1",
           side: "player",
           displayName: "鹿目真昼",
+          level: 1,
           hp: {
             current: 120,
             max: 120,
@@ -265,11 +331,13 @@ describe("battleStore", () => {
             max: 48,
           },
           isDown: false,
+          statusEffects: [],
         },
         {
           id: "enemy-1",
           side: "enemy",
           displayName: "corridor-shadow",
+          level: 1,
           hp: {
             current: 1,
             max: 1,
@@ -279,12 +347,39 @@ describe("battleStore", () => {
             max: 0,
           },
           isDown: false,
+          statusEffects: [],
         },
       ],
       pressTurn: {
         totalIcons: 1,
         spentIcons: 0,
       },
+      turnCount: 1,
+      selectedEnemyId: "enemy-1",
+      currentActorId: "player-heroine-1",
+      selectedActionId: "attack",
+      actionMenu: [
+        {
+          id: "attack",
+          label: "Attack",
+          description: "使用基础攻击对单体敌人造成伤害。",
+        },
+        {
+          id: "skill",
+          label: "Skill",
+          description: "施放角色技能并消耗对应资源。",
+        },
+        {
+          id: "guard",
+          label: "Guard",
+          description: "进入防御姿态，减少即将受到的伤害。",
+        },
+        {
+          id: "item",
+          label: "Item",
+          description: "使用背包中的道具支援当前战斗。",
+        },
+      ],
     });
   });
 });

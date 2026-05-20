@@ -28,6 +28,32 @@ const shouldShowBattleOverlay = computed(() => {
   return isPendingBattleVisible || isActiveBattleVisible;
 });
 
+function launchDebugBattleForTestingOnly() {
+  battleStore.stagePendingEncounter({
+    encounterId: "enc-main-game-debug-battle",
+    narrativeReason: "测试用预置战斗入口，后续应删除。",
+    enemies: [{ enemy_id: "debug-shadow", count: 1 }],
+  });
+
+  sessionStore.enterCombatPending();
+  sessionStore.startBattle([
+    {
+      id: "player-heroine-1",
+      side: "player",
+      displayName: "鹿目真昼",
+      hp: {
+        current: 120,
+        max: 120,
+      },
+      mp: {
+        current: 48,
+        max: 48,
+      },
+      isDown: false,
+    },
+  ]);
+}
+
 onMounted(async () => {
   const persistenceClient = getChatPersistenceClient();
 
@@ -45,6 +71,9 @@ onMounted(async () => {
     <GameStatusBanner />
     <GameConversationPanel />
     <GameInputDock />
+    <button type="button" @click="launchDebugBattleForTestingOnly">
+      测试用：启动预置战斗
+    </button>
     <BattleOverlay v-if="shouldShowBattleOverlay" />
   </main>
 </template>
