@@ -15,13 +15,17 @@ const chatStore = useChatStore();
 const sessionStore = useSessionStore();
 const battleStore = useBattleStore();
 const { snapshot } = storeToRefs(sessionStore);
-const { pendingEncounterId } = storeToRefs(battleStore);
+const { pendingBattle, activeBattle } = storeToRefs(battleStore);
 
 const shouldShowBattleOverlay = computed(() => {
-  return (
+  const isPendingBattleVisible =
     snapshot.value.sessionState === "COMBAT_PENDING" &&
-    pendingEncounterId.value !== null
-  );
+    pendingBattle.value !== null;
+
+  const isActiveBattleVisible =
+    snapshot.value.sessionState === "IN_COMBAT" && activeBattle.value !== null;
+
+  return isPendingBattleVisible || isActiveBattleVisible;
 });
 
 onMounted(async () => {

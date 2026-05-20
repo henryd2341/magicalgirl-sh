@@ -1,23 +1,43 @@
+import {
+  createBattleSnapshotFromPendingBattle,
+  createPendingBattleSnapshot,
+  type BattleParticipant,
+  type BattleSnapshot,
+  type CreatePendingBattleSnapshotInput,
+  type PendingBattleSnapshot,
+} from "@/types/battle";
 import { defineStore } from "pinia";
 
-export interface StagePendingEncounterInput {
-  encounterId: string;
-  narrativeReason: string;
+export type StagePendingEncounterInput = CreatePendingBattleSnapshotInput;
+
+function createPendingBattleRequiredError(): Error {
+  return new Error(
+    "[BATTLE_PENDING_REQUIRED] Cannot start battle without a pending battle snapshot.",
+  );
 }
 
 export const useBattleStore = defineStore("battle", {
   state: () => ({
-    pendingEncounterId: null as string | null,
-    lastNarrativeReason: null as string | null,
+    pendingBattle: null as PendingBattleSnapshot | null,
+    activeBattle: null as BattleSnapshot | null,
   }),
   actions: {
     stagePendingEncounter(input: StagePendingEncounterInput) {
-      this.pendingEncounterId = input.encounterId;
-      this.lastNarrativeReason = input.narrativeReason;
+      this.pendingBattle = createPendingBattleSnapshot(input);
     },
     clearPendingEncounter() {
-      this.pendingEncounterId = null;
-      this.lastNarrativeReason = null;
+      this.pendingBattle = null;
+    },
+    startBattle(playerParty: BattleParticipant[]) {
+      if (this.pendingBattle === null) {
+        throw createPendingBattleRequiredError();
+      }
+
+      this.activeBattle = createBattleSnapshotFromPendingBattle({
+        pendingBattle: this.pendingBattle,
+        playerParty,
+      });
+      this.pendingBattle = null;
     },
   },
 });

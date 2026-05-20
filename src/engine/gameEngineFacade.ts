@@ -28,6 +28,13 @@ interface TriggerBattleCommand {
   payload: TriggerBattleCommandPayload;
 }
 
+type GameEngineCommand = ApplyVariablePatchCommand | TriggerBattleCommand;
+
+type GameEngineCommandResult<TCommand extends GameEngineCommand> =
+  TCommand extends ApplyVariablePatchCommand
+    ? VariablePatchCommitResult
+    : TriggerBattleCommandResult;
+
 export interface GameEngineFacadeDependencies {
   variableRepository?: VariableRepository;
   variableChangeLogRepository?: VariableChangeLogRepository;
@@ -86,6 +93,12 @@ export class GameEngineFacade {
     });
   }
 
+  public enterCombat(): void {
+    this.commandBus.dispatch({
+      type: "ENTER_COMBAT",
+    });
+  }
+
   public enterErrorRecovery(): void {
     this.commandBus.dispatch({
       type: "ENTER_ERROR_RECOVERY",
@@ -108,20 +121,21 @@ export class GameEngineFacade {
     return this.variablePatchService.applyPatchEnvelope(envelope);
   }
 
-  public dispatchCommand(
-    command: ApplyVariablePatchCommand,
-  ): Promise<VariablePatchCommitResult>;
-  public dispatchCommand(
-    command: TriggerBattleCommand,
-  ): Promise<TriggerBattleCommandResult>;
-  public dispatchCommand(
-    command: ApplyVariablePatchCommand | TriggerBattleCommand,
-  ): Promise<VariablePatchCommitResult | TriggerBattleCommandResult> {
+  public dispatchCommand<TCommand extends GameEngineCommand>(
+    command: TCommand,
+  ): Promise<GameEngineCommandResult<TCommand>> {
     if (command.type === "APPLY_VARIABLE_PATCH") {
-      return this.handleAsync(command);
+      return this.variablePatchService.applyPatchEnvelope(
+        command.envelope,
+      ) as Promise<GameEngineCommandResult<TCommand>>;
     }
 
-    return this.handleAsync(command);
+    this.sessionManager.enterCombatPending();
+    return Promise.resolve({
+      accepted: true,
+      battleState: "pending",
+      encounterId: command.payload.input.encounter_id,
+    } as GameEngineCommandResult<TCommand>);
   }
 
   private handle(command: DomainCommand): void {
@@ -158,26 +172,5 @@ export class GameEngineFacade {
       case "TRIGGER_BATTLE":
         break;
     }
-  }
-
-  private handleAsync(
-    command: ApplyVariablePatchCommand,
-  ): Promise<VariablePatchCommitResult>;
-  private handleAsync(
-    command: TriggerBattleCommand,
-  ): Promise<TriggerBattleCommandResult>;
-  private handleAsync(
-    command: ApplyVariablePatchCommand | TriggerBattleCommand,
-  ): Promise<VariablePatchCommitResult | TriggerBattleCommandResult> {
-    if (command.type === "APPLY_VARIABLE_PATCH") {
-      return this.variablePatchService.applyPatchEnvelope(command.envelope);
-    }
-
-    this.sessionManager.enterCombatPending();
-    return Promise.resolve({
-      accepted: true,
-      battleState: "pending",
-      encounterId: command.payload.input.encounter_id,
-    });
   }
 }
