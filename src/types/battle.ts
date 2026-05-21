@@ -70,7 +70,7 @@ export interface BattleSnapshot {
   participants: BattleParticipant[];
   pressTurn: PressTurnState;
   turnCount?: number;
-  selectedEnemyId?: string | null;
+  selectedTargetId?: string | null;
   currentActorId?: string | null;
   selectedActionId?: string | null;
   actionMenu?: BattleActionMenuItem[];
@@ -159,7 +159,7 @@ export function createBattleSnapshotFromPendingBattle(
       spentIcons: 0,
     },
     turnCount: 1,
-    selectedEnemyId: enemyParticipants[0]?.id ?? null,
+    selectedTargetId: enemyParticipants[0]?.id ?? null,
     currentActorId: playerParticipants[0]?.id ?? null,
     selectedActionId: "attack",
     actionMenu: [

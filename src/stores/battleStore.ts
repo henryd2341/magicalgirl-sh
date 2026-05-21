@@ -1,3 +1,4 @@
+import { resolveSelectedBattleAction } from "@/engine/battle/battleResolver";
 import {
   createBattleSnapshotFromPendingBattle,
   createPendingBattleSnapshot,
@@ -39,19 +40,44 @@ export const useBattleStore = defineStore("battle", {
       });
       this.pendingBattle = null;
     },
-    selectEnemy(enemyId: string) {
+    selectTarget(targetId: string) {
       if (this.activeBattle === null) {
         return;
       }
 
-      this.activeBattle.selectedEnemyId = enemyId;
+      const targetExists = this.activeBattle.participants.some(
+        (participant) =>
+          participant.side === "enemy" && participant.id === targetId,
+      );
+
+      if (!targetExists) {
+        return;
+      }
+
+      this.activeBattle.selectedTargetId = targetId;
+      this.confirmSelectedAction();
     },
     selectAction(actionId: string) {
       if (this.activeBattle === null) {
         return;
       }
 
+      const actionExists = this.activeBattle.actionMenu?.some(
+        (action) => action.id === actionId,
+      );
+
+      if (!actionExists) {
+        return;
+      }
+
       this.activeBattle.selectedActionId = actionId;
+    },
+    confirmSelectedAction() {
+      if (this.activeBattle === null) {
+        return;
+      }
+
+      this.activeBattle = resolveSelectedBattleAction(this.activeBattle);
     },
   },
 });

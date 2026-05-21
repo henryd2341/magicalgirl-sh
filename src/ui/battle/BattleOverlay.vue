@@ -46,10 +46,10 @@ const activePlayers = computed(() => {
   );
 });
 
-const selectedEnemy = computed(() => {
+const selectedTarget = computed(() => {
   return (
     activeParticipants.value.find(
-      (participant) => participant.id === activeBattle.value?.selectedEnemyId,
+      (participant) => participant.id === activeBattle.value?.selectedTargetId,
     ) ??
     activeEnemies.value[0] ??
     null
@@ -98,8 +98,8 @@ const overlayMode = computed(() => {
   return "empty";
 });
 
-function selectEnemy(enemyId: string) {
-  battleStore.selectEnemy(enemyId);
+function selectTarget(targetId: string) {
+  battleStore.selectTarget(targetId);
 }
 
 function selectAction(actionId: string) {
@@ -168,8 +168,8 @@ function selectAction(actionId: string) {
           <li v-for="enemy in activeEnemies" :key="enemy.id">
             <button
               type="button"
-              :aria-pressed="selectedEnemy?.id === enemy.id"
-              @click="selectEnemy(enemy.id)"
+              :aria-pressed="selectedTarget?.id === enemy.id"
+              @click="selectTarget(enemy.id)"
             >
               <span>Enemy Sprite Placeholder</span>
               <span>{{ enemy.displayName }}</span>
@@ -177,13 +177,13 @@ function selectAction(actionId: string) {
           </li>
         </ul>
 
-        <div v-if="selectedEnemy !== null">
-          <p>Selected Enemy</p>
-          <p>LV {{ selectedEnemy.level ?? 1 }}</p>
-          <p>{{ selectedEnemy.displayName }}</p>
+        <div v-if="selectedTarget !== null">
+          <p>Selected Target</p>
+          <p>LV {{ selectedTarget.level ?? 1 }}</p>
+          <p>{{ selectedTarget.displayName }}</p>
           <progress
-            :value="selectedEnemy.hp.current"
-            :max="selectedEnemy.hp.max"
+            :value="selectedTarget.hp.current"
+            :max="selectedTarget.hp.max"
           />
         </div>
       </section>

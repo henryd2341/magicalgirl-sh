@@ -188,7 +188,7 @@ describe("battleStore", () => {
         spentIcons: 0,
       },
       turnCount: 1,
-      selectedEnemyId: "enemy-1",
+      selectedTargetId: "enemy-1",
       currentActorId: "player-heroine-1",
       selectedActionId: "attack",
       actionMenu: [
@@ -216,7 +216,7 @@ describe("battleStore", () => {
     });
   });
 
-  it("updates selectedEnemyId and selectedActionId through store actions while battle is active", () => {
+  it("updates selectedTargetId and selectedActionId through store actions while battle is active", () => {
     const store = useBattleStore();
 
     store.stagePendingEncounter({
@@ -240,13 +240,358 @@ describe("battleStore", () => {
         },
         isDown: false,
       },
+      {
+        id: "player-heroine-2",
+        side: "player",
+        displayName: "雾岛光",
+        hp: {
+          current: 100,
+          max: 100,
+        },
+        mp: {
+          current: 36,
+          max: 36,
+        },
+        isDown: false,
+      },
     ]);
 
-    store.selectEnemy("enemy-2");
     store.selectAction("skill");
+    store.selectTarget("enemy-2");
 
-    expect(store.activeBattle?.selectedEnemyId).toBe("enemy-2");
+    expect(store.activeBattle?.selectedTargetId).toBe("enemy-2");
     expect(store.activeBattle?.selectedActionId).toBe("skill");
+  });
+
+  it("ignores invalid selectedTargetId and selectedActionId inputs instead of mutating active battle selection", () => {
+    const store = useBattleStore();
+
+    store.stagePendingEncounter({
+      encounterId: "enc-battle-store-005",
+      narrativeReason: "错误目标不应污染当前选择。",
+      enemies: [{ enemy_id: "guarded-shadow", count: 2 }],
+    });
+
+    store.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+      },
+      {
+        id: "player-heroine-2",
+        side: "player",
+        displayName: "雾岛光",
+        hp: {
+          current: 100,
+          max: 100,
+        },
+        mp: {
+          current: 36,
+          max: 36,
+        },
+        isDown: false,
+      },
+    ]);
+
+    store.selectTarget("player-heroine-1");
+    store.selectTarget("enemy-999");
+    store.selectAction("missing-action");
+
+    expect(store.activeBattle?.selectedTargetId).toBe("enemy-1");
+    expect(store.activeBattle?.selectedActionId).toBe("attack");
+  });
+
+  it("automatically resolves the selected attack after a valid target is chosen and advances into ENEMY_TURN when icons are exhausted", () => {
+    const store = useBattleStore();
+
+    store.stagePendingEncounter({
+      encounterId: "enc-battle-store-006",
+      narrativeReason: "选择目标后应自动执行基础攻击。",
+      enemies: [{ enemy_id: "enduring-shadow", count: 2 }],
+    });
+
+    store.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+      },
+    ]);
+
+    if (store.activeBattle === null) {
+      throw new Error("expected active battle");
+    }
+
+    store.activeBattle.participants = store.activeBattle.participants.map(
+      (participant) => {
+        if (participant.id !== "enemy-2") {
+          return participant;
+        }
+
+        return {
+          ...participant,
+          hp: {
+            current: 2,
+            max: 2,
+          },
+        };
+      },
+    );
+
+    store.selectTarget("enemy-2");
+
+    expect(store.activeBattle?.selectedTargetId).toBe("enemy-2");
+    expect(store.activeBattle?.lifecycleState).toBe("ACTIVE");
+    expect(store.activeBattle?.phase).toBe("ENEMY_TURN");
+    expect(store.activeBattle?.pressTurn).toEqual({
+      totalIcons: 1,
+      spentIcons: 1,
+    });
+    expect(store.activeBattle?.participants.find((p) => p.id === "enemy-2")).toMatchObject({
+      hp: {
+        current: 1,
+        max: 2,
+      },
+      isDown: false,
+    });
+  });
+
+  it("automatically resolves the selected attack after a valid target is chosen and keeps PLAYER_COMMAND when icons remain", () => {
+    const store = useBattleStore();
+
+    store.stagePendingEncounter({
+      encounterId: "enc-battle-store-008",
+      narrativeReason: "图标未耗尽时应自动执行但仍留在玩家回合。",
+      enemies: [{ enemy_id: "lingering-shadow", count: 2 }],
+    });
+
+    store.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+      },
+      {
+        id: "player-heroine-2",
+        side: "player",
+        displayName: "雾岛光",
+        hp: {
+          current: 100,
+          max: 100,
+        },
+        mp: {
+          current: 36,
+          max: 36,
+        },
+        isDown: false,
+      },
+    ]);
+
+    if (store.activeBattle === null) {
+      throw new Error("expected active battle");
+    }
+
+    store.activeBattle.participants = store.activeBattle.participants.map(
+      (participant) => {
+        if (participant.id !== "enemy-2") {
+          return participant;
+        }
+
+        return {
+          ...participant,
+          hp: {
+            current: 2,
+            max: 2,
+          },
+        };
+      },
+    );
+
+    store.selectTarget("enemy-2");
+
+    expect(store.activeBattle?.selectedTargetId).toBe("enemy-2");
+    expect(store.activeBattle?.lifecycleState).toBe("ACTIVE");
+    expect(store.activeBattle?.phase).toBe("PLAYER_COMMAND");
+    expect(store.activeBattle?.pressTurn).toEqual({
+      totalIcons: 2,
+      spentIcons: 1,
+    });
+    expect(store.activeBattle?.participants.find((p) => p.id === "enemy-2")).toMatchObject({
+      hp: {
+        current: 1,
+        max: 2,
+      },
+      isDown: false,
+    });
+  });
+
+  it("does not auto-resolve when a target is selected for an unimplemented non-attack action", () => {
+    const store = useBattleStore();
+
+    store.stagePendingEncounter({
+      encounterId: "enc-battle-store-010",
+      narrativeReason: "未实现行动不应因为选 target 自动污染状态。",
+      enemies: [{ enemy_id: "sealed-shadow", count: 1 }],
+    });
+
+    store.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+      },
+      {
+        id: "player-heroine-2",
+        side: "player",
+        displayName: "雾岛光",
+        hp: {
+          current: 100,
+          max: 100,
+        },
+        mp: {
+          current: 36,
+          max: 36,
+        },
+        isDown: false,
+      },
+    ]);
+
+    if (store.activeBattle === null) {
+      throw new Error("expected active battle");
+    }
+
+    store.selectAction("skill");
+    const previousSnapshot = JSON.parse(JSON.stringify(store.activeBattle));
+
+    store.selectTarget("enemy-1");
+
+    expect(store.activeBattle).toEqual({
+      ...previousSnapshot,
+      selectedTargetId: "enemy-1",
+    });
+  });
+
+  it("does not auto-resolve when target selection happens outside PLAYER_COMMAND", () => {
+    const store = useBattleStore();
+
+    store.stagePendingEncounter({
+      encounterId: "enc-battle-store-009",
+      narrativeReason: "非玩家指令阶段选 target 不应触发行动。",
+      enemies: [{ enemy_id: "frozen-shadow", count: 1 }],
+    });
+
+    store.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+      },
+    ]);
+
+    if (store.activeBattle === null) {
+      throw new Error("expected active battle");
+    }
+
+    store.activeBattle.phase = "ENEMY_TURN";
+    const previousSnapshot = JSON.parse(JSON.stringify(store.activeBattle));
+
+    store.selectTarget("enemy-1");
+
+    expect(store.activeBattle).toEqual({
+      ...previousSnapshot,
+      selectedTargetId: "enemy-1",
+    });
+  });
+
+  it("resolves the battle when the final enemy is automatically defeated after target selection", () => {
+    const store = useBattleStore();
+
+    store.stagePendingEncounter({
+      encounterId: "enc-battle-store-007",
+      narrativeReason: "最后一只影魔在选定目标后自动被基础攻击击倒。",
+      enemies: [{ enemy_id: "last-shadow", count: 1 }],
+    });
+
+    store.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+      },
+    ]);
+
+    store.selectTarget("enemy-1");
+
+    expect(store.activeBattle?.selectedTargetId).toBe("enemy-1");
+    expect(store.activeBattle?.lifecycleState).toBe("RESOLVED");
+    expect(store.activeBattle?.phase).toBe("RESULT");
+    expect(store.activeBattle?.resultSummary).toBe("Victory");
+    expect(store.activeBattle?.pressTurn).toEqual({
+      totalIcons: 1,
+      spentIcons: 1,
+    });
+    expect(store.activeBattle?.participants.find((p) => p.id === "enemy-1")).toMatchObject({
+      hp: {
+        current: 0,
+        max: 1,
+      },
+      isDown: true,
+    });
   });
 
   it("throws when startBattle is called without a pending battle snapshot", () => {
@@ -355,7 +700,7 @@ describe("battleStore", () => {
         spentIcons: 0,
       },
       turnCount: 1,
-      selectedEnemyId: "enemy-1",
+      selectedTargetId: "enemy-1",
       currentActorId: "player-heroine-1",
       selectedActionId: "attack",
       actionMenu: [
