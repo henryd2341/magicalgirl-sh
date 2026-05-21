@@ -1,3 +1,4 @@
+import { createDefaultBattleCommandMenuTree } from "@/engine/battle/battleActionCatalog";
 import type { TriggerBattleEnemyInput } from "@/orchestrator/toolEnvelope";
 
 export const BATTLE_LIFECYCLE_STATES = [
@@ -20,6 +21,29 @@ export type BattlePhase = (typeof BATTLE_PHASES)[number];
 export const COMBATANT_SIDES = ["player", "enemy"] as const;
 
 export type CombatantSide = (typeof COMBATANT_SIDES)[number];
+
+export const BATTLE_ACTION_IDS = [
+  "attack",
+  "guard",
+  "pass",
+  "basic-skill",
+  "basic-item",
+] as const;
+
+export type BattleActionId = (typeof BATTLE_ACTION_IDS)[number];
+
+export const BATTLE_ACTION_SELECTION_MODES = ["none", "selective"] as const;
+
+export type BattleActionSelectionMode =
+  (typeof BATTLE_ACTION_SELECTION_MODES)[number];
+
+export const BATTLE_ACTION_RESOLUTION_KINDS = [
+  "attack",
+  "unimplemented",
+] as const;
+
+export type BattleActionResolutionKind =
+  (typeof BATTLE_ACTION_RESOLUTION_KINDS)[number];
 
 export interface BattleEnemyInstance {
   instanceId: string;
@@ -50,10 +74,22 @@ export interface PressTurnState {
   spentIcons: number;
 }
 
-export interface BattleActionMenuItem {
+export interface BattleActionDefinition {
+  id: BattleActionId;
+  label: string;
+  description: string;
+  selectionMode: BattleActionSelectionMode;
+  allowedSides: CombatantSide[];
+  resolutionKind: BattleActionResolutionKind;
+}
+
+export interface BattleActionMenuNode {
   id: string;
   label: string;
   description: string;
+  kind: "action" | "group";
+  actionId?: BattleActionId;
+  children?: BattleActionMenuNode[];
 }
 
 export interface PendingBattleSnapshot {
@@ -72,8 +108,9 @@ export interface BattleSnapshot {
   turnCount?: number;
   selectedTargetId?: string | null;
   currentActorId?: string | null;
-  selectedActionId?: string | null;
-  actionMenu?: BattleActionMenuItem[];
+  currentMenuNodeId?: string | null;
+  selectedActionId?: BattleActionId | null;
+  actionMenu?: BattleActionMenuNode[];
   resultSummary?: string;
 }
 
@@ -161,28 +198,8 @@ export function createBattleSnapshotFromPendingBattle(
     turnCount: 1,
     selectedTargetId: enemyParticipants[0]?.id ?? null,
     currentActorId: playerParticipants[0]?.id ?? null,
-    selectedActionId: "attack",
-    actionMenu: [
-      {
-        id: "attack",
-        label: "Attack",
-        description: "使用基础攻击对单体敌人造成伤害。",
-      },
-      {
-        id: "skill",
-        label: "Skill",
-        description: "施放角色技能并消耗对应资源。",
-      },
-      {
-        id: "guard",
-        label: "Guard",
-        description: "进入防御姿态，减少即将受到的伤害。",
-      },
-      {
-        id: "item",
-        label: "Item",
-        description: "使用背包中的道具支援当前战斗。",
-      },
-    ],
+    currentMenuNodeId: null,
+    selectedActionId: null,
+    actionMenu: createDefaultBattleCommandMenuTree(),
   };
 }
