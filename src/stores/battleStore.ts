@@ -1,7 +1,12 @@
+import {
+  findBattleActionMenuNodeById,
+  getBattleActionDefinition,
+} from "@/engine/battle/battleActionCatalog";
 import { resolveSelectedBattleAction } from "@/engine/battle/battleResolver";
 import {
   createBattleSnapshotFromPendingBattle,
   createPendingBattleSnapshot,
+  type BattleActionId,
   type BattleParticipant,
   type BattleSnapshot,
   type CreatePendingBattleSnapshotInput,
@@ -38,19 +43,77 @@ export const useBattleStore = defineStore("battle", {
         pendingBattle: this.pendingBattle,
         playerParty,
       });
+
+      if (this.activeBattle?.pressTurnAllocation != null) {
+        const { participantIds } = this.activeBattle.pressTurnAllocation;
+        this.activeBattle.currentActorId =
+          participantIds.find((participantId) => {
+            const participant = this.activeBattle?.participants.find(
+              (candidate) => candidate.id === participantId,
+            );
+
+            return (
+              participant != null &&
+              participant.isActive &&
+              !participant.isDown &&
+              participant.canAct !== false
+            );
+          }) ?? null;
+      }
+
       this.pendingBattle = null;
     },
-    selectTarget(targetId: string) {
-      if (this.activeBattle === null) {
+    selectMenuNode(nodeId: string) {
+      if (this.activeBattle === null || this.activeBattle.actionMenu == null) {
         return;
       }
 
-      const targetExists = this.activeBattle.participants.some(
-        (participant) =>
-          participant.side === "enemy" && participant.id === targetId,
+      const node = findBattleActionMenuNodeById(
+        this.activeBattle.actionMenu,
+        nodeId,
       );
 
-      if (!targetExists) {
+      if (node == null) {
+        return;
+      }
+
+      if (node.kind === "group") {
+        this.activeBattle.currentMenuNodeId = node.id;
+        return;
+      }
+
+      if (node.actionId == null) {
+        return;
+      }
+
+      const definition = getBattleActionDefinition(node.actionId);
+      this.activeBattle.selectedActionId = definition.id;
+
+      if (definition.selectionMode === "none") {
+        this.confirmSelectedAction();
+      }
+    },
+    selectTarget(targetId: string) {
+      if (
+        this.activeBattle === null ||
+        this.activeBattle.selectedActionId == null
+      ) {
+        return;
+      }
+
+      const definition = getBattleActionDefinition(
+        this.activeBattle.selectedActionId,
+      );
+
+      if (definition.selectionMode !== "selective") {
+        return;
+      }
+
+      const target = this.activeBattle.participants.find(
+        (participant) => participant.id === targetId,
+      );
+
+      if (target == null || !definition.allowedSides.includes(target.side)) {
         return;
       }
 
@@ -58,19 +121,37 @@ export const useBattleStore = defineStore("battle", {
       this.confirmSelectedAction();
     },
     selectAction(actionId: string) {
-      if (this.activeBattle === null) {
+      if (this.activeBattle === null || this.activeBattle.actionMenu == null) {
         return;
       }
 
-      const actionExists = this.activeBattle.actionMenu?.some(
-        (action) => action.id === actionId,
+      const matchingNode = findActionNodeIdByActionId(
+        this.activeBattle.actionMenu,
+        actionId,
       );
 
-      if (!actionExists) {
+      if (matchingNode == null) {
         return;
       }
 
-      this.activeBattle.selectedActionId = actionId;
+      this.selectMenuNode(matchingNode);
+    },
+    selectSwapParticipants({
+      swapOutParticipantId,
+      swapInParticipantId,
+    }: {
+      swapOutParticipantId: string;
+      swapInParticipantId?: string | null;
+    }) {
+      if (this.activeBattle == null) {
+        return;
+      }
+
+      this.activeBattle.selectedActionId = "swap";
+      this.activeBattle.selectedSwapOutParticipantId = swapOutParticipantId;
+      this.activeBattle.selectedSwapInParticipantId =
+        swapInParticipantId ?? null;
+      this.confirmSelectedAction();
     },
     confirmSelectedAction() {
       if (this.activeBattle === null) {
@@ -81,3 +162,31 @@ export const useBattleStore = defineStore("battle", {
     },
   },
 });
+
+function findActionNodeIdByActionId(
+  nodes: BattleSnapshot["actionMenu"],
+  actionId: string,
+): string | null {
+  if (nodes == null) {
+    return null;
+  }
+
+  for (const node of nodes) {
+    if (
+      node.kind === "action" &&
+      node.actionId === (actionId as BattleActionId)
+    ) {
+      return node.id;
+    }
+
+    if (node.children != null) {
+      const childMatch = findActionNodeIdByActionId(node.children, actionId);
+
+      if (childMatch != null) {
+        return childMatch;
+      }
+    }
+  }
+
+  return null;
+}

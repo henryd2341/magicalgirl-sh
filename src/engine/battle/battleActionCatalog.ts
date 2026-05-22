@@ -27,10 +27,18 @@ const BATTLE_ACTION_DEFINITIONS: Record<
   pass: {
     id: "pass",
     label: "Pass",
-    description: "顺延到下一位成员（当前 MVP 不可用）。",
+    description: "顺延到下一位成员。",
     selectionMode: "none",
     allowedSides: [],
-    resolutionKind: "unimplemented",
+    resolutionKind: "pass",
+  },
+  swap: {
+    id: "swap",
+    label: "Swap",
+    description: "将任意上场成员换下，并可选地换上后备成员。",
+    selectionMode: "none",
+    allowedSides: [],
+    resolutionKind: "swap",
   },
   "basic-skill": {
     id: "basic-skill",
@@ -107,7 +115,14 @@ export function createDefaultBattleCommandMenuTree(): BattleActionMenuNode[] {
       kind: "action",
       actionId: "pass",
       label: "Pass",
-      description: "顺延到下一位成员（当前 MVP 不可用）。",
+      description: "顺延到下一位成员。",
+    },
+    {
+      id: "swap-action",
+      kind: "action",
+      actionId: "swap",
+      label: "Swap",
+      description: "将任意上场成员换下，并可选地换上后备成员。",
     },
   ];
 }

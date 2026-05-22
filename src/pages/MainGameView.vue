@@ -50,6 +50,7 @@ function launchDebugBattleForTestingOnly() {
         max: 48,
       },
       isDown: false,
+      isActive: true,
     },
   ]);
 }

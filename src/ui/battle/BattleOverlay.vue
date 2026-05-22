@@ -157,8 +157,7 @@ function selectAction(actionId: string) {
         <p>{{ activeBattle?.turnCount ?? 1 }}</p>
         <h3>Press Turn Icons</h3>
         <p>
-          {{ activeBattle?.pressTurn.spentIcons ?? 0 }}/
-          {{ activeBattle?.pressTurn.totalIcons ?? 0 }}
+          {{ activeBattle?.pressTurn.icons ?? 0 }}
         </p>
       </section>
 

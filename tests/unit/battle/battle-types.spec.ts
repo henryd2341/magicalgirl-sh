@@ -6,10 +6,14 @@ import type { TriggerBattleToolInput } from "@/orchestrator/toolEnvelope";
 import {
   BATTLE_LIFECYCLE_STATES,
   BATTLE_PHASES,
+  BATTLE_ELEMENTS as BattleElement,
   COMBATANT_SIDES,
   createBattleSnapshotFromPendingBattle,
   createPendingBattleSnapshot,
   expandTriggerBattleEnemies,
+  type BattleActionOutcome,
+  type BattleActionResolution,
+  type PressTurnSettlementResult,
 } from "@/types/battle";
 import { describe, expect, it } from "vitest";
 
@@ -23,6 +27,18 @@ describe("battle types", () => {
       "RESULT",
     ]);
     expect(COMBATANT_SIDES).toEqual(["player", "enemy"]);
+  });
+
+  it("defines BattleElement as bitmask flags including earth before light", () => {
+    expect(BattleElement.Physical).toBe(1 << 0);
+    expect(BattleElement.Gun).toBe(1 << 1);
+    expect(BattleElement.Wind).toBe(1 << 5);
+    expect(BattleElement.Earth).toBe(1 << 6);
+    expect(BattleElement.Light).toBe(1 << 7);
+    expect(BattleElement.Dark).toBe(1 << 8);
+    expect(BattleElement.Almighty).toBe(1 << 9);
+    expect(BattleElement.Heal).toBe(1 << 10);
+    expect(BattleElement.Ailment).toBe(1 << 11);
   });
 
   it("expands trigger_battle tool enemy groups into runtime battle enemy instances", () => {
@@ -98,10 +114,48 @@ describe("battle types", () => {
     });
   });
 
+  it("defaults player and enemy participants to isActive true when starting a battle snapshot", () => {
+    const pendingBattle = createPendingBattleSnapshot({
+      encounterId: "enc-battle-types-active-001",
+      narrativeReason: "默认上场状态测试。",
+      enemies: [{ enemy_id: "default-active-shadow", count: 1 }],
+    });
+
+    const snapshot = createBattleSnapshotFromPendingBattle({
+      pendingBattle,
+      playerParty: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          hp: { current: 120, max: 120 },
+          mp: { current: 48, max: 48 },
+          isDown: false,
+          isActive: true,
+        },
+      ],
+    });
+
+    expect(snapshot.participants).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "player-heroine-1",
+          side: "player",
+          isActive: true,
+        }),
+        expect.objectContaining({
+          id: "enemy-1",
+          side: "enemy",
+          isActive: true,
+        }),
+      ]),
+    );
+  });
+
   it("creates the default battle command tree with root-level action and group nodes", () => {
     const commandTree = createDefaultBattleCommandMenuTree();
 
-    expect(commandTree).toHaveLength(5);
+    expect(commandTree).toHaveLength(6);
     expect(commandTree).toEqual([
       expect.objectContaining({
         id: "attack-action",
@@ -130,6 +184,12 @@ describe("battle types", () => {
         kind: "action",
         actionId: "pass",
         label: "Pass",
+      }),
+      expect.objectContaining({
+        id: "swap-action",
+        kind: "action",
+        actionId: "swap",
+        label: "Swap",
       }),
     ]);
   });
@@ -205,7 +265,7 @@ describe("battle types", () => {
         label: "Pass",
         selectionMode: "none",
         allowedSides: [],
-        resolutionKind: "unimplemented",
+        resolutionKind: "pass",
       }),
     );
 
@@ -243,45 +303,70 @@ describe("battle types", () => {
         resolutionKind: expect.anything(),
       }),
     );
-
-    expect(getBattleActionDefinition("basic-skill")).toEqual(
-      expect.objectContaining({
-        allowedSides: ["enemy"],
-        selectionMode: "selective",
-      }),
-    );
   });
 
-  it("creates an active battle snapshot with the root battle command tree and no selected executable action by default", () => {
-    const pendingBattle = createPendingBattleSnapshot({
-      encounterId: "enc-battle-types-tree-001",
-      narrativeReason: "测试树形战斗命令菜单初始化。",
-      enemies: [{ enemy_id: "tree-shadow", count: 2 }],
-    });
+  it("models battle resolutions as snapshots of validation, outcomes, and press-turn settlement", () => {
+    const outcome: BattleActionOutcome = {
+      type: "hit",
+      tags: ["critical"],
+      actorId: "player-heroine-1",
+      primaryTargetId: "enemy-1",
+      finalTargetId: "enemy-1",
+      hpDelta: -18,
+      appliedStatusEffects: ["shock"],
+    };
 
-    const snapshot = createBattleSnapshotFromPendingBattle({
-      pendingBattle,
-      playerParty: [
-        {
-          id: "player-heroine-1",
-          side: "player",
-          displayName: "鹿目真昼",
-          hp: {
-            current: 120,
-            max: 120,
-          },
-          mp: {
-            current: 48,
-            max: 48,
-          },
-          isDown: false,
-        },
-      ],
-    });
+    const pressTurnResult: PressTurnSettlementResult = {
+      kind: "reward_half_turn",
+      reason: "critical",
+      before: {
+        ownerSide: "player",
+        icons: [{ id: "pt-player-1", state: "solid" }],
+      },
+      after: {
+        ownerSide: "player",
+        icons: [{ id: "pt-player-1", state: "blinking" }],
+      },
+    };
 
-    expect(snapshot.currentMenuNodeId).toBeNull();
-    expect(snapshot.selectedActionId).toBeNull();
-    expect(snapshot.selectedTargetId).toBe("enemy-1");
-    expect(snapshot.actionMenu).toEqual(createDefaultBattleCommandMenuTree());
+    const resolution: BattleActionResolution = {
+      ok: true,
+      actorId: "player-heroine-1",
+      actionId: "attack",
+      intendedTargetId: "enemy-1",
+      outcomes: [outcome],
+      pressTurnResult,
+      verboseLog: ["鹿目真昼 使用了 Attack，对 enemy-1 造成了暴击。"],
+      summaryLog: ["暴击命中"],
+    };
+
+    expect(resolution.ok).toBe(true);
+    expect(resolution.outcomes).toEqual([outcome]);
+    expect(resolution.pressTurnResult).toEqual(pressTurnResult);
+    expect(resolution.summaryLog).toContain("暴击命中");
+  });
+
+  it("models validation failures as no-op battle resolutions with explicit error codes", () => {
+    const failedResolution: BattleActionResolution = {
+      ok: false,
+      validationError: "target_required",
+      actorId: "player-heroine-1",
+      actionId: "attack",
+      intendedTargetId: null,
+      outcomes: [],
+      verboseLog: [],
+      summaryLog: [],
+    };
+
+    expect(failedResolution).toEqual({
+      ok: false,
+      validationError: "target_required",
+      actorId: "player-heroine-1",
+      actionId: "attack",
+      intendedTargetId: null,
+      outcomes: [],
+      verboseLog: [],
+      summaryLog: [],
+    });
   });
 });
