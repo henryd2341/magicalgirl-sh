@@ -189,6 +189,16 @@ export interface BattleResult {
   downParticipantIds: string[];
 }
 
+export interface BattleLogEntry {
+  id: string;
+  turnCount: number;
+  side: CombatantSide | "system";
+  actorId?: string;
+  actionId?: string;
+  targetId?: string;
+  summary: string;
+}
+
 export interface PressTurnIcon {
   id: string;
   state: PressTurnIconState;
@@ -292,6 +302,7 @@ export interface BattleSnapshot {
   actionMenu?: BattleActionMenuNode[];
   battleResult?: BattleResult;
   resultSummary?: string;
+  battleLog?: BattleLogEntry[];
 }
 
 export interface CreatePendingBattleSnapshotInput {
@@ -423,5 +434,6 @@ export function createBattleSnapshotFromPendingBattle(
     selectedSwapInParticipantId: null,
     actionMenu: createDefaultBattleCommandMenuTree(),
     battleResult: undefined,
+    battleLog: [],
   };
 }

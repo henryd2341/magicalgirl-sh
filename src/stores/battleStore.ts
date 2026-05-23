@@ -2,7 +2,10 @@ import {
   findBattleActionMenuNodeById,
   getBattleActionDefinition,
 } from "@/engine/battle/battleActionCatalog";
-import { resolveSelectedBattleAction } from "@/engine/battle/battleResolver";
+import {
+  resolveEnemyTurn,
+  resolveSelectedBattleAction,
+} from "@/engine/battle/battleResolver";
 import {
   createBattleSnapshotFromPendingBattle,
   createPendingBattleSnapshot,
@@ -159,6 +162,13 @@ export const useBattleStore = defineStore("battle", {
       }
 
       this.activeBattle = resolveSelectedBattleAction(this.activeBattle);
+    },
+    resolveEnemyTurn() {
+      if (this.activeBattle === null) {
+        return;
+      }
+
+      this.activeBattle = resolveEnemyTurn(this.activeBattle);
     },
   },
 });
