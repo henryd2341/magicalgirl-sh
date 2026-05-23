@@ -23,6 +23,18 @@ export const COMBATANT_SIDES = ["player", "enemy"] as const;
 
 export type CombatantSide = (typeof COMBATANT_SIDES)[number];
 
+export const BATTLE_RESULT_OUTCOMES = ["victory", "defeat", "escape"] as const;
+
+export type BattleResultOutcome = (typeof BATTLE_RESULT_OUTCOMES)[number];
+
+export const BATTLE_RESULT_END_REASONS = [
+  "all_enemies_down",
+  "all_players_down",
+  "manual_exit",
+] as const;
+
+export type BattleResultEndReason = (typeof BATTLE_RESULT_END_REASONS)[number];
+
 export const BATTLE_ELEMENTS = {
   None: 0,
   Physical: 1 << 0,
@@ -168,6 +180,15 @@ export interface BattleParticipant {
   canAct?: boolean;
 }
 
+export interface BattleResult {
+  outcome: BattleResultOutcome;
+  winningSide?: CombatantSide;
+  endReason: BattleResultEndReason;
+  turnCount: number;
+  survivingParticipantIds: string[];
+  downParticipantIds: string[];
+}
+
 export interface PressTurnIcon {
   id: string;
   state: PressTurnIconState;
@@ -269,6 +290,7 @@ export interface BattleSnapshot {
   selectedSwapOutParticipantId?: string | null;
   selectedSwapInParticipantId?: string | null;
   actionMenu?: BattleActionMenuNode[];
+  battleResult?: BattleResult;
   resultSummary?: string;
 }
 
@@ -400,5 +422,6 @@ export function createBattleSnapshotFromPendingBattle(
     selectedSwapOutParticipantId: null,
     selectedSwapInParticipantId: null,
     actionMenu: createDefaultBattleCommandMenuTree(),
+    battleResult: undefined,
   };
 }

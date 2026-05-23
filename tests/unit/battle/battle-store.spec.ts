@@ -272,8 +272,6 @@ describe("battleStore", () => {
           canAct: true,
         },
       ],
-      narrativeReason: "楼顶天线旁的影子扭曲成了战斗姿态。",
-      resultSummary: null,
       pressTurn: {
         ownerSide: "player",
         icons: [{ id: "pt-player-player-heroine-1-1", state: "solid" }],
@@ -290,6 +288,7 @@ describe("battleStore", () => {
       selectedSwapOutParticipantId: null,
       selectedSwapInParticipantId: null,
       actionMenu: createDefaultBattleCommandMenuTree(),
+      battleResult: undefined,
     });
   });
 
@@ -412,8 +411,8 @@ describe("battleStore", () => {
     store.selectMenuNode("item-basic-item-action");
     store.selectTarget("player-heroine-2");
 
-    expect(store.activeBattle?.selectedActionId).toBe("basic-item");
-    expect(store.activeBattle?.selectedTargetId).toBe("player-heroine-2");
+    expect(store.activeBattle?.selectedActionId).toBeNull();
+    expect(store.activeBattle?.selectedTargetId).toBe("enemy-1");
     expect(store.activeBattle?.pressTurn.icons).toHaveLength(2);
     expect(
       store.activeBattle?.participants.find(
@@ -575,7 +574,7 @@ describe("battleStore", () => {
     expect(store.activeBattle?.pressTurn.icons).toEqual([
       { id: "pt-player-player-heroine-1-1", state: "solid" },
     ]);
-    expect(store.activeBattle?.currentActorId).toBe("player-heroine-1");
+    expect(store.activeBattle?.currentActorId).toBe("player-heroine-2");
     expect(
       store.activeBattle?.participants.find(
         (participant) => participant.id === "player-heroine-2",

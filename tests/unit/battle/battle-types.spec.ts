@@ -6,6 +6,8 @@ import type { TriggerBattleToolInput } from "@/orchestrator/toolEnvelope";
 import {
   BATTLE_LIFECYCLE_STATES,
   BATTLE_PHASES,
+  BATTLE_RESULT_END_REASONS,
+  BATTLE_RESULT_OUTCOMES,
   BATTLE_ELEMENTS as BattleElement,
   COMBATANT_SIDES,
   createBattleSnapshotFromPendingBattle,
@@ -13,12 +15,13 @@ import {
   expandTriggerBattleEnemies,
   type BattleActionOutcome,
   type BattleActionResolution,
+  type BattleResult,
   type PressTurnSettlementResult,
 } from "@/types/battle";
 import { describe, expect, it } from "vitest";
 
 describe("battle types", () => {
-  it("defines the MVP battle lifecycle, phase, and side unions for the domain layer", () => {
+  it("defines the MVP battle lifecycle, phase, side unions, and battle result enums for the domain layer", () => {
     expect(BATTLE_LIFECYCLE_STATES).toEqual(["PENDING", "ACTIVE", "RESOLVED"]);
     expect(BATTLE_PHASES).toEqual([
       "PLAYER_COMMAND",
@@ -27,6 +30,12 @@ describe("battle types", () => {
       "RESULT",
     ]);
     expect(COMBATANT_SIDES).toEqual(["player", "enemy"]);
+    expect(BATTLE_RESULT_OUTCOMES).toEqual(["victory", "defeat", "escape"]);
+    expect(BATTLE_RESULT_END_REASONS).toEqual([
+      "all_enemies_down",
+      "all_players_down",
+      "manual_exit",
+    ]);
   });
 
   it("defines BattleElement as bitmask flags including earth before light", () => {
@@ -150,6 +159,27 @@ describe("battle types", () => {
         }),
       ]),
     );
+    expect(snapshot.battleResult).toBeUndefined();
+  });
+
+  it("models BattleResult as a battle-end snapshot separate from future settlement data", () => {
+    const battleResult: BattleResult = {
+      outcome: "victory",
+      winningSide: "player",
+      endReason: "all_enemies_down",
+      turnCount: 3,
+      survivingParticipantIds: ["player-heroine-1", "player-heroine-2"],
+      downParticipantIds: ["enemy-1", "enemy-2"],
+    };
+
+    expect(battleResult).toEqual({
+      outcome: "victory",
+      winningSide: "player",
+      endReason: "all_enemies_down",
+      turnCount: 3,
+      survivingParticipantIds: ["player-heroine-1", "player-heroine-2"],
+      downParticipantIds: ["enemy-1", "enemy-2"],
+    });
   });
 
   it("creates the default battle command tree with root-level action and group nodes", () => {

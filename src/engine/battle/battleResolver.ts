@@ -14,6 +14,7 @@ import type {
   BattleActionOutcome,
   BattleActionResolution,
   BattleParticipant,
+  BattleResult,
   BattleSnapshot,
 } from "@/types/battle";
 
@@ -86,6 +87,42 @@ function applyBattleOutcomes(
       clonedParticipant,
     );
   });
+}
+
+function createVictoryBattleResult(
+  participants: BattleParticipant[],
+  turnCount: number,
+): BattleResult {
+  return {
+    outcome: "victory",
+    winningSide: "player",
+    endReason: "all_enemies_down",
+    turnCount,
+    survivingParticipantIds: participants
+      .filter((participant) => !participant.isDown)
+      .map((participant) => participant.id),
+    downParticipantIds: participants
+      .filter((participant) => participant.isDown)
+      .map((participant) => participant.id),
+  };
+}
+
+function createDefeatBattleResult(
+  participants: BattleParticipant[],
+  turnCount: number,
+): BattleResult {
+  return {
+    outcome: "defeat",
+    winningSide: "enemy",
+    endReason: "all_players_down",
+    turnCount,
+    survivingParticipantIds: participants
+      .filter((participant) => !participant.isDown)
+      .map((participant) => participant.id),
+    downParticipantIds: participants
+      .filter((participant) => participant.isDown)
+      .map((participant) => participant.id),
+  };
 }
 
 function validateSwapSelection(
@@ -287,6 +324,9 @@ export function resolveSelectedBattleAction(
   const allEnemiesDefeated = participants
     .filter((participant) => participant.side === "enemy")
     .every((participant) => participant.isDown);
+  const allPlayersDefeated = participants
+    .filter((participant) => participant.side === "player")
+    .every((participant) => participant.isDown);
   const playerTurnExhausted = isPressTurnExhausted(nextPressTurn);
   const nextActorId = playerTurnExhausted
     ? null
@@ -301,15 +341,30 @@ export function resolveSelectedBattleAction(
     participants,
     pressTurn: nextPressTurn,
     currentActorId: nextActorId,
-    lifecycleState: allEnemiesDefeated ? "RESOLVED" : "ACTIVE",
-    phase: allEnemiesDefeated
-      ? "RESULT"
-      : playerTurnExhausted
-        ? "ENEMY_TURN"
-        : "PLAYER_COMMAND",
+    lifecycleState:
+      allEnemiesDefeated || allPlayersDefeated ? "RESOLVED" : "ACTIVE",
+    phase:
+      allEnemiesDefeated || allPlayersDefeated
+        ? "RESULT"
+        : playerTurnExhausted
+          ? "ENEMY_TURN"
+          : "PLAYER_COMMAND",
+    battleResult: allEnemiesDefeated
+      ? createVictoryBattleResult(
+          participants,
+          normalizedSnapshot.turnCount ?? 1,
+        )
+      : allPlayersDefeated
+        ? createDefeatBattleResult(
+            participants,
+            normalizedSnapshot.turnCount ?? 1,
+          )
+        : normalizedSnapshot.battleResult,
     resultSummary: allEnemiesDefeated
       ? "Victory"
-      : normalizedSnapshot.resultSummary,
+      : allPlayersDefeated
+        ? "Defeat"
+        : normalizedSnapshot.resultSummary,
   };
 }
 

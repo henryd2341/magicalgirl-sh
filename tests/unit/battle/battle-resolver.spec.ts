@@ -165,6 +165,124 @@ describe("battleResolver", () => {
     });
   });
 
+  it("produces a formal battleResult when the battle enters RESULT after all enemies are down", () => {
+    const snapshot = createActiveBattleSnapshot({
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 1,
+          hp: {
+            current: 120,
+            max: 120,
+          },
+          mp: {
+            current: 48,
+            max: 48,
+          },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "first-shadow",
+          level: 1,
+          hp: {
+            current: 1,
+            max: 1,
+          },
+          mp: {
+            current: 0,
+            max: 0,
+          },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+      ],
+      selectedTargetId: "enemy-1",
+      turnCount: 3,
+    });
+
+    const resolved = resolveSelectedBattleAction(snapshot);
+
+    expect(resolved.lifecycleState).toBe("RESOLVED");
+    expect(resolved.phase).toBe("RESULT");
+    expect(resolved.resultSummary).toBe("Victory");
+    expect(resolved.battleResult).toEqual({
+      outcome: "victory",
+      winningSide: "player",
+      endReason: "all_enemies_down",
+      turnCount: 3,
+      survivingParticipantIds: ["player-heroine-1"],
+      downParticipantIds: ["enemy-1"],
+    });
+  });
+
+  it("produces a formal defeat battleResult when all players are already down at resolution time", () => {
+    const snapshot = createActiveBattleSnapshot({
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 1,
+          hp: {
+            current: 0,
+            max: 120,
+          },
+          mp: {
+            current: 48,
+            max: 48,
+          },
+          isDown: true,
+          isActive: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "first-shadow",
+          level: 1,
+          hp: {
+            current: 1,
+            max: 1,
+          },
+          mp: {
+            current: 0,
+            max: 0,
+          },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+      ],
+      pressTurn: {
+        ownerSide: "player",
+        icons: [],
+      },
+      selectedActionId: "pass",
+      turnCount: 4,
+    });
+
+    const resolved = resolveSelectedBattleAction(snapshot);
+
+    expect(resolved.lifecycleState).toBe("RESOLVED");
+    expect(resolved.phase).toBe("RESULT");
+    expect(resolved.resultSummary).toBe("Defeat");
+    expect(resolved.battleResult).toEqual({
+      outcome: "defeat",
+      winningSide: "enemy",
+      endReason: "all_players_down",
+      turnCount: 4,
+      survivingParticipantIds: ["enemy-1"],
+      downParticipantIds: ["player-heroine-1"],
+    });
+  });
+
   it("creates a resolution payload for attack outcomes before applying snapshot mutations", () => {
     const snapshot = createActiveBattleSnapshot({
       pressTurn: {
@@ -1040,6 +1158,14 @@ describe("battleResolver", () => {
       currentMenuNodeId: null,
       selectedActionId: "attack",
       actionMenu: createDefaultBattleCommandMenuTree(),
+      battleResult: {
+        outcome: "victory",
+        winningSide: "player",
+        endReason: "all_enemies_down",
+        turnCount: 1,
+        survivingParticipantIds: ["player-heroine-1"],
+        downParticipantIds: ["enemy-1"],
+      },
       resultSummary: "Victory",
     });
   });
