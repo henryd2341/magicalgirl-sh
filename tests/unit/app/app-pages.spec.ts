@@ -26,7 +26,11 @@ describe("application page layering", () => {
   });
 
   it("renders the start screen as a minimal entry surface with explicit begin instructions", () => {
-    render(StartScreenView);
+    render(StartScreenView, {
+      global: {
+        plugins: [router],
+      },
+    });
 
     expect(
       screen.getByRole("button", { name: /按下 enter 或点击任意位置开始/i }),
@@ -35,7 +39,11 @@ describe("application page layering", () => {
   });
 
   it("renders the title page as the branded main menu instead of the in-game chat screen", () => {
-    render(SplashScreenView);
+    render(SplashScreenView, {
+      global: {
+        plugins: [router],
+      },
+    });
 
     expect(
       screen.getByRole("heading", { level: 1, name: /magicalgirl shell/i }),
@@ -54,7 +62,11 @@ describe("application page layering", () => {
   });
 
   it("renders the new game setup page as a separate initialization form before entering the game", () => {
-    render(NewGameSetupView);
+    render(NewGameSetupView, {
+      global: {
+        plugins: [router],
+      },
+    });
 
     expect(
       screen.getByRole("heading", { level: 1, name: "新游戏初始化" }),

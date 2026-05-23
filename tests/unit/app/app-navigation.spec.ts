@@ -1,15 +1,19 @@
 import AppShell from "@/app/AppShell.vue";
 import { router } from "@/router";
 import { fireEvent, render, screen, waitFor } from "@testing-library/vue";
+import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it } from "vitest";
 
 async function renderApplicationAt(path: string) {
+  const pinia = createPinia();
+  setActivePinia(pinia);
+
   await router.push(path);
   await router.isReady();
 
   return render(AppShell, {
     global: {
-      plugins: [router],
+      plugins: [pinia, router],
     },
   });
 }

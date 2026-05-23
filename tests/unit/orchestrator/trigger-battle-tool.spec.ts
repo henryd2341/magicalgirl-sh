@@ -23,6 +23,7 @@ describe("ToolExecutor trigger_battle", () => {
             count: 2,
           },
         ],
+        modifiers: ["ambush", "rain"],
         narrative_reason: "涂鸦影魔从天台储物间的阴影里爬了出来。",
       },
     } satisfies TriggerBattleToolEnvelope);
@@ -195,7 +196,7 @@ describe("ToolExecutor trigger_battle", () => {
     expect(result.error.message).toContain("narrative_reason is required");
   });
 
-  it("rejects non-object modifiers in the frozen trigger_battle contract", async () => {
+  it("rejects object modifiers because the frozen trigger_battle contract uses string tags", async () => {
     const facade = new GameEngineFacade(createSessionManager());
     const executor = new ToolExecutor(facade);
 
@@ -208,7 +209,7 @@ describe("ToolExecutor trigger_battle", () => {
       input: {
         encounter_id: "enc-rooftop-shadow-007",
         enemies: [{ enemy_id: "shadow-graffiti", count: 1 }],
-        modifiers: ["nope"] as unknown as Record<string, unknown>,
+        modifiers: { difficulty: "hard" } as unknown as string[],
         narrative_reason: "非法 modifiers 测试。",
       },
     } satisfies TriggerBattleToolEnvelope);
@@ -218,14 +219,12 @@ describe("ToolExecutor trigger_battle", () => {
       throw new Error("Expected failure result.");
     }
     expect(result.error.code).toBe("TOOL_INPUT_INVALID");
-    expect(result.error.message).toContain("modifiers must be an object");
+    expect(result.error.message).toContain("modifiers");
   });
 
-  it("moves the FSM from GENERATING to COMBAT_PENDING when trigger_battle is accepted", async () => {
+  it("rejects non-string modifier entries in the frozen trigger_battle contract", async () => {
     const facade = new GameEngineFacade(createSessionManager());
     const executor = new ToolExecutor(facade);
-
-    facade.beginAiRequest("req-pre-battle-001");
 
     const result = await executor.execute({
       tool_name: "trigger_battle",
@@ -236,6 +235,34 @@ describe("ToolExecutor trigger_battle", () => {
       input: {
         encounter_id: "enc-rooftop-shadow-008",
         enemies: [{ enemy_id: "shadow-graffiti", count: 1 }],
+        modifiers: ["ambush", 2] as unknown as string[],
+        narrative_reason: "非法 modifiers 测试。",
+      },
+    } satisfies TriggerBattleToolEnvelope);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("Expected failure result.");
+    }
+    expect(result.error.code).toBe("TOOL_INPUT_INVALID");
+    expect(result.error.message).toContain("modifiers");
+  });
+
+  it("moves the FSM from GENERATING to COMBAT_PENDING when trigger_battle is accepted", async () => {
+    const facade = new GameEngineFacade(createSessionManager());
+    const executor = new ToolExecutor(facade);
+
+    facade.beginAiRequest("req-trigger-battle-009");
+
+    const result = await executor.execute({
+      tool_name: "trigger_battle",
+      request_id: "req-trigger-battle-009",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-call-trigger-battle-009",
+      input: {
+        encounter_id: "enc-rooftop-shadow-009",
+        enemies: [{ enemy_id: "shadow-graffiti", count: 1 }],
         narrative_reason: "AI 叙事在生成阶段触发了战斗。",
       },
     } satisfies TriggerBattleToolEnvelope);
@@ -245,6 +272,70 @@ describe("ToolExecutor trigger_battle", () => {
       throw new Error("Expected successful result.");
     }
 
+    expect(facade.getSessionSnapshot()).toMatchObject({
+      sessionState: "COMBAT_PENDING",
+      pipelineState: null,
+      activeRequestId: null,
+    });
+  });
+
+  it("rejects trigger_battle envelopes from a stale active request", async () => {
+    const facade = new GameEngineFacade(createSessionManager());
+    const executor = new ToolExecutor(facade);
+
+    facade.beginAiRequest("req-active-battle-010");
+    const snapshotBefore = facade.getSessionSnapshot();
+
+    const result = await executor.execute({
+      tool_name: "trigger_battle",
+      request_id: "req-stale-battle-010",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-call-trigger-battle-010",
+      input: {
+        encounter_id: "enc-rooftop-shadow-010",
+        enemies: [{ enemy_id: "shadow-graffiti", count: 1 }],
+        narrative_reason: "过期请求不应能触发战斗。",
+      },
+    } satisfies TriggerBattleToolEnvelope);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("Expected failure result.");
+    }
+
+    expect(result.error.code).toBe("TOOL_CONTEXT_EXPIRED");
+    expect(facade.getSessionSnapshot()).toEqual(snapshotBefore);
+  });
+
+  it("rejects duplicate successful trigger_battle tool calls", async () => {
+    const facade = new GameEngineFacade(createSessionManager());
+    const executor = new ToolExecutor(facade);
+
+    const envelope = {
+      tool_name: "trigger_battle",
+      request_id: "req-trigger-battle-011",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-call-trigger-battle-011",
+      input: {
+        encounter_id: "enc-rooftop-shadow-011",
+        enemies: [{ enemy_id: "shadow-graffiti", count: 1 }],
+        narrative_reason: "同一个工具调用不能重复提交。",
+      },
+    } satisfies TriggerBattleToolEnvelope;
+
+    const firstResult = await executor.execute(envelope);
+    const duplicateResult = await executor.execute(envelope);
+
+    expect(firstResult.ok).toBe(true);
+    expect(duplicateResult.ok).toBe(false);
+
+    if (duplicateResult.ok) {
+      throw new Error("Expected duplicate failure result.");
+    }
+
+    expect(duplicateResult.error.code).toBe("TOOL_CALL_DUPLICATE");
     expect(facade.getSessionSnapshot()).toMatchObject({
       sessionState: "COMBAT_PENDING",
       pipelineState: null,

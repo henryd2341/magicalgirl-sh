@@ -22,6 +22,7 @@ function createInitialState(): DbWorkerStateSnapshot {
     chatHistory: new Map(),
     variableValue: null,
     variableChangeLog: new Map(),
+    worldInfo: new Map(),
   };
 }
 
@@ -198,6 +199,35 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
             type: "list_variable_change_logs_result",
             payload: [...state.variableChangeLog.values()].map((record) =>
               cloneValue(record),
+            ),
+          };
+        }
+
+        case "save_world_info_entry": {
+          const maybeError = ensureInitialized(state);
+          if (maybeError) {
+            return maybeError;
+          }
+
+          state.worldInfo.set(request.payload.id, cloneValue(request.payload));
+          return {
+            type: "save_world_info_entry_result",
+            payload: {
+              savedId: request.payload.id,
+            },
+          };
+        }
+
+        case "list_world_info_entries": {
+          const maybeError = ensureInitialized(state);
+          if (maybeError) {
+            return maybeError;
+          }
+
+          return {
+            type: "list_world_info_entries_result",
+            payload: [...state.worldInfo.values()].map((entry) =>
+              cloneValue(entry),
             ),
           };
         }

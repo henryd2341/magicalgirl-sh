@@ -41,5 +41,9 @@ export const migration001Init: DbMigration = {
     if (!state.variableChangeLog) {
       state.variableChangeLog = new Map();
     }
+
+    if (!state.worldInfo) {
+      state.worldInfo = new Map();
+    }
   },
 };

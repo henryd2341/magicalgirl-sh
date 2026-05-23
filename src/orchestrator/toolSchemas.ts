@@ -1,168 +1,242 @@
+import { z, type ZodIssue } from "zod";
+
 import type {
   ToolEnvelopeCandidate,
   ToolEnvelope,
-  TriggerBattleEnemyInput,
   TriggerBattleToolEnvelope,
   TriggerBattleToolInput,
   UpdateVariablesToolEnvelope,
   UpdateVariablesToolInput,
 } from "@/orchestrator/toolEnvelope";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+const updateVariablesToolInputSchema = z
+  .object({
+    patches: z
+      .array(
+        z
+          .object({
+            path: z.string().min(1),
+            value: z.unknown(),
+          })
+          .strict(),
+      )
+      .min(1),
+  })
+  .strict();
+
+const triggerBattleToolInputSchema = z
+  .object({
+    encounter_id: z.string().min(1),
+    enemies: z
+      .array(
+        z
+          .object({
+            enemy_id: z.string().min(1),
+            count: z.number().int().min(1),
+          })
+          .strict(),
+      )
+      .min(1),
+    modifiers: z.array(z.string().min(1)).optional(),
+    narrative_reason: z.string().min(1),
+  })
+  .strict();
+
+const toolEnvelopeBaseSchema = z
+  .object({
+    tool_name: z.string().min(1),
+    request_id: z.string().min(1),
+    context_version: z.number().int().min(1),
+    state_hash: z.string().min(1),
+    tool_call_id: z.string().min(1),
+    issued_at: z.string().optional(),
+    input: z.unknown().optional(),
+  })
+  .passthrough();
+
+function firstIssue(error: z.ZodError): ZodIssue {
+  return error.issues[0];
 }
 
-export function validateUpdateVariablesToolInput(
-  input: unknown,
-): UpdateVariablesToolInput {
-  if (!isRecord(input)) {
-    throw new Error(
+function hasPath(issue: ZodIssue, path: string): boolean {
+  return issue.path.map(String).join(".").startsWith(path);
+}
+
+function formatZodIssue(issue: ZodIssue): string {
+  if (issue.code === "unrecognized_keys") {
+    return `unsupported field(s): ${issue.keys.join(", ")}`;
+  }
+
+  const path = issue.path.map(String).join(".");
+  if (path.length > 0) {
+    return `${path}: ${issue.message}`;
+  }
+
+  return issue.message;
+}
+
+function updateVariablesInputError(error: z.ZodError): Error {
+  const issue = firstIssue(error);
+
+  if (issue.path.length === 0) {
+    return new Error(
       "[TOOL_INPUT_INVALID] update_variables input must be an object.",
     );
   }
 
-  const { patches } = input;
-  if (!Array.isArray(patches) || patches.length === 0) {
-    throw new Error(
-      "[TOOL_INPUT_INVALID] update_variables input.patches must be a non-empty array.",
-    );
-  }
+  if (hasPath(issue, "patches")) {
+    if (issue.path.length === 1) {
+      return new Error(
+        "[TOOL_INPUT_INVALID] update_variables input.patches must be a non-empty array.",
+      );
+    }
 
-  for (const patch of patches) {
-    if (!isRecord(patch) || typeof patch.path !== "string") {
-      throw new Error(
+    if (issue.path.includes("path")) {
+      return new Error(
         "[TOOL_INPUT_INVALID] each update_variables patch must include a string path.",
       );
     }
   }
 
-  return {
-    patches: patches.map((patch) => ({
-      path: patch.path as string,
-      value: patch.value,
-    })),
-  };
+  return new Error(
+    `[TOOL_INPUT_INVALID] update_variables ${formatZodIssue(issue)}.`,
+  );
 }
 
-function validateTriggerBattleEnemyInput(
-  input: unknown,
-): TriggerBattleEnemyInput {
-  if (!isRecord(input)) {
-    throw new Error(
+function triggerBattleInputError(error: z.ZodError): Error {
+  const issue = firstIssue(error);
+
+  if (issue.path.length === 0) {
+    if (issue.code === "unrecognized_keys") {
+      if (issue.keys.includes("enemy_group_id")) {
+        return new Error(
+          "[TOOL_INPUT_INVALID] trigger_battle does not allow enemy_group_id in the frozen contract.",
+        );
+      }
+
+      if (issue.keys.includes("level_policy")) {
+        return new Error(
+          "[TOOL_INPUT_INVALID] trigger_battle does not allow level_policy in the frozen contract.",
+        );
+      }
+
+      return new Error(
+        `[TOOL_INPUT_INVALID] trigger_battle input ${formatZodIssue(issue)}.`,
+      );
+    }
+
+    return new Error(
+      "[TOOL_INPUT_INVALID] trigger_battle input must be an object.",
+    );
+  }
+
+  if (hasPath(issue, "encounter_id")) {
+    return new Error(
+      "[TOOL_INPUT_INVALID] trigger_battle encounter_id is required.",
+    );
+  }
+
+  if (hasPath(issue, "enemies")) {
+    if (issue.path.length === 1) {
+      return new Error(
+        "[TOOL_INPUT_INVALID] trigger_battle enemies must be a non-empty array.",
+      );
+    }
+
+    if (issue.path.includes("enemy_id")) {
+      return new Error(
+        "[TOOL_INPUT_INVALID] each trigger_battle enemy must include enemy_id.",
+      );
+    }
+
+    if (issue.path.includes("count")) {
+      return new Error(
+        "[TOOL_INPUT_INVALID] each trigger_battle enemy count must be a positive integer.",
+      );
+    }
+
+    return new Error(
       "[TOOL_INPUT_INVALID] each trigger_battle enemy must be an object.",
     );
   }
 
-  const enemyId = input.enemy_id;
-  const count = input.count;
-
-  if (typeof enemyId !== "string" || enemyId.length === 0) {
-    throw new Error(
-      "[TOOL_INPUT_INVALID] each trigger_battle enemy must include enemy_id.",
+  if (hasPath(issue, "modifiers")) {
+    return new Error(
+      "[TOOL_INPUT_INVALID] trigger_battle modifiers must be an array of strings when provided.",
     );
   }
 
-  if (typeof count !== "number" || !Number.isInteger(count) || count < 1) {
-    throw new Error(
-      "[TOOL_INPUT_INVALID] each trigger_battle enemy count must be a positive integer.",
+  if (hasPath(issue, "narrative_reason")) {
+    return new Error(
+      "[TOOL_INPUT_INVALID] trigger_battle narrative_reason is required.",
     );
   }
 
-  return {
-    enemy_id: enemyId,
-    count,
-  };
+  return new Error(
+    `[TOOL_INPUT_INVALID] trigger_battle ${formatZodIssue(issue)}.`,
+  );
+}
+
+function toolEnvelopeError(error: z.ZodError): Error {
+  const issue = firstIssue(error);
+
+  if (hasPath(issue, "request_id") || hasPath(issue, "tool_call_id")) {
+    return new Error(
+      "[TOOL_ENVELOPE_INVALID] request_id and tool_call_id are required.",
+    );
+  }
+
+  if (hasPath(issue, "context_version")) {
+    return new Error(
+      "[TOOL_ENVELOPE_INVALID] context_version must be a positive integer.",
+    );
+  }
+
+  if (hasPath(issue, "state_hash")) {
+    return new Error("[TOOL_ENVELOPE_INVALID] state_hash is required.");
+  }
+
+  return new Error(
+    `[TOOL_ENVELOPE_INVALID] tool envelope ${formatZodIssue(issue)}.`,
+  );
+}
+
+export function validateUpdateVariablesToolInput(
+  input: unknown,
+): UpdateVariablesToolInput {
+  const result = updateVariablesToolInputSchema.safeParse(input);
+  if (!result.success) {
+    throw updateVariablesInputError(result.error);
+  }
+
+  return result.data;
 }
 
 export function validateTriggerBattleToolInput(
   input: unknown,
 ): TriggerBattleToolInput {
-  if (!isRecord(input)) {
-    throw new Error(
-      "[TOOL_INPUT_INVALID] trigger_battle input must be an object.",
-    );
+  const result = triggerBattleToolInputSchema.safeParse(input);
+  if (!result.success) {
+    throw triggerBattleInputError(result.error);
   }
 
-  if ("enemy_group_id" in input) {
-    throw new Error(
-      "[TOOL_INPUT_INVALID] trigger_battle does not allow enemy_group_id in the frozen contract.",
-    );
-  }
-
-  if ("level_policy" in input) {
-    throw new Error(
-      "[TOOL_INPUT_INVALID] trigger_battle does not allow level_policy in the frozen contract.",
-    );
-  }
-
-  const encounterId = input.encounter_id;
-  const enemies = input.enemies;
-  const narrativeReason = input.narrative_reason;
-  const modifiers = input.modifiers;
-
-  if (typeof encounterId !== "string" || encounterId.length === 0) {
-    throw new Error(
-      "[TOOL_INPUT_INVALID] trigger_battle encounter_id is required.",
-    );
-  }
-
-  if (!Array.isArray(enemies) || enemies.length === 0) {
-    throw new Error(
-      "[TOOL_INPUT_INVALID] trigger_battle enemies must be a non-empty array.",
-    );
-  }
-
-  if (typeof narrativeReason !== "string" || narrativeReason.length === 0) {
-    throw new Error(
-      "[TOOL_INPUT_INVALID] trigger_battle narrative_reason is required.",
-    );
-  }
-
-  if (modifiers !== undefined && !isRecord(modifiers)) {
-    throw new Error(
-      "[TOOL_INPUT_INVALID] trigger_battle modifiers must be an object when provided.",
-    );
-  }
-
-  return {
-    encounter_id: encounterId,
-    enemies: enemies.map((enemy) => validateTriggerBattleEnemyInput(enemy)),
-    modifiers,
-    narrative_reason: narrativeReason,
-  };
+  return result.data;
 }
 
 export function validateToolEnvelope(
   envelope: ToolEnvelopeCandidate,
 ): ToolEnvelope {
-  if (!envelope.request_id || !envelope.tool_call_id) {
-    throw new Error(
-      "[TOOL_ENVELOPE_INVALID] request_id and tool_call_id are required.",
-    );
+  const baseResult = toolEnvelopeBaseSchema.safeParse(envelope);
+  if (!baseResult.success) {
+    throw toolEnvelopeError(baseResult.error);
   }
 
-  if (
-    !Number.isInteger(envelope.context_version) ||
-    envelope.context_version < 1
-  ) {
-    throw new Error(
-      "[TOOL_ENVELOPE_INVALID] context_version must be a positive integer.",
-    );
-  }
-
-  if (
-    typeof envelope.state_hash !== "string" ||
-    envelope.state_hash.length === 0
-  ) {
-    throw new Error("[TOOL_ENVELOPE_INVALID] state_hash is required.");
-  }
-
-  switch (envelope.tool_name) {
+  switch (baseResult.data.tool_name) {
     case "update_variables": {
       const validatedEnvelope: UpdateVariablesToolEnvelope = {
         ...envelope,
         tool_name: "update_variables",
-        input: validateUpdateVariablesToolInput(envelope.input),
+        input: validateUpdateVariablesToolInput(baseResult.data.input),
       };
       return validatedEnvelope;
     }
@@ -170,7 +244,7 @@ export function validateToolEnvelope(
       const validatedEnvelope: TriggerBattleToolEnvelope = {
         ...envelope,
         tool_name: "trigger_battle",
-        input: validateTriggerBattleToolInput(envelope.input),
+        input: validateTriggerBattleToolInput(baseResult.data.input),
       };
       return validatedEnvelope;
     }

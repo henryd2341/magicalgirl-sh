@@ -5,6 +5,7 @@ import type {
   VariableChangeLogRecord,
   VariableValueRecord,
 } from "@/types/variables";
+import type { WorldInfoEntry } from "@/persistence/repositories/worldInfoRepository";
 
 export interface TestRecordRow {
   id: string;
@@ -32,6 +33,7 @@ export interface DbWorkerStateSnapshot {
   chatHistory: Map<string, ChatMessage>;
   variableValue: VariableValueRecord | null;
   variableChangeLog: Map<string, VariableChangeLogRecord>;
+  worldInfo: Map<string, WorldInfoEntry>;
 }
 
 export type DbWorkerRequest =
@@ -71,6 +73,13 @@ export type DbWorkerRequest =
     }
   | {
       type: "list_variable_change_logs";
+    }
+  | {
+      type: "save_world_info_entry";
+      payload: WorldInfoEntry;
+    }
+  | {
+      type: "list_world_info_entries";
     };
 
 export type DbWorkerSuccessResponse =
@@ -121,6 +130,16 @@ export type DbWorkerSuccessResponse =
   | {
       type: "list_variable_change_logs_result";
       payload: VariableChangeLogRecord[];
+    }
+  | {
+      type: "save_world_info_entry_result";
+      payload: {
+        savedId: string;
+      };
+    }
+  | {
+      type: "list_world_info_entries_result";
+      payload: WorldInfoEntry[];
     };
 
 export type DbWorkerErrorResponse = {

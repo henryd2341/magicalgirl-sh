@@ -1,5 +1,10 @@
 <script setup lang="ts">
+import {
+  findBattleActionMenuNodeById,
+  getBattleActionDefinition,
+} from "@/engine/battle/battleActionCatalog";
 import { useBattleStore } from "@/stores/battleStore";
+import type { BattleActionId, BattleActionMenuNode } from "@/types/battle";
 import { storeToRefs } from "pinia";
 import { computed } from "vue";
 
@@ -46,14 +51,36 @@ const activePlayers = computed(() => {
   );
 });
 
+const selectedActionDefinition = computed(() => {
+  const actionId = activeBattle.value?.selectedActionId;
+
+  if (actionId == null) {
+    return null;
+  }
+
+  return getBattleActionDefinition(actionId);
+});
+
 const selectedTarget = computed(() => {
-  return (
+  const target =
     activeParticipants.value.find(
       (participant) => participant.id === activeBattle.value?.selectedTargetId,
     ) ??
     activeEnemies.value[0] ??
-    null
-  );
+    null;
+
+  if (target == null) {
+    return null;
+  }
+
+  if (
+    selectedActionDefinition.value?.selectionMode === "selective" &&
+    !selectedActionDefinition.value.allowedSides.includes(target.side)
+  ) {
+    return null;
+  }
+
+  return target;
 });
 
 const currentActor = computed(() => {
@@ -68,17 +95,35 @@ const currentActor = computed(() => {
   );
 });
 
-const actionMenu = computed(() => {
+const rootActionMenu = computed(() => {
   return activeBattle.value?.actionMenu ?? [];
 });
 
+const actionMenu = computed(() => {
+  const currentMenuNodeId = activeBattle.value?.currentMenuNodeId;
+
+  if (currentMenuNodeId == null) {
+    return rootActionMenu.value;
+  }
+
+  const currentMenuNode = findBattleActionMenuNodeById(
+    rootActionMenu.value,
+    currentMenuNodeId,
+  );
+
+  return currentMenuNode?.children ?? rootActionMenu.value;
+});
+
 const selectedAction = computed(() => {
-  return (
-    actionMenu.value.find(
-      (action) => action.id === activeBattle.value?.selectedActionId,
-    ) ??
-    actionMenu.value[0] ??
-    null
+  const selectedActionId = activeBattle.value?.selectedActionId;
+
+  if (selectedActionId == null) {
+    return null;
+  }
+
+  return findBattleActionMenuNodeByActionId(
+    rootActionMenu.value,
+    selectedActionId,
   );
 });
 
@@ -102,8 +147,32 @@ function selectTarget(targetId: string) {
   battleStore.selectTarget(targetId);
 }
 
-function selectAction(actionId: string) {
-  battleStore.selectAction(actionId);
+function selectMenuNode(nodeId: string) {
+  battleStore.selectMenuNode(nodeId);
+}
+
+function findBattleActionMenuNodeByActionId(
+  nodes: BattleActionMenuNode[],
+  actionId: BattleActionId,
+): BattleActionMenuNode | null {
+  for (const node of nodes) {
+    if (node.kind === "action" && node.actionId === actionId) {
+      return node;
+    }
+
+    if (node.children != null) {
+      const childMatch = findBattleActionMenuNodeByActionId(
+        node.children,
+        actionId,
+      );
+
+      if (childMatch != null) {
+        return childMatch;
+      }
+    }
+  }
+
+  return null;
 }
 </script>
 
@@ -213,8 +282,8 @@ function selectAction(actionId: string) {
           <li v-for="action in actionMenu" :key="action.id">
             <button
               type="button"
-              :aria-pressed="selectedAction?.id === action.id"
-              @click="selectAction(action.id)"
+              :aria-pressed="action.kind === 'action' && selectedAction?.id === action.id"
+              @click="selectMenuNode(action.id)"
             >
               {{ action.label }}
             </button>

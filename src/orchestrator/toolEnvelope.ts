@@ -16,7 +16,7 @@ export interface TriggerBattleEnemyInput {
 export interface TriggerBattleToolInput {
   encounter_id: string;
   enemies: TriggerBattleEnemyInput[];
-  modifiers?: Record<string, unknown>;
+  modifiers?: string[];
   narrative_reason: string;
 }
 
@@ -40,6 +40,7 @@ export interface BaseToolEnvelope {
   context_version: number;
   state_hash: string;
   tool_call_id: string;
+  issued_at?: string;
 }
 
 export interface ToolEnvelopeCandidate extends BaseToolEnvelope {

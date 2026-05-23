@@ -1,4 +1,5 @@
 import MainGameView from "@/pages/MainGameView.vue";
+import { router } from "@/router";
 import { useBattleStore } from "@/stores/battleStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { fireEvent, render, screen, within } from "@testing-library/vue";
@@ -8,12 +9,18 @@ import { beforeEach, describe, expect, it } from "vitest";
 async function renderMainGameWithStores() {
   const pinia = createPinia();
   setActivePinia(pinia);
+  await router.push("/game");
+  await router.isReady();
 
   return render(MainGameView, {
     global: {
-      plugins: [pinia],
+      plugins: [pinia, router],
     },
   });
+}
+
+async function waitForActiveBattleOverlay() {
+  await screen.findByRole("heading", { name: "战斗进行中" });
 }
 
 describe("MainGameView battle overlay entrypoint", () => {
@@ -44,7 +51,7 @@ describe("MainGameView battle overlay entrypoint", () => {
     expect(sessionStore.snapshot.sessionState).toBe("COMBAT_PENDING");
     expect(battleStore.pendingBattle).not.toBeNull();
 
-    battleStore.startBattle([
+    sessionStore.startBattle([
       {
         id: "player-heroine-1",
         side: "player",
@@ -63,14 +70,10 @@ describe("MainGameView battle overlay entrypoint", () => {
     ]);
 
     expect(
-      await screen.findByRole("heading", { name: "Battle" }),
+      await screen.findByRole("heading", { name: "战斗进行中" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("Encounter: enc-main-game-overlay-001"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("影魔从走廊镜面里爬出来，触发战斗浮层。"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Battle Active")).toBeInTheDocument();
+    expect(screen.getByText("enc-main-game-overlay-001")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Attack" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pass" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Swap" })).toBeInTheDocument();
@@ -80,7 +83,6 @@ describe("MainGameView battle overlay entrypoint", () => {
     await renderMainGameWithStores();
 
     const sessionStore = useSessionStore();
-    const battleStore = useBattleStore();
 
     await sessionStore.executeTriggerBattle({
       tool_name: "trigger_battle",
@@ -95,7 +97,7 @@ describe("MainGameView battle overlay entrypoint", () => {
       },
     });
 
-    battleStore.startBattle([
+    sessionStore.startBattle([
       {
         id: "player-heroine-1",
         side: "player",
@@ -112,6 +114,8 @@ describe("MainGameView battle overlay entrypoint", () => {
         isActive: true,
       },
     ]);
+
+    await waitForActiveBattleOverlay();
 
     const enemyRegion = await screen.findByLabelText("敌人区域");
     const enemyButtons = within(enemyRegion).getAllByRole("button", {
@@ -142,7 +146,7 @@ describe("MainGameView battle overlay entrypoint", () => {
       },
     });
 
-    battleStore.startBattle([
+    sessionStore.startBattle([
       {
         id: "player-heroine-1",
         side: "player",
@@ -159,6 +163,8 @@ describe("MainGameView battle overlay entrypoint", () => {
         isActive: true,
       },
     ]);
+
+    await waitForActiveBattleOverlay();
 
     await fireEvent.click(screen.getByRole("button", { name: "Skill" }));
 
@@ -188,7 +194,7 @@ describe("MainGameView battle overlay entrypoint", () => {
       },
     });
 
-    battleStore.startBattle([
+    sessionStore.startBattle([
       {
         id: "player-heroine-1",
         side: "player",
@@ -221,6 +227,8 @@ describe("MainGameView battle overlay entrypoint", () => {
       },
     ]);
 
+    await waitForActiveBattleOverlay();
+
     await fireEvent.click(screen.getByRole("button", { name: "Pass" }));
 
     expect(battleStore.activeBattle?.selectedActionId).toBe("pass");
@@ -235,7 +243,6 @@ describe("MainGameView battle overlay entrypoint", () => {
     await renderMainGameWithStores();
 
     const sessionStore = useSessionStore();
-    const battleStore = useBattleStore();
 
     await sessionStore.executeTriggerBattle({
       tool_name: "trigger_battle",
@@ -250,7 +257,7 @@ describe("MainGameView battle overlay entrypoint", () => {
       },
     });
 
-    battleStore.startBattle([
+    sessionStore.startBattle([
       {
         id: "player-heroine-1",
         side: "player",
@@ -267,6 +274,8 @@ describe("MainGameView battle overlay entrypoint", () => {
         isActive: true,
       },
     ]);
+
+    await waitForActiveBattleOverlay();
 
     const attackButton = screen.getByRole("button", { name: "Attack" });
     const skillButton = screen.getByRole("button", { name: "Skill" });
@@ -299,7 +308,7 @@ describe("MainGameView battle overlay entrypoint", () => {
       },
     });
 
-    battleStore.startBattle([
+    sessionStore.startBattle([
       {
         id: "player-heroine-1",
         side: "player",
@@ -316,6 +325,8 @@ describe("MainGameView battle overlay entrypoint", () => {
         isActive: true,
       },
     ]);
+
+    await waitForActiveBattleOverlay();
 
     if (battleStore.activeBattle === null) {
       throw new Error("expected active battle");
@@ -385,7 +396,7 @@ describe("MainGameView battle overlay entrypoint", () => {
 
     expect(result.ok).toBe(true);
 
-    battleStore.startBattle([
+    sessionStore.startBattle([
       {
         id: "player-heroine-1",
         side: "player",
@@ -417,6 +428,8 @@ describe("MainGameView battle overlay entrypoint", () => {
         isActive: true,
       },
     ]);
+
+    await waitForActiveBattleOverlay();
 
     await fireEvent.click(screen.getByRole("button", { name: "Item" }));
     await fireEvent.click(screen.getByRole("button", { name: "Basic Item" }));

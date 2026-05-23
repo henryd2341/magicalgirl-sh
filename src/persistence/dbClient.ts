@@ -10,6 +10,7 @@ import type {
   VariableChangeLogRecord,
   VariableValueRecord,
 } from "@/types/variables";
+import type { WorldInfoEntry } from "@/persistence/repositories/worldInfoRepository";
 
 export class DbWorkerClient {
   private readonly endpoint: DbWorkerEndpoint;
@@ -143,6 +144,33 @@ export class DbWorkerClient {
     if (response.type !== "list_variable_change_logs_result") {
       throw new Error(
         `Unexpected response type for listVariableChangeLogs: ${response.type}`,
+      );
+    }
+
+    return response.payload;
+  }
+
+  public async saveWorldInfoEntry(entry: WorldInfoEntry): Promise<void> {
+    const response = await this.dispatch({
+      type: "save_world_info_entry",
+      payload: entry,
+    });
+
+    if (response.type !== "save_world_info_entry_result") {
+      throw new Error(
+        `Unexpected response type for saveWorldInfoEntry: ${response.type}`,
+      );
+    }
+  }
+
+  public async listWorldInfoEntries(): Promise<WorldInfoEntry[]> {
+    const response = await this.dispatch({
+      type: "list_world_info_entries",
+    });
+
+    if (response.type !== "list_world_info_entries_result") {
+      throw new Error(
+        `Unexpected response type for listWorldInfoEntries: ${response.type}`,
       );
     }
 

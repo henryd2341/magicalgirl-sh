@@ -115,6 +115,10 @@ export class GameEngineFacade {
     return this.sessionManager.getSnapshot();
   }
 
+  public getCurrentVariableStateHash(): Promise<string> {
+    return this.variablePatchService.getCurrentStateHash();
+  }
+
   public applyVariablePatchEnvelope(
     envelope: VariablePatchEnvelope,
   ): Promise<VariablePatchCommitResult> {

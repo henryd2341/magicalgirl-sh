@@ -64,4 +64,12 @@ export class VariablePatchService {
       nextHash: result.nextHash,
     };
   }
+
+  public async getCurrentStateHash(): Promise<string> {
+    const current =
+      (await this.variableRepository.getCurrent()) ??
+      this.engine.createInitialState();
+
+    return current.stateHash;
+  }
 }
