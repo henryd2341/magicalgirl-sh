@@ -192,6 +192,12 @@ export interface BattleResult {
   downParticipantIds: string[];
 }
 
+export interface BattleSummarySet {
+  verbose: string;
+  default: string;
+  minimal: string;
+}
+
 export interface BattleLogEntry {
   id: string;
   turnCount: number;
