@@ -31,6 +31,8 @@ import type {
 const BASIC_SKILL_MP_COST = 3;
 const BASIC_SKILL_DAMAGE = 2;
 const BASIC_ITEM_HEAL = 2;
+const GUARD_STATUS_EFFECT = "guarding";
+const ENEMY_ATTACK_DAMAGE = 1;
 
 function cloneParticipant(participant: BattleParticipant): BattleParticipant {
   const cloned: BattleParticipant = {
@@ -72,6 +74,13 @@ function applyOutcomeToParticipant(
     Math.max(0, participant.mp.current + (outcome.mpDelta ?? 0)),
   );
 
+  const statusEffects = [
+    ...new Set([
+      ...(participant.statusEffects ?? []),
+      ...(outcome.appliedStatusEffects ?? []),
+    ]),
+  ];
+
   return {
     ...participant,
     hp: {
@@ -83,10 +92,7 @@ function applyOutcomeToParticipant(
       current: nextMpCurrent,
     },
     isDown: nextHpCurrent === 0,
-    statusEffects: [
-      ...(participant.statusEffects ?? []),
-      ...(outcome.appliedStatusEffects ?? []),
-    ],
+    statusEffects,
   };
 }
 
@@ -176,6 +182,27 @@ function selectEnemyTurnTarget(
         ? participant
         : lowestHpTarget;
     }, undefined);
+}
+
+function hasGuardStatus(participant: BattleParticipant): boolean {
+  return (participant.statusEffects ?? []).includes(GUARD_STATUS_EFFECT);
+}
+
+function calculateEnemyAttackDamage(target: BattleParticipant): number {
+  return hasGuardStatus(target)
+    ? Math.max(0, ENEMY_ATTACK_DAMAGE - 1)
+    : ENEMY_ATTACK_DAMAGE;
+}
+
+function clearGuardStatusEffects(
+  participants: BattleParticipant[],
+): BattleParticipant[] {
+  return participants.map((participant) => ({
+    ...participant,
+    statusEffects: (participant.statusEffects ?? []).filter(
+      (statusEffect) => statusEffect !== GUARD_STATUS_EFFECT,
+    ),
+  }));
 }
 
 function validateSwapSelection(
@@ -482,7 +509,8 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
       break;
     }
 
-    const nextHp = Math.max(0, target.hp.current - 1);
+    const damage = calculateEnemyAttackDamage(target);
+    const nextHp = Math.max(0, target.hp.current - damage);
     participants = participants.map((participant) =>
       participant.id === target.id
         ? {
@@ -495,8 +523,10 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
           }
         : participant,
     );
-    logs.push(createEnemyAttackLogEntry(turnCount, actor, target, 1));
+    logs.push(createEnemyAttackLogEntry(turnCount, actor, target, damage));
   }
+
+  participants = clearGuardStatusEffects(participants);
 
   const allPlayersDefeated = participants
     .filter((participant) => participant.side === "player")
@@ -614,6 +644,25 @@ export function resolveSelectedBattleActionToResolution(
 
   if (definition.resolutionKind === "swap") {
     return createSwapResolution(snapshot);
+  }
+
+  if (definition.resolutionKind === "guard") {
+    const outcome: BattleActionOutcome = {
+      type: "hit",
+      tags: [],
+      actorId,
+      primaryTargetId: actorId,
+      finalTargetId: actorId,
+      appliedStatusEffects: [GUARD_STATUS_EFFECT],
+    };
+
+    return {
+      ...createPressTurnResolutionForOutcomes(snapshot, [outcome]),
+      actionId: definition.id,
+      intendedTargetId: snapshot.selectedTargetId,
+      verboseLog: [`${actorId} guarded.`],
+      summaryLog: ["Guard used"],
+    };
   }
 
   if (definition.selectionMode === "none") {

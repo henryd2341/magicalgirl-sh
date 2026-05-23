@@ -375,6 +375,78 @@ describe("battleResolver", () => {
     ]);
   });
 
+  it("reduces enemy attack damage against a guarding player and clears guard before the next player round", () => {
+    const snapshot = createActiveBattleSnapshot({
+      phase: "ENEMY_TURN",
+      currentActorId: null,
+      selectedActionId: null,
+      selectedTargetId: null,
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 1,
+          hp: { current: 1, max: 2 },
+          mp: { current: 48, max: 48 },
+          isDown: false,
+          isActive: true,
+          statusEffects: ["guarding"],
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "first-shadow",
+          level: 1,
+          hp: { current: 2, max: 2 },
+          mp: { current: 0, max: 0 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+      ],
+      pressTurn: {
+        ownerSide: "enemy",
+        icons: [{ id: "pt-enemy-enemy-1-1", state: "solid" }],
+      },
+      pressTurnAllocation: {
+        participantIds: ["enemy-1"],
+        initialIconCount: 1,
+      },
+      turnCount: 1,
+    });
+
+    const resolved = resolveEnemyTurn(snapshot);
+
+    expect(resolved.phase).toBe("PLAYER_COMMAND");
+    expect(
+      resolved.participants.find(
+        (participant) => participant.id === "player-heroine-1",
+      ),
+    ).toMatchObject({
+      hp: { current: 1, max: 2 },
+      isDown: false,
+      statusEffects: [],
+    });
+    expect(resolved.battleLog).toEqual([
+      {
+        id: "turn-1-enemy-1-attack-player-heroine-1",
+        turnCount: 1,
+        side: "enemy",
+        actorId: "enemy-1",
+        actionId: "enemy_attack",
+        targetId: "player-heroine-1",
+        summary: "first-shadow attacked 鹿目真昼 for 0 damage.",
+      },
+      {
+        id: "turn-2-player-round-start",
+        turnCount: 2,
+        side: "system",
+        summary: "Player turn 2 started.",
+      },
+    ]);
+  });
+
   it("resolves defeat during enemy turn when the final active player is down", () => {
     const snapshot = createActiveBattleSnapshot({
       phase: "ENEMY_TURN",
@@ -1162,7 +1234,7 @@ describe("battleResolver", () => {
     expect(resolved).toEqual(snapshot);
   });
 
-  it("allows none-mode actions to enter resolver without requiring a target but keeps unimplemented actions as no-op", () => {
+  it("resolves guard by marking the actor as guarding and consuming one press turn icon", () => {
     const snapshot = createActiveBattleSnapshot({
       selectedActionId: "guard",
       selectedTargetId: null,
@@ -1176,11 +1248,47 @@ describe("battleResolver", () => {
       actorId: "player-heroine-1",
       actionId: "guard",
       intendedTargetId: null,
-      outcomes: [],
-      verboseLog: [],
-      summaryLog: [],
+      outcomes: [
+        {
+          type: "hit",
+          tags: [],
+          actorId: "player-heroine-1",
+          primaryTargetId: "player-heroine-1",
+          finalTargetId: "player-heroine-1",
+          appliedStatusEffects: ["guarding"],
+        },
+      ],
+      pressTurnResult: {
+        kind: "consume_one",
+        reason: "hit",
+        before: {
+          ownerSide: "player",
+          icons: [{ id: "pt-player-player-heroine-1-1", state: "solid" }],
+        },
+        after: {
+          ownerSide: "player",
+          icons: [],
+        },
+      },
+      verboseLog: ["player-heroine-1 guarded."],
+      summaryLog: ["Guard used"],
     });
-    expect(resolved).toEqual(snapshot);
+    expect(resolved.phase).toBe("ENEMY_TURN");
+    expect(
+      resolved.participants.find(
+        (participant) => participant.id === "player-heroine-1",
+      ),
+    ).toMatchObject({
+      statusEffects: ["guarding"],
+    });
+    expect(resolved.battleLog?.at(-1)).toEqual({
+      id: "turn-1-player-heroine-1-guard-none",
+      turnCount: 1,
+      side: "player",
+      actorId: "player-heroine-1",
+      actionId: "guard",
+      summary: "Guard used",
+    });
   });
 
   it("resolves a basic skill by spending actor MP and damaging the selected enemy", () => {

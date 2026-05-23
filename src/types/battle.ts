@@ -74,6 +74,7 @@ export const BATTLE_ACTION_RESOLUTION_KINDS = [
   "attack",
   "skill",
   "item",
+  "guard",
   "pass",
   "swap",
   "unimplemented",

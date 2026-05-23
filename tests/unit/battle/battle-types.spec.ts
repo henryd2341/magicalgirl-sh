@@ -285,7 +285,7 @@ describe("battle types", () => {
         label: "Guard",
         selectionMode: "none",
         allowedSides: [],
-        resolutionKind: "unimplemented",
+        resolutionKind: "guard",
       }),
     );
 

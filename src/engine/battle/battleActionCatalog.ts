@@ -22,7 +22,7 @@ const BATTLE_ACTION_DEFINITIONS: Record<
     description: "进入防御姿态，减少即将受到的伤害。",
     selectionMode: "none",
     allowedSides: [],
-    resolutionKind: "unimplemented",
+    resolutionKind: "guard",
   },
   pass: {
     id: "pass",
