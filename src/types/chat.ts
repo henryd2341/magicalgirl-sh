@@ -1,10 +1,12 @@
 export type ChatMessageRole = "user" | "assistant" | "system";
 export type ChatMessageKind = "normal" | "battle_summary" | "failed_draft";
+export type ChatBattleSummaryLevel = "verbose" | "default" | "minimal";
 
 export interface ChatMessage {
   id: string;
   role: ChatMessageRole;
   kind: ChatMessageKind;
+  summary_level?: ChatBattleSummaryLevel;
   content: string;
   user_visible: boolean;
   ai_visible: boolean;

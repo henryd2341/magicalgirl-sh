@@ -8,6 +8,10 @@ import { computed } from "vue";
 const chatStore = useChatStore();
 const { messages } = storeToRefs(chatStore);
 
+const visibleMessages = computed(() => {
+  return messages.value.filter((message) => message.user_visible);
+});
+
 const latestFailedDraftId = computed(() => {
   const failedDrafts = messages.value.filter((message) => message.failed);
   return failedDrafts.at(-1)?.id ?? null;
@@ -16,7 +20,7 @@ const latestFailedDraftId = computed(() => {
 
 <template>
   <section id="game-conversation-panel" class="game-conversation-panel">
-    <ChatMessageList :messages="messages" />
+    <ChatMessageList :messages="visibleMessages" />
     <FailedDraftActions
       v-if="latestFailedDraftId"
       :message-id="latestFailedDraftId"

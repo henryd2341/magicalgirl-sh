@@ -1,8 +1,15 @@
 import MainGameView from "@/pages/MainGameView.vue";
 import { router } from "@/router";
 import { useBattleStore } from "@/stores/battleStore";
+import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
-import { fireEvent, render, screen, within } from "@testing-library/vue";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/vue";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -446,5 +453,149 @@ describe("MainGameView battle overlay entrypoint", () => {
     expect(enemyButton).toHaveAttribute("aria-pressed", "false");
     expect(battleStore.activeBattle?.selectedTargetId).toBe("enemy-1");
     expect(battleStore.activeBattle?.selectedActionId).toBe("basic-item");
+  });
+
+  it("commits result summaries and enters POST_COMBAT_READY after a resolved battle is completed", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
+    const chatStore = useChatStore();
+
+    await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-trigger-overlay-008",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-trigger-overlay-008",
+      input: {
+        encounter_id: "enc-main-game-overlay-008",
+        enemies: [{ enemy_id: "result-shadow", count: 1 }],
+        narrative_reason: "测试战斗结果提交。",
+      },
+    });
+
+    sessionStore.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+        isActive: true,
+      },
+    ]);
+
+    await waitForActiveBattleOverlay();
+    await fireEvent.click(screen.getByRole("button", { name: "Attack" }));
+    await fireEvent.click(screen.getByRole("button", { name: /result-shadow/ }));
+
+    expect(battleStore.activeBattle?.lifecycleState).toBe("RESOLVED");
+    expect(battleStore.activeBattle?.phase).toBe("RESULT");
+
+    await fireEvent.click(screen.getByRole("button", { name: "完成战斗" }));
+
+    await waitFor(() => {
+      expect(sessionStore.snapshot.sessionState).toBe("POST_COMBAT_READY");
+    });
+    expect(chatStore.messages.map((message) => message.summary_level)).toEqual([
+      "verbose",
+      "default",
+      "minimal",
+    ]);
+    expect(
+      chatStore.messages.find((message) => message.summary_level === "default"),
+    ).toMatchObject({
+      role: "system",
+      kind: "battle_summary",
+      user_visible: true,
+      ai_visible: false,
+      finalized: true,
+    });
+    expect(screen.getByText(/Victory/)).toBeInTheDocument();
+    expect(screen.queryByText("outcome: victory")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "继续剧情" }),
+    ).toBeInTheDocument();
+  });
+
+  it("starts a post-combat continuation request from POST_COMBAT_READY", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+
+    await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-trigger-overlay-009",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-trigger-overlay-009",
+      input: {
+        encounter_id: "enc-main-game-overlay-009",
+        enemies: [{ enemy_id: "post-combat-shadow", count: 1 }],
+        narrative_reason: "测试战后继续剧情。",
+      },
+    });
+    sessionStore.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+        isActive: true,
+      },
+    ]);
+    await waitForActiveBattleOverlay();
+
+    const battleStore = useBattleStore();
+    battleStore.activeBattle = {
+      ...battleStore.activeBattle!,
+      lifecycleState: "RESOLVED",
+      phase: "RESULT",
+      battleResult: {
+        outcome: "victory",
+        winningSide: "player",
+        endReason: "all_enemies_down",
+        turnCount: 1,
+        survivingParticipantIds: ["player-heroine-1"],
+        downParticipantIds: ["enemy-1"],
+      },
+      resultSummary: "Victory",
+      battleLog: [
+        {
+          id: "turn-1-result-victory",
+          turnCount: 1,
+          side: "system",
+          summary: "Victory: all enemies are down.",
+        },
+      ],
+    };
+
+    await fireEvent.click(
+      await screen.findByRole("button", { name: "完成战斗" }),
+    );
+    await fireEvent.click(
+      await screen.findByRole("button", { name: "继续剧情" }),
+    );
+
+    expect(sessionStore.snapshot.sessionState).toBe("GENERATING");
+    expect(sessionStore.snapshot.activeRequestId).toMatch(
+      /^post-combat-continue-/,
+    );
   });
 });

@@ -1,3 +1,4 @@
+import { BattleResultService } from "@/engine/battleResultService";
 import { GameEngineFacade } from "@/engine/gameEngineFacade";
 import { createSessionManager } from "@/engine/sessionManager";
 import type {
@@ -6,6 +7,7 @@ import type {
 } from "@/orchestrator/toolEnvelope";
 import { ToolExecutor } from "@/orchestrator/toolExecutor";
 import { useBattleStore } from "@/stores/battleStore";
+import { useChatStore } from "@/stores/chatStore";
 import type { BattleParticipant } from "@/types/battle";
 import { defineStore } from "pinia";
 import { ref } from "vue";
@@ -66,6 +68,30 @@ export const useSessionStore = defineStore("session", () => {
     snapshot.value = gameEngineFacade.getSessionSnapshot();
   }
 
+  async function completeActiveBattle() {
+    const battleStore = useBattleStore();
+    const chatStore = useChatStore();
+
+    if (battleStore.activeBattle === null) {
+      throw new Error(
+        "[BATTLE_RESULT_REQUIRED] Cannot complete battle without an active battle snapshot.",
+      );
+    }
+
+    const battleResultService = new BattleResultService({
+      chatService: chatStore,
+    });
+
+    const result = await battleResultService.commitResolvedBattle(
+      battleStore.activeBattle,
+    );
+
+    gameEngineFacade.markPostCombatReady();
+    snapshot.value = gameEngineFacade.getSessionSnapshot();
+
+    return result;
+  }
+
   function refreshSnapshot() {
     snapshot.value = gameEngineFacade.getSessionSnapshot();
   }
@@ -76,6 +102,7 @@ export const useSessionStore = defineStore("session", () => {
     executeTriggerBattle,
     enterCombatPending,
     startBattle,
+    completeActiveBattle,
     refreshSnapshot,
   };
 });

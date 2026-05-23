@@ -4,11 +4,13 @@ import {
   getBattleActionDefinition,
 } from "@/engine/battle/battleActionCatalog";
 import { useBattleStore } from "@/stores/battleStore";
+import { useSessionStore } from "@/stores/sessionStore";
 import type { BattleActionId, BattleActionMenuNode } from "@/types/battle";
 import { storeToRefs } from "pinia";
 import { computed } from "vue";
 
 const battleStore = useBattleStore();
+const sessionStore = useSessionStore();
 const { pendingBattle, activeBattle } = storeToRefs(battleStore);
 
 const pendingEnemySummaries = computed(() => {
@@ -151,6 +153,10 @@ function selectMenuNode(nodeId: string) {
   battleStore.selectMenuNode(nodeId);
 }
 
+async function completeBattle() {
+  await sessionStore.completeActiveBattle();
+}
+
 function findBattleActionMenuNodeByActionId(
   nodes: BattleActionMenuNode[],
   actionId: BattleActionId,
@@ -211,7 +217,9 @@ function findBattleActionMenuNodeByActionId(
 
     <div v-else-if="overlayMode === 'active'" class="battle-overlay__content">
       <p class="battle-overlay__eyebrow">Battle Active</p>
-      <h2 class="battle-overlay__title">战斗进行中</h2>
+      <h2 class="battle-overlay__title">
+        {{ activeBattle?.phase === "RESULT" ? "战斗结束" : "战斗进行中" }}
+      </h2>
       <p class="battle-overlay__encounter">
         <span class="battle-overlay__label">Encounter:</span>
         <span>{{ activeBattle?.encounterId }}</span>
@@ -278,7 +286,14 @@ function findBattleActionMenuNodeByActionId(
 
       <section aria-label="行动指令区域">
         <h3>Actions</h3>
-        <ul>
+        <button
+          v-if="activeBattle?.phase === 'RESULT'"
+          type="button"
+          @click="completeBattle"
+        >
+          完成战斗
+        </button>
+        <ul v-else>
           <li v-for="action in actionMenu" :key="action.id">
             <button
               type="button"

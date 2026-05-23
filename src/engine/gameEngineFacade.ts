@@ -99,6 +99,12 @@ export class GameEngineFacade {
     });
   }
 
+  public markPostCombatReady(): void {
+    this.commandBus.dispatch({
+      type: "MARK_POST_COMBAT_READY",
+    });
+  }
+
   public enterErrorRecovery(): void {
     this.commandBus.dispatch({
       type: "ENTER_ERROR_RECOVERY",

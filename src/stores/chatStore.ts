@@ -1,6 +1,7 @@
 import {
   ChatMessageService,
   type AppendAssistantChunkInput,
+  type CreateBattleSummaryMessageInput,
   type CreateAssistantProvisionalMessageInput,
   type CreateUserMessageInput,
   type FinalizeAssistantMessageInput,
@@ -72,6 +73,13 @@ export const useChatStore = defineStore("chat", {
       const message = await activeService.markAssistantFailedDraft(payload);
       this.messages = await listMessages();
       return message;
+    },
+    async createBattleSummaryMessages(
+      payload: CreateBattleSummaryMessageInput[],
+    ) {
+      const messages = await activeService.createBattleSummaryMessages(payload);
+      this.messages = await listMessages();
+      return messages;
     },
     async refreshMessages() {
       this.messages = await listMessages();

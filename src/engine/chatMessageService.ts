@@ -1,5 +1,5 @@
 import type { ChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
-import type { ChatMessage } from "@/types/chat";
+import type { ChatBattleSummaryLevel, ChatMessage } from "@/types/chat";
 
 export interface CreateUserMessageInput {
   id: string;
@@ -25,6 +25,15 @@ export interface FinalizeAssistantMessageInput {
 
 export interface MarkAssistantFailedDraftInput {
   messageId: string;
+}
+
+export interface CreateBattleSummaryMessageInput {
+  id: string;
+  level: ChatBattleSummaryLevel;
+  content: string;
+  userVisible: boolean;
+  aiVisible: boolean;
+  createdAt: string;
 }
 
 function createChatLifecycleError(code: string, message: string): Error {
@@ -131,6 +140,32 @@ export class ChatMessageService {
 
     await this.repository.save(updated);
     return updated;
+  }
+
+  public async createBattleSummaryMessages(
+    inputs: CreateBattleSummaryMessageInput[],
+  ): Promise<ChatMessage[]> {
+    const messages = inputs.map((input): ChatMessage => {
+      return {
+        id: input.id,
+        role: "system",
+        kind: "battle_summary",
+        summary_level: input.level,
+        content: input.content,
+        user_visible: input.userVisible,
+        ai_visible: input.aiVisible,
+        provisional: false,
+        finalized: true,
+        failed: false,
+        created_at: input.createdAt,
+      };
+    });
+
+    for (const message of messages) {
+      await this.repository.save(message);
+    }
+
+    return messages;
   }
 
   private async requireMessage(messageId: string): Promise<ChatMessage> {

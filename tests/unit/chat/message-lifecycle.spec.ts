@@ -131,4 +131,58 @@ describe("ChatMessageService", () => {
       user_visible: true,
     });
   });
+
+  it("persists battle summary system messages without changing assistant lifecycle state", async () => {
+    const repository = new InMemoryChatHistoryRepository();
+    const service = new ChatMessageService(repository);
+
+    const messages = await service.createBattleSummaryMessages([
+      {
+        id: "summary-default",
+        level: "default",
+        content: "Victory\nTurns: 2",
+        userVisible: true,
+        aiVisible: false,
+        createdAt: "2026-05-24T00:00:00.000Z",
+      },
+      {
+        id: "summary-minimal",
+        level: "minimal",
+        content: "outcome: victory",
+        userVisible: false,
+        aiVisible: true,
+        createdAt: "2026-05-24T00:00:00.000Z",
+      },
+    ]);
+
+    expect(messages).toEqual([
+      {
+        id: "summary-default",
+        role: "system",
+        kind: "battle_summary",
+        summary_level: "default",
+        content: "Victory\nTurns: 2",
+        user_visible: true,
+        ai_visible: false,
+        provisional: false,
+        finalized: true,
+        failed: false,
+        created_at: "2026-05-24T00:00:00.000Z",
+      },
+      {
+        id: "summary-minimal",
+        role: "system",
+        kind: "battle_summary",
+        summary_level: "minimal",
+        content: "outcome: victory",
+        user_visible: false,
+        ai_visible: true,
+        provisional: false,
+        finalized: true,
+        failed: false,
+        created_at: "2026-05-24T00:00:00.000Z",
+      },
+    ]);
+    expect(await repository.list()).toEqual(messages);
+  });
 });
