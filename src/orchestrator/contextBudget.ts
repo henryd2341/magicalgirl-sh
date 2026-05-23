@@ -66,21 +66,26 @@ export function applyContextBudget(
     dropSegment(segments, historySegments[index].id, "budget_history_count");
   }
 
-  while (includedTokenTotal(segments) > input.budget.maxTotalTokens) {
-    const includedWorldInfo = segments
-      .filter((segment) => segment.kind === "world_info" && segment.included)
-      .sort((left, right) => {
-        const leftPriority = input.worldInfoPriorities?.get(left.id) ?? 0;
-        const rightPriority = input.worldInfoPriorities?.get(right.id) ?? 0;
-        return leftPriority - rightPriority;
-      });
+  const worldInfoByAscPriority = [...worldInfoSegments]
+    .filter((segment) => segment.included)
+    .sort((left, right) => {
+      const leftPriority = input.worldInfoPriorities?.get(left.id) ?? 0;
+      const rightPriority = input.worldInfoPriorities?.get(right.id) ?? 0;
+      return leftPriority - rightPriority;
+    });
+  let worldInfoDropIndex = 0;
 
-    if (includedWorldInfo.length > 1) {
+  while (includedTokenTotal(segments) > input.budget.maxTotalTokens) {
+    const remainingWorldInfo =
+      worldInfoByAscPriority.length - worldInfoDropIndex;
+
+    if (remainingWorldInfo > 1) {
       dropSegment(
         segments,
-        includedWorldInfo[0].id,
+        worldInfoByAscPriority[worldInfoDropIndex].id,
         "budget_world_info_priority",
       );
+      worldInfoDropIndex += 1;
       continue;
     }
 

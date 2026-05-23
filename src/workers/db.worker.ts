@@ -8,6 +8,7 @@ import type {
 } from "@/persistence/dbProtocol";
 import { runMigrations } from "@/persistence/migrationRunner";
 import { DB_SCHEMA_VERSION } from "@/persistence/schema";
+import { deepClone } from "@/utils/deepClone";
 
 export interface DbWorkerRuntime extends DbWorkerEndpoint {
   getState(): Readonly<DbWorkerStateSnapshot>;
@@ -33,28 +34,18 @@ function createErrorResponse(payload: DbWorkerErrorPayload): DbWorkerResponse {
   };
 }
 
-function ensureInitialized(
-  state: DbWorkerStateSnapshot,
-): DbWorkerResponse | null {
-  if (state.initialized) {
-    return null;
-  }
-
-  return createErrorResponse({
-    code: "DB_WORKER_NOT_READY",
-    message: "Database worker must be initialized before writes.",
-  });
-}
-
-function cloneValue<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
 export function createDbWorkerRuntime(): DbWorkerRuntime {
   const state = createInitialState();
 
   return {
     async post(request: DbWorkerRequest): Promise<DbWorkerResponse> {
+      if (request.type !== "initialize" && !state.initialized) {
+        return createErrorResponse({
+          code: "DB_WORKER_NOT_READY",
+          message: "Database worker must be initialized before writes.",
+        });
+      }
+
       switch (request.type) {
         case "initialize": {
           const appliedMigrations = runMigrations(state);
@@ -74,11 +65,6 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
         }
 
         case "insert_test_record": {
-          const maybeError = ensureInitialized(state);
-          if (maybeError) {
-            return maybeError;
-          }
-
           state.testRecords.set(request.payload.id, request.payload);
           return {
             type: "insert_test_record_result",
@@ -89,11 +75,6 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
         }
 
         case "list_test_records": {
-          const maybeError = ensureInitialized(state);
-          if (maybeError) {
-            return maybeError;
-          }
-
           return {
             type: "list_test_records_result",
             payload: [...state.testRecords.values()],
@@ -101,11 +82,6 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
         }
 
         case "save_chat_message": {
-          const maybeError = ensureInitialized(state);
-          if (maybeError) {
-            return maybeError;
-          }
-
           state.chatHistory.set(request.payload.id, { ...request.payload });
           return {
             type: "save_chat_message_result",
@@ -116,11 +92,6 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
         }
 
         case "get_chat_message_by_id": {
-          const maybeError = ensureInitialized(state);
-          if (maybeError) {
-            return maybeError;
-          }
-
           const message = state.chatHistory.get(request.payload.id);
           return {
             type: "get_chat_message_by_id_result",
@@ -129,11 +100,6 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
         }
 
         case "list_chat_messages": {
-          const maybeError = ensureInitialized(state);
-          if (maybeError) {
-            return maybeError;
-          }
-
           return {
             type: "list_chat_messages_result",
             payload: [...state.chatHistory.values()].map((message) => ({
@@ -143,12 +109,7 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
         }
 
         case "save_current_variable_value": {
-          const maybeError = ensureInitialized(state);
-          if (maybeError) {
-            return maybeError;
-          }
-
-          state.variableValue = cloneValue(request.payload);
+          state.variableValue = deepClone(request.payload);
           return {
             type: "save_current_variable_value_result",
             payload: {
@@ -158,28 +119,18 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
         }
 
         case "get_current_variable_value": {
-          const maybeError = ensureInitialized(state);
-          if (maybeError) {
-            return maybeError;
-          }
-
           return {
             type: "get_current_variable_value_result",
             payload: state.variableValue
-              ? cloneValue(state.variableValue)
+              ? deepClone(state.variableValue)
               : null,
           };
         }
 
         case "append_variable_change_log": {
-          const maybeError = ensureInitialized(state);
-          if (maybeError) {
-            return maybeError;
-          }
-
           state.variableChangeLog.set(
             request.payload.id,
-            cloneValue(request.payload),
+            deepClone(request.payload),
           );
           return {
             type: "append_variable_change_log_result",
@@ -190,26 +141,16 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
         }
 
         case "list_variable_change_logs": {
-          const maybeError = ensureInitialized(state);
-          if (maybeError) {
-            return maybeError;
-          }
-
           return {
             type: "list_variable_change_logs_result",
             payload: [...state.variableChangeLog.values()].map((record) =>
-              cloneValue(record),
+              deepClone(record),
             ),
           };
         }
 
         case "save_world_info_entry": {
-          const maybeError = ensureInitialized(state);
-          if (maybeError) {
-            return maybeError;
-          }
-
-          state.worldInfo.set(request.payload.id, cloneValue(request.payload));
+          state.worldInfo.set(request.payload.id, deepClone(request.payload));
           return {
             type: "save_world_info_entry_result",
             payload: {
@@ -219,15 +160,10 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
         }
 
         case "list_world_info_entries": {
-          const maybeError = ensureInitialized(state);
-          if (maybeError) {
-            return maybeError;
-          }
-
           return {
             type: "list_world_info_entries_result",
             payload: [...state.worldInfo.values()].map((entry) =>
-              cloneValue(entry),
+              deepClone(entry),
             ),
           };
         }

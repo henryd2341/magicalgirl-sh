@@ -133,13 +133,19 @@ export class ToolExecutor {
   }
 
   private async assertExecutionContext(envelope: ToolEnvelope): Promise<void> {
-    if (await this.idempotencyLedger.hasSucceeded(envelope.tool_call_id)) {
+    const [alreadySucceeded, sessionSnapshot, currentStateHash] =
+      await Promise.all([
+        this.idempotencyLedger.hasSucceeded(envelope.tool_call_id),
+        Promise.resolve(this.gameEngineFacade.getSessionSnapshot()),
+        this.gameEngineFacade.getCurrentVariableStateHash(),
+      ]);
+
+    if (alreadySucceeded) {
       throw new Error(
         `[TOOL_CALL_DUPLICATE] Tool call ${envelope.tool_call_id} was already committed.`,
       );
     }
 
-    const sessionSnapshot = this.gameEngineFacade.getSessionSnapshot();
     if (
       sessionSnapshot.activeRequestId !== null &&
       sessionSnapshot.activeRequestId !== envelope.request_id
@@ -149,8 +155,6 @@ export class ToolExecutor {
       );
     }
 
-    const currentStateHash =
-      await this.gameEngineFacade.getCurrentVariableStateHash();
     if (envelope.state_hash !== currentStateHash) {
       throw new Error(
         `[TOOL_CONTEXT_EXPIRED] Tool call state_hash ${envelope.state_hash} does not match current state_hash ${currentStateHash}.`,

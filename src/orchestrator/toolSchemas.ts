@@ -231,20 +231,30 @@ export function validateToolEnvelope(
     throw toolEnvelopeError(baseResult.error);
   }
 
-  switch (baseResult.data.tool_name) {
+  const parsed = baseResult.data;
+
+  switch (parsed.tool_name) {
     case "update_variables": {
       const validatedEnvelope: UpdateVariablesToolEnvelope = {
-        ...envelope,
         tool_name: "update_variables",
-        input: validateUpdateVariablesToolInput(baseResult.data.input),
+        request_id: parsed.request_id,
+        context_version: parsed.context_version,
+        state_hash: parsed.state_hash,
+        tool_call_id: parsed.tool_call_id,
+        issued_at: parsed.issued_at,
+        input: validateUpdateVariablesToolInput(parsed.input),
       };
       return validatedEnvelope;
     }
     case "trigger_battle": {
       const validatedEnvelope: TriggerBattleToolEnvelope = {
-        ...envelope,
         tool_name: "trigger_battle",
-        input: validateTriggerBattleToolInput(baseResult.data.input),
+        request_id: parsed.request_id,
+        context_version: parsed.context_version,
+        state_hash: parsed.state_hash,
+        tool_call_id: parsed.tool_call_id,
+        issued_at: parsed.issued_at,
+        input: validateTriggerBattleToolInput(parsed.input),
       };
       return validatedEnvelope;
     }

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 export interface ToolCallExecutionRecord {
   toolCallId: string;
   requestId: string;
@@ -5,7 +6,12 @@ export interface ToolCallExecutionRecord {
   recordedAt: string;
 }
 
-export class InMemoryToolCallExecutionLedger {
+export interface ToolCallExecutionLedger {
+  hasSucceeded(toolCallId: string): Promise<boolean>;
+  recordSuccess(record: ToolCallExecutionRecord): Promise<void>;
+}
+
+export class InMemoryToolCallExecutionLedger implements ToolCallExecutionLedger {
   private readonly records = new Map<string, ToolCallExecutionRecord>();
 
   public hasSucceeded(toolCallId: string): Promise<boolean> {
@@ -21,8 +27,3 @@ export class InMemoryToolCallExecutionLedger {
     return Promise.resolve(Array.from(this.records.values()));
   }
 }
-
-export type ToolCallExecutionLedger = Pick<
-  InMemoryToolCallExecutionLedger,
-  "hasSucceeded" | "recordSuccess"
->;

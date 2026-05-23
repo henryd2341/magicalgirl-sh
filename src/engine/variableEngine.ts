@@ -3,6 +3,7 @@ import {
   validateGameVariablesRoot,
   validateVariablePathPatch,
 } from "@/engine/variablePolicy";
+import { deepClone } from "@/utils/deepClone";
 import type {
   GameVariablesRoot,
   VariablePatchEnvelope,
@@ -55,10 +56,6 @@ function computeStateHash(root: GameVariablesRoot, version: number): string {
   return `state-${hash.toString(16)}`;
 }
 
-function cloneRoot(root: GameVariablesRoot): GameVariablesRoot {
-  return JSON.parse(JSON.stringify(root)) as GameVariablesRoot;
-}
-
 function setValueAtPath(
   root: GameVariablesRoot,
   path: string,
@@ -101,7 +98,7 @@ export class VariableEngine {
       );
     }
 
-    const nextRoot = cloneRoot(input.current.root);
+    const nextRoot = deepClone(input.current.root);
     for (const patch of input.envelope.patches) {
       validateVariablePathPatch(nextRoot, patch);
       setValueAtPath(nextRoot, patch.path, patch.value);

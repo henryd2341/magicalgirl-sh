@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 
 import type { DbWorkerClient } from "@/persistence/dbClient";
+import { deepClone } from "@/utils/deepClone";
 
 export interface WorldInfoEntry {
   id: string;
@@ -15,19 +16,15 @@ export interface WorldInfoRepository {
   list(): Promise<WorldInfoEntry[]>;
 }
 
-function cloneValue<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
 export class InMemoryWorldInfoRepository implements WorldInfoRepository {
   private readonly entries = new Map<string, WorldInfoEntry>();
 
   public async save(entry: WorldInfoEntry): Promise<void> {
-    this.entries.set(entry.id, cloneValue(entry));
+    this.entries.set(entry.id, deepClone(entry));
   }
 
   public async list(): Promise<WorldInfoEntry[]> {
-    return [...this.entries.values()].map((entry) => cloneValue(entry));
+    return [...this.entries.values()].map((entry) => deepClone(entry));
   }
 }
 

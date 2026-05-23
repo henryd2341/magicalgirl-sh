@@ -5,6 +5,7 @@ import type {
   BuiltProviderRequest,
   ContextBudget,
   ContextInjectionTrace,
+  EnvelopeField,
   PromptSegment,
   ProviderMessage,
   ProviderToolDefinition,
@@ -162,35 +163,29 @@ function renderWorldInfo(entries: WorldInfoEntry[]): string {
     .join("\n\n");
 }
 
+const ENVELOPE_FIELDS: EnvelopeField[] = [
+  "request_id",
+  "context_version",
+  "state_hash",
+  "tool_call_id",
+  "tool_name",
+  "input",
+  "issued_at",
+];
+
 function createToolDefinitions(): ProviderToolDefinition[] {
   return [
     {
       name: "update_variables",
       description:
         "Apply whitelisted variable patches through the local Game Engine. The model cannot directly mutate state.",
-      envelopeFields: [
-        "request_id",
-        "context_version",
-        "state_hash",
-        "tool_call_id",
-        "tool_name",
-        "input",
-        "issued_at",
-      ],
+      envelopeFields: ENVELOPE_FIELDS,
     },
     {
       name: "trigger_battle",
       description:
         "Request a story-mode battle using local enemy ids only. The local engine validates and resolves combat.",
-      envelopeFields: [
-        "request_id",
-        "context_version",
-        "state_hash",
-        "tool_call_id",
-        "tool_name",
-        "input",
-        "issued_at",
-      ],
+      envelopeFields: ENVELOPE_FIELDS,
     },
   ];
 }
@@ -208,13 +203,19 @@ function renderToolDefinitions(tools: ProviderToolDefinition[]): string {
     .join("\n\n");
 }
 
-function buildMessages(segments: PromptSegment[]): ProviderMessage[] {
-  return segments
-    .filter((item) => item.included)
-    .map((item) => ({
-      role: item.kind === "history" ? "user" : "system",
-      content: item.content,
-    }));
+function buildMessages(
+  segments: PromptSegment[],
+  historyMessages: ChatMessage[],
+): ProviderMessage[] {
+  const systemMessages: ProviderMessage[] = segments
+    .filter((item) => item.included && item.kind !== "history")
+    .map((item) => ({ role: "system" as const, content: item.content }));
+
+  const historyProviderMessages: ProviderMessage[] = historyMessages.map(
+    (message) => ({ role: message.role, content: message.content }),
+  );
+
+  return [...systemMessages, ...historyProviderMessages];
 }
 
 function joinPromptText(segments: PromptSegment[]): string {
@@ -319,7 +320,7 @@ export async function buildHarnessRequest(
     },
     segments: budgeted.segments,
     traces: [...selectedWorldInfo.traces, ...budgeted.traces],
-    messages: buildMessages(budgeted.segments),
+    messages: buildMessages(budgeted.segments, historyMessages),
     tools,
     promptText: joinPromptText(budgeted.segments),
   };
