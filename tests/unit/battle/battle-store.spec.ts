@@ -289,6 +289,7 @@ describe("battleStore", () => {
       selectedSwapInParticipantId: null,
       actionMenu: createDefaultBattleCommandMenuTree(),
       battleResult: undefined,
+      battleLog: [],
     });
   });
 
@@ -728,5 +729,200 @@ describe("battleStore", () => {
       { id: "pt-player-player-heroine-2-2", state: "solid" },
       { id: "pt-player-player-heroine-3-3", state: "blinking" },
     ]);
+  });
+
+  it("ignores enemy turn resolution when no active battle exists", () => {
+    const store = useBattleStore();
+
+    store.resolveEnemyTurn();
+
+    expect(store.activeBattle).toBeNull();
+  });
+
+  it("advances an active enemy turn into the next player command round", () => {
+    const store = useBattleStore();
+
+    store.activeBattle = {
+      lifecycleState: "ACTIVE",
+      phase: "ENEMY_TURN",
+      encounterId: "enc-battle-store-enemy-turn-001",
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 1,
+          hp: { current: 2, max: 2 },
+          mp: { current: 0, max: 0 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+          affinities: {
+            weak: 0,
+            resist: 0,
+            nullify: 0,
+            reflect: 0,
+            absorb: 0,
+          },
+          combatStats: {
+            accuracy: 100,
+            evasion: 100,
+            critRate: 0,
+          },
+          canAct: true,
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "menu-shadow",
+          level: 1,
+          hp: { current: 1, max: 1 },
+          mp: { current: 0, max: 0 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+          affinities: {
+            weak: 0,
+            resist: 0,
+            nullify: 0,
+            reflect: 0,
+            absorb: 0,
+          },
+          combatStats: {
+            accuracy: 100,
+            evasion: 100,
+            critRate: 0,
+          },
+          canAct: true,
+        },
+      ],
+      resultSummary: undefined,
+      currentActorId: null,
+      selectedActionId: null,
+      selectedTargetId: null,
+      selectedSwapOutParticipantId: null,
+      selectedSwapInParticipantId: null,
+      actionMenu: createDefaultBattleCommandMenuTree(),
+      currentMenuNodeId: null,
+      pressTurn: {
+        ownerSide: "enemy",
+        icons: [{ id: "pt-enemy-enemy-1-1", state: "solid" }],
+      },
+      pressTurnAllocation: {
+        participantIds: ["enemy-1"],
+        initialIconCount: 1,
+      },
+      turnCount: 1,
+    };
+
+    store.resolveEnemyTurn();
+
+    expect(store.activeBattle?.phase).toBe("PLAYER_COMMAND");
+    expect(store.activeBattle?.turnCount).toBe(2);
+    expect(store.activeBattle?.currentActorId).toBe("player-heroine-1");
+    expect(store.activeBattle?.selectedActionId).toBeNull();
+    expect(store.activeBattle?.selectedTargetId).toBe("enemy-1");
+    expect(
+      store.activeBattle?.participants.find(
+        (participant) => participant.id === "player-heroine-1",
+      )?.hp.current,
+    ).toBe(1);
+    expect(store.activeBattle?.battleLog).toEqual([
+      {
+        id: "turn-1-enemy-1-attack-player-heroine-1",
+        turnCount: 1,
+        side: "enemy",
+        actorId: "enemy-1",
+        actionId: "enemy_attack",
+        targetId: "player-heroine-1",
+        summary: "menu-shadow attacked 鹿目真昼 for 1 damage.",
+      },
+      {
+        id: "turn-2-player-round-start",
+        turnCount: 2,
+        side: "system",
+        summary: "Player turn 2 started.",
+      },
+    ]);
+  });
+
+  it("can settle a complete deterministic battle without AI orchestration", () => {
+    const store = useBattleStore();
+
+    store.stagePendingEncounter({
+      encounterId: "enc-battle-store-complete-loop-001",
+      narrativeReason: "无 AI 战斗闭环测试。",
+      enemies: [{ enemy_id: "loop-shadow", count: 1 }],
+    });
+    store.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: { current: 2, max: 2 },
+        mp: { current: 0, max: 0 },
+        isDown: false,
+        isActive: true,
+      },
+    ]);
+
+    if (store.activeBattle == null) {
+      throw new Error("Expected active battle.");
+    }
+
+    store.activeBattle.participants = store.activeBattle.participants.map(
+      (participant) =>
+        participant.side === "enemy"
+          ? {
+              ...participant,
+              hp: { current: 2, max: 2 },
+            }
+          : participant,
+    );
+
+    store.selectAction("attack");
+    store.selectTarget("enemy-1");
+
+    expect(store.activeBattle).toMatchObject({
+      lifecycleState: "ACTIVE",
+      phase: "ENEMY_TURN",
+    });
+
+    store.resolveEnemyTurn();
+
+    expect(store.activeBattle).toMatchObject({
+      lifecycleState: "ACTIVE",
+      phase: "PLAYER_COMMAND",
+      turnCount: 2,
+      currentActorId: "player-heroine-1",
+    });
+    expect(
+      store.activeBattle?.participants.find(
+        (participant) => participant.id === "player-heroine-1",
+      )?.hp.current,
+    ).toBe(1);
+
+    store.selectAction("attack");
+    store.selectTarget("enemy-1");
+
+    expect(store.activeBattle?.lifecycleState).toBe("RESOLVED");
+    expect(store.activeBattle?.phase).toBe("RESULT");
+    expect(store.activeBattle?.battleResult).toEqual({
+      outcome: "victory",
+      winningSide: "player",
+      endReason: "all_enemies_down",
+      turnCount: 2,
+      survivingParticipantIds: ["player-heroine-1"],
+      downParticipantIds: ["enemy-1"],
+    });
+    expect(store.activeBattle?.battleLog?.map((entry) => entry.summary)).toEqual(
+      [
+        "Attack hit",
+        "loop-shadow attacked 鹿目真昼 for 1 damage.",
+        "Player turn 2 started.",
+        "Attack hit",
+        "Victory: all enemies are down.",
+      ],
+    );
   });
 });

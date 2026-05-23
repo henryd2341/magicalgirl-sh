@@ -1,4 +1,11 @@
 import { getBattleActionDefinition } from "@/engine/battle/battleActionCatalog";
+import {
+  appendBattleLogs,
+  createBattleResultLogEntry,
+  createEnemyAttackLogEntry,
+  createPlayerActionLogEntry,
+  createPlayerRoundStartLogEntry,
+} from "@/engine/battle/battleLogger";
 import { aggregatePressTurnOutcome } from "@/engine/battle/battleOutcomeAggregation";
 import {
   findNextEligibleActorId,
@@ -130,44 +137,6 @@ function createDefeatBattleResult(
   };
 }
 
-function appendBattleLogs(
-  snapshot: BattleSnapshot,
-  entries: BattleLogEntry[],
-): BattleLogEntry[] {
-  return [...(snapshot.battleLog ?? []), ...entries];
-}
-
-function createResultLogEntry(
-  battleResult: BattleResult,
-): BattleLogEntry {
-  const summary =
-    battleResult.outcome === "victory"
-      ? "Victory: all enemies are down."
-      : "Defeat: all players are down.";
-
-  return {
-    id: `turn-${battleResult.turnCount}-result-${battleResult.outcome}`,
-    turnCount: battleResult.turnCount,
-    side: "system",
-    summary,
-  };
-}
-
-function createPlayerActionLogEntry(
-  resolution: BattleActionResolution,
-  turnCount: number,
-): BattleLogEntry {
-  return {
-    id: `turn-${turnCount}-${resolution.actorId}-${resolution.actionId}-${resolution.intendedTargetId ?? "none"}`,
-    turnCount,
-    side: "player",
-    actorId: resolution.actorId,
-    actionId: resolution.actionId,
-    targetId: resolution.intendedTargetId ?? undefined,
-    summary: resolution.summaryLog[0] ?? `${resolution.actionId} used`,
-  };
-}
-
 function getFirstAllowedTargetId(
   participants: BattleParticipant[],
   side: "player" | "enemy",
@@ -181,6 +150,28 @@ function getFirstAllowedTargetId(
         participant.canAct !== false,
     )?.id ?? null
   );
+}
+
+function selectEnemyTurnTarget(
+  participants: BattleParticipant[],
+): BattleParticipant | undefined {
+  return participants
+    .filter(
+      (participant) =>
+        participant.side === "player" &&
+        participant.isActive &&
+        !participant.isDown &&
+        participant.canAct !== false,
+    )
+    .reduce<BattleParticipant | undefined>((lowestHpTarget, participant) => {
+      if (lowestHpTarget == null) {
+        return participant;
+      }
+
+      return participant.hp.current < lowestHpTarget.hp.current
+        ? participant
+        : lowestHpTarget;
+    }, undefined);
 }
 
 function validateSwapSelection(
@@ -403,7 +394,7 @@ export function resolveSelectedBattleAction(
   const actionLog = createPlayerActionLogEntry(resolution, turnCount);
   const resultLog =
     battleResult != null && (allEnemiesDefeated || allPlayersDefeated)
-      ? [createResultLogEntry(battleResult)]
+      ? [createBattleResultLogEntry(battleResult)]
       : [];
 
   const nextSnapshot: BattleSnapshot = {
@@ -464,7 +455,9 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
       currentActorId: null,
       battleResult,
       resultSummary: "Victory",
-      battleLog: appendBattleLogs(snapshot, [createResultLogEntry(battleResult)]),
+      battleLog: appendBattleLogs(snapshot, [
+        createBattleResultLogEntry(battleResult),
+      ]),
     };
   }
 
@@ -479,13 +472,7 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
 
   for (let index = 0; index < attackCount; index += 1) {
     const actor = enemyActors[index % enemyActors.length];
-    const target = participants.find(
-      (participant) =>
-        participant.side === "player" &&
-        participant.isActive &&
-        !participant.isDown &&
-        participant.canAct !== false,
-    );
+    const target = selectEnemyTurnTarget(participants);
 
     if (actor == null || target == null) {
       break;
@@ -504,15 +491,7 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
           }
         : participant,
     );
-    logs.push({
-      id: `turn-${turnCount}-${actor.id}-attack-${target.id}`,
-      turnCount,
-      side: "enemy",
-      actorId: actor.id,
-      actionId: "enemy_attack",
-      targetId: target.id,
-      summary: `${actor.displayName} attacked ${target.displayName} for 1 damage.`,
-    });
+    logs.push(createEnemyAttackLogEntry(turnCount, actor, target, 1));
   }
 
   const allPlayersDefeated = participants
@@ -532,7 +511,7 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
       resultSummary: "Defeat",
       battleLog: appendBattleLogs(snapshot, [
         ...logs,
-        createResultLogEntry(battleResult),
+        createBattleResultLogEntry(battleResult),
       ]),
     };
   }
@@ -561,12 +540,7 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
     selectedSwapInParticipantId: null,
     battleLog: appendBattleLogs(snapshot, [
       ...logs,
-      {
-        id: `turn-${nextTurnCount}-player-round-start`,
-        turnCount: nextTurnCount,
-        side: "system",
-        summary: `Player turn ${nextTurnCount} started.`,
-      },
+      createPlayerRoundStartLogEntry(nextTurnCount),
     ]),
   };
 }

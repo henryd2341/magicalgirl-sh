@@ -1,6 +1,7 @@
 import { createDefaultBattleCommandMenuTree } from "@/engine/battle/battleActionCatalog";
 import {
   createPressTurnResolutionForOutcomes,
+  resolveEnemyTurn,
   resolveSelectedBattleAction,
   resolveSelectedBattleActionToResolution,
 } from "@/engine/battle/battleResolver";
@@ -162,6 +163,17 @@ describe("battleResolver", () => {
       currentMenuNodeId: null,
       selectedActionId: "attack",
       actionMenu: createDefaultBattleCommandMenuTree(),
+      battleLog: [
+        {
+          id: "turn-1-player-heroine-1-attack-enemy-1",
+          turnCount: 1,
+          side: "player",
+          actorId: "player-heroine-1",
+          actionId: "attack",
+          targetId: "enemy-1",
+          summary: "Attack hit",
+        },
+      ],
     });
   });
 
@@ -281,6 +293,307 @@ describe("battleResolver", () => {
       survivingParticipantIds: ["enemy-1"],
       downParticipantIds: ["player-heroine-1"],
     });
+  });
+
+  it("resolves the enemy turn deterministically and starts the next player round when players survive", () => {
+    const snapshot = createActiveBattleSnapshot({
+      phase: "ENEMY_TURN",
+      currentActorId: null,
+      selectedActionId: null,
+      selectedTargetId: null,
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 1,
+          hp: { current: 2, max: 2 },
+          mp: { current: 48, max: 48 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "first-shadow",
+          level: 1,
+          hp: { current: 2, max: 2 },
+          mp: { current: 0, max: 0 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+      ],
+      pressTurn: {
+        ownerSide: "enemy",
+        icons: [{ id: "pt-enemy-enemy-1-1", state: "solid" }],
+      },
+      pressTurnAllocation: {
+        participantIds: ["enemy-1"],
+        initialIconCount: 1,
+      },
+      turnCount: 1,
+    });
+
+    const resolved = resolveEnemyTurn(snapshot);
+
+    expect(resolved.phase).toBe("PLAYER_COMMAND");
+    expect(resolved.lifecycleState).toBe("ACTIVE");
+    expect(resolved.turnCount).toBe(2);
+    expect(resolved.currentActorId).toBe("player-heroine-1");
+    expect(resolved.selectedActionId).toBeNull();
+    expect(resolved.selectedTargetId).toBe("enemy-1");
+    expect(resolved.pressTurn).toEqual({
+      ownerSide: "player",
+      icons: [{ id: "pt-player-player-heroine-1-1", state: "solid" }],
+    });
+    expect(
+      resolved.participants.find(
+        (participant) => participant.id === "player-heroine-1",
+      ),
+    ).toMatchObject({
+      hp: { current: 1, max: 2 },
+      isDown: false,
+    });
+    expect(resolved.battleLog).toEqual([
+      {
+        id: "turn-1-enemy-1-attack-player-heroine-1",
+        turnCount: 1,
+        side: "enemy",
+        actorId: "enemy-1",
+        actionId: "enemy_attack",
+        targetId: "player-heroine-1",
+        summary: "first-shadow attacked 鹿目真昼 for 1 damage.",
+      },
+      {
+        id: "turn-2-player-round-start",
+        turnCount: 2,
+        side: "system",
+        summary: "Player turn 2 started.",
+      },
+    ]);
+  });
+
+  it("resolves defeat during enemy turn when the final active player is down", () => {
+    const snapshot = createActiveBattleSnapshot({
+      phase: "ENEMY_TURN",
+      currentActorId: null,
+      selectedActionId: null,
+      selectedTargetId: null,
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 1,
+          hp: { current: 1, max: 1 },
+          mp: { current: 48, max: 48 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "first-shadow",
+          level: 1,
+          hp: { current: 2, max: 2 },
+          mp: { current: 0, max: 0 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+      ],
+      pressTurn: {
+        ownerSide: "enemy",
+        icons: [{ id: "pt-enemy-enemy-1-1", state: "solid" }],
+      },
+      pressTurnAllocation: {
+        participantIds: ["enemy-1"],
+        initialIconCount: 1,
+      },
+      turnCount: 2,
+    });
+
+    const resolved = resolveEnemyTurn(snapshot);
+
+    expect(resolved.lifecycleState).toBe("RESOLVED");
+    expect(resolved.phase).toBe("RESULT");
+    expect(resolved.resultSummary).toBe("Defeat");
+    expect(resolved.battleResult).toEqual({
+      outcome: "defeat",
+      winningSide: "enemy",
+      endReason: "all_players_down",
+      turnCount: 2,
+      survivingParticipantIds: ["enemy-1"],
+      downParticipantIds: ["player-heroine-1"],
+    });
+    expect(resolved.battleLog?.at(-1)).toEqual({
+      id: "turn-2-result-defeat",
+      turnCount: 2,
+      side: "system",
+      summary: "Defeat: all players are down.",
+    });
+  });
+
+  it("targets the lowest-HP active player during enemy turn and retargets after a player goes down", () => {
+    const snapshot = createActiveBattleSnapshot({
+      phase: "ENEMY_TURN",
+      currentActorId: null,
+      selectedActionId: null,
+      selectedTargetId: null,
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 1,
+          hp: { current: 3, max: 3 },
+          mp: { current: 48, max: 48 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+        {
+          id: "player-heroine-2",
+          side: "player",
+          displayName: "晓美澪",
+          level: 1,
+          hp: { current: 1, max: 3 },
+          mp: { current: 36, max: 36 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "first-shadow",
+          level: 1,
+          hp: { current: 2, max: 2 },
+          mp: { current: 0, max: 0 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+      ],
+      pressTurn: {
+        ownerSide: "enemy",
+        icons: [
+          { id: "pt-enemy-enemy-1-1", state: "solid" },
+          { id: "pt-enemy-enemy-1-2", state: "solid" },
+        ],
+      },
+      pressTurnAllocation: {
+        participantIds: ["enemy-1"],
+        initialIconCount: 1,
+      },
+      turnCount: 2,
+    });
+
+    const resolved = resolveEnemyTurn(snapshot);
+
+    expect(
+      resolved.participants.find(
+        (participant) => participant.id === "player-heroine-2",
+      ),
+    ).toMatchObject({
+      hp: { current: 0, max: 3 },
+      isDown: true,
+    });
+    expect(
+      resolved.participants.find(
+        (participant) => participant.id === "player-heroine-1",
+      ),
+    ).toMatchObject({
+      hp: { current: 2, max: 3 },
+      isDown: false,
+    });
+    expect(resolved.battleLog?.slice(0, 2)).toEqual([
+      {
+        id: "turn-2-enemy-1-attack-player-heroine-2",
+        turnCount: 2,
+        side: "enemy",
+        actorId: "enemy-1",
+        actionId: "enemy_attack",
+        targetId: "player-heroine-2",
+        summary: "first-shadow attacked 晓美澪 for 1 damage.",
+      },
+      {
+        id: "turn-2-enemy-1-attack-player-heroine-1",
+        turnCount: 2,
+        side: "enemy",
+        actorId: "enemy-1",
+        actionId: "enemy_attack",
+        targetId: "player-heroine-1",
+        summary: "first-shadow attacked 鹿目真昼 for 1 damage.",
+      },
+    ]);
+  });
+
+  it("appends structured battle log entries when a player action resolves the battle", () => {
+    const snapshot = createActiveBattleSnapshot({
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 1,
+          hp: { current: 120, max: 120 },
+          mp: { current: 48, max: 48 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "last-shadow",
+          level: 1,
+          hp: { current: 1, max: 1 },
+          mp: { current: 0, max: 0 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+      ],
+      selectedTargetId: "enemy-1",
+      battleLog: [
+        {
+          id: "turn-1-battle-start",
+          turnCount: 1,
+          side: "system",
+          summary: "Battle started.",
+        },
+      ],
+    });
+
+    const resolved = resolveSelectedBattleAction(snapshot);
+
+    expect(resolved.battleLog).toEqual([
+      {
+        id: "turn-1-battle-start",
+        turnCount: 1,
+        side: "system",
+        summary: "Battle started.",
+      },
+      {
+        id: "turn-1-player-heroine-1-attack-enemy-1",
+        turnCount: 1,
+        side: "player",
+        actorId: "player-heroine-1",
+        actionId: "attack",
+        targetId: "enemy-1",
+        summary: "Attack hit",
+      },
+      {
+        id: "turn-1-result-victory",
+        turnCount: 1,
+        side: "system",
+        summary: "Victory: all enemies are down.",
+      },
+    ]);
   });
 
   it("creates a resolution payload for attack outcomes before applying snapshot mutations", () => {
@@ -1167,6 +1480,23 @@ describe("battleResolver", () => {
         downParticipantIds: ["enemy-1"],
       },
       resultSummary: "Victory",
+      battleLog: [
+        {
+          id: "turn-1-player-heroine-1-attack-enemy-1",
+          turnCount: 1,
+          side: "player",
+          actorId: "player-heroine-1",
+          actionId: "attack",
+          targetId: "enemy-1",
+          summary: "Attack hit",
+        },
+        {
+          id: "turn-1-result-victory",
+          turnCount: 1,
+          side: "system",
+          summary: "Victory: all enemies are down.",
+        },
+      ],
     });
   });
 });
