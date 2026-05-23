@@ -305,7 +305,7 @@ describe("battle types", () => {
         label: "Basic Skill",
         selectionMode: "selective",
         allowedSides: ["enemy"],
-        resolutionKind: "unimplemented",
+        resolutionKind: "skill",
       }),
     );
 
@@ -315,7 +315,7 @@ describe("battle types", () => {
         label: "Basic Item",
         selectionMode: "selective",
         allowedSides: ["player"],
-        resolutionKind: "unimplemented",
+        resolutionKind: "item",
       }),
     );
   });

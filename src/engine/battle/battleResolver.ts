@@ -28,6 +28,10 @@ import type {
   BattleSnapshot,
 } from "@/types/battle";
 
+const BASIC_SKILL_MP_COST = 3;
+const BASIC_SKILL_DAMAGE = 2;
+const BASIC_ITEM_HEAL = 2;
+
 function cloneParticipant(participant: BattleParticipant): BattleParticipant {
   const cloned: BattleParticipant = {
     ...participant,
@@ -59,13 +63,13 @@ function applyOutcomeToParticipant(
     return participant;
   }
 
-  const nextHpCurrent = Math.max(
-    0,
-    participant.hp.current + (outcome.hpDelta ?? 0),
+  const nextHpCurrent = Math.min(
+    participant.hp.max,
+    Math.max(0, participant.hp.current + (outcome.hpDelta ?? 0)),
   );
-  const nextMpCurrent = Math.max(
-    0,
-    participant.mp.current + (outcome.mpDelta ?? 0),
+  const nextMpCurrent = Math.min(
+    participant.mp.max,
+    Math.max(0, participant.mp.current + (outcome.mpDelta ?? 0)),
   );
 
   return {
@@ -545,6 +549,22 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
   };
 }
 
+function createInsufficientMpResolution(
+  snapshot: BattleSnapshot,
+  actionId: BattleActionResolution["actionId"],
+): BattleActionResolution {
+  return {
+    ok: false,
+    validationError: "insufficient_mp",
+    actorId: snapshot.currentActorId ?? "unknown-actor",
+    actionId,
+    intendedTargetId: snapshot.selectedTargetId,
+    outcomes: [],
+    verboseLog: [],
+    summaryLog: [],
+  };
+}
+
 export function resolveSelectedBattleActionToResolution(
   snapshot: BattleSnapshot,
 ): BattleActionResolution {
@@ -648,6 +668,66 @@ export function resolveSelectedBattleActionToResolution(
       outcomes: [],
       verboseLog: [],
       summaryLog: [],
+    };
+  }
+
+  if (definition.resolutionKind === "skill") {
+    const actor = snapshot.participants.find(
+      (participant) => participant.id === actorId,
+    );
+
+    if (actor == null || actor.mp.current < BASIC_SKILL_MP_COST) {
+      return createInsufficientMpResolution(snapshot, definition.id);
+    }
+
+    const outcomes: BattleActionOutcome[] = [
+      {
+        type: "hit",
+        tags: [],
+        actorId,
+        primaryTargetId: snapshot.selectedTargetId,
+        finalTargetId: snapshot.selectedTargetId,
+        hpDelta: -BASIC_SKILL_DAMAGE,
+      },
+      {
+        type: "hit",
+        tags: [],
+        actorId,
+        primaryTargetId: actorId,
+        finalTargetId: actorId,
+        mpDelta: -BASIC_SKILL_MP_COST,
+      },
+    ];
+
+    return {
+      ...createPressTurnResolutionForOutcomes(snapshot, outcomes),
+      actionId: definition.id,
+      intendedTargetId: snapshot.selectedTargetId,
+      verboseLog: [
+        `${actorId} used ${definition.id} on ${snapshot.selectedTargetId}.`,
+      ],
+      summaryLog: [`${definition.label} hit`],
+    };
+  }
+
+  if (definition.resolutionKind === "item") {
+    const outcome: BattleActionOutcome = {
+      type: "hit",
+      tags: [],
+      actorId,
+      primaryTargetId: snapshot.selectedTargetId,
+      finalTargetId: snapshot.selectedTargetId,
+      hpDelta: BASIC_ITEM_HEAL,
+    };
+
+    return {
+      ...createPressTurnResolutionForOutcomes(snapshot, [outcome]),
+      actionId: definition.id,
+      intendedTargetId: snapshot.selectedTargetId,
+      verboseLog: [
+        `${actorId} used ${definition.id} on ${snapshot.selectedTargetId}.`,
+      ],
+      summaryLog: [`${definition.label} healed`],
     };
   }
 

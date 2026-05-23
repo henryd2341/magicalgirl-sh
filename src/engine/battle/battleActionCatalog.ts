@@ -46,7 +46,7 @@ const BATTLE_ACTION_DEFINITIONS: Record<
     description: "施放一个默认的单体技能占位动作。",
     selectionMode: "selective",
     allowedSides: ["enemy"],
-    resolutionKind: "unimplemented",
+    resolutionKind: "skill",
   },
   "basic-item": {
     id: "basic-item",
@@ -54,7 +54,7 @@ const BATTLE_ACTION_DEFINITIONS: Record<
     description: "使用一个默认的单体道具占位动作。",
     selectionMode: "selective",
     allowedSides: ["player"],
-    resolutionKind: "unimplemented",
+    resolutionKind: "item",
   },
 };
 

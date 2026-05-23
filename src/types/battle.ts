@@ -72,6 +72,8 @@ export type BattleActionSelectionMode =
 
 export const BATTLE_ACTION_RESOLUTION_KINDS = [
   "attack",
+  "skill",
+  "item",
   "pass",
   "swap",
   "unimplemented",

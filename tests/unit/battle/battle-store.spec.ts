@@ -406,15 +406,15 @@ describe("battleStore", () => {
     ]);
   });
 
-  it("accepts player targets for a player-targeted selective item leaf action and enters the execution chain without mutating battle resolution yet", () => {
+  it("accepts player targets for a player-targeted selective item leaf action and resolves the item effect", () => {
     const store = startTestBattle();
 
-    store.selectMenuNode("item-basic-item-action");
+    store.selectMenuNode("basic-item-action");
     store.selectTarget("player-heroine-2");
 
-    expect(store.activeBattle?.selectedActionId).toBeNull();
-    expect(store.activeBattle?.selectedTargetId).toBe("enemy-1");
-    expect(store.activeBattle?.pressTurn.icons).toHaveLength(2);
+    expect(store.activeBattle?.selectedActionId).toBe("basic-item");
+    expect(store.activeBattle?.selectedTargetId).toBe("player-heroine-2");
+    expect(store.activeBattle?.pressTurn.icons).toHaveLength(1);
     expect(
       store.activeBattle?.participants.find(
         (participant) => participant.id === "player-heroine-2",
@@ -425,7 +425,7 @@ describe("battleStore", () => {
   it("rejects enemy targets for a player-targeted selective item leaf action", () => {
     const store = startTestBattle();
 
-    store.selectMenuNode("item-basic-item-action");
+    store.selectMenuNode("basic-item-action");
     const snapshotBefore = JSON.parse(JSON.stringify(store.activeBattle));
 
     store.selectTarget("enemy-1");

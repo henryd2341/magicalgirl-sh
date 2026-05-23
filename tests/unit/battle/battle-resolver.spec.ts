@@ -1183,10 +1183,34 @@ describe("battleResolver", () => {
     expect(resolved).toEqual(snapshot);
   });
 
-  it("does not resolve unimplemented selective actions even when the selected target is allowed", () => {
+  it("resolves a basic skill by spending actor MP and damaging the selected enemy", () => {
     const snapshot = createActiveBattleSnapshot({
       selectedActionId: "basic-skill",
       selectedTargetId: "enemy-1",
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 1,
+          hp: { current: 120, max: 120 },
+          mp: { current: 3, max: 48 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "first-shadow",
+          level: 1,
+          hp: { current: 3, max: 3 },
+          mp: { current: 0, max: 0 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+      ],
     });
 
     const resolution = resolveSelectedBattleActionToResolution(snapshot);
@@ -1197,6 +1221,93 @@ describe("battleResolver", () => {
       actorId: "player-heroine-1",
       actionId: "basic-skill",
       intendedTargetId: "enemy-1",
+      outcomes: [
+        {
+          type: "hit",
+          tags: [],
+          actorId: "player-heroine-1",
+          primaryTargetId: "enemy-1",
+          finalTargetId: "enemy-1",
+          hpDelta: -2,
+        },
+        {
+          type: "hit",
+          tags: [],
+          actorId: "player-heroine-1",
+          primaryTargetId: "player-heroine-1",
+          finalTargetId: "player-heroine-1",
+          mpDelta: -3,
+        },
+      ],
+      pressTurnResult: {
+        kind: "consume_one",
+        reason: "hit",
+        before: {
+          ownerSide: "player",
+          icons: [{ id: "pt-player-player-heroine-1-1", state: "solid" }],
+        },
+        after: {
+          ownerSide: "player",
+          icons: [],
+        },
+      },
+      verboseLog: ["player-heroine-1 used basic-skill on enemy-1."],
+      summaryLog: ["Basic Skill hit"],
+    });
+    expect(
+      resolved.participants.find(
+        (participant) => participant.id === "player-heroine-1",
+      ),
+    ).toMatchObject({
+      mp: { current: 0, max: 48 },
+    });
+    expect(
+      resolved.participants.find((participant) => participant.id === "enemy-1"),
+    ).toMatchObject({
+      hp: { current: 1, max: 3 },
+      isDown: false,
+    });
+  });
+
+  it("does not mutate battle state when a basic skill actor has insufficient MP", () => {
+    const snapshot = createActiveBattleSnapshot({
+      selectedActionId: "basic-skill",
+      selectedTargetId: "enemy-1",
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 1,
+          hp: { current: 120, max: 120 },
+          mp: { current: 2, max: 48 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "first-shadow",
+          level: 1,
+          hp: { current: 3, max: 3 },
+          mp: { current: 0, max: 0 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+      ],
+    });
+
+    const resolution = resolveSelectedBattleActionToResolution(snapshot);
+    const resolved = resolveSelectedBattleAction(snapshot);
+
+    expect(resolution).toEqual({
+      ok: false,
+      validationError: "insufficient_mp",
+      actorId: "player-heroine-1",
+      actionId: "basic-skill",
+      intendedTargetId: "enemy-1",
       outcomes: [],
       verboseLog: [],
       summaryLog: [],
@@ -1204,10 +1315,34 @@ describe("battleResolver", () => {
     expect(resolved).toEqual(snapshot);
   });
 
-  it("does not resolve unimplemented player-targeted item actions even when the selected target is allowed", () => {
+  it("resolves a basic item by healing the selected player without exceeding max HP", () => {
     const snapshot = createActiveBattleSnapshot({
       selectedActionId: "basic-item",
       selectedTargetId: "player-heroine-1",
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 1,
+          hp: { current: 119, max: 120 },
+          mp: { current: 48, max: 48 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "first-shadow",
+          level: 1,
+          hp: { current: 2, max: 2 },
+          mp: { current: 0, max: 0 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+      ],
     });
 
     const resolution = resolveSelectedBattleActionToResolution(snapshot);
@@ -1218,11 +1353,38 @@ describe("battleResolver", () => {
       actorId: "player-heroine-1",
       actionId: "basic-item",
       intendedTargetId: "player-heroine-1",
-      outcomes: [],
-      verboseLog: [],
-      summaryLog: [],
+      outcomes: [
+        {
+          type: "hit",
+          tags: [],
+          actorId: "player-heroine-1",
+          primaryTargetId: "player-heroine-1",
+          finalTargetId: "player-heroine-1",
+          hpDelta: 2,
+        },
+      ],
+      pressTurnResult: {
+        kind: "consume_one",
+        reason: "hit",
+        before: {
+          ownerSide: "player",
+          icons: [{ id: "pt-player-player-heroine-1-1", state: "solid" }],
+        },
+        after: {
+          ownerSide: "player",
+          icons: [],
+        },
+      },
+      verboseLog: ["player-heroine-1 used basic-item on player-heroine-1."],
+      summaryLog: ["Basic Item healed"],
     });
-    expect(resolved).toEqual(snapshot);
+    expect(
+      resolved.participants.find(
+        (participant) => participant.id === "player-heroine-1",
+      ),
+    ).toMatchObject({
+      hp: { current: 120, max: 120 },
+    });
   });
 
   it("settles pass once and rotates to the next eligible actor", () => {
