@@ -6,13 +6,16 @@ import type {
 } from "@/types/battle";
 import { computed } from "vue";
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   actionMenu: BattleActionMenuNode[];
   currentMenuNodeId: string | null;
   selectedActionId: BattleActionId | null;
   isResultPhase: boolean;
+  isLocked?: boolean;
   description: string;
-}>();
+}>(), {
+  isLocked: false,
+});
 
 const emit = defineEmits<{
   selectMenuNode: [nodeId: string];
@@ -31,6 +34,22 @@ const currentMenuNode = computed(() => {
 const visibleMenu = computed(() => {
   return currentMenuNode.value?.children ?? props.actionMenu;
 });
+
+function selectMenuNode(nodeId: string) {
+  if (props.isLocked) {
+    return;
+  }
+
+  emit("selectMenuNode", nodeId);
+}
+
+function returnRoot() {
+  if (props.isLocked) {
+    return;
+  }
+
+  emit("returnRoot");
+}
 </script>
 
 <template>
@@ -42,7 +61,8 @@ const visibleMenu = computed(() => {
           v-if="currentMenuNode !== null && !isResultPhase"
           type="button"
           class="battle-command-menu__back"
-          @click="emit('returnRoot')"
+          :disabled="isLocked"
+          @click="returnRoot"
         >
           返回根菜单
         </button>
@@ -65,7 +85,8 @@ const visibleMenu = computed(() => {
             :aria-pressed="
               action.kind === 'action' && selectedActionId === action.actionId
             "
-            @click="emit('selectMenuNode', action.id)"
+            :disabled="isLocked"
+            @click="selectMenuNode(action.id)"
           >
             {{ action.label }}
           </button>

@@ -70,6 +70,38 @@ describe("BattleCommandMenu", () => {
     expect(onReturnRoot).toHaveBeenCalledOnce();
   });
 
+  it("locks submenu command buttons and return control when commands are disabled", async () => {
+    const onSelectMenuNode = vi.fn();
+    const onReturnRoot = vi.fn();
+
+    render(BattleCommandMenu, {
+      props: {
+        actionMenu: rootMenu,
+        currentMenuNodeId: "skill-group",
+        selectedActionId: null,
+        isResultPhase: false,
+        isLocked: true,
+        description: "敌方行动中。",
+        onSelectMenuNode,
+        onReturnRoot,
+      },
+    });
+
+    const basicSkillButton = screen.getByRole("button", {
+      name: "Basic Skill",
+    });
+    const returnButton = screen.getByRole("button", { name: "返回根菜单" });
+
+    expect(basicSkillButton).toBeDisabled();
+    expect(returnButton).toBeDisabled();
+
+    await fireEvent.click(basicSkillButton);
+    await fireEvent.click(returnButton);
+
+    expect(onSelectMenuNode).not.toHaveBeenCalled();
+    expect(onReturnRoot).not.toHaveBeenCalled();
+  });
+
   it("renders only the battle completion action during result phase", () => {
     render(BattleCommandMenu, {
       props: {

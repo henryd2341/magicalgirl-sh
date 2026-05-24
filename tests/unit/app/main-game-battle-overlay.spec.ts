@@ -11,6 +11,7 @@ import {
   within,
 } from "@testing-library/vue";
 import { createPinia, setActivePinia } from "pinia";
+import { nextTick } from "vue";
 import { beforeEach, describe, expect, it } from "vitest";
 
 async function renderMainGameWithStores() {
@@ -438,6 +439,68 @@ describe("MainGameView battle overlay entrypoint", () => {
         (participant) => participant.id === "enemy-1",
       )?.hp.current,
     ).toBe(1);
+  });
+
+  it("locks the command column while the active battle is in enemy turn", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
+
+    await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-trigger-overlay-enemy-turn-lock",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-trigger-overlay-enemy-turn-lock",
+      input: {
+        encounter_id: "enc-main-game-overlay-enemy-turn-lock",
+        enemies: [{ enemy_id: "lock-shadow", count: 1 }],
+        narrative_reason: "敌方行动中应锁定玩家行动栏。",
+      },
+    });
+
+    sessionStore.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+        isActive: true,
+      },
+    ]);
+
+    await waitForActiveBattleOverlay();
+
+    if (battleStore.activeBattle === null) {
+      throw new Error("expected active battle");
+    }
+
+    battleStore.activeBattle.phase = "ENEMY_TURN";
+    await nextTick();
+
+    const commandRegion = screen.getByLabelText("行动指令区域");
+
+    expect(
+      within(commandRegion).getByRole("button", { name: "Attack" }),
+    ).toBeDisabled();
+    expect(
+      within(commandRegion).getByRole("button", { name: "Skill" }),
+    ).toBeDisabled();
+
+    await fireEvent.click(
+      within(commandRegion).getByRole("button", { name: "Attack" }),
+    );
+
+    expect(battleStore.activeBattle.selectedActionId).toBeNull();
   });
 
   it("keeps the target UI unchanged when invalid target selections are ignored by battleStore", async () => {

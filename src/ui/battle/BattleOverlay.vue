@@ -158,6 +158,10 @@ const selectedActionDescription = computed(() => {
   );
 });
 
+const isCommandMenuLocked = computed(() => {
+  return activeBattle.value?.phase === "ENEMY_TURN";
+});
+
 const overlayMode = computed(() => {
   if (activeBattle.value !== null) {
     return "active";
@@ -337,6 +341,7 @@ function findBattleActionMenuNodeByActionId(
           :current-menu-node-id="activeBattle?.currentMenuNodeId ?? null"
           :selected-action-id="activeBattle?.selectedActionId ?? null"
           :is-result-phase="activeBattle?.phase === 'RESULT'"
+          :is-locked="isCommandMenuLocked"
           :description="selectedActionDescription"
           @select-menu-node="selectMenuNode"
           @return-root="returnToRootMenu"
