@@ -96,6 +96,13 @@ export const useBattleStore = defineStore("battle", {
         this.confirmSelectedAction();
       }
     },
+    returnToRootMenu() {
+      if (this.activeBattle === null) {
+        return;
+      }
+
+      this.activeBattle.currentMenuNodeId = null;
+    },
     selectTarget(targetId: string) {
       if (
         this.activeBattle === null ||

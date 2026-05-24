@@ -5,13 +5,25 @@ import {
 } from "@/engine/battle/battleActionCatalog";
 import { useBattleStore } from "@/stores/battleStore";
 import { useSessionStore } from "@/stores/sessionStore";
-import type { BattleActionId, BattleActionMenuNode } from "@/types/battle";
+import avatarHeroine from "@/assets/avatars/heroine_1_transformed.png";
+import spriteOne from "@/assets/sprites/1.png";
+import spriteTwo from "@/assets/sprites/2.png";
+import type {
+  BattleActionId,
+  BattleActionMenuNode,
+  BattleEnemyInstance,
+  BattleParticipant,
+} from "@/types/battle";
+import BattleCommandMenu from "@/ui/battle/BattleCommandMenu.vue";
+import BattleStatusPanel from "@/ui/battle/BattleStatusPanel.vue";
 import { storeToRefs } from "pinia";
 import { computed } from "vue";
 
 const battleStore = useBattleStore();
 const sessionStore = useSessionStore();
 const { pendingBattle, activeBattle } = storeToRefs(battleStore);
+const enemySprites = [spriteOne, spriteTwo];
+const partyAvatars = [avatarHeroine];
 
 const pendingEnemySummaries = computed(() => {
   if (pendingBattle.value === null) {
@@ -35,6 +47,10 @@ const pendingEnemySummaries = computed(() => {
   }
 
   return Array.from(counts.values());
+});
+
+const pendingEnemies = computed(() => {
+  return pendingBattle.value?.enemies ?? [];
 });
 
 const activeParticipants = computed(() => {
@@ -85,6 +101,16 @@ const selectedTarget = computed(() => {
   return target;
 });
 
+const selectedEnemyTarget = computed(() => {
+  return (
+    activeEnemies.value.find(
+      (participant) => participant.id === activeBattle.value?.selectedTargetId,
+    ) ??
+    activeEnemies.value[0] ??
+    null
+  );
+});
+
 const currentActor = computed(() => {
   if (activeBattle.value === null) {
     return null;
@@ -101,19 +127,14 @@ const rootActionMenu = computed(() => {
   return activeBattle.value?.actionMenu ?? [];
 });
 
-const actionMenu = computed(() => {
+const currentMenuNode = computed(() => {
   const currentMenuNodeId = activeBattle.value?.currentMenuNodeId;
 
   if (currentMenuNodeId == null) {
-    return rootActionMenu.value;
+    return null;
   }
 
-  const currentMenuNode = findBattleActionMenuNodeById(
-    rootActionMenu.value,
-    currentMenuNodeId,
-  );
-
-  return currentMenuNode?.children ?? rootActionMenu.value;
+  return findBattleActionMenuNodeById(rootActionMenu.value, currentMenuNodeId);
 });
 
 const selectedAction = computed(() => {
@@ -130,7 +151,11 @@ const selectedAction = computed(() => {
 });
 
 const selectedActionDescription = computed(() => {
-  return selectedAction.value?.description ?? "行动描述框";
+  return (
+    selectedAction.value?.description ??
+    currentMenuNode.value?.description ??
+    "行动描述框"
+  );
 });
 
 const overlayMode = computed(() => {
@@ -153,8 +178,31 @@ function selectMenuNode(nodeId: string) {
   battleStore.selectMenuNode(nodeId);
 }
 
+function returnToRootMenu() {
+  battleStore.returnToRootMenu();
+}
+
 async function completeBattle() {
   await sessionStore.completeActiveBattle();
+}
+
+function getEnemySprite(index: number): string {
+  return enemySprites[index % enemySprites.length] ?? spriteOne;
+}
+
+function getPartyAvatar(index: number): string {
+  return partyAvatars[index % partyAvatars.length] ?? avatarHeroine;
+}
+
+function getPendingEnemySprite(enemy: BattleEnemyInstance, index: number): string {
+  return getEnemySprite(index + enemy.enemyId.length);
+}
+
+function getActiveEnemySprite(
+  _enemy: BattleParticipant,
+  index: number,
+): string {
+  return getEnemySprite(index);
 }
 
 function findBattleActionMenuNodeByActionId(
@@ -185,127 +233,156 @@ function findBattleActionMenuNodeByActionId(
 <template>
   <section
     id="battle-overlay"
-    class="battle-overlay scrapbook-panel"
+    class="battle-overlay battle-overlay--fullscreen"
     role="dialog"
     aria-modal="true"
     aria-label="战斗进行中遮罩"
   >
-    <div v-if="overlayMode === 'pending'" class="battle-overlay__content">
-      <p class="battle-overlay__eyebrow">Battle Pending</p>
-      <h2 class="battle-overlay__title">战斗即将开始</h2>
-      <p class="battle-overlay__encounter">
-        <span class="battle-overlay__label">Encounter:</span>
-        <span>{{ pendingBattle?.encounterId }}</span>
-      </p>
-      <p v-if="pendingBattle?.narrativeReason" class="battle-overlay__reason">
-        {{ pendingBattle.narrativeReason }}
-      </p>
-      <ul
-        v-if="pendingEnemySummaries.length > 0"
-        class="battle-overlay__enemy-list"
-      >
-        <li
-          v-for="enemy in pendingEnemySummaries"
-          :key="enemy.enemyId"
-          class="battle-overlay__enemy-item"
+    <div v-if="overlayMode === 'pending'" class="battle-hud battle-hud--pending">
+      <div class="battle-hud__top">
+        <section class="battle-status-panel__enemy" aria-label="敌人状态栏">
+          <p class="battle-status-panel__label">Incoming</p>
+          <h2 class="battle-status-panel__name">战斗即将开始</h2>
+          <p v-if="pendingEnemySummaries.length > 0">
+            {{ pendingEnemySummaries[0]?.enemyId }}
+            <span v-if="pendingEnemySummaries[0]?.count">
+              ×{{ pendingEnemySummaries[0].count }}
+            </span>
+          </p>
+        </section>
+        <section class="battle-status-panel__turn" aria-label="回合与 Press Turn 区域">
+          <p class="battle-status-panel__label">Encounter</p>
+          <p class="battle-status-panel__turn-count">
+            {{ pendingBattle?.encounterId }}
+          </p>
+        </section>
+      </div>
+
+      <section class="battle-hud__enemy-row" aria-label="敌人区域">
+        <button
+          v-for="(enemy, index) in pendingEnemies"
+          :key="enemy.instanceId"
+          type="button"
+          class="battle-enemy-card battle-enemy-card--pending"
+          disabled
         >
-          <span>{{ enemy.enemyId }}</span>
-          <span>×{{ enemy.count }}</span>
-        </li>
-      </ul>
-    </div>
+          <img
+            class="battle-enemy-card__sprite"
+            :src="getPendingEnemySprite(enemy, index)"
+            :alt="`${enemy.displayName} sprite`"
+          />
+          <span class="battle-enemy-card__name">{{ enemy.displayName }}</span>
+        </button>
+      </section>
 
-    <div v-else-if="overlayMode === 'active'" class="battle-overlay__content">
-      <p class="battle-overlay__eyebrow">Battle Active</p>
-      <h2 class="battle-overlay__title">
-        {{ activeBattle?.phase === "RESULT" ? "战斗结束" : "战斗进行中" }}
-      </h2>
-      <p class="battle-overlay__encounter">
-        <span class="battle-overlay__label">Encounter:</span>
-        <span>{{ activeBattle?.encounterId }}</span>
-      </p>
-      <p class="battle-overlay__phase">
-        <span class="battle-overlay__label">Phase:</span>
-        <span>{{ activeBattle?.phase }}</span>
-      </p>
-
-      <section aria-label="回合与 Press Turn 区域">
-        <h3>Turn Counts</h3>
-        <p>{{ activeBattle?.turnCount ?? 1 }}</p>
-        <h3>Press Turn Icons</h3>
-        <p>
-          {{ activeBattle?.pressTurn.icons ?? 0 }}
+      <section class="battle-hud__pending-brief" aria-label="战斗导入">
+        <p class="battle-overlay__eyebrow">Battle Pending</p>
+        <p v-if="pendingBattle?.narrativeReason" class="battle-overlay__reason">
+          {{ pendingBattle.narrativeReason }}
         </p>
       </section>
+    </div>
 
-      <section aria-label="敌人区域">
-        <h3>Enemies</h3>
-        <ul>
-          <li v-for="enemy in activeEnemies" :key="enemy.id">
-            <button
-              type="button"
-              :aria-pressed="selectedTarget?.id === enemy.id"
-              @click="selectTarget(enemy.id)"
-            >
-              <span>Enemy Sprite Placeholder</span>
-              <span>{{ enemy.displayName }}</span>
-            </button>
-          </li>
-        </ul>
+    <div v-else-if="overlayMode === 'active'" class="battle-hud">
+      <div class="battle-hud__top">
+        <BattleStatusPanel
+          :selected-target="selectedEnemyTarget"
+          :turn-count="activeBattle?.turnCount ?? 1"
+          :press-turn-icons="activeBattle?.pressTurn.icons ?? []"
+        />
+      </div>
 
-        <div v-if="selectedTarget !== null">
-          <p>Selected Target</p>
-          <p>LV {{ selectedTarget.level ?? 1 }}</p>
-          <p>{{ selectedTarget.displayName }}</p>
-          <progress
-            :value="selectedTarget.hp.current"
-            :max="selectedTarget.hp.max"
-          />
-        </div>
-      </section>
+      <div class="battle-hud__heading">
+        <p class="battle-overlay__eyebrow">Battle Active</p>
+        <h2 class="battle-overlay__title">
+          {{ activeBattle?.phase === "RESULT" ? "战斗结束" : "战斗进行中" }}
+        </h2>
+        <p class="battle-overlay__encounter">
+          <span>{{ activeBattle?.encounterId }}</span>
+          <span>{{ activeBattle?.phase }}</span>
+        </p>
+      </div>
 
-      <section aria-label="玩家队伍区域">
-        <h3>Players</h3>
-        <ul>
-          <li v-for="player in activePlayers" :key="player.id">
-            <p>Portrait Placeholder</p>
-            <p>{{ player.displayName }}</p>
-            <p>HP {{ player.hp.current }}/{{ player.hp.max }}</p>
-            <p>MP {{ player.mp.current }}/{{ player.mp.max }}</p>
-            <p>
-              {{
-                player.statusEffects?.length
-                  ? player.statusEffects.join(", ")
-                  : "正常"
-              }}
-            </p>
-            <p v-if="currentActor?.id === player.id">当前行动者</p>
-          </li>
-        </ul>
-      </section>
-
-      <section aria-label="行动指令区域">
-        <h3>Actions</h3>
+      <section class="battle-hud__enemy-row" aria-label="敌人区域">
         <button
-          v-if="activeBattle?.phase === 'RESULT'"
+          v-for="(enemy, index) in activeEnemies"
+          :key="enemy.id"
           type="button"
-          @click="completeBattle"
+          class="battle-enemy-card"
+          :class="{
+            'battle-enemy-card--selected': selectedTarget?.id === enemy.id,
+            'battle-enemy-card--down': enemy.isDown,
+          }"
+          :aria-pressed="selectedTarget?.id === enemy.id"
+          @click="selectTarget(enemy.id)"
         >
-          完成战斗
+          <img
+            class="battle-enemy-card__sprite"
+            :src="getActiveEnemySprite(enemy, index)"
+            :alt="`${enemy.displayName} sprite`"
+          />
+          <span class="battle-enemy-card__level">LV {{ enemy.level ?? 1 }}</span>
+          <span class="battle-enemy-card__name">{{ enemy.displayName }}</span>
+          <progress
+            class="battle-enemy-card__hp"
+            :value="enemy.hp.current"
+            :max="enemy.hp.max"
+          />
         </button>
-        <ul v-else>
-          <li v-for="action in actionMenu" :key="action.id">
-            <button
-              type="button"
-              :aria-pressed="action.kind === 'action' && selectedAction?.id === action.id"
-              @click="selectMenuNode(action.id)"
-            >
-              {{ action.label }}
-            </button>
-          </li>
-        </ul>
-        <p>{{ selectedActionDescription }}</p>
       </section>
+
+      <div class="battle-hud__bottom">
+        <BattleCommandMenu
+          :action-menu="rootActionMenu"
+          :current-menu-node-id="activeBattle?.currentMenuNodeId ?? null"
+          :selected-action-id="activeBattle?.selectedActionId ?? null"
+          :is-result-phase="activeBattle?.phase === 'RESULT'"
+          :description="selectedActionDescription"
+          @select-menu-node="selectMenuNode"
+          @return-root="returnToRootMenu"
+          @complete-battle="completeBattle"
+        />
+
+        <section class="battle-hud__party-row" aria-label="玩家队伍区域">
+          <article
+            v-for="(player, index) in activePlayers"
+            :key="player.id"
+            class="battle-party-card"
+            :class="{
+              'battle-party-card--actor': currentActor?.id === player.id,
+              'battle-party-card--down': player.isDown,
+            }"
+          >
+            <img
+              class="battle-party-card__avatar"
+              :src="getPartyAvatar(index)"
+              :alt="`${player.displayName} avatar`"
+            />
+            <div class="battle-party-card__body">
+              <p class="battle-party-card__name">{{ player.displayName }}</p>
+              <p class="battle-party-card__stat">
+                HP {{ player.hp.current }}/{{ player.hp.max }}
+              </p>
+              <p class="battle-party-card__stat">
+                MP {{ player.mp.current }}/{{ player.mp.max }}
+              </p>
+              <p class="battle-party-card__status">
+                {{
+                  player.statusEffects?.length
+                    ? player.statusEffects.join(", ")
+                    : "正常"
+                }}
+              </p>
+              <p
+                v-if="currentActor?.id === player.id"
+                class="battle-party-card__actor"
+              >
+                当前行动者
+              </p>
+            </div>
+          </article>
+        </section>
+      </div>
     </div>
   </section>
 </template>

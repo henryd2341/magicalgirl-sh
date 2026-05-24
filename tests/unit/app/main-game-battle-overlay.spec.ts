@@ -81,9 +81,55 @@ describe("MainGameView battle overlay entrypoint", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Battle Active")).toBeInTheDocument();
     expect(screen.getByText("enc-main-game-overlay-001")).toBeInTheDocument();
+    expect(screen.getByLabelText("敌人状态栏")).toBeInTheDocument();
+    expect(screen.getByLabelText("回合与 Press Turn 区域")).toBeInTheDocument();
+    expect(screen.getByLabelText("敌人区域")).toHaveClass(
+      "battle-hud__enemy-row",
+    );
+    expect(screen.getByLabelText("行动指令区域")).toHaveClass(
+      "battle-hud__command-column",
+    );
+    expect(screen.getByLabelText("玩家队伍区域")).toHaveClass(
+      "battle-hud__party-row",
+    );
     expect(screen.getByRole("button", { name: "Attack" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pass" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Swap" })).toBeInTheDocument();
+    expect(screen.getAllByAltText("school-shadow sprite")).toHaveLength(2);
+    expect(screen.getByAltText("鹿目真昼 avatar")).toBeInTheDocument();
+  });
+
+  it("renders pending encounters in the unified full-screen battle HUD shell", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+
+    await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-trigger-overlay-pending-hud",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-trigger-overlay-pending-hud",
+      input: {
+        encounter_id: "enc-main-game-overlay-pending-hud",
+        enemies: [{ enemy_id: "pending-shadow", count: 2 }],
+        narrative_reason: "影子正在聚集，等待玩家进入战斗。",
+      },
+    });
+
+    const overlay = await screen.findByRole("dialog", {
+      name: "战斗进行中遮罩",
+    });
+    expect(overlay).toHaveClass("battle-overlay--fullscreen");
+    expect(screen.getByRole("heading", { name: "战斗即将开始" })).toBeInTheDocument();
+    expect(screen.getByLabelText("敌人状态栏")).toHaveTextContent(
+      "pending-shadow",
+    );
+    expect(screen.getByLabelText("敌人区域")).toHaveClass(
+      "battle-hud__enemy-row",
+    );
+    expect(screen.getAllByAltText("pending-shadow sprite")).toHaveLength(2);
+    expect(screen.getByText("影子正在聚集，等待玩家进入战斗。")).toBeInTheDocument();
   });
 
   it("shows enemy targets from the active battle snapshot and highlights the current default target", async () => {
@@ -180,6 +226,14 @@ describe("MainGameView battle overlay entrypoint", () => {
     expect(
       screen.getByRole("button", { name: "Basic Skill" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "返回根菜单" }),
+    ).toBeInTheDocument();
+
+    await fireEvent.click(screen.getByRole("button", { name: "返回根菜单" }));
+
+    expect(battleStore.activeBattle?.currentMenuNodeId).toBeNull();
+    expect(screen.getByRole("button", { name: "Attack" })).toBeInTheDocument();
   });
 
   it("executes a none-mode action from the overlay immediately after action selection", async () => {
@@ -240,6 +294,10 @@ describe("MainGameView battle overlay entrypoint", () => {
 
     expect(battleStore.activeBattle?.selectedActionId).toBe("pass");
     expect(battleStore.activeBattle?.currentActorId).toBe("player-heroine-2");
+    expect(screen.getByLabelText("solid press turn icon")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("blinking press turn icon"),
+    ).toBeInTheDocument();
     expect(battleStore.activeBattle?.pressTurn.icons).toEqual([
       { id: "pt-player-player-heroine-1-1", state: "solid" },
       { id: "pt-player-player-heroine-2-2", state: "blinking" },
@@ -499,6 +557,13 @@ describe("MainGameView battle overlay entrypoint", () => {
 
     expect(battleStore.activeBattle?.lifecycleState).toBe("RESOLVED");
     expect(battleStore.activeBattle?.phase).toBe("RESULT");
+    expect(screen.getByRole("heading", { name: "战斗结束" })).toBeInTheDocument();
+    expect(screen.getByLabelText("行动指令区域")).toHaveTextContent(
+      "完成战斗",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Attack" }),
+    ).not.toBeInTheDocument();
 
     await fireEvent.click(screen.getByRole("button", { name: "完成战斗" }));
 
