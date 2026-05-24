@@ -186,6 +186,14 @@ function returnToRootMenu() {
   battleStore.returnToRootMenu();
 }
 
+function resolveEnemyTurn() {
+  battleStore.resolveEnemyTurn();
+}
+
+function cancelPendingBattle() {
+  sessionStore.cancelPendingBattle();
+}
+
 async function completeBattle() {
   await sessionStore.completeActiveBattle();
 }
@@ -284,6 +292,13 @@ function findBattleActionMenuNodeByActionId(
         <p v-if="pendingBattle?.narrativeReason" class="battle-overlay__reason">
           {{ pendingBattle.narrativeReason }}
         </p>
+        <button
+          type="button"
+          class="battle-overlay__phase-action"
+          @click="cancelPendingBattle"
+        >
+          取消战斗
+        </button>
       </section>
     </div>
 
@@ -305,6 +320,14 @@ function findBattleActionMenuNodeByActionId(
           <span>{{ activeBattle?.encounterId }}</span>
           <span>{{ activeBattle?.phase }}</span>
         </p>
+        <button
+          v-if="activeBattle?.phase === 'ENEMY_TURN'"
+          type="button"
+          class="battle-overlay__phase-action"
+          @click="resolveEnemyTurn"
+        >
+          结算敌方回合
+        </button>
       </div>
 
       <section class="battle-hud__enemy-row" aria-label="敌人区域">

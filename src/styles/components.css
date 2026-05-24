@@ -839,6 +839,25 @@
   justify-content: center;
 }
 
+.battle-overlay__phase-action {
+  width: fit-content;
+  min-height: 38px;
+  padding: 0.5rem 0.85rem;
+  border: 2px solid var(--ink-outline);
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+  color: var(--ink-outline);
+  font-family: var(--font-heading);
+  font-weight: 800;
+  box-shadow: 4px 4px 0 rgba(7, 3, 10, 0.78);
+}
+
+.battle-overlay__phase-action:hover,
+.battle-overlay__phase-action:focus-visible {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 rgba(7, 3, 10, 0.82);
+}
+
 .battle-hud__enemy-row {
   display: flex;
   gap: clamp(0.75rem, 2vw, 1.5rem);

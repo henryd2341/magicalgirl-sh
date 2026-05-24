@@ -91,6 +91,20 @@ export const useSessionStore = defineStore("session", () => {
     snapshot.value = gameEngineFacade.getSessionSnapshot();
   }
 
+  function cancelPendingBattle() {
+    if (snapshot.value.sessionState !== "COMBAT_PENDING") {
+      throw new Error(
+        `[COMBAT_PENDING_CANCEL_INVALID_STATE] Cannot cancel pending battle from ${snapshot.value.sessionState}.`,
+      );
+    }
+
+    const battleStore = useBattleStore();
+
+    battleStore.clearPendingEncounter();
+    gameEngineFacade.resetToIdle();
+    snapshot.value = gameEngineFacade.getSessionSnapshot();
+  }
+
   async function completeActiveBattle() {
     const battleStore = useBattleStore();
     const chatStore = useChatStore();
@@ -171,6 +185,7 @@ export const useSessionStore = defineStore("session", () => {
     executeTriggerBattle,
     enterCombatPending,
     startBattle,
+    cancelPendingBattle,
     completeActiveBattle,
     continuePostCombatStory,
     refreshSnapshot,

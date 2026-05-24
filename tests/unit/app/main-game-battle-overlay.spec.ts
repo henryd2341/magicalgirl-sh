@@ -133,6 +133,40 @@ describe("MainGameView battle overlay entrypoint", () => {
     expect(screen.getByText("影子正在聚集，等待玩家进入战斗。")).toBeInTheDocument();
   });
 
+  it("cancels a pending encounter and returns the session to idle", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
+
+    await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-trigger-overlay-cancel-pending",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-trigger-overlay-cancel-pending",
+      input: {
+        encounter_id: "enc-main-game-overlay-cancel-pending",
+        enemies: [{ enemy_id: "cancel-shadow", count: 1 }],
+        narrative_reason: "测试从战斗挂起态取消。",
+      },
+    });
+
+    expect(sessionStore.snapshot.sessionState).toBe("COMBAT_PENDING");
+    expect(battleStore.pendingBattle).not.toBeNull();
+    expect(
+      await screen.findByRole("heading", { name: "战斗即将开始" }),
+    ).toBeInTheDocument();
+
+    await fireEvent.click(screen.getByRole("button", { name: "取消战斗" }));
+
+    expect(sessionStore.snapshot.sessionState).toBe("IDLE");
+    expect(battleStore.pendingBattle).toBeNull();
+    expect(
+      screen.queryByRole("dialog", { name: "战斗进行中遮罩" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows enemy targets from the active battle snapshot and highlights the current default target", async () => {
     await renderMainGameWithStores();
 
@@ -649,6 +683,103 @@ describe("MainGameView battle overlay entrypoint", () => {
     });
     expect(screen.getByText(/Victory/)).toBeInTheDocument();
     expect(screen.queryByText("outcome: victory")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "继续剧情" }),
+    ).toBeInTheDocument();
+  });
+
+  it("runs a complete UI battle loop through enemy turn, player turn, result, and post-combat ready", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
+
+    await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-trigger-overlay-complete-loop",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-trigger-overlay-complete-loop",
+      input: {
+        encounter_id: "enc-main-game-overlay-complete-loop",
+        enemies: [{ enemy_id: "loop-shadow", count: 1 }],
+        narrative_reason: "完整战斗 UI 闭环验收。",
+      },
+    });
+
+    sessionStore.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: {
+          current: 120,
+          max: 120,
+        },
+        mp: {
+          current: 48,
+          max: 48,
+        },
+        isDown: false,
+        isActive: true,
+      },
+    ]);
+
+    await waitForActiveBattleOverlay();
+
+    if (battleStore.activeBattle === null) {
+      throw new Error("expected active battle");
+    }
+
+    battleStore.activeBattle.participants =
+      battleStore.activeBattle.participants.map((participant) =>
+        participant.side === "enemy"
+          ? {
+              ...participant,
+              hp: {
+                current: 2,
+                max: 2,
+              },
+            }
+          : participant,
+      );
+    await nextTick();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Attack" }));
+    await fireEvent.click(screen.getByRole("button", { name: /loop-shadow/ }));
+
+    expect(sessionStore.snapshot.sessionState).toBe("IN_COMBAT");
+    expect(battleStore.activeBattle.phase).toBe("ENEMY_TURN");
+    expect(screen.getByText("ENEMY_TURN")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Attack" })).toBeDisabled();
+
+    await fireEvent.click(
+      await screen.findByRole("button", { name: "结算敌方回合" }),
+    );
+
+    expect(battleStore.activeBattle.phase).toBe("PLAYER_COMMAND");
+    expect(screen.getByText("PLAYER_COMMAND")).toBeInTheDocument();
+    expect(screen.getByLabelText("回合与 Press Turn 区域")).toHaveTextContent(
+      "Turn 2",
+    );
+    expect(screen.getByRole("button", { name: "Attack" })).not.toBeDisabled();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Attack" }));
+    await fireEvent.click(screen.getByRole("button", { name: /loop-shadow/ }));
+
+    expect(battleStore.activeBattle.lifecycleState).toBe("RESOLVED");
+    expect(battleStore.activeBattle.phase).toBe("RESULT");
+    expect(screen.getByRole("heading", { name: "战斗结束" })).toBeInTheDocument();
+    expect(screen.getByLabelText("行动指令区域")).toHaveTextContent(
+      "完成战斗",
+    );
+
+    await fireEvent.click(screen.getByRole("button", { name: "完成战斗" }));
+
+    await waitFor(() => {
+      expect(sessionStore.snapshot.sessionState).toBe("POST_COMBAT_READY");
+    });
+    expect(screen.getByText(/Victory/)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "继续剧情" }),
     ).toBeInTheDocument();
