@@ -530,6 +530,7 @@ describe("MainGameView battle overlay entrypoint", () => {
     await renderMainGameWithStores();
 
     const sessionStore = useSessionStore();
+    const chatStore = useChatStore();
 
     await sessionStore.executeTriggerBattle({
       tool_name: "trigger_battle",
@@ -593,9 +594,32 @@ describe("MainGameView battle overlay entrypoint", () => {
       await screen.findByRole("button", { name: "继续剧情" }),
     );
 
-    expect(sessionStore.snapshot.sessionState).toBe("GENERATING");
-    expect(sessionStore.snapshot.activeRequestId).toMatch(
-      /^post-combat-continue-/,
+    await waitFor(() => {
+      expect(sessionStore.snapshot.sessionState).toBe("IDLE");
+    });
+    expect(sessionStore.snapshot.activeRequestId).toBeNull();
+    expect(chatStore.messages).toContainEqual(
+      expect.objectContaining({
+        role: "user",
+        content: "请根据最近的战斗摘要继续剧情。",
+        user_visible: false,
+        ai_visible: true,
+      }),
     );
+    expect(chatStore.messages).toContainEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "战斗后的空气慢慢安静下来，新的选择浮现在你面前。",
+        finalized: true,
+      }),
+    );
+    expect(
+      screen.queryByText("请根据最近的战斗摘要继续剧情。"),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "战斗后的空气慢慢安静下来，新的选择浮现在你面前。",
+      ),
+    ).toBeInTheDocument();
   });
 });

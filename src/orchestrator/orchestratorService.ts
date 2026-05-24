@@ -41,6 +41,8 @@ export interface OrchestratorServiceDependencies {
 
 export interface RunUserTurnInput {
   userInput: string;
+  userVisible?: boolean;
+  aiVisible?: boolean;
 }
 
 export interface RunUserTurnResult {
@@ -112,6 +114,8 @@ export class OrchestratorService {
     await this.chatService.createUserMessage({
       id: userMessageId,
       content: input.userInput,
+      userVisible: input.userVisible,
+      aiVisible: input.aiVisible,
       createdAt: this.now(),
     });
 

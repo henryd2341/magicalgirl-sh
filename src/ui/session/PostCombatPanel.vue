@@ -3,12 +3,8 @@ import { useSessionStore } from "@/stores/sessionStore";
 
 const sessionStore = useSessionStore();
 
-function createPostCombatRequestId(): string {
-  return `post-combat-continue-${Date.now().toString(36)}`;
-}
-
-function continueStory() {
-  sessionStore.beginAiRequest(createPostCombatRequestId());
+async function continueStory(): Promise<void> {
+  await sessionStore.continuePostCombatStory();
 }
 </script>
 

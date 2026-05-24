@@ -16,6 +16,11 @@ import {
 import type { ChatMessage } from "@/types/chat";
 import { defineStore } from "pinia";
 
+export interface ActiveChatRuntime {
+  repository: ChatHistoryRepository;
+  service: ChatMessageService;
+}
+
 const defaultRepository = new InMemoryChatHistoryRepository();
 let activeRepository: ChatHistoryRepository = defaultRepository;
 let activeService = new ChatMessageService(activeRepository);
@@ -83,6 +88,12 @@ export const useChatStore = defineStore("chat", {
     },
     async refreshMessages() {
       this.messages = await listMessages();
+    },
+    getActiveChatRuntime(): ActiveChatRuntime {
+      return {
+        repository: activeRepository,
+        service: activeService,
+      };
     },
     resetToInMemoryPersistence() {
       useInMemoryRepository();

@@ -4,6 +4,8 @@ import type { ChatBattleSummaryLevel, ChatMessage } from "@/types/chat";
 export interface CreateUserMessageInput {
   id: string;
   content: string;
+  userVisible?: boolean;
+  aiVisible?: boolean;
   createdAt: string;
 }
 
@@ -55,8 +57,8 @@ export class ChatMessageService {
       role: "user",
       kind: "normal",
       content: input.content,
-      user_visible: true,
-      ai_visible: true,
+      user_visible: input.userVisible ?? true,
+      ai_visible: input.aiVisible ?? true,
       provisional: false,
       finalized: true,
       failed: false,

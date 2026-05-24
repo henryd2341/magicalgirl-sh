@@ -22,7 +22,7 @@ export interface ProviderClient {
 }
 
 export interface FakeStreamingProviderClientInput {
-  textChunks: string[];
+  textChunks?: string[];
   toolCalls?: ProviderToolCallCandidate[];
   error?: Error;
 }
@@ -35,7 +35,10 @@ export class FakeStreamingProviderClient implements ProviderClient {
   private readonly error: Error | null;
 
   public constructor(input: FakeStreamingProviderClientInput) {
-    this.textChunks = input.textChunks;
+    this.textChunks =
+      input.textChunks ?? [
+        "战斗后的空气慢慢安静下来，新的选择浮现在你面前。",
+      ];
     this.toolCalls = input.toolCalls ?? [];
     this.error = input.error ?? null;
   }

@@ -29,6 +29,33 @@ describe("ChatMessageService", () => {
     expect(await repository.list()).toEqual([message]);
   });
 
+  it("can persist hidden user messages that remain visible to AI context", async () => {
+    const repository = new InMemoryChatHistoryRepository();
+    const service = new ChatMessageService(repository);
+
+    const message = await service.createUserMessage({
+      id: "user-hidden-ai-visible",
+      content: "请根据最近的战斗摘要继续剧情。",
+      userVisible: false,
+      aiVisible: true,
+      createdAt: "2026-05-24T00:00:00.000Z",
+    });
+
+    expect(message).toMatchObject({
+      id: "user-hidden-ai-visible",
+      role: "user",
+      kind: "normal",
+      content: "请根据最近的战斗摘要继续剧情。",
+      user_visible: false,
+      ai_visible: true,
+      provisional: false,
+      finalized: true,
+      failed: false,
+      created_at: "2026-05-24T00:00:00.000Z",
+    });
+    expect(await repository.list()).toEqual([message]);
+  });
+
   it("creates provisional assistant messages and appends streamed chunks before commitAck", async () => {
     const repository = new InMemoryChatHistoryRepository();
     const service = new ChatMessageService(repository);

@@ -18,6 +18,7 @@ function createMessage(
     id: overrides.id,
     role: overrides.role ?? "user",
     kind: overrides.kind ?? "normal",
+    summary_level: overrides.summary_level,
     content: overrides.content,
     user_visible: overrides.user_visible ?? true,
     ai_visible: overrides.ai_visible ?? true,
@@ -179,5 +180,76 @@ describe("buildHarnessRequest", () => {
     expect(second.metadata.context_version).toBe(2);
     expect(first.metadata.state_hash).toBe("state-custom");
     expect(second.metadata.state_hash).toBe("state-custom");
+  });
+
+  it("includes only minimal AI-visible battle summaries in provider history", async () => {
+    const chatRepository = new InMemoryChatHistoryRepository();
+    await chatRepository.save(
+      createMessage({
+        id: "summary-verbose",
+        role: "system",
+        kind: "battle_summary",
+        summary_level: "verbose",
+        content: "verbose developer battle diagnostics",
+        user_visible: false,
+        ai_visible: true,
+        created_at: "2026-05-24T00:01:00.000Z",
+      }),
+    );
+    await chatRepository.save(
+      createMessage({
+        id: "summary-default",
+        role: "system",
+        kind: "battle_summary",
+        summary_level: "default",
+        content: "default player battle recap",
+        user_visible: true,
+        ai_visible: true,
+        created_at: "2026-05-24T00:02:00.000Z",
+      }),
+    );
+    await chatRepository.save(
+      createMessage({
+        id: "summary-minimal",
+        role: "system",
+        kind: "battle_summary",
+        summary_level: "minimal",
+        content: "minimal provider battle summary",
+        user_visible: false,
+        ai_visible: true,
+        created_at: "2026-05-24T00:03:00.000Z",
+      }),
+    );
+
+    const request = await buildHarnessRequest({
+      chatRepository,
+      variableRepository: new InMemoryVariableRepository(),
+      worldInfoRepository: new InMemoryWorldInfoRepository(),
+      systemPrompt: "stable",
+      userInput: "继续剧情。",
+      requestId: "req-battle-summary-history",
+      contextVersion: 12,
+      now: "2026-05-24T00:04:00.000Z",
+    });
+
+    expect(request.promptText).toContain("minimal provider battle summary");
+    expect(request.promptText).not.toContain(
+      "default player battle recap",
+    );
+    expect(request.promptText).not.toContain(
+      "verbose developer battle diagnostics",
+    );
+    expect(request.messages).toContainEqual({
+      role: "system",
+      content: "minimal provider battle summary",
+    });
+    expect(request.messages).not.toContainEqual({
+      role: "system",
+      content: "default player battle recap",
+    });
+    expect(request.messages).not.toContainEqual({
+      role: "system",
+      content: "verbose developer battle diagnostics",
+    });
   });
 });
