@@ -45,5 +45,17 @@ export const migration001Init: DbMigration = {
     if (!state.worldInfo) {
       state.worldInfo = new Map();
     }
+
+    if (!state.checkpointSnapshots) {
+      state.checkpointSnapshots = new Map();
+    }
+
+    if (!state.eventLog) {
+      state.eventLog = new Map();
+    }
+
+    if (!state.saveMeta) {
+      state.saveMeta = new Map();
+    }
   },
 };

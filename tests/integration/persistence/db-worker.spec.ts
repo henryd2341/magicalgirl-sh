@@ -54,6 +54,45 @@ describe("DbWorkerClient", () => {
     const secondInit = await client.initialize();
     expect(secondInit.appliedMigrations).toEqual([]);
     expect(secondInit.availableTables).toEqual(firstInit.availableTables);
+    expect(secondInit.sqliteCapabilities).toEqual({
+      sqliteSyncAvailable: expect.any(Boolean),
+      sqliteVectorAvailable: expect.any(Boolean),
+      sqliteMemoryAvailable: expect.any(Boolean),
+    });
+  });
+
+  it("keeps sqlite recovery records readable across repeated initialization", async () => {
+    const endpoint = createInProcessDbWorkerEndpoint(createDbWorkerRuntime());
+    const client = new DbWorkerClient(endpoint);
+
+    await client.initialize();
+    await client.saveCheckpointSnapshot({
+      id: "checkpoint-repeat-init",
+      kind: "idle_checkpoint",
+      createdAt: "2026-05-24T00:00:00.000Z",
+      reason: "before request",
+      sessionSnapshot: {
+        sessionState: "IDLE",
+        pipelineState: null,
+        activeRequestId: null,
+      },
+    });
+
+    await client.initialize();
+
+    expect(await client.listCheckpointSnapshots()).toEqual([
+      {
+        id: "checkpoint-repeat-init",
+        kind: "idle_checkpoint",
+        createdAt: "2026-05-24T00:00:00.000Z",
+        reason: "before request",
+        sessionSnapshot: {
+          sessionState: "IDLE",
+          pipelineState: null,
+          activeRequestId: null,
+        },
+      },
+    ]);
   });
 
   it("surfaces worker protocol errors when a write is attempted before initialization", async () => {

@@ -11,6 +11,12 @@ import type {
   VariableValueRecord,
 } from "@/types/variables";
 import type { WorldInfoEntry } from "@/persistence/repositories/worldInfoRepository";
+import type {
+  CheckpointKind,
+  CheckpointSnapshotRecord,
+  EventLogRecord,
+  SaveMetaRecord,
+} from "@/types/recovery";
 
 export class DbWorkerClient {
   private readonly endpoint: DbWorkerEndpoint;
@@ -171,6 +177,110 @@ export class DbWorkerClient {
     if (response.type !== "list_world_info_entries_result") {
       throw new Error(
         `Unexpected response type for listWorldInfoEntries: ${response.type}`,
+      );
+    }
+
+    return response.payload;
+  }
+
+  public async saveCheckpointSnapshot(
+    record: CheckpointSnapshotRecord,
+  ): Promise<void> {
+    const response = await this.dispatch({
+      type: "save_checkpoint_snapshot",
+      payload: record,
+    });
+
+    if (response.type !== "save_checkpoint_snapshot_result") {
+      throw new Error(
+        `Unexpected response type for saveCheckpointSnapshot: ${response.type}`,
+      );
+    }
+  }
+
+  public async listCheckpointSnapshots(): Promise<
+    CheckpointSnapshotRecord[]
+  > {
+    const response = await this.dispatch({
+      type: "list_checkpoint_snapshots",
+    });
+
+    if (response.type !== "list_checkpoint_snapshots_result") {
+      throw new Error(
+        `Unexpected response type for listCheckpointSnapshots: ${response.type}`,
+      );
+    }
+
+    return response.payload;
+  }
+
+  public async getLatestCheckpointSnapshotByKind(
+    kind: CheckpointKind,
+  ): Promise<CheckpointSnapshotRecord | null> {
+    const response = await this.dispatch({
+      type: "get_latest_checkpoint_snapshot_by_kind",
+      payload: {
+        kind,
+      },
+    });
+
+    if (response.type !== "get_latest_checkpoint_snapshot_by_kind_result") {
+      throw new Error(
+        `Unexpected response type for getLatestCheckpointSnapshotByKind: ${response.type}`,
+      );
+    }
+
+    return response.payload;
+  }
+
+  public async appendEventLog(record: EventLogRecord): Promise<void> {
+    const response = await this.dispatch({
+      type: "append_event_log",
+      payload: record,
+    });
+
+    if (response.type !== "append_event_log_result") {
+      throw new Error(
+        `Unexpected response type for appendEventLog: ${response.type}`,
+      );
+    }
+  }
+
+  public async listEventLogs(): Promise<EventLogRecord[]> {
+    const response = await this.dispatch({
+      type: "list_event_logs",
+    });
+
+    if (response.type !== "list_event_logs_result") {
+      throw new Error(
+        `Unexpected response type for listEventLogs: ${response.type}`,
+      );
+    }
+
+    return response.payload;
+  }
+
+  public async saveSaveMeta(record: SaveMetaRecord): Promise<void> {
+    const response = await this.dispatch({
+      type: "save_save_meta",
+      payload: record,
+    });
+
+    if (response.type !== "save_save_meta_result") {
+      throw new Error(
+        `Unexpected response type for saveSaveMeta: ${response.type}`,
+      );
+    }
+  }
+
+  public async listSaveMeta(): Promise<SaveMetaRecord[]> {
+    const response = await this.dispatch({
+      type: "list_save_meta",
+    });
+
+    if (response.type !== "list_save_meta_result") {
+      throw new Error(
+        `Unexpected response type for listSaveMeta: ${response.type}`,
       );
     }
 

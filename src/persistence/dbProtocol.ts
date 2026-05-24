@@ -6,6 +6,13 @@ import type {
   VariableValueRecord,
 } from "@/types/variables";
 import type { WorldInfoEntry } from "@/persistence/repositories/worldInfoRepository";
+import type { SqliteWasmCapabilities } from "@/persistence/sqlite/sqliteWasm";
+import type {
+  CheckpointKind,
+  CheckpointSnapshotRecord,
+  EventLogRecord,
+  SaveMetaRecord,
+} from "@/types/recovery";
 
 export interface TestRecordRow {
   id: string;
@@ -18,6 +25,7 @@ export interface DbInitResult {
   schemaVersion: number;
   availableTables: string[];
   appliedMigrations: string[];
+  sqliteCapabilities?: SqliteWasmCapabilities;
 }
 
 export interface DbWorkerErrorPayload {
@@ -34,6 +42,9 @@ export interface DbWorkerStateSnapshot {
   variableValue: VariableValueRecord | null;
   variableChangeLog: Map<string, VariableChangeLogRecord>;
   worldInfo: Map<string, WorldInfoEntry>;
+  checkpointSnapshots: Map<string, CheckpointSnapshotRecord>;
+  eventLog: Map<string, EventLogRecord>;
+  saveMeta: Map<string, SaveMetaRecord>;
 }
 
 export type DbWorkerRequest =
@@ -80,6 +91,33 @@ export type DbWorkerRequest =
     }
   | {
       type: "list_world_info_entries";
+    }
+  | {
+      type: "save_checkpoint_snapshot";
+      payload: CheckpointSnapshotRecord;
+    }
+  | {
+      type: "list_checkpoint_snapshots";
+    }
+  | {
+      type: "get_latest_checkpoint_snapshot_by_kind";
+      payload: {
+        kind: CheckpointKind;
+      };
+    }
+  | {
+      type: "append_event_log";
+      payload: EventLogRecord;
+    }
+  | {
+      type: "list_event_logs";
+    }
+  | {
+      type: "save_save_meta";
+      payload: SaveMetaRecord;
+    }
+  | {
+      type: "list_save_meta";
     };
 
 export type DbWorkerSuccessResponse =
@@ -140,6 +178,40 @@ export type DbWorkerSuccessResponse =
   | {
       type: "list_world_info_entries_result";
       payload: WorldInfoEntry[];
+    }
+  | {
+      type: "save_checkpoint_snapshot_result";
+      payload: {
+        savedId: string;
+      };
+    }
+  | {
+      type: "list_checkpoint_snapshots_result";
+      payload: CheckpointSnapshotRecord[];
+    }
+  | {
+      type: "get_latest_checkpoint_snapshot_by_kind_result";
+      payload: CheckpointSnapshotRecord | null;
+    }
+  | {
+      type: "append_event_log_result";
+      payload: {
+        savedId: string;
+      };
+    }
+  | {
+      type: "list_event_logs_result";
+      payload: EventLogRecord[];
+    }
+  | {
+      type: "save_save_meta_result";
+      payload: {
+        savedId: string;
+      };
+    }
+  | {
+      type: "list_save_meta_result";
+      payload: SaveMetaRecord[];
     };
 
 export type DbWorkerErrorResponse = {
