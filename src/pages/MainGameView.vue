@@ -65,6 +65,7 @@ onMounted(async () => {
 
   if (persistenceClient) {
     await chatStore.configurePersistence({ client: persistenceClient });
+    await sessionStore.recoverFromInterruptedCombat();
   }
 
   await chatStore.refreshMessages();

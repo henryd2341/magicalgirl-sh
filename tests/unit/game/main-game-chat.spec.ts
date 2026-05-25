@@ -8,11 +8,34 @@ import {
   createInProcessDbWorkerEndpoint,
 } from "@/persistence/dbClient";
 import { router } from "@/router";
+import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
+import { useSessionStore } from "@/stores/sessionStore";
+import type { BattleParticipant } from "@/types/battle";
 import { createDbWorkerRuntime } from "@/workers/db.worker";
 import { fireEvent, render, screen, waitFor } from "@testing-library/vue";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+function createPlayerParty(): BattleParticipant[] {
+  return [
+    {
+      id: "player-heroine-1",
+      side: "player",
+      displayName: "鹿目真昼",
+      hp: {
+        current: 120,
+        max: 120,
+      },
+      mp: {
+        current: 48,
+        max: 48,
+      },
+      isDown: false,
+      isActive: true,
+    },
+  ];
+}
 
 async function renderMainGameWithFreshPinia() {
   const pinia = createPinia();
@@ -89,6 +112,57 @@ describe("MainGameView chat persistence wiring", () => {
     await waitFor(() => {
       expect(
         screen.getByText("请继续描写车站天桥上的风。"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("safe-rolls an interrupted battle back to idle after remounting with the same db worker", async () => {
+    const endpoint = createInProcessDbWorkerEndpoint(createDbWorkerRuntime());
+    const client = new DbWorkerClient(endpoint);
+    await client.initialize();
+    configureChatPersistenceClient(client);
+
+    const firstRender = await renderMainGameWithFreshPinia();
+    const chatStore = useChatStore();
+    const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
+
+    await chatStore.createUserMessage({
+      id: "msg-before-refresh-combat",
+      content: "我在安全线外停下脚步。",
+      createdAt: "2026-05-25T00:03:00.000Z",
+    });
+    await sessionStore.markIdleCheckpointForRefreshRecovery();
+    await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-refresh-battle",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-refresh-battle",
+      input: {
+        encounter_id: "enc-refresh-battle",
+        enemies: [{ enemy_id: "refresh-shadow", count: 1 }],
+        narrative_reason: "刷新恢复集成测试。",
+      },
+    });
+    await sessionStore.startBattle(createPlayerParty());
+
+    expect(sessionStore.snapshot.sessionState).toBe("IN_COMBAT");
+    expect(battleStore.activeBattle).not.toBeNull();
+
+    firstRender.unmount();
+
+    await renderMainGameWithFreshPinia();
+    const recoveredSessionStore = useSessionStore();
+    const recoveredBattleStore = useBattleStore();
+
+    await waitFor(() => {
+      expect(recoveredSessionStore.snapshot.sessionState).toBe("IDLE");
+      expect(recoveredBattleStore.pendingBattle).toBeNull();
+      expect(recoveredBattleStore.activeBattle).toBeNull();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("检测到战斗中刷新，已回滚到战斗前安全状态。"),
       ).toBeInTheDocument();
     });
   });

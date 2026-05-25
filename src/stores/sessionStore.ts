@@ -1,4 +1,9 @@
 import { BattleResultService } from "@/engine/battleResultService";
+import {
+  CombatRefreshRecoveryService,
+  type CombatRefreshRecoveryResult,
+} from "@/engine/combatRefreshRecoveryService";
+import { createCheckpointManager } from "@/engine/checkpointManager";
 import { GameEngineFacade } from "@/engine/gameEngineFacade";
 import { createSessionManager } from "@/engine/sessionManager";
 import { OrchestratorService } from "@/orchestrator/orchestratorService";
@@ -10,7 +15,13 @@ import type {
 } from "@/orchestrator/toolEnvelope";
 import { ToolExecutor } from "@/orchestrator/toolExecutor";
 import systemPrompt from "@/content/systemPrompt.md?raw";
+import { getChatPersistenceClient } from "@/persistence/chatRuntime";
+import type { DbWorkerClient } from "@/persistence/dbClient";
+import { DbChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
+import { DbCheckpointRepository } from "@/persistence/repositories/checkpointRepository";
+import { DbEventLogRepository } from "@/persistence/repositories/eventLogRepository";
 import {
+  DbVariableRepository,
   InMemoryVariableChangeLogRepository,
   InMemoryVariableRepository,
 } from "@/persistence/repositories/variableRepository";
@@ -29,6 +40,12 @@ function createPostCombatId(prefix: string): string {
     .slice(2, 10)}`;
 }
 
+function createRecoveryId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random()
+    .toString(16)
+    .slice(2, 10)}`;
+}
+
 export const useSessionStore = defineStore("session", () => {
   const sessionManager = createSessionManager();
   const variableRepository = new InMemoryVariableRepository();
@@ -40,6 +57,101 @@ export const useSessionStore = defineStore("session", () => {
   });
   const toolExecutor = new ToolExecutor(gameEngineFacade);
   const snapshot = ref(gameEngineFacade.getSessionSnapshot());
+
+  function createDbRecoveryRepositories(client: DbWorkerClient) {
+    return {
+      checkpointRepository: new DbCheckpointRepository(client),
+      eventLogRepository: new DbEventLogRepository(client),
+      chatRepository: new DbChatHistoryRepository(client),
+      variableRepository: new DbVariableRepository(client),
+    };
+  }
+
+  function getDbRecoveryRepositories() {
+    const client = getChatPersistenceClient();
+
+    if (!client) {
+      return null;
+    }
+
+    return createDbRecoveryRepositories(client);
+  }
+
+  async function createRecoveryCheckpoint(input: {
+    kind: "idle_checkpoint" | "combat_checkpoint";
+    reason: string;
+    encounterId?: string;
+    metadata?: Record<string, unknown>;
+  }) {
+    const repositories = getDbRecoveryRepositories();
+
+    if (!repositories) {
+      return null;
+    }
+
+    const battleStore = useBattleStore();
+    const manager = createCheckpointManager({
+      ...repositories,
+      getSessionSnapshot: () => gameEngineFacade.getSessionSnapshot(),
+      getPendingBattle: () => battleStore.pendingBattle,
+      getActiveBattle: () => battleStore.activeBattle,
+      idFactory: {
+        checkpointId: () => createRecoveryId("checkpoint"),
+        eventId: () => createRecoveryId("event"),
+      },
+    });
+
+    return manager.createCheckpoint({
+      kind: input.kind,
+      reason: input.reason,
+      metadata: {
+        refreshRecovery: true,
+        safeRollbackKind: "idle_checkpoint",
+        encounterId: input.encounterId,
+        ...input.metadata,
+      },
+    });
+  }
+
+  async function markCombatCheckpoint(input: {
+    reason: string;
+    encounterId?: string;
+  }) {
+    await createRecoveryCheckpoint({
+      kind: "combat_checkpoint",
+      reason: input.reason,
+      encounterId: input.encounterId,
+      metadata: {
+        combatSessionState: snapshot.value.sessionState,
+      },
+    });
+  }
+
+  async function markLatestCombatCheckpointFinished() {
+    const repositories = getDbRecoveryRepositories();
+
+    if (!repositories) {
+      return;
+    }
+
+    const checkpoint =
+      await repositories.checkpointRepository.getLatestByKind(
+        "combat_checkpoint",
+      );
+
+    if (!checkpoint) {
+      return;
+    }
+
+    await repositories.checkpointRepository.save({
+      ...checkpoint,
+      metadata: {
+        ...checkpoint.metadata,
+        finished: true,
+        finishedAt: new Date().toISOString(),
+      },
+    });
+  }
 
   function beginAiRequest(requestId: string) {
     gameEngineFacade.beginAiRequest(requestId);
@@ -59,6 +171,10 @@ export const useSessionStore = defineStore("session", () => {
         encounterId: result.output.encounterId,
         narrativeReason: envelope.input.narrative_reason,
         enemies: envelope.input.enemies,
+      });
+      await markCombatCheckpoint({
+        reason: "combat_pending",
+        encounterId: result.output.encounterId,
       });
     }
 
@@ -83,12 +199,16 @@ export const useSessionStore = defineStore("session", () => {
     snapshot.value = gameEngineFacade.getSessionSnapshot();
   }
 
-  function startBattle(playerParty: BattleParticipant[]) {
+  async function startBattle(playerParty: BattleParticipant[]) {
     const battleStore = useBattleStore();
 
     battleStore.startBattle(playerParty);
     gameEngineFacade.enterCombat();
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    await markCombatCheckpoint({
+      reason: "combat_active",
+      encounterId: battleStore.activeBattle?.encounterId,
+    });
   }
 
   function cancelPendingBattle() {
@@ -125,6 +245,7 @@ export const useSessionStore = defineStore("session", () => {
 
     gameEngineFacade.markPostCombatReady();
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    await markLatestCombatCheckpointFinished();
 
     return result;
   }
@@ -179,6 +300,49 @@ export const useSessionStore = defineStore("session", () => {
     snapshot.value = gameEngineFacade.getSessionSnapshot();
   }
 
+  async function markIdleCheckpointForRefreshRecovery() {
+    return createRecoveryCheckpoint({
+      kind: "idle_checkpoint",
+      reason: "combat_refresh_idle_checkpoint",
+    });
+  }
+
+  async function recoverFromInterruptedCombat(): Promise<CombatRefreshRecoveryResult> {
+    const repositories = getDbRecoveryRepositories();
+
+    if (!repositories) {
+      return {
+        recovered: false,
+        mode: "noop",
+      };
+    }
+
+    const battleStore = useBattleStore();
+    const chatStore = useChatStore();
+    const service = new CombatRefreshRecoveryService({
+      ...repositories,
+      restoreSessionSnapshot: (nextSnapshot) =>
+        gameEngineFacade.restoreSessionSnapshot(nextSnapshot),
+      resetSessionToIdle: () => gameEngineFacade.resetToIdle(),
+      restoreBattleSnapshot: (input) =>
+        battleStore.restoreBattleSnapshot(input),
+      idFactory: {
+        eventId: () => createRecoveryId("event"),
+        recoveryMessageId: () =>
+          createRecoveryId("msg-combat-refresh-recovery"),
+      },
+    });
+
+    const result = await service.recoverFromInterruptedCombat();
+    snapshot.value = gameEngineFacade.getSessionSnapshot();
+
+    if (result.recovered) {
+      await chatStore.refreshMessages();
+    }
+
+    return result;
+  }
+
   return {
     snapshot,
     beginAiRequest,
@@ -189,5 +353,7 @@ export const useSessionStore = defineStore("session", () => {
     completeActiveBattle,
     continuePostCombatStory,
     refreshSnapshot,
+    markIdleCheckpointForRefreshRecovery,
+    recoverFromInterruptedCombat,
   };
 });
