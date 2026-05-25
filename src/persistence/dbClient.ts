@@ -348,6 +348,21 @@ export class DbWorkerClient {
     return response.payload;
   }
 
+  public async deleteSaveSlot(id: string): Promise<void> {
+    const response = await this.dispatch({
+      type: "delete_save_slot",
+      payload: {
+        id,
+      },
+    });
+
+    if (response.type !== "delete_save_slot_result") {
+      throw new Error(
+        `Unexpected response type for deleteSaveSlot: ${response.type}`,
+      );
+    }
+  }
+
   public async replaceFullSaveData(
     data: FullSaveExportV1["data"],
   ): Promise<void> {

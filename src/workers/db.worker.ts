@@ -801,6 +801,20 @@ export function createDbWorkerRuntime(
           };
         }
 
+        case "delete_save_slot": {
+          const database = await ensureSqliteDatabase(state);
+          state.saveSlots.delete(request.payload.id);
+          await database.exec("DELETE FROM save_slot WHERE id = ?", [
+            request.payload.id,
+          ]);
+          return {
+            type: "delete_save_slot_result",
+            payload: {
+              deletedId: request.payload.id,
+            },
+          };
+        }
+
         case "replace_full_save_data": {
           const database = await ensureSqliteDatabase(state);
 

@@ -226,4 +226,55 @@ describe("full save import slots", () => {
     ).rejects.toThrow("[FULL_SAVE_IMPORT_INVALID]");
     expect(await client.listSaveSlots()).toEqual([]);
   });
+
+  it("deletes an imported save slot without touching current progress", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    const chatRepository = new DbChatHistoryRepository(client);
+    const variableRepository = new DbVariableRepository(client);
+
+    await chatRepository.save({
+      id: "msg-current-before-slot-delete",
+      role: "user",
+      kind: "normal",
+      content: "删除槽位不应影响当前进度。",
+      user_visible: true,
+      ai_visible: true,
+      provisional: false,
+      finalized: true,
+      failed: false,
+      created_at: "2026-05-25T09:00:00.000Z",
+    });
+    await variableRepository.saveCurrent({
+      ...new VariableEngine().createInitialState(),
+      rootId: "root-current-before-slot-delete",
+      stateHash: "hash-current-before-slot-delete",
+      updatedAt: "2026-05-25T09:00:00.000Z",
+    });
+
+    await importFullSaveToSlot({
+      client,
+      jsonText: JSON.stringify(createImportPayload()),
+      sourceFileName: "delete-me.json",
+      idFactory: {
+        slotId: () => "slot-delete-me",
+      },
+      now: () => "2026-05-25T09:05:00.000Z",
+    });
+
+    await client.deleteSaveSlot("slot-delete-me");
+
+    expect(await client.listSaveSlots()).toEqual([]);
+    expect(await chatRepository.list()).toEqual([
+      expect.objectContaining({
+        id: "msg-current-before-slot-delete",
+      }),
+    ]);
+    expect(await variableRepository.getCurrent()).toMatchObject({
+      rootId: "root-current-before-slot-delete",
+      stateHash: "hash-current-before-slot-delete",
+    });
+  });
 });

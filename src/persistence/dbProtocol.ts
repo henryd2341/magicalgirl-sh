@@ -140,6 +140,12 @@ export type DbWorkerRequest =
       };
     }
   | {
+      type: "delete_save_slot";
+      payload: {
+        id: string;
+      };
+    }
+  | {
       type: "replace_full_save_data";
       payload: FullSaveExportV1["data"];
     };
@@ -256,6 +262,12 @@ export type DbWorkerSuccessResponse =
   | {
       type: "get_save_slot_by_id_result";
       payload: SaveSlotRecord | null;
+    }
+  | {
+      type: "delete_save_slot_result";
+      payload: {
+        deletedId: string;
+      };
     }
   | {
       type: "replace_full_save_data_result";

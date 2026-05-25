@@ -30,6 +30,7 @@ const persistenceClient = getChatPersistenceClient();
 const isExporting = ref(false);
 const isImporting = ref(false);
 const isRestoringSlotId = ref<string | null>(null);
+const isDeletingSlotId = ref<string | null>(null);
 const selectedImportFile = ref<File | null>(null);
 const saveSlots = ref<SaveSlotRecord[]>([]);
 const lastExport = ref<{
@@ -44,6 +45,9 @@ const lastImport = ref<{
 const lastRestore = ref<{
   slotId: string;
   checkpointId: string;
+} | null>(null);
+const lastDelete = ref<{
+  slotId: string;
 } | null>(null);
 const errorMessage = ref<string | null>(null);
 const canExport = computed(() => persistenceClient !== null && !isExporting.value);
@@ -176,7 +180,11 @@ async function importSelectedFullSave() {
 }
 
 async function restoreSlot(slot: SaveSlotRecord) {
-  if (!persistenceClient || isRestoringSlotId.value !== null) {
+  if (
+    !persistenceClient ||
+    isRestoringSlotId.value !== null ||
+    isDeletingSlotId.value !== null
+  ) {
     return;
   }
 
@@ -209,6 +217,39 @@ async function restoreSlot(slot: SaveSlotRecord) {
       error instanceof Error ? error.message : "从槽位恢复失败。";
   } finally {
     isRestoringSlotId.value = null;
+  }
+}
+
+async function deleteSlot(slot: SaveSlotRecord) {
+  if (
+    !persistenceClient ||
+    isRestoringSlotId.value !== null ||
+    isDeletingSlotId.value !== null
+  ) {
+    return;
+  }
+
+  const confirmed = window.confirm(`删除槽位 ${slot.label}。是否继续？`);
+
+  if (!confirmed) {
+    return;
+  }
+
+  isDeletingSlotId.value = slot.id;
+  errorMessage.value = null;
+  lastDelete.value = null;
+
+  try {
+    await persistenceClient.deleteSaveSlot(slot.id);
+    await refreshSaveSlots();
+    lastDelete.value = {
+      slotId: slot.id,
+    };
+  } catch (error) {
+    errorMessage.value =
+      error instanceof Error ? error.message : "删除槽位失败。";
+  } finally {
+    isDeletingSlotId.value = null;
   }
 }
 
@@ -247,6 +288,9 @@ function exportSlot(slot: SaveSlotRecord) {
       <p v-if="lastRestore" class="hero-subtitle" role="status">
         已从槽位 {{ lastRestore.slotId }} 恢复到
         {{ lastRestore.checkpointId }}。
+      </p>
+      <p v-if="lastDelete" class="hero-subtitle" role="status">
+        已删除槽位 {{ lastDelete.slotId }}。
       </p>
       <p v-if="errorMessage" class="hero-subtitle" role="alert">
         {{ errorMessage }}
@@ -308,7 +352,9 @@ function exportSlot(slot: SaveSlotRecord) {
             <button
               type="button"
               class="secondary-cta secondary-cta--warning"
-              :disabled="isRestoringSlotId !== null"
+              :disabled="
+                isRestoringSlotId !== null || isDeletingSlotId !== null
+              "
               @click="restoreSlot(slot)"
             >
               恢复此槽位
@@ -316,9 +362,20 @@ function exportSlot(slot: SaveSlotRecord) {
             <button
               type="button"
               class="secondary-cta"
+              :disabled="isDeletingSlotId === slot.id"
               @click="exportSlot(slot)"
             >
               导出槽位 JSON
+            </button>
+            <button
+              type="button"
+              class="secondary-cta secondary-cta--warning"
+              :disabled="
+                isRestoringSlotId !== null || isDeletingSlotId !== null
+              "
+              @click="deleteSlot(slot)"
+            >
+              {{ isDeletingSlotId === slot.id ? "删除中" : "删除槽位" }}
             </button>
           </div>
         </article>

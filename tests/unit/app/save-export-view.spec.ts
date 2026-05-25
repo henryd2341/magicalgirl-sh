@@ -363,4 +363,86 @@ describe("SaveExportView", () => {
       );
     });
   });
+
+  it("deletes an imported save slot after confirmation", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    configureChatPersistenceClient(client);
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const variableValue = {
+      ...new VariableEngine().createInitialState(),
+      rootId: "root-ui-delete-slot",
+      stateHash: "hash-ui-delete-slot",
+      updatedAt: "2026-05-25T12:01:00.000Z",
+    };
+    const payload: FullSaveExportV1 = {
+      format: "magicalgirl-sh.full-save-export",
+      version: 1,
+      exportedAt: "2026-05-25T12:02:00.000Z",
+      exportId: "export-ui-delete-slot",
+      createdCheckpointId: "checkpoint-ui-delete-slot",
+      saveMetaId: "save-meta-ui-delete-slot",
+      data: {
+        checkpointSnapshots: [
+          {
+            id: "checkpoint-ui-delete-slot",
+            kind: "save_checkpoint",
+            snapshotVersion: 1,
+            createdAt: "2026-05-25T12:02:00.000Z",
+            reason: "manual_save_export",
+            sessionSnapshot: {
+              sessionState: "IDLE",
+              pipelineState: null,
+              activeRequestId: null,
+            },
+            variableValue,
+            chatMessages: [],
+          },
+        ],
+        saveMeta: [
+          {
+            id: "save-meta-ui-delete-slot",
+            label: "UI 删除槽位",
+            createdAt: "2026-05-25T12:02:00.000Z",
+            updatedAt: "2026-05-25T12:02:00.000Z",
+            checkpointId: "checkpoint-ui-delete-slot",
+          },
+        ],
+        eventLog: [],
+        chatMessages: [],
+        variableValue,
+        variableChangeLog: [],
+        worldInfo: [],
+      },
+    };
+
+    await importFullSaveToSlot({
+      client,
+      jsonText: JSON.stringify(payload),
+      sourceFileName: "delete-slot.json",
+      idFactory: {
+        slotId: () => "slot-ui-delete",
+      },
+      now: () => "2026-05-25T12:03:00.000Z",
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(SaveExportView, {
+      global: {
+        plugins: [pinia, router],
+      },
+    });
+
+    await screen.findByText("delete-slot.json");
+    await fireEvent.click(screen.getByRole("button", { name: "删除槽位" }));
+
+    await waitFor(async () => {
+      expect(screen.getByText(/已删除槽位 slot-ui-delete/)).toBeInTheDocument();
+      expect(screen.queryByText("delete-slot.json")).not.toBeInTheDocument();
+      expect(await client.listSaveSlots()).toEqual([]);
+    });
+  });
 });
