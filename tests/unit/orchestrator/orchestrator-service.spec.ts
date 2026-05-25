@@ -1,4 +1,5 @@
 import { ChatMessageService } from "@/engine/chatMessageService";
+import { createCheckpointManager } from "@/engine/checkpointManager";
 import { GameEngineFacade } from "@/engine/gameEngineFacade";
 import { createSessionManager } from "@/engine/sessionManager";
 import { VariableEngine } from "@/engine/variableEngine";
@@ -7,6 +8,8 @@ import { OrchestratorService } from "@/orchestrator/orchestratorService";
 import { buildHarnessRequest } from "@/orchestrator/promptBuilder";
 import { ToolExecutor } from "@/orchestrator/toolExecutor";
 import { InMemoryChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
+import { InMemoryCheckpointRepository } from "@/persistence/repositories/checkpointRepository";
+import { InMemoryEventLogRepository } from "@/persistence/repositories/eventLogRepository";
 import {
   InMemoryVariableChangeLogRepository,
   InMemoryVariableRepository,
@@ -18,15 +21,33 @@ describe("OrchestratorService", () => {
   it("streams fake provider chunks into a provisional assistant message and finalizes after commit ack", async () => {
     const chatRepository = new InMemoryChatHistoryRepository();
     const chatService = new ChatMessageService(chatRepository);
+    const checkpointRepository = new InMemoryCheckpointRepository();
+    const eventLogRepository = new InMemoryEventLogRepository();
     const variableRepository = new InMemoryVariableRepository();
     await variableRepository.saveCurrent(new VariableEngine().createInitialState());
+    const facade = new GameEngineFacade(createSessionManager(), {
+      variableRepository,
+      variableChangeLogRepository: new InMemoryVariableChangeLogRepository(),
+    });
 
     const service = new OrchestratorService({
       chatService,
-      gameEngineFacade: new GameEngineFacade(createSessionManager(), {
+      gameEngineFacade: facade,
+      checkpointManager: createCheckpointManager({
+        checkpointRepository,
+        eventLogRepository,
+        chatRepository,
         variableRepository,
-        variableChangeLogRepository: new InMemoryVariableChangeLogRepository(),
+        getSessionSnapshot: () => facade.getSessionSnapshot(),
+        getPendingBattle: () => null,
+        getActiveBattle: () => null,
+        idFactory: {
+          checkpointId: () => "checkpoint-orchestrator-001",
+          eventId: () => "event-checkpoint-orchestrator-001",
+        },
+        now: () => "2026-05-23T01:00:00.000Z",
       }),
+      eventLogRepository,
       providerClient: new FakeStreamingProviderClient({
         textChunks: ["旧校舍的门", "轻轻打开。"],
       }),
@@ -71,20 +92,50 @@ describe("OrchestratorService", () => {
       failed: false,
       request_id: "req-orchestrator-001",
     });
+    expect(await checkpointRepository.getLatestByKind("idle_checkpoint"))
+      .toMatchObject({
+        id: "checkpoint-orchestrator-001",
+        kind: "idle_checkpoint",
+        contextVersion: 1,
+        metadata: {
+          requestId: "req-orchestrator-001",
+        },
+      });
+    expect((await eventLogRepository.list()).map((event) => event.type)).toEqual(
+      ["CheckpointCreated", "RequestStarted", "AssistantMessageFinalized"],
+    );
   });
 
   it("marks the assistant response as a failed draft when the provider stream throws", async () => {
     const chatRepository = new InMemoryChatHistoryRepository();
     const chatService = new ChatMessageService(chatRepository);
+    const checkpointRepository = new InMemoryCheckpointRepository();
+    const eventLogRepository = new InMemoryEventLogRepository();
     const variableRepository = new InMemoryVariableRepository();
     await variableRepository.saveCurrent(new VariableEngine().createInitialState());
+    const facade = new GameEngineFacade(createSessionManager(), {
+      variableRepository,
+      variableChangeLogRepository: new InMemoryVariableChangeLogRepository(),
+    });
 
     const service = new OrchestratorService({
       chatService,
-      gameEngineFacade: new GameEngineFacade(createSessionManager(), {
+      gameEngineFacade: facade,
+      checkpointManager: createCheckpointManager({
+        checkpointRepository,
+        eventLogRepository,
+        chatRepository,
         variableRepository,
-        variableChangeLogRepository: new InMemoryVariableChangeLogRepository(),
+        getSessionSnapshot: () => facade.getSessionSnapshot(),
+        getPendingBattle: () => null,
+        getActiveBattle: () => null,
+        idFactory: {
+          checkpointId: () => "checkpoint-orchestrator-failure",
+          eventId: () => "event-checkpoint-orchestrator-failure",
+        },
+        now: () => "2026-05-23T01:05:00.000Z",
       }),
+      eventLogRepository,
       providerClient: new FakeStreamingProviderClient({
         textChunks: ["半句文本"],
         error: new Error("provider unavailable"),
@@ -122,6 +173,16 @@ describe("OrchestratorService", () => {
       finalized: false,
       failed: true,
     });
+    expect(await checkpointRepository.getLatestByKind("idle_checkpoint"))
+      .toMatchObject({
+        id: "checkpoint-orchestrator-failure",
+        metadata: {
+          requestId: "req-orchestrator-002",
+        },
+      });
+    expect((await eventLogRepository.list()).map((event) => event.type)).toEqual(
+      ["CheckpointCreated", "RequestStarted"],
+    );
   });
 
   it("wraps provider tool calls with the current Harness metadata before executing them", async () => {

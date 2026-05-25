@@ -98,6 +98,19 @@ export class DbWorkerClient {
     return response.payload;
   }
 
+  public async replaceChatMessages(messages: ChatMessage[]): Promise<void> {
+    const response = await this.dispatch({
+      type: "replace_chat_messages",
+      payload: messages,
+    });
+
+    if (response.type !== "replace_chat_messages_result") {
+      throw new Error(
+        `Unexpected response type for replaceChatMessages: ${response.type}`,
+      );
+    }
+  }
+
   public async saveCurrentVariableValue(
     record: VariableValueRecord,
   ): Promise<void> {

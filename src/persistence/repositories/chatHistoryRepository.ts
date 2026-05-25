@@ -7,6 +7,7 @@ export interface ChatHistoryRepository {
   save(message: ChatMessage): Promise<void>;
   getById(id: string): Promise<ChatMessage | null>;
   list(): Promise<ChatMessage[]>;
+  replaceAll(messages: ChatMessage[]): Promise<void>;
 }
 
 export class InMemoryChatHistoryRepository implements ChatHistoryRepository {
@@ -23,6 +24,13 @@ export class InMemoryChatHistoryRepository implements ChatHistoryRepository {
 
   public async list(): Promise<ChatMessage[]> {
     return [...this.records.values()].map((message) => ({ ...message }));
+  }
+
+  public async replaceAll(messages: ChatMessage[]): Promise<void> {
+    this.records.clear();
+    for (const message of messages) {
+      this.records.set(message.id, { ...message });
+    }
   }
 
   public clear(): void {
@@ -47,5 +55,9 @@ export class DbChatHistoryRepository implements ChatHistoryRepository {
 
   public async list(): Promise<ChatMessage[]> {
     return this.client.listChatMessages();
+  }
+
+  public async replaceAll(messages: ChatMessage[]): Promise<void> {
+    await this.client.replaceChatMessages(messages);
   }
 }

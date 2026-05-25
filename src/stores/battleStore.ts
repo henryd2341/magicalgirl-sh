@@ -177,6 +177,13 @@ export const useBattleStore = defineStore("battle", {
 
       this.activeBattle = resolveEnemyTurn(this.activeBattle);
     },
+    restoreBattleSnapshot(input: {
+      pendingBattle?: PendingBattleSnapshot;
+      activeBattle?: BattleSnapshot;
+    }) {
+      this.pendingBattle = input.pendingBattle ?? null;
+      this.activeBattle = input.activeBattle ?? null;
+    },
   },
 });
 

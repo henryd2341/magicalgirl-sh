@@ -121,6 +121,10 @@ export class GameEngineFacade {
     return this.sessionManager.getSnapshot();
   }
 
+  public restoreSessionSnapshot(snapshot: SessionSnapshot): void {
+    this.sessionManager.restoreSnapshot(snapshot);
+  }
+
   public getCurrentVariableStateHash(): Promise<string> {
     return this.variablePatchService.getCurrentStateHash();
   }

@@ -69,6 +69,7 @@ describe("DbWorkerClient", () => {
     await client.saveCheckpointSnapshot({
       id: "checkpoint-repeat-init",
       kind: "idle_checkpoint",
+      snapshotVersion: 1,
       createdAt: "2026-05-24T00:00:00.000Z",
       reason: "before request",
       sessionSnapshot: {
@@ -76,6 +77,8 @@ describe("DbWorkerClient", () => {
         pipelineState: null,
         activeRequestId: null,
       },
+      variableValue: null,
+      chatMessages: [],
     });
 
     await client.initialize();
@@ -84,6 +87,7 @@ describe("DbWorkerClient", () => {
       {
         id: "checkpoint-repeat-init",
         kind: "idle_checkpoint",
+        snapshotVersion: 1,
         createdAt: "2026-05-24T00:00:00.000Z",
         reason: "before request",
         sessionSnapshot: {
@@ -91,6 +95,8 @@ describe("DbWorkerClient", () => {
           pipelineState: null,
           activeRequestId: null,
         },
+        variableValue: null,
+        chatMessages: [],
       },
     ]);
   });

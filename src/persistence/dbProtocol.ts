@@ -72,6 +72,10 @@ export type DbWorkerRequest =
       type: "list_chat_messages";
     }
   | {
+      type: "replace_chat_messages";
+      payload: ChatMessage[];
+    }
+  | {
       type: "save_current_variable_value";
       payload: VariableValueRecord;
     }
@@ -148,6 +152,12 @@ export type DbWorkerSuccessResponse =
   | {
       type: "list_chat_messages_result";
       payload: ChatMessage[];
+    }
+  | {
+      type: "replace_chat_messages_result";
+      payload: {
+        replacedCount: number;
+      };
     }
   | {
       type: "save_current_variable_value_result";

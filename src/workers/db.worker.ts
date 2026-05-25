@@ -16,7 +16,6 @@ import type {
   CheckpointKind,
   CheckpointSnapshotRecord,
   EventLogRecord,
-  RecoveryJsonObject,
   SaveMetaRecord,
 } from "@/types/recovery";
 import { deepClone } from "@/utils/deepClone";
@@ -34,6 +33,7 @@ interface CheckpointSnapshotRow extends Record<string, unknown> {
   kind: CheckpointKind;
   created_at: string;
   reason: string;
+  snapshot_json: string;
   session_snapshot_json: string;
   pending_battle_json: string | null;
   active_battle_json: string | null;
@@ -91,21 +91,8 @@ function parseJson<T>(value: string): T {
   return JSON.parse(value) as T;
 }
 
-function parseNullableJson<T>(value: string | null): T | undefined {
-  return value == null ? undefined : parseJson<T>(value);
-}
-
 function checkpointFromRow(row: CheckpointSnapshotRow): CheckpointSnapshotRecord {
-  return {
-    id: row.id,
-    kind: row.kind,
-    createdAt: row.created_at,
-    reason: row.reason,
-    sessionSnapshot: parseJson(row.session_snapshot_json),
-    pendingBattle: parseNullableJson(row.pending_battle_json),
-    activeBattle: parseNullableJson(row.active_battle_json),
-    metadata: parseNullableJson<RecoveryJsonObject>(row.metadata_json),
-  };
+  return parseJson<CheckpointSnapshotRecord>(row.snapshot_json);
 }
 
 function eventLogFromRow(row: EventLogRow): EventLogRecord {
@@ -135,6 +122,7 @@ async function initializeRecoverySchema(database: SqliteDatabase): Promise<void>
       kind TEXT NOT NULL,
       created_at TEXT NOT NULL,
       reason TEXT NOT NULL,
+      snapshot_json TEXT NOT NULL,
       session_snapshot_json TEXT NOT NULL,
       pending_battle_json TEXT,
       active_battle_json TEXT,
@@ -258,6 +246,19 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
           };
         }
 
+        case "replace_chat_messages": {
+          state.chatHistory.clear();
+          for (const message of request.payload) {
+            state.chatHistory.set(message.id, { ...message });
+          }
+          return {
+            type: "replace_chat_messages_result",
+            payload: {
+              replacedCount: request.payload.length,
+            },
+          };
+        }
+
         case "save_current_variable_value": {
           state.variableValue = deepClone(request.payload);
           return {
@@ -327,16 +328,18 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
                 kind,
                 created_at,
                 reason,
+                snapshot_json,
                 session_snapshot_json,
                 pending_battle_json,
                 active_battle_json,
                 metadata_json
               )
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
               ON CONFLICT(id) DO UPDATE SET
                 kind = excluded.kind,
                 created_at = excluded.created_at,
                 reason = excluded.reason,
+                snapshot_json = excluded.snapshot_json,
                 session_snapshot_json = excluded.session_snapshot_json,
                 pending_battle_json = excluded.pending_battle_json,
                 active_battle_json = excluded.active_battle_json,
@@ -347,6 +350,7 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
               request.payload.kind,
               request.payload.createdAt,
               request.payload.reason,
+              serializeJson(request.payload),
               serializeJson(request.payload.sessionSnapshot),
               serializeNullableJson(request.payload.pendingBattle),
               serializeNullableJson(request.payload.activeBattle),
@@ -370,6 +374,7 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
                 kind,
                 created_at,
                 reason,
+                snapshot_json,
                 session_snapshot_json,
                 pending_battle_json,
                 active_battle_json,
@@ -395,6 +400,7 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
                 kind,
                 created_at,
                 reason,
+                snapshot_json,
                 session_snapshot_json,
                 pending_battle_json,
                 active_battle_json,

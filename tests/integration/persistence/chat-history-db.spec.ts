@@ -82,4 +82,44 @@ describe("DbChatHistoryRepository", () => {
       content: "楼梯口的广播突然卡在半句。",
     });
   });
+
+  it("replaces chat history atomically for checkpoint rollback", async () => {
+    const endpoint = createInProcessDbWorkerEndpoint(createDbWorkerRuntime());
+    const client = new DbWorkerClient(endpoint);
+    await client.initialize();
+
+    const repository = new DbChatHistoryRepository(client);
+    const service = new ChatMessageService(repository);
+
+    await service.createUserMessage({
+      id: "user-before-rollback",
+      content: "我在校门口停下。",
+      createdAt: "2026-05-21T00:00:02.000Z",
+    });
+    await service.createAssistantProvisionalMessage({
+      id: "assistant-after-checkpoint",
+      requestId: "req-after-checkpoint",
+      createdAt: "2026-05-21T00:00:03.000Z",
+    });
+
+    await repository.replaceAll([
+      {
+        id: "user-before-rollback",
+        role: "user",
+        kind: "normal",
+        content: "我在校门口停下。",
+        user_visible: true,
+        ai_visible: true,
+        provisional: false,
+        finalized: true,
+        failed: false,
+        created_at: "2026-05-21T00:00:02.000Z",
+      },
+    ]);
+
+    expect((await repository.list()).map((message) => message.id)).toEqual([
+      "user-before-rollback",
+    ]);
+    expect(await repository.getById("assistant-after-checkpoint")).toBeNull();
+  });
 });

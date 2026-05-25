@@ -1,5 +1,7 @@
 import type { SessionSnapshot } from "@/engine/sessionManager";
 import type { BattleSnapshot, PendingBattleSnapshot } from "@/types/battle";
+import type { ChatMessage } from "@/types/chat";
+import type { VariableValueRecord } from "@/types/variables";
 
 export type CheckpointKind =
   | "idle_checkpoint"
@@ -21,9 +23,14 @@ export type RecoveryJsonObject = Record<string, unknown>;
 export interface CheckpointSnapshotRecord {
   id: string;
   kind: CheckpointKind;
+  snapshotVersion: 1;
   createdAt: string;
   reason: string;
+  contextVersion?: number;
+  stateHash?: string;
   sessionSnapshot: SessionSnapshot;
+  variableValue: VariableValueRecord | null;
+  chatMessages: ChatMessage[];
   pendingBattle?: PendingBattleSnapshot;
   activeBattle?: BattleSnapshot;
   metadata?: RecoveryJsonObject;

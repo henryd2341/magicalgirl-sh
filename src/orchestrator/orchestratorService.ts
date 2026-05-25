@@ -1,6 +1,10 @@
 /* eslint-disable no-unused-vars */
 
 import type { ChatMessageService } from "@/engine/chatMessageService";
+import type {
+  CreateCheckpointInput,
+  CheckpointManager,
+} from "@/engine/checkpointManager";
 import type { GameEngineFacade } from "@/engine/gameEngineFacade";
 import type {
   BuiltProviderRequest,
@@ -11,6 +15,8 @@ import type {
   ToolEnvelopeCandidate,
   ToolExecutionFailureResult,
 } from "@/orchestrator/toolEnvelope";
+import type { EventLogRepository } from "@/persistence/repositories/eventLogRepository";
+import type { CheckpointSnapshotRecord } from "@/types/recovery";
 
 export interface BuildRequestForTurnInput {
   userInput: string;
@@ -32,6 +38,8 @@ export interface OrchestratorServiceDependencies {
   gameEngineFacade: GameEngineFacade;
   providerClient: ProviderClient;
   toolExecutor: ToolExecutionPort | null;
+  checkpointManager?: Pick<CheckpointManager, "createCheckpoint">;
+  eventLogRepository?: EventLogRepository;
   buildRequest: (
     input: BuildRequestForTurnInput,
   ) => Promise<BuiltProviderRequest>;
@@ -79,6 +87,16 @@ export class OrchestratorService {
 
   private readonly toolExecutor: ToolExecutionPort | null;
 
+  private readonly checkpointManager:
+    | {
+        createCheckpoint(
+          input: CreateCheckpointInput,
+        ): Promise<CheckpointSnapshotRecord>;
+      }
+    | undefined;
+
+  private readonly eventLogRepository: EventLogRepository | undefined;
+
   private readonly buildRequest: (
     input: BuildRequestForTurnInput,
   ) => Promise<BuiltProviderRequest>;
@@ -92,6 +110,8 @@ export class OrchestratorService {
     this.gameEngineFacade = dependencies.gameEngineFacade;
     this.providerClient = dependencies.providerClient;
     this.toolExecutor = dependencies.toolExecutor;
+    this.checkpointManager = dependencies.checkpointManager;
+    this.eventLogRepository = dependencies.eventLogRepository;
     this.buildRequest = dependencies.buildRequest;
     this.idFactory =
       dependencies.idFactory ??
@@ -108,6 +128,8 @@ export class OrchestratorService {
     const userMessageId = this.idFactory.userMessageId();
     const assistantMessageId = this.idFactory.assistantMessageId();
     let request: BuiltProviderRequest | null = null;
+    let checkpoint: CheckpointSnapshotRecord | null = null;
+    let assistantMessageCreated = false;
     const toolResults: Array<ToolExecutionFailureResult<string> | { ok: true }> =
       [];
 
@@ -121,12 +143,27 @@ export class OrchestratorService {
 
     try {
       request = await this.buildRequest({ userInput: input.userInput });
+      checkpoint = await this.checkpointManager?.createCheckpoint({
+        kind: "idle_checkpoint",
+        reason: "before_ai_request",
+        contextVersion: request.metadata.context_version,
+        stateHash: request.metadata.state_hash,
+        metadata: {
+          requestId: request.metadata.request_id,
+        },
+      }) ?? null;
       this.gameEngineFacade.beginAiRequest(request.metadata.request_id);
+      await this.appendEventLog({
+        type: "RequestStarted",
+        requestId: request.metadata.request_id,
+        checkpointId: checkpoint?.id ?? null,
+      });
       await this.chatService.createAssistantProvisionalMessage({
         id: assistantMessageId,
         requestId: request.metadata.request_id,
         createdAt: this.now(),
       });
+      assistantMessageCreated = true;
 
       this.gameEngineFacade.advancePipeline("STREAMING_TEXT");
       const streamResult = await this.providerClient.stream(request, {
@@ -166,6 +203,11 @@ export class OrchestratorService {
         messageId: assistantMessageId,
         commitAck: true,
       });
+      await this.appendEventLog({
+        type: "AssistantMessageFinalized",
+        requestId: request.metadata.request_id,
+        assistantMessageId,
+      });
 
       return {
         ok: true,
@@ -174,9 +216,11 @@ export class OrchestratorService {
         toolResults,
       };
     } catch (error) {
-      await this.chatService.markAssistantFailedDraft({
-        messageId: assistantMessageId,
-      });
+      if (assistantMessageCreated) {
+        await this.chatService.markAssistantFailedDraft({
+          messageId: assistantMessageId,
+        });
+      }
       this.gameEngineFacade.enterErrorRecovery();
 
       return {
@@ -187,5 +231,28 @@ export class OrchestratorService {
         error: error instanceof Error ? error : new Error(String(error)),
       };
     }
+  }
+
+  private async appendEventLog(input: {
+    type: "RequestStarted" | "AssistantMessageFinalized";
+    requestId: string;
+    checkpointId?: string | null;
+    assistantMessageId?: string;
+  }): Promise<void> {
+    if (!this.eventLogRepository) {
+      return;
+    }
+
+    await this.eventLogRepository.append({
+      id: `${defaultId("event")}-${Math.random().toString(16).slice(2, 10)}`,
+      type: input.type,
+      createdAt: this.now(),
+      source: "orchestrator_service",
+      payload: {
+        requestId: input.requestId,
+        checkpointId: input.checkpointId ?? null,
+        assistantMessageId: input.assistantMessageId,
+      },
+    });
   }
 }

@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 
 import type { PipelineState } from "@/types/pipeline";
-import type { SessionState } from "@/types/session";
+import { SESSION_STATES, type SessionState } from "@/types/session";
 
 export interface SessionSnapshot {
   sessionState: SessionState;
@@ -24,6 +24,7 @@ export interface SessionManager {
   markPostCombatReady(): void;
   enterErrorRecovery(): void;
   resetToIdle(): void;
+  restoreSnapshot(snapshot: SessionSnapshot): void;
 }
 
 const INITIAL_SNAPSHOT: SessionSnapshot = {
@@ -147,6 +148,15 @@ export function createSessionManager(): SessionManager {
     },
     resetToIdle() {
       snapshot = { ...INITIAL_SNAPSHOT };
+    },
+    restoreSnapshot(nextSnapshot) {
+      if (!SESSION_STATES.includes(nextSnapshot.sessionState)) {
+        throw createInvalidTransitionError(
+          `Cannot restore unknown session state ${String(nextSnapshot.sessionState)}.`,
+        );
+      }
+
+      snapshot = { ...nextSnapshot };
     },
   };
 }
