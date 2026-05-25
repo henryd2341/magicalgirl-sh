@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+
 import type {
   DbInitResult,
   DbWorkerEndpoint,
@@ -10,7 +12,9 @@ import type { FullSaveExportV1 } from "@/persistence/exportSave";
 import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
 import { runMigrations } from "@/persistence/migrationRunner";
 import {
+  createPersistentSqliteDatabase,
   createTransientSqliteDatabase,
+  type CreateSqliteDatabaseOptions,
   type SqliteDatabase,
 } from "@/persistence/sqlite/sqliteWasm";
 import { DB_SCHEMA_VERSION } from "@/persistence/schema";
@@ -26,8 +30,14 @@ export interface DbWorkerRuntime extends DbWorkerEndpoint {
   getState(): Readonly<DbWorkerStateSnapshot>;
 }
 
+export interface DbWorkerRuntimeOptions {
+  storage?: CreateSqliteDatabaseOptions["storage"];
+  filename?: string;
+}
+
 interface DbWorkerRuntimeState extends DbWorkerStateSnapshot {
   sqliteDatabase: SqliteDatabase | null;
+  sqliteOptions: DbWorkerRuntimeOptions;
 }
 
 interface CheckpointSnapshotRow extends Record<string, unknown> {
@@ -204,7 +214,12 @@ async function ensureSqliteDatabase(
   state: DbWorkerRuntimeState,
 ): Promise<SqliteDatabase> {
   if (!state.sqliteDatabase) {
-    state.sqliteDatabase = await createTransientSqliteDatabase();
+    state.sqliteDatabase =
+      state.sqliteOptions.storage === "memory"
+        ? await createTransientSqliteDatabase()
+        : await createPersistentSqliteDatabase({
+            filename: state.sqliteOptions.filename,
+          });
     await initializeRecoverySchema(state.sqliteDatabase);
   }
 
@@ -355,10 +370,13 @@ async function saveSaveSlotRow(
   );
 }
 
-export function createDbWorkerRuntime(): DbWorkerRuntime {
+export function createDbWorkerRuntime(
+  options: DbWorkerRuntimeOptions = {},
+): DbWorkerRuntime {
   const state: DbWorkerRuntimeState = {
     ...createInitialState(),
     sqliteDatabase: null,
+    sqliteOptions: options,
   };
 
   return {
@@ -835,4 +853,52 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
       return state;
     },
   };
+}
+
+interface DbWorkerEnvelopeRequest {
+  id: string;
+  request: DbWorkerRequest;
+}
+
+interface WorkerScopeLike {
+  document?: unknown;
+  postMessage?: (message: unknown) => void;
+  addEventListener?: (
+    type: "message",
+    listener: (event: { data: unknown }) => void,
+  ) => void;
+}
+
+function isDbWorkerEnvelopeRequest(
+  value: unknown,
+): value is DbWorkerEnvelopeRequest {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "request" in value &&
+    typeof (value as { id: unknown }).id === "string"
+  );
+}
+
+const workerScope = globalThis as WorkerScopeLike;
+
+if (
+  typeof workerScope.addEventListener === "function" &&
+  typeof workerScope.postMessage === "function" &&
+  workerScope.document === undefined
+) {
+  const runtime = createDbWorkerRuntime();
+
+  workerScope.addEventListener("message", async (event) => {
+    if (!isDbWorkerEnvelopeRequest(event.data)) {
+      return;
+    }
+
+    const response = await runtime.post(event.data.request);
+    workerScope.postMessage?.({
+      id: event.data.id,
+      response,
+    });
+  });
 }

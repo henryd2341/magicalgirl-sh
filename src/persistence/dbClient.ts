@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-vars */
+
 import type {
   DbInitResult,
   DbWorkerEndpoint,
@@ -370,6 +372,77 @@ export class DbWorkerClient {
 
     return response;
   }
+}
+
+export interface BrowserDbWorkerLike {
+  postMessage(message: unknown): void;
+  addEventListener(
+    type: "message",
+    listener: (event: { data: unknown }) => void,
+  ): void;
+  removeEventListener(
+    type: "message",
+    listener: (event: { data: unknown }) => void,
+  ): void;
+}
+
+interface DbWorkerEnvelopeRequest {
+  id: string;
+  request: DbWorkerRequest;
+}
+
+interface DbWorkerEnvelopeResponse {
+  id: string;
+  response: DbWorkerResponse;
+}
+
+function isDbWorkerEnvelopeResponse(
+  value: unknown,
+): value is DbWorkerEnvelopeResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "response" in value &&
+    typeof (value as { id: unknown }).id === "string"
+  );
+}
+
+function createCloneableWorkerRequest(request: DbWorkerRequest): DbWorkerRequest {
+  return JSON.parse(JSON.stringify(request)) as DbWorkerRequest;
+}
+
+export function createBrowserDbWorkerEndpoint(
+  worker: BrowserDbWorkerLike,
+): DbWorkerEndpoint {
+  let nextId = 0;
+
+  return {
+    post(request) {
+      const id = `db-worker-request-${nextId.toString(36)}`;
+      nextId += 1;
+
+      return new Promise((resolve) => {
+        const onMessage = (event: { data: unknown }) => {
+          if (
+            !isDbWorkerEnvelopeResponse(event.data) ||
+            event.data.id !== id
+          ) {
+            return;
+          }
+
+          worker.removeEventListener("message", onMessage);
+          resolve(event.data.response);
+        };
+
+        worker.addEventListener("message", onMessage);
+        worker.postMessage({
+          id,
+          request: createCloneableWorkerRequest(request),
+        } satisfies DbWorkerEnvelopeRequest);
+      });
+    },
+  };
 }
 
 export function createInProcessDbWorkerEndpoint(

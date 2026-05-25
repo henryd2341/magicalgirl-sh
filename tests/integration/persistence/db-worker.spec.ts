@@ -31,7 +31,11 @@ describe("DbWorkerClient", () => {
   });
 
   it("exposes the frozen MVP table set and keeps migrations idempotent across repeated initialization", async () => {
-    const endpoint = createInProcessDbWorkerEndpoint(createDbWorkerRuntime());
+    const endpoint = createInProcessDbWorkerEndpoint(
+      createDbWorkerRuntime({
+        storage: "memory",
+      }),
+    );
     const client = new DbWorkerClient(endpoint);
 
     const firstInit = await client.initialize();
@@ -59,6 +63,22 @@ describe("DbWorkerClient", () => {
       sqliteSyncAvailable: expect.any(Boolean),
       sqliteVectorAvailable: expect.any(Boolean),
       sqliteMemoryAvailable: expect.any(Boolean),
+      storageMode: "memory",
+      filename: ":memory:",
+      opfsAvailable: expect.any(Boolean),
+    });
+  });
+
+  it("initializes persistent storage with OPFS preference by default", async () => {
+    const endpoint = createInProcessDbWorkerEndpoint(createDbWorkerRuntime());
+    const client = new DbWorkerClient(endpoint);
+
+    const initResult = await client.initialize();
+
+    expect(initResult.sqliteCapabilities).toMatchObject({
+      storageMode: expect.stringMatching(/^(opfs|memory)$/),
+      filename: expect.any(String),
+      opfsAvailable: expect.any(Boolean),
     });
   });
 

@@ -17,6 +17,9 @@ export interface SqliteWasmCapabilities {
   sqliteSyncAvailable: boolean;
   sqliteVectorAvailable: boolean;
   sqliteMemoryAvailable: boolean;
+  storageMode: "opfs" | "memory";
+  filename: string;
+  opfsAvailable: boolean;
 }
 
 export interface SqliteDatabase {
@@ -29,7 +32,7 @@ export interface SqliteDatabase {
   close(): void;
 }
 
-interface RawSqliteDatabase {
+export interface RawSqliteDatabase {
   exec(input: string | { sql: string; bind?: readonly SqliteBindValue[] }): void;
   selectObjects(
     sql: string,
@@ -42,6 +45,21 @@ interface RawSqliteDatabase {
   close(): void;
 }
 
+export type SqliteStoragePreference = "opfs-preferred" | "memory";
+
+export interface Sqlite3Module {
+  oo1: {
+    DB: new (filename: string, flags?: string) => RawSqliteDatabase;
+    OpfsDb?: new (filename: string, flags?: string) => RawSqliteDatabase;
+  };
+}
+
+export interface CreateSqliteDatabaseOptions {
+  storage?: SqliteStoragePreference;
+  filename?: string;
+  sqlite3Factory?: () => Promise<Sqlite3Module>;
+}
+
 function hasFunction(db: RawSqliteDatabase, name: string): boolean {
   const found = db.selectValue(
     "SELECT name FROM pragma_function_list WHERE name = ? LIMIT 1",
@@ -51,7 +69,7 @@ function hasFunction(db: RawSqliteDatabase, name: string): boolean {
   return found === name;
 }
 
-function detectCapabilities(db: RawSqliteDatabase): SqliteWasmCapabilities {
+function detectExtensionCapabilities(db: RawSqliteDatabase) {
   return {
     sqliteSyncAvailable: hasFunction(db, "cloudsync_version"),
     sqliteVectorAvailable: hasFunction(db, "vector_version"),
@@ -59,32 +77,93 @@ function detectCapabilities(db: RawSqliteDatabase): SqliteWasmCapabilities {
   };
 }
 
-export async function createTransientSqliteDatabase(): Promise<SqliteDatabase> {
-  const sqlite3 = await sqlite3InitModule({
+async function defaultSqlite3Factory(): Promise<Sqlite3Module> {
+  return sqlite3InitModule({
     print: () => undefined,
     printErr: () => undefined,
-  });
-  const db = new sqlite3.oo1.DB(":memory:", "c") as RawSqliteDatabase;
-  const capabilities = detectCapabilities(db);
+  }) as Promise<Sqlite3Module>;
+}
+
+function wrapDatabase(input: {
+  db: RawSqliteDatabase;
+  storageMode: "opfs" | "memory";
+  filename: string;
+  opfsAvailable: boolean;
+}): SqliteDatabase {
+  const capabilities: SqliteWasmCapabilities = {
+    ...detectExtensionCapabilities(input.db),
+    storageMode: input.storageMode,
+    filename: input.filename,
+    opfsAvailable: input.opfsAvailable,
+  };
 
   return {
     capabilities,
     async exec(sql: string, bind?: readonly SqliteBindValue[]) {
       if (bind) {
-        db.exec({ sql, bind });
+        input.db.exec({ sql, bind });
         return;
       }
 
-      db.exec(sql);
+      input.db.exec(sql);
     },
     async selectAll<T extends Record<string, unknown>>(
       sql: string,
       bind?: readonly SqliteBindValue[],
     ) {
-      return db.selectObjects(sql, bind) as T[];
+      return input.db.selectObjects(sql, bind) as T[];
     },
     close() {
-      db.close();
+      input.db.close();
     },
   };
+}
+
+export async function createSqliteDatabase(
+  options: CreateSqliteDatabaseOptions = {},
+): Promise<SqliteDatabase> {
+  const storage = options.storage ?? "opfs-preferred";
+  const persistentFilename = options.filename ?? "/magicalgirl-sh.sqlite3";
+  const sqlite3 = await (options.sqlite3Factory ?? defaultSqlite3Factory)();
+  const opfsAvailable = typeof sqlite3.oo1.OpfsDb === "function";
+
+  if (storage === "opfs-preferred" && sqlite3.oo1.OpfsDb) {
+    try {
+      return wrapDatabase({
+        db: new sqlite3.oo1.OpfsDb(persistentFilename, "c"),
+        storageMode: "opfs",
+        filename: persistentFilename,
+        opfsAvailable,
+      });
+    } catch {
+      // Fall through to the in-memory database when the browser lacks OPFS
+      // requirements such as Worker support or SharedArrayBuffer.
+    }
+  }
+
+  return wrapDatabase({
+    db: new sqlite3.oo1.DB(":memory:", "c"),
+    storageMode: "memory",
+    filename: ":memory:",
+    opfsAvailable,
+  });
+}
+
+export function createPersistentSqliteDatabase(
+  options: Omit<CreateSqliteDatabaseOptions, "storage"> = {},
+): Promise<SqliteDatabase> {
+  return createSqliteDatabase({
+    ...options,
+    storage: "opfs-preferred",
+  });
+}
+
+export function createTransientSqliteDatabase(
+  options: Omit<CreateSqliteDatabaseOptions, "storage" | "filename"> = {},
+): Promise<SqliteDatabase> {
+  return createSqliteDatabase({
+    ...options,
+    storage: "memory",
+    filename: ":memory:",
+  });
 }
