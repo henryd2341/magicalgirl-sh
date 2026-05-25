@@ -6,6 +6,8 @@ import type {
   DbWorkerResponse,
   DbWorkerStateSnapshot,
 } from "@/persistence/dbProtocol";
+import type { FullSaveExportV1 } from "@/persistence/exportSave";
+import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
 import { runMigrations } from "@/persistence/migrationRunner";
 import {
   createTransientSqliteDatabase,
@@ -56,6 +58,18 @@ interface SaveMetaRow extends Record<string, unknown> {
   checkpoint_id: string;
 }
 
+interface SaveSlotRow extends Record<string, unknown> {
+  id: string;
+  source_file_name: string;
+  imported_at: string;
+  exported_at: string;
+  export_id: string;
+  created_checkpoint_id: string;
+  save_meta_id: string;
+  label: string;
+  payload_json: string;
+}
+
 function createInitialState(): DbWorkerStateSnapshot {
   return {
     migrations: new Set(),
@@ -69,6 +83,7 @@ function createInitialState(): DbWorkerStateSnapshot {
     checkpointSnapshots: new Map(),
     eventLog: new Map(),
     saveMeta: new Map(),
+    saveSlots: new Map(),
   };
 }
 
@@ -115,6 +130,20 @@ function saveMetaFromRow(row: SaveMetaRow): SaveMetaRecord {
   };
 }
 
+function saveSlotFromRow(row: SaveSlotRow): SaveSlotRecord {
+  return {
+    id: row.id,
+    sourceFileName: row.source_file_name,
+    importedAt: row.imported_at,
+    exportedAt: row.exported_at,
+    exportId: row.export_id,
+    createdCheckpointId: row.created_checkpoint_id,
+    saveMetaId: row.save_meta_id,
+    label: row.label,
+    payload: parseJson<FullSaveExportV1>(row.payload_json),
+  };
+}
+
 async function initializeRecoverySchema(database: SqliteDatabase): Promise<void> {
   await database.exec(`
     CREATE TABLE IF NOT EXISTS checkpoint_snapshot (
@@ -153,6 +182,21 @@ async function initializeRecoverySchema(database: SqliteDatabase): Promise<void>
 
     CREATE INDEX IF NOT EXISTS idx_save_meta_updated_at
       ON save_meta (updated_at);
+
+    CREATE TABLE IF NOT EXISTS save_slot (
+      id TEXT PRIMARY KEY,
+      source_file_name TEXT NOT NULL,
+      imported_at TEXT NOT NULL,
+      exported_at TEXT NOT NULL,
+      export_id TEXT NOT NULL,
+      created_checkpoint_id TEXT NOT NULL,
+      save_meta_id TEXT NOT NULL,
+      label TEXT NOT NULL,
+      payload_json TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_save_slot_imported_at
+      ON save_slot (imported_at);
   `);
 }
 
@@ -165,6 +209,150 @@ async function ensureSqliteDatabase(
   }
 
   return state.sqliteDatabase;
+}
+
+async function saveCheckpointSnapshotRow(
+  database: SqliteDatabase,
+  record: CheckpointSnapshotRecord,
+): Promise<void> {
+  await database.exec(
+    `
+      INSERT INTO checkpoint_snapshot (
+        id,
+        kind,
+        created_at,
+        reason,
+        snapshot_json,
+        session_snapshot_json,
+        pending_battle_json,
+        active_battle_json,
+        metadata_json
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        kind = excluded.kind,
+        created_at = excluded.created_at,
+        reason = excluded.reason,
+        snapshot_json = excluded.snapshot_json,
+        session_snapshot_json = excluded.session_snapshot_json,
+        pending_battle_json = excluded.pending_battle_json,
+        active_battle_json = excluded.active_battle_json,
+        metadata_json = excluded.metadata_json
+    `,
+    [
+      record.id,
+      record.kind,
+      record.createdAt,
+      record.reason,
+      serializeJson(record),
+      serializeJson(record.sessionSnapshot),
+      serializeNullableJson(record.pendingBattle),
+      serializeNullableJson(record.activeBattle),
+      serializeNullableJson(record.metadata),
+    ],
+  );
+}
+
+async function saveEventLogRow(
+  database: SqliteDatabase,
+  record: EventLogRecord,
+): Promise<void> {
+  await database.exec(
+    `
+      INSERT INTO event_log (
+        id,
+        type,
+        created_at,
+        source,
+        payload_json
+      )
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        type = excluded.type,
+        created_at = excluded.created_at,
+        source = excluded.source,
+        payload_json = excluded.payload_json
+    `,
+    [
+      record.id,
+      record.type,
+      record.createdAt,
+      record.source,
+      serializeJson(record.payload),
+    ],
+  );
+}
+
+async function saveSaveMetaRow(
+  database: SqliteDatabase,
+  record: SaveMetaRecord,
+): Promise<void> {
+  await database.exec(
+    `
+      INSERT INTO save_meta (
+        id,
+        label,
+        created_at,
+        updated_at,
+        checkpoint_id
+      )
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        label = excluded.label,
+        created_at = excluded.created_at,
+        updated_at = excluded.updated_at,
+        checkpoint_id = excluded.checkpoint_id
+    `,
+    [
+      record.id,
+      record.label,
+      record.createdAt,
+      record.updatedAt,
+      record.checkpointId,
+    ],
+  );
+}
+
+async function saveSaveSlotRow(
+  database: SqliteDatabase,
+  record: SaveSlotRecord,
+): Promise<void> {
+  await database.exec(
+    `
+      INSERT INTO save_slot (
+        id,
+        source_file_name,
+        imported_at,
+        exported_at,
+        export_id,
+        created_checkpoint_id,
+        save_meta_id,
+        label,
+        payload_json
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        source_file_name = excluded.source_file_name,
+        imported_at = excluded.imported_at,
+        exported_at = excluded.exported_at,
+        export_id = excluded.export_id,
+        created_checkpoint_id = excluded.created_checkpoint_id,
+        save_meta_id = excluded.save_meta_id,
+        label = excluded.label,
+        payload_json = excluded.payload_json
+    `,
+    [
+      record.id,
+      record.sourceFileName,
+      record.importedAt,
+      record.exportedAt,
+      record.exportId,
+      record.createdCheckpointId,
+      record.saveMetaId,
+      record.label,
+      serializeJson(record.payload),
+    ],
+  );
 }
 
 export function createDbWorkerRuntime(): DbWorkerRuntime {
@@ -527,6 +715,118 @@ export function createDbWorkerRuntime(): DbWorkerRuntime {
             payload: rows.map(saveMetaFromRow).map((record) =>
               deepClone(record),
             ),
+          };
+        }
+
+        case "save_save_slot": {
+          const database = await ensureSqliteDatabase(state);
+          const record = deepClone(request.payload);
+          state.saveSlots.set(record.id, record);
+          await saveSaveSlotRow(database, record);
+          return {
+            type: "save_save_slot_result",
+            payload: {
+              savedId: record.id,
+            },
+          };
+        }
+
+        case "list_save_slots": {
+          const database = await ensureSqliteDatabase(state);
+          const rows = await database.selectAll<SaveSlotRow>(
+            `
+              SELECT
+                id,
+                source_file_name,
+                imported_at,
+                exported_at,
+                export_id,
+                created_checkpoint_id,
+                save_meta_id,
+                label,
+                payload_json
+              FROM save_slot
+              ORDER BY imported_at ASC
+            `,
+          );
+          return {
+            type: "list_save_slots_result",
+            payload: rows.map(saveSlotFromRow).map((record) =>
+              deepClone(record),
+            ),
+          };
+        }
+
+        case "get_save_slot_by_id": {
+          const database = await ensureSqliteDatabase(state);
+          const rows = await database.selectAll<SaveSlotRow>(
+            `
+              SELECT
+                id,
+                source_file_name,
+                imported_at,
+                exported_at,
+                export_id,
+                created_checkpoint_id,
+                save_meta_id,
+                label,
+                payload_json
+              FROM save_slot
+              WHERE id = ?
+              LIMIT 1
+            `,
+            [request.payload.id],
+          );
+          return {
+            type: "get_save_slot_by_id_result",
+            payload: rows[0] ? deepClone(saveSlotFromRow(rows[0])) : null,
+          };
+        }
+
+        case "replace_full_save_data": {
+          const database = await ensureSqliteDatabase(state);
+
+          await database.exec("DELETE FROM checkpoint_snapshot");
+          await database.exec("DELETE FROM event_log");
+          await database.exec("DELETE FROM save_meta");
+
+          for (const checkpoint of request.payload.checkpointSnapshots) {
+            await saveCheckpointSnapshotRow(database, checkpoint);
+          }
+
+          for (const event of request.payload.eventLog) {
+            await saveEventLogRow(database, event);
+          }
+
+          for (const saveMeta of request.payload.saveMeta) {
+            await saveSaveMetaRow(database, saveMeta);
+          }
+
+          state.chatHistory.clear();
+          for (const message of request.payload.chatMessages) {
+            state.chatHistory.set(message.id, { ...message });
+          }
+
+          state.variableValue = request.payload.variableValue
+            ? deepClone(request.payload.variableValue)
+            : null;
+
+          state.variableChangeLog.clear();
+          for (const record of request.payload.variableChangeLog) {
+            state.variableChangeLog.set(record.id, deepClone(record));
+          }
+
+          state.worldInfo.clear();
+          for (const entry of request.payload.worldInfo) {
+            state.worldInfo.set(entry.id, deepClone(entry));
+          }
+
+          return {
+            type: "replace_full_save_data_result",
+            payload: {
+              checkpointCount: request.payload.checkpointSnapshots.length,
+              chatMessageCount: request.payload.chatMessages.length,
+            },
           };
         }
       }

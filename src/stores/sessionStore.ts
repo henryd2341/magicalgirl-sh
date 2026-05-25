@@ -9,6 +9,10 @@ import { createSessionManager } from "@/engine/sessionManager";
 import { OrchestratorService } from "@/orchestrator/orchestratorService";
 import { buildHarnessRequest } from "@/orchestrator/promptBuilder";
 import { FakeStreamingProviderClient } from "@/orchestrator/providerClient";
+import {
+  RecoveryService,
+  type RollbackResult,
+} from "@/engine/recoveryService";
 import type {
   TriggerBattleToolEnvelope,
   TriggerBattleToolResult,
@@ -29,6 +33,7 @@ import { InMemoryWorldInfoRepository } from "@/persistence/repositories/worldInf
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
 import type { BattleParticipant } from "@/types/battle";
+import type { CheckpointSnapshotRecord } from "@/types/recovery";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
@@ -343,6 +348,65 @@ export const useSessionStore = defineStore("session", () => {
     return result;
   }
 
+  async function restoreFromCheckpointSnapshot(
+    checkpoint: CheckpointSnapshotRecord,
+  ) {
+    const battleStore = useBattleStore();
+
+    if (checkpoint.variableValue !== null) {
+      await variableRepository.saveCurrent(checkpoint.variableValue);
+    }
+
+    gameEngineFacade.restoreSessionSnapshot(checkpoint.sessionSnapshot);
+    battleStore.restoreBattleSnapshot({
+      pendingBattle: checkpoint.pendingBattle,
+      activeBattle: checkpoint.activeBattle,
+    });
+    snapshot.value = gameEngineFacade.getSessionSnapshot();
+  }
+
+  async function rollbackToLatestIdleCheckpoint(): Promise<RollbackResult> {
+    const repositories = getDbRecoveryRepositories();
+
+    if (!repositories) {
+      throw new Error(
+        "[RECOVERY_DB_UNAVAILABLE] Cannot rollback without DB-backed persistence.",
+      );
+    }
+
+    const battleStore = useBattleStore();
+    const checkpoint =
+      await repositories.checkpointRepository.getLatestByKind(
+        "idle_checkpoint",
+      );
+
+    if (!checkpoint) {
+      throw new Error(
+        "[CHECKPOINT_NOT_FOUND] No checkpoint found for kind: idle_checkpoint.",
+      );
+    }
+
+    const service = new RecoveryService({
+      ...repositories,
+      restoreSessionSnapshot: (nextSnapshot) =>
+        gameEngineFacade.restoreSessionSnapshot(nextSnapshot),
+      restoreBattleSnapshot: (input) =>
+        battleStore.restoreBattleSnapshot(input),
+      idFactory: {
+        eventId: () => createRecoveryId("event"),
+      },
+    });
+    const result = await service.rollbackToLatest("idle_checkpoint");
+
+    if (checkpoint.variableValue !== null) {
+      await variableRepository.saveCurrent(checkpoint.variableValue);
+    }
+
+    snapshot.value = gameEngineFacade.getSessionSnapshot();
+
+    return result;
+  }
+
   return {
     snapshot,
     beginAiRequest,
@@ -355,5 +419,7 @@ export const useSessionStore = defineStore("session", () => {
     refreshSnapshot,
     markIdleCheckpointForRefreshRecovery,
     recoverFromInterruptedCombat,
+    restoreFromCheckpointSnapshot,
+    rollbackToLatestIdleCheckpoint,
   };
 });

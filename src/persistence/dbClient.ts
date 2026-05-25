@@ -11,6 +11,8 @@ import type {
   VariableValueRecord,
 } from "@/types/variables";
 import type { WorldInfoEntry } from "@/persistence/repositories/worldInfoRepository";
+import type { FullSaveExportV1 } from "@/persistence/exportSave";
+import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
 import type {
   CheckpointKind,
   CheckpointSnapshotRecord,
@@ -298,6 +300,65 @@ export class DbWorkerClient {
     }
 
     return response.payload;
+  }
+
+  public async saveSaveSlot(record: SaveSlotRecord): Promise<void> {
+    const response = await this.dispatch({
+      type: "save_save_slot",
+      payload: record,
+    });
+
+    if (response.type !== "save_save_slot_result") {
+      throw new Error(
+        `Unexpected response type for saveSaveSlot: ${response.type}`,
+      );
+    }
+  }
+
+  public async listSaveSlots(): Promise<SaveSlotRecord[]> {
+    const response = await this.dispatch({
+      type: "list_save_slots",
+    });
+
+    if (response.type !== "list_save_slots_result") {
+      throw new Error(
+        `Unexpected response type for listSaveSlots: ${response.type}`,
+      );
+    }
+
+    return response.payload;
+  }
+
+  public async getSaveSlotById(id: string): Promise<SaveSlotRecord | null> {
+    const response = await this.dispatch({
+      type: "get_save_slot_by_id",
+      payload: {
+        id,
+      },
+    });
+
+    if (response.type !== "get_save_slot_by_id_result") {
+      throw new Error(
+        `Unexpected response type for getSaveSlotById: ${response.type}`,
+      );
+    }
+
+    return response.payload;
+  }
+
+  public async replaceFullSaveData(
+    data: FullSaveExportV1["data"],
+  ): Promise<void> {
+    const response = await this.dispatch({
+      type: "replace_full_save_data",
+      payload: data,
+    });
+
+    if (response.type !== "replace_full_save_data_result") {
+      throw new Error(
+        `Unexpected response type for replaceFullSaveData: ${response.type}`,
+      );
+    }
   }
 
   private async dispatch(request: DbWorkerRequest): Promise<DbWorkerResponse> {

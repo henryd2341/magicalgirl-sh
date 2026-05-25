@@ -48,6 +48,7 @@ describe("DbWorkerClient", () => {
       "event_log",
       "checkpoint_snapshot",
       "save_meta",
+      "save_slot",
       "test_record",
     ]);
 

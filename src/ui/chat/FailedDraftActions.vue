@@ -1,6 +1,9 @@
 <script setup lang="ts">
 const props = defineProps<{
   messageId: string;
+  retryDisabled?: boolean;
+  editRetryDisabled?: boolean;
+  rollbackDisabled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -26,6 +29,7 @@ const emit = defineEmits<{
         id="failed-draft-retry"
         type="button"
         class="primary-cta"
+        :disabled="props.retryDisabled"
         @click="emit('retry', props.messageId)"
       >
         重试本段
@@ -34,6 +38,7 @@ const emit = defineEmits<{
         id="failed-draft-edit-retry"
         type="button"
         class="secondary-cta"
+        :disabled="props.editRetryDisabled"
         @click="emit('edit_retry', props.messageId)"
       >
         编辑后重试
@@ -42,6 +47,7 @@ const emit = defineEmits<{
         id="failed-draft-rollback"
         type="button"
         class="secondary-cta secondary-cta--warning"
+        :disabled="props.rollbackDisabled"
         @click="emit('rollback', props.messageId)"
       >
         回滚到最近检查点

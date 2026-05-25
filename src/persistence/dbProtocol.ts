@@ -7,6 +7,8 @@ import type {
 } from "@/types/variables";
 import type { WorldInfoEntry } from "@/persistence/repositories/worldInfoRepository";
 import type { SqliteWasmCapabilities } from "@/persistence/sqlite/sqliteWasm";
+import type { FullSaveExportV1 } from "@/persistence/exportSave";
+import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
 import type {
   CheckpointKind,
   CheckpointSnapshotRecord,
@@ -45,6 +47,7 @@ export interface DbWorkerStateSnapshot {
   checkpointSnapshots: Map<string, CheckpointSnapshotRecord>;
   eventLog: Map<string, EventLogRecord>;
   saveMeta: Map<string, SaveMetaRecord>;
+  saveSlots: Map<string, SaveSlotRecord>;
 }
 
 export type DbWorkerRequest =
@@ -122,6 +125,23 @@ export type DbWorkerRequest =
     }
   | {
       type: "list_save_meta";
+    }
+  | {
+      type: "save_save_slot";
+      payload: SaveSlotRecord;
+    }
+  | {
+      type: "list_save_slots";
+    }
+  | {
+      type: "get_save_slot_by_id";
+      payload: {
+        id: string;
+      };
+    }
+  | {
+      type: "replace_full_save_data";
+      payload: FullSaveExportV1["data"];
     };
 
 export type DbWorkerSuccessResponse =
@@ -222,6 +242,27 @@ export type DbWorkerSuccessResponse =
   | {
       type: "list_save_meta_result";
       payload: SaveMetaRecord[];
+    }
+  | {
+      type: "save_save_slot_result";
+      payload: {
+        savedId: string;
+      };
+    }
+  | {
+      type: "list_save_slots_result";
+      payload: SaveSlotRecord[];
+    }
+  | {
+      type: "get_save_slot_by_id_result";
+      payload: SaveSlotRecord | null;
+    }
+  | {
+      type: "replace_full_save_data_result";
+      payload: {
+        checkpointCount: number;
+        chatMessageCount: number;
+      };
     };
 
 export type DbWorkerErrorResponse = {

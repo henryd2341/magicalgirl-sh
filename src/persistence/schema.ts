@@ -12,6 +12,7 @@ export const MVP_PERSISTENT_TABLES = [
   'event_log',
   'checkpoint_snapshot',
   'save_meta',
+  'save_slot',
 ] as const;
 
 export const DEV_RUNTIME_TABLES = ['test_record'] as const;

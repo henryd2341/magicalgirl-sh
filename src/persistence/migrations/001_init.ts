@@ -57,5 +57,9 @@ export const migration001Init: DbMigration = {
     if (!state.saveMeta) {
       state.saveMeta = new Map();
     }
+
+    if (!state.saveSlots) {
+      state.saveSlots = new Map();
+    }
   },
 };
