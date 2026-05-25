@@ -167,4 +167,64 @@ describe("full save export", () => {
       });
     expect(await saveMetaRepository.list()).toContainEqual(result.exportRecord);
   });
+
+  it("exports an initial variable record when no current variables were saved manually", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    const checkpointRepository = new DbCheckpointRepository(client);
+    const eventLogRepository = new DbEventLogRepository(client);
+    const saveMetaRepository = new DbSaveMetaRepository(client);
+    const chatRepository = new DbChatHistoryRepository(client);
+    const variableRepository = new DbVariableRepository(client);
+    const variableChangeLogRepository = new DbVariableChangeLogRepository(client);
+    const worldInfoRepository = new DbWorldInfoRepository(client);
+
+    const result = await createFullSaveExport({
+      repositories: {
+        checkpointRepository,
+        eventLogRepository,
+        saveMetaRepository,
+        chatRepository,
+        variableRepository,
+        variableChangeLogRepository,
+        worldInfoRepository,
+      },
+      getSessionSnapshot: () => ({
+        sessionState: "IDLE",
+        pipelineState: null,
+        activeRequestId: null,
+      }),
+      getPendingBattle: () => null,
+      getActiveBattle: () => null,
+      idFactory: {
+        exportId: () => "export-full-initial-variables",
+        checkpointId: () => "checkpoint-save-export-initial-variables",
+        eventId: () => "event-checkpoint-save-export-initial-variables",
+        saveMetaId: () => "save-meta-export-initial-variables",
+      },
+      now: () => "2026-05-25T13:02:00.000Z",
+    });
+
+    const parsed = JSON.parse(result.jsonText) as FullSaveExportV1;
+    expect(parsed.data.variableValue).toMatchObject({
+      rootId: "game_variables_root",
+      stateHash: "initial",
+      updatedAt: "2026-05-25T13:02:00.000Z",
+    });
+    expect(parsed.data.checkpointSnapshots).toContainEqual(
+      expect.objectContaining({
+        id: "checkpoint-save-export-initial-variables",
+        variableValue: expect.objectContaining({
+          rootId: "game_variables_root",
+          stateHash: "initial",
+        }),
+      }),
+    );
+    await expect(variableRepository.getCurrent()).resolves.toMatchObject({
+      rootId: "game_variables_root",
+      stateHash: "initial",
+    });
+  });
 });

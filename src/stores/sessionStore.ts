@@ -6,6 +6,7 @@ import {
 import { createCheckpointManager } from "@/engine/checkpointManager";
 import { GameEngineFacade } from "@/engine/gameEngineFacade";
 import { createSessionManager } from "@/engine/sessionManager";
+import { ensureVariableState } from "@/engine/variableStateBootstrap";
 import { OrchestratorService } from "@/orchestrator/orchestratorService";
 import { buildHarnessRequest } from "@/orchestrator/promptBuilder";
 import { FakeStreamingProviderClient } from "@/orchestrator/providerClient";
@@ -16,6 +17,8 @@ import {
 import type {
   TriggerBattleToolEnvelope,
   TriggerBattleToolResult,
+  UpdateVariablesToolEnvelope,
+  UpdateVariablesToolResult,
 } from "@/orchestrator/toolEnvelope";
 import { ToolExecutor } from "@/orchestrator/toolExecutor";
 import systemPrompt from "@/content/systemPrompt.md?raw";
@@ -25,9 +28,12 @@ import { DbChatHistoryRepository } from "@/persistence/repositories/chatHistoryR
 import { DbCheckpointRepository } from "@/persistence/repositories/checkpointRepository";
 import { DbEventLogRepository } from "@/persistence/repositories/eventLogRepository";
 import {
+  DbVariableChangeLogRepository,
   DbVariableRepository,
   InMemoryVariableChangeLogRepository,
   InMemoryVariableRepository,
+  type VariableChangeLogRepository,
+  type VariableRepository,
 } from "@/persistence/repositories/variableRepository";
 import { InMemoryWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
 import { useBattleStore } from "@/stores/battleStore";
@@ -53,14 +59,15 @@ function createRecoveryId(prefix: string): string {
 
 export const useSessionStore = defineStore("session", () => {
   const sessionManager = createSessionManager();
-  const variableRepository = new InMemoryVariableRepository();
-  const variableChangeLogRepository = new InMemoryVariableChangeLogRepository();
+  let variableRepository: VariableRepository = new InMemoryVariableRepository();
+  let variableChangeLogRepository: VariableChangeLogRepository =
+    new InMemoryVariableChangeLogRepository();
   const worldInfoRepository = new InMemoryWorldInfoRepository();
-  const gameEngineFacade = new GameEngineFacade(sessionManager, {
+  let gameEngineFacade = new GameEngineFacade(sessionManager, {
     variableRepository,
     variableChangeLogRepository,
   });
-  const toolExecutor = new ToolExecutor(gameEngineFacade);
+  let toolExecutor = new ToolExecutor(gameEngineFacade);
   const snapshot = ref(gameEngineFacade.getSessionSnapshot());
 
   function createDbRecoveryRepositories(client: DbWorkerClient) {
@@ -80,6 +87,25 @@ export const useSessionStore = defineStore("session", () => {
     }
 
     return createDbRecoveryRepositories(client);
+  }
+
+  async function configurePersistence(input: { client: DbWorkerClient }) {
+    const nextVariableRepository = new DbVariableRepository(input.client);
+    await ensureVariableState(nextVariableRepository);
+
+    variableRepository = nextVariableRepository;
+    variableChangeLogRepository = new DbVariableChangeLogRepository(
+      input.client,
+    );
+
+    const currentSnapshot = gameEngineFacade.getSessionSnapshot();
+    gameEngineFacade = new GameEngineFacade(sessionManager, {
+      variableRepository,
+      variableChangeLogRepository,
+    });
+    gameEngineFacade.restoreSessionSnapshot(currentSnapshot);
+    toolExecutor = new ToolExecutor(gameEngineFacade);
+    snapshot.value = gameEngineFacade.getSessionSnapshot();
   }
 
   async function createRecoveryCheckpoint(input: {
@@ -182,6 +208,15 @@ export const useSessionStore = defineStore("session", () => {
         encounterId: result.output.encounterId,
       });
     }
+
+    return result;
+  }
+
+  async function executeUpdateVariables(
+    envelope: UpdateVariablesToolEnvelope,
+  ): Promise<UpdateVariablesToolResult> {
+    const result = await toolExecutor.execute(envelope);
+    snapshot.value = gameEngineFacade.getSessionSnapshot();
 
     return result;
   }
@@ -409,7 +444,9 @@ export const useSessionStore = defineStore("session", () => {
 
   return {
     snapshot,
+    configurePersistence,
     beginAiRequest,
+    executeUpdateVariables,
     executeTriggerBattle,
     enterCombatPending,
     startBattle,

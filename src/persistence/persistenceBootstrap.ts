@@ -7,11 +7,14 @@ import {
   createBrowserDbWorkerEndpoint,
   type BrowserDbWorkerLike,
 } from "@/persistence/dbClient";
+import { ensureVariableState } from "@/engine/variableStateBootstrap";
 import type { DbInitResult, DbWorkerEndpoint } from "@/persistence/dbProtocol";
+import { DbVariableRepository } from "@/persistence/repositories/variableRepository";
 
 export interface InitializePersistentChatRuntimeInput {
   endpoint?: DbWorkerEndpoint;
   workerFactory?: () => BrowserDbWorkerLike;
+  now?: () => string;
 }
 
 export interface InitializePersistentChatRuntimeResult {
@@ -39,6 +42,9 @@ export async function initializePersistentChatRuntime(
   const client = new DbWorkerClient(endpoint);
   const initResult = await client.initialize();
 
+  await ensureVariableState(new DbVariableRepository(client), {
+    now: input.now,
+  });
   configureChatPersistenceClient(client);
 
   return {

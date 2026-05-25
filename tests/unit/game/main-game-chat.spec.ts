@@ -7,6 +7,7 @@ import {
   DbWorkerClient,
   createInProcessDbWorkerEndpoint,
 } from "@/persistence/dbClient";
+import { DbVariableRepository } from "@/persistence/repositories/variableRepository";
 import { router } from "@/router";
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
@@ -113,6 +114,52 @@ describe("MainGameView chat persistence wiring", () => {
       expect(
         screen.getByText("请继续描写车站天桥上的风。"),
       ).toBeInTheDocument();
+    });
+  });
+
+  it("routes session variable patches to the db-backed variable repository after mount", async () => {
+    const endpoint = createInProcessDbWorkerEndpoint(createDbWorkerRuntime());
+    const client = new DbWorkerClient(endpoint);
+    await client.initialize();
+    configureChatPersistenceClient(client);
+
+    await renderMainGameWithFreshPinia();
+    const sessionStore = useSessionStore();
+    const variableRepository = new DbVariableRepository(client);
+
+    await waitFor(async () => {
+      await expect(variableRepository.getCurrent()).resolves.toMatchObject({
+        stateHash: "initial",
+      });
+    });
+
+    const result = await sessionStore.executeUpdateVariables({
+      tool_name: "update_variables",
+      request_id: "req-main-game-variable-db",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-main-game-variable-db",
+      input: {
+        patches: [
+          {
+            path: "world.location.name",
+            value: "旧校舍",
+          },
+        ],
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    await expect(variableRepository.getCurrent()).resolves.toMatchObject({
+      version: 2,
+      stateHash: result.ok ? result.output.nextHash : "",
+      root: {
+        world: {
+          location: expect.objectContaining({
+            name: "旧校舍",
+          }),
+        },
+      },
     });
   });
 

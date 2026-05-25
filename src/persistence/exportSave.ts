@@ -1,5 +1,6 @@
 import { createCheckpointManager } from "@/engine/checkpointManager";
 import type { SessionSnapshot } from "@/engine/sessionManager";
+import { ensureVariableState } from "@/engine/variableStateBootstrap";
 import type { ChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
 import type { CheckpointRepository } from "@/persistence/repositories/checkpointRepository";
 import type { EventLogRepository } from "@/persistence/repositories/eventLogRepository";
@@ -121,6 +122,11 @@ export async function createFullSaveExport(
   const idFactory = input.idFactory ?? createDefaultIdFactory();
   const exportedAt = now();
   const exportId = idFactory.exportId();
+
+  await ensureVariableState(input.repositories.variableRepository, {
+    now: () => exportedAt,
+  });
+
   const checkpointManager = createCheckpointManager({
     checkpointRepository: input.repositories.checkpointRepository,
     eventLogRepository: input.repositories.eventLogRepository,
