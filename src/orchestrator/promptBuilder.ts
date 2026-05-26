@@ -15,6 +15,7 @@ import type { VariableRepository } from "@/persistence/repositories/variableRepo
 import type {
   WorldInfoEntry,
   WorldInfoRepository,
+  WorldInfoSearchResult,
 } from "@/persistence/repositories/worldInfoRepository";
 import type { ChatMessage } from "@/types/chat";
 import type { VariableValueRecord } from "@/types/variables";
@@ -102,82 +103,35 @@ function renderHistory(messages: ChatMessage[]): string {
     .join("\n");
 }
 
-function selectWorldInfoEntries(
-  entries: WorldInfoEntry[],
-  searchableText: string,
+function applyWorldInfoBudget(
+  searchResult: WorldInfoSearchResult,
   budget: ContextBudget,
 ): SelectedWorldInfo {
-  const traces: ContextInjectionTrace[] = [];
-  const constantEntries: WorldInfoEntry[] = [];
-  const matched: WorldInfoEntry[] = [];
-
-  for (const entry of entries) {
-    if (!entry.enabled) {
-      traces.push({
-        sourceId: entry.id,
-        kind: "world_info",
-        included: false,
-        reason: "disabled",
-        priority: entry.priority,
-      });
-      continue;
-    }
-
-    if (entry.isConstant) {
-      constantEntries.push(entry);
-      continue;
-    }
-
-    const hasKeywordMatch = entry.keywords.some((keyword) =>
-      searchableText.includes(keyword),
-    );
-    if (!hasKeywordMatch) {
-      traces.push({
-        sourceId: entry.id,
-        kind: "world_info",
-        included: false,
-        reason: "keyword_miss",
-        priority: entry.priority,
-      });
-      continue;
-    }
-
-    matched.push(entry);
-  }
-
-  const sortedConstants = constantEntries.sort(
-    (left, right) => right.priority - left.priority,
+  const selected = searchResult.matchedEntries.slice(
+    0,
+    budget.maxWorldInfoEntries,
   );
-  const sorted = matched.sort((left, right) => right.priority - left.priority);
-  const selected = sorted.slice(0, budget.maxWorldInfoEntries);
   const selectedIds = new Set(selected.map((entry) => entry.id));
 
-  for (const entry of sortedConstants) {
-    traces.push({
-      sourceId: entry.id,
-      kind: "world_info",
-      included: true,
-      reason: "constant",
-      priority: entry.priority,
-      tokenEstimate: estimateTokens(entry.content),
-    });
-  }
+  const traces = searchResult.traces.map((trace) => {
+    if (
+      trace.kind !== "world_info" ||
+      !trace.included ||
+      trace.reason === "constant" ||
+      selectedIds.has(trace.sourceId)
+    ) {
+      return trace;
+    }
 
-  for (const entry of sorted) {
-    traces.push({
-      sourceId: entry.id,
-      kind: "world_info",
-      included: selectedIds.has(entry.id),
-      reason: selectedIds.has(entry.id)
-        ? "keyword_match"
-        : "budget_world_info_count",
-      priority: entry.priority,
-      tokenEstimate: estimateTokens(entry.content),
-    });
-  }
+    return {
+      ...trace,
+      included: false,
+      reason: "budget_world_info_count",
+    };
+  });
 
   return {
-    constantEntries: sortedConstants,
+    constantEntries: searchResult.constantEntries,
     matchedEntries: selected,
     traces,
   };
@@ -372,19 +326,17 @@ export async function buildHarnessRequest(
     nextContextVersion += 1;
   }
 
-  const [messages, variableState, worldInfoEntries] = await Promise.all([
+  const [messages, variableState] = await Promise.all([
     input.chatRepository.list(),
     getCurrentVariables(input.variableRepository),
-    input.worldInfoRepository.list(),
   ]);
 
   const historyMessages = selectHistory(messages, budget);
   const searchableText = `${input.userInput}\n${historyMessages
     .map((message) => message.content)
     .join("\n")}`;
-  const selectedWorldInfo = selectWorldInfoEntries(
-    worldInfoEntries,
-    searchableText,
+  const selectedWorldInfo = applyWorldInfoBudget(
+    await input.worldInfoRepository.search(searchableText),
     budget,
   );
   const tools = createToolDefinitions();

@@ -27,7 +27,11 @@ import type {
   SaveMetaRecord,
 } from "@/types/recovery";
 import type { RuntimeSnapshotRecord } from "@/types/runtimeSnapshot";
-import type { WorldInfoEntry } from "@/persistence/repositories/worldInfoRepository";
+import {
+  extractWorldInfoSearchTerms,
+  searchWorldInfoEntries,
+  type WorldInfoEntry,
+} from "@/persistence/repositories/worldInfoRepository";
 import type {
   VariableChangeLogRecord,
   VariableValueRecord,
@@ -47,6 +51,7 @@ export interface DbWorkerRuntimeOptions {
 interface DbWorkerRuntimeState extends DbWorkerStateSnapshot {
   sqliteDatabase: SqliteDatabase | null;
   sqliteOptions: DbWorkerRuntimeOptions;
+  worldInfoFtsAvailable: boolean;
 }
 
 interface CheckpointSnapshotRow extends Record<string, unknown> {
@@ -353,6 +358,20 @@ async function initializeRecoverySchema(database: SqliteDatabase): Promise<void>
   `);
 }
 
+async function initializeWorldInfoFts(
+  database: SqliteDatabase,
+): Promise<boolean> {
+  try {
+    await database.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS world_info_fts
+      USING fts5(id UNINDEXED, content)
+    `);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function ensureSqliteDatabase(
   state: DbWorkerRuntimeState,
 ): Promise<SqliteDatabase> {
@@ -367,6 +386,9 @@ async function ensureSqliteDatabase(
             sqlite3Factory: state.sqliteOptions.sqlite3Factory,
           });
     await initializeRecoverySchema(state.sqliteDatabase);
+    state.worldInfoFtsAvailable = await initializeWorldInfoFts(
+      state.sqliteDatabase,
+    );
   }
 
   return state.sqliteDatabase;
@@ -463,6 +485,81 @@ async function saveWorldInfoRow(
       entry.isConstant ? 1 : 0,
     ],
   );
+}
+
+async function saveWorldInfoFtsRow(
+  database: SqliteDatabase,
+  entry: WorldInfoEntry,
+): Promise<void> {
+  await database.exec("DELETE FROM world_info_fts WHERE id = ?", [entry.id]);
+  await database.exec(
+    `
+      INSERT INTO world_info_fts (
+        id,
+        content
+      )
+      VALUES (?, ?)
+    `,
+    [entry.id, entry.content],
+  );
+}
+
+async function clearWorldInfoFtsRows(
+  database: SqliteDatabase,
+): Promise<void> {
+  await database.exec("DELETE FROM world_info_fts");
+}
+
+async function listWorldInfoRows(
+  database: SqliteDatabase,
+): Promise<WorldInfoEntry[]> {
+  const rows = await database.selectAll<WorldInfoRow>(
+    `
+      SELECT
+        id,
+        keywords_json,
+        content,
+        priority,
+        enabled,
+        is_constant
+      FROM world_info
+      ORDER BY priority DESC, id ASC
+    `,
+  );
+  return rows.map(worldInfoFromRow);
+}
+
+function escapeFtsQueryTerm(term: string): string {
+  return `"${term.replace(/"/g, "\"\"")}"`;
+}
+
+async function findWorldInfoFtsMatchedIds(
+  database: SqliteDatabase,
+  searchableText: string,
+  enabled: boolean,
+): Promise<Set<string>> {
+  if (!enabled) {
+    return new Set();
+  }
+
+  const terms = extractWorldInfoSearchTerms(searchableText);
+  if (terms.length === 0) {
+    return new Set();
+  }
+
+  try {
+    const rows = await database.selectAll<{ id: string }>(
+      `
+        SELECT id
+        FROM world_info_fts
+        WHERE content MATCH ?
+      `,
+      [terms.map(escapeFtsQueryTerm).join(" OR ")],
+    );
+    return new Set(rows.map((row) => row.id));
+  } catch {
+    return new Set();
+  }
 }
 
 async function saveRuntimeSnapshotRow(
@@ -649,6 +746,7 @@ export function createDbWorkerRuntime(
     ...createInitialState(),
     sqliteDatabase: null,
     sqliteOptions: options,
+    worldInfoFtsAvailable: false,
   };
 
   return {
@@ -815,6 +913,9 @@ export function createDbWorkerRuntime(
         case "save_world_info_entry": {
           const database = await ensureSqliteDatabase(state);
           await saveWorldInfoRow(database, request.payload);
+          if (state.worldInfoFtsAvailable) {
+            await saveWorldInfoFtsRow(database, request.payload);
+          }
           state.worldInfo.set(request.payload.id, deepClone(request.payload));
           return {
             type: "save_world_info_entry_result",
@@ -826,23 +927,28 @@ export function createDbWorkerRuntime(
 
         case "list_world_info_entries": {
           const database = await ensureSqliteDatabase(state);
-          const rows = await database.selectAll<WorldInfoRow>(
-            `
-              SELECT
-                id,
-                keywords_json,
-                content,
-                priority,
-                enabled,
-                is_constant
-              FROM world_info
-              ORDER BY priority DESC, id ASC
-            `,
-          );
-          const entries = rows.map(worldInfoFromRow);
+          const entries = await listWorldInfoRows(database);
           return {
             type: "list_world_info_entries_result",
             payload: entries.map((entry) => deepClone(entry)),
+          };
+        }
+
+        case "search_world_info_entries": {
+          const database = await ensureSqliteDatabase(state);
+          const entries = await listWorldInfoRows(database);
+          const ftsMatchedIds = await findWorldInfoFtsMatchedIds(
+            database,
+            request.payload.searchableText,
+            state.worldInfoFtsAvailable,
+          );
+          return {
+            type: "search_world_info_entries_result",
+            payload: searchWorldInfoEntries(
+              entries,
+              request.payload.searchableText,
+              ftsMatchedIds,
+            ),
           };
         }
 
@@ -1146,6 +1252,9 @@ export function createDbWorkerRuntime(
           await database.exec("DELETE FROM variable_value");
           await database.exec("DELETE FROM variable_change_log");
           await database.exec("DELETE FROM world_info");
+          if (state.worldInfoFtsAvailable) {
+            await clearWorldInfoFtsRows(database);
+          }
           await database.exec("DELETE FROM runtime_snapshot");
 
           for (const checkpoint of request.payload.checkpointSnapshots) {
@@ -1175,6 +1284,9 @@ export function createDbWorkerRuntime(
           state.worldInfo.clear();
           for (const entry of request.payload.worldInfo) {
             await saveWorldInfoRow(database, entry);
+            if (state.worldInfoFtsAvailable) {
+              await saveWorldInfoFtsRow(database, entry);
+            }
             state.worldInfo.set(entry.id, deepClone(entry));
           }
 
@@ -1246,6 +1358,9 @@ export function createDbWorkerRuntime(
           await database.exec("DELETE FROM variable_value");
           await database.exec("DELETE FROM variable_change_log");
           await database.exec("DELETE FROM world_info");
+          if (state.worldInfoFtsAvailable) {
+            await clearWorldInfoFtsRows(database);
+          }
           await database.exec("DELETE FROM runtime_snapshot");
 
           await saveVariableValueRow(database, initialVariableValue);

@@ -1,5 +1,6 @@
 import MainGameView from "@/pages/MainGameView.vue";
 import NewGameSetupView from "@/pages/NewGameSetupView.vue";
+import SettingsView from "@/pages/SettingsView.vue";
 import SplashScreenView from "@/pages/SplashScreenView.vue";
 import StartScreenView from "@/pages/StartScreenView.vue";
 import { router } from "@/router";
@@ -99,5 +100,36 @@ describe("application page layering", () => {
       "id",
       "chat-input-box",
     );
+  });
+
+  it("renders prompt builder controls on the settings page", () => {
+    render(SettingsView, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    });
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "设置 / Prompt Builder" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("System Prompt")).toHaveAttribute(
+      "id",
+      "prompt-system-prompt",
+    );
+    expect(screen.getByLabelText("最大总 token")).toHaveAttribute(
+      "id",
+      "prompt-max-total-tokens",
+    );
+    expect(screen.getByLabelText("最大 world_info 条目")).toHaveAttribute(
+      "id",
+      "prompt-max-world-info-entries",
+    );
+    expect(screen.getByLabelText("最大历史消息数")).toHaveAttribute(
+      "id",
+      "prompt-max-history-messages",
+    );
+    expect(screen.getByRole("button", { name: "保存 Prompt 设置" }))
+      .toHaveAttribute("id", "settings-save-prompt-preset");
+    expect(screen.getByText("{{user}}")).toBeInTheDocument();
   });
 });

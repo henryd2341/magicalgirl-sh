@@ -256,7 +256,7 @@ describe("buildHarnessRequest", () => {
     });
   });
 
-  it("injects constant world info before keyword matched entries without cascading matches", async () => {
+  it("injects constant world info before FTS matched entries without cascading matches", async () => {
     const chatRepository = new InMemoryChatHistoryRepository();
     await chatRepository.save(
       createMessage({
@@ -277,7 +277,7 @@ describe("buildHarnessRequest", () => {
     });
     await worldInfoRepository.save({
       id: "raw_entries/M.A.S.C.O.T",
-      keywords: ["M.A.S.C.O.T"],
+      keywords: ["后勤"],
       content: "星偶负责通讯、传送与后勤。",
       priority: 95,
       enabled: true,
@@ -298,7 +298,7 @@ describe("buildHarnessRequest", () => {
       worldInfoRepository,
       systemPrompt:
         "stable {{player.name}} at {{world.location.name}} / {{missing.value}}",
-      userInput: "继续弓川市的任务。",
+      userInput: "继续弓川市的任务，并观察星偶。",
       requestId: "req-world-info-order",
       contextVersion: 18,
       now: "2026-05-26T10:01:00.000Z",
@@ -311,7 +311,7 @@ describe("buildHarnessRequest", () => {
       "stable 雷伊 at 教室 / {{missing.value}}",
     );
     expect(request.promptText).toContain("弓川市存在 M.A.S.C.O.T 监测网络。");
-    expect(request.promptText).not.toContain("星偶负责通讯、传送与后勤。");
+    expect(request.promptText).toContain("星偶负责通讯、传送与后勤。");
     expect(request.promptText).not.toContain("青井霞是已退役的初代魔法少女。");
     expect(request.segments.map((segment) => segment.id)).toEqual([
       "system",
@@ -331,8 +331,15 @@ describe("buildHarnessRequest", () => {
     expect(request.traces).toContainEqual(
       expect.objectContaining({
         sourceId: "raw_entries/M.A.S.C.O.T",
+        included: true,
+        reason: "fts_match",
+      }),
+    );
+    expect(request.traces).toContainEqual(
+      expect.objectContaining({
+        sourceId: "raw_entries/青井霞",
         included: false,
-        reason: "keyword_miss",
+        reason: "fts_miss",
       }),
     );
   });

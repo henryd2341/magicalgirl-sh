@@ -18,7 +18,11 @@ class SharedRawSqliteDatabase implements RawSqliteDatabase {
     const bind = typeof input === "string" ? [] : (input.bind ?? []);
     const normalized = sql.replace(/\s+/g, " ").trim().toLowerCase();
 
-    if (normalized.startsWith("create table") || normalized.startsWith("create index")) {
+    if (
+      normalized.startsWith("create table") ||
+      normalized.startsWith("create virtual table") ||
+      normalized.startsWith("create index")
+    ) {
       return;
     }
 
@@ -39,6 +43,19 @@ class SharedRawSqliteDatabase implements RawSqliteDatabase {
 
     if (normalized.startsWith("delete from runtime_snapshot")) {
       this.tables.set("runtime_snapshot", []);
+      return;
+    }
+
+    if (normalized.startsWith("delete from world_info_fts where id = ?")) {
+      this.tables.set(
+        "world_info_fts",
+        this.rows("world_info_fts").filter((row) => row.id !== bind[0]),
+      );
+      return;
+    }
+
+    if (normalized.startsWith("delete from world_info_fts")) {
+      this.tables.set("world_info_fts", []);
       return;
     }
 
@@ -86,6 +103,14 @@ class SharedRawSqliteDatabase implements RawSqliteDatabase {
       return;
     }
 
+    if (normalized.startsWith("insert into world_info_fts")) {
+      this.upsert("world_info_fts", {
+        id: bind[0],
+        content: bind[1],
+      });
+      return;
+    }
+
     if (normalized.startsWith("insert into world_info")) {
       this.upsert("world_info", {
         id: bind[0],
@@ -129,6 +154,21 @@ class SharedRawSqliteDatabase implements RawSqliteDatabase {
 
     if (normalized.includes("from runtime_snapshot")) {
       return this.rows("runtime_snapshot").filter((row) => row.id === "current");
+    }
+
+    if (normalized.includes("from world_info_fts")) {
+      const rawQuery = String(bind?.[0] ?? "")
+        .replace(/"/g, "")
+        .replace(/\s+or\s+/gi, " ");
+      const terms = rawQuery
+        .split(/\s+/)
+        .map((term) => term.trim().toLocaleLowerCase())
+        .filter((term) => term.length > 0);
+
+      return this.rows("world_info_fts").filter((row) => {
+        const content = String(row.content ?? "").toLocaleLowerCase();
+        return terms.some((term) => content.includes(term));
+      });
     }
 
     if (normalized.includes("from world_info")) {

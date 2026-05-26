@@ -77,4 +77,60 @@ describe("world_info persistence", () => {
       },
     ]);
   });
+
+  it("searches non-constant world info by body text and reports fts traces", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    const repository = new DbWorldInfoRepository(client);
+
+    await repository.save({
+      id: "wi-mascot-body",
+      keywords: ["后勤"],
+      content: "星偶负责通讯、传送与后勤支援。",
+      priority: 70,
+      enabled: true,
+      isConstant: false,
+    });
+    await repository.save({
+      id: "wi-disabled-body",
+      keywords: ["星偶"],
+      content: "禁用星偶条目不能进入请求。",
+      priority: 100,
+      enabled: false,
+      isConstant: false,
+    });
+    await repository.save({
+      id: "wi-constant",
+      keywords: ["世界观"],
+      content: "弓川市是沿海都市。",
+      priority: 90,
+      enabled: true,
+      isConstant: true,
+    });
+
+    const result = await repository.search("请介绍星偶。");
+
+    expect(result.constantEntries).toEqual([
+      expect.objectContaining({ id: "wi-constant" }),
+    ]);
+    expect(result.matchedEntries).toEqual([
+      expect.objectContaining({ id: "wi-mascot-body" }),
+    ]);
+    expect(result.traces).toContainEqual(
+      expect.objectContaining({
+        sourceId: "wi-mascot-body",
+        included: true,
+        reason: "fts_match",
+      }),
+    );
+    expect(result.traces).toContainEqual(
+      expect.objectContaining({
+        sourceId: "wi-disabled-body",
+        included: false,
+        reason: "disabled",
+      }),
+    );
+  });
 });

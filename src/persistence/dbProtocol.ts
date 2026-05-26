@@ -5,7 +5,10 @@ import type {
   VariableChangeLogRecord,
   VariableValueRecord,
 } from "@/types/variables";
-import type { WorldInfoEntry } from "@/persistence/repositories/worldInfoRepository";
+import type {
+  WorldInfoEntry,
+  WorldInfoSearchResult,
+} from "@/persistence/repositories/worldInfoRepository";
 import type { SqliteWasmCapabilities } from "@/persistence/sqlite/sqliteWasm";
 import type { FullSaveExportV1 } from "@/persistence/exportSave";
 import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
@@ -100,6 +103,12 @@ export type DbWorkerRequest =
     }
   | {
       type: "list_world_info_entries";
+    }
+  | {
+      type: "search_world_info_entries";
+      payload: {
+        searchableText: string;
+      };
     }
   | {
       type: "save_checkpoint_snapshot";
@@ -232,6 +241,10 @@ export type DbWorkerSuccessResponse =
   | {
       type: "list_world_info_entries_result";
       payload: WorldInfoEntry[];
+    }
+  | {
+      type: "search_world_info_entries_result";
+      payload: WorldInfoSearchResult;
     }
   | {
       type: "save_checkpoint_snapshot_result";

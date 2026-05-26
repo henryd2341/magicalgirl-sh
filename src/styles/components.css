@@ -100,6 +100,58 @@
   gap: var(--space-4);
 }
 
+.settings-view__form,
+.settings-view__mustache,
+.prompt-preview-drawer__body,
+.prompt-preview-drawer__list,
+.prompt-preview-drawer__metadata {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.settings-view__textarea,
+.settings-view__number-input {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: 3px solid rgba(126, 200, 227, 0.32);
+  border-radius: var(--radius-md);
+  background: rgba(18, 8, 20, 0.96);
+  color: var(--text-primary);
+}
+
+.settings-view__budget-grid,
+.prompt-preview-drawer__tabs {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.settings-view__mustache code {
+  width: fit-content;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: rgba(126, 200, 227, 0.12);
+}
+
+.prompt-preview-drawer {
+  margin-inline: var(--space-8);
+  padding: var(--space-4);
+}
+
+.prompt-preview-drawer__pre {
+  max-height: 38dvh;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.prompt-preview-drawer__item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+}
+
 .new-game-setup-view__input {
   width: 100%;
   min-height: 48px;

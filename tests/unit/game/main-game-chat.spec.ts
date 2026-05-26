@@ -13,6 +13,7 @@ import { router } from "@/router";
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
+import { usePromptPreviewStore } from "@/stores/promptPreviewStore";
 import type { BattleParticipant } from "@/types/battle";
 import { createDbWorkerRuntime } from "@/workers/db.worker";
 import { fireEvent, render, screen, waitFor } from "@testing-library/vue";
@@ -247,5 +248,59 @@ describe("MainGameView chat persistence wiring", () => {
       await screen.findByRole("button", { name: "继续剧情" }),
     ).toBeInTheDocument();
     expect(useSessionStore().snapshot.sessionState).toBe("POST_COMBAT_READY");
+  });
+
+  it("renders the developer prompt preview drawer with the latest Harness request", async () => {
+    await renderMainGameWithFreshPinia();
+    const previewStore = usePromptPreviewStore();
+
+    previewStore.record({
+      metadata: {
+        request_id: "req-preview-drawer",
+        context_version: 7,
+        state_hash: "hash-preview",
+        issued_at: "2026-05-26T12:02:00.000Z",
+      },
+      segments: [
+        {
+          id: "system",
+          kind: "system",
+          title: "System Prompt",
+          content: "drawer system prompt",
+          source: "systemPrompt",
+          tokenEstimate: 5,
+          included: true,
+        },
+      ],
+      traces: [
+        {
+          sourceId: "raw_entries/世界观基础",
+          kind: "world_info",
+          included: true,
+          reason: "constant",
+          priority: 1000,
+        },
+      ],
+      messages: [],
+      tools: [],
+      promptText: "drawer system prompt",
+    });
+
+    await fireEvent.click(
+      screen.getByRole("button", { name: "开发者 Prompt Preview" }),
+    );
+
+    expect(
+      screen.getByRole("region", { name: "开发者 Prompt Preview" }),
+    ).toHaveAttribute("id", "prompt-preview-drawer");
+    expect(screen.getByText("drawer system prompt")).toBeInTheDocument();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Traces" }));
+    expect(screen.getByText("raw_entries/世界观基础")).toBeInTheDocument();
+    expect(screen.getByText("constant")).toBeInTheDocument();
+
+    await fireEvent.click(screen.getByRole("button", { name: "Metadata" }));
+    expect(screen.getByText("req-preview-drawer")).toBeInTheDocument();
+    expect(screen.getByText("hash-preview")).toBeInTheDocument();
   });
 });

@@ -12,7 +12,10 @@ import type {
   VariableChangeLogRecord,
   VariableValueRecord,
 } from "@/types/variables";
-import type { WorldInfoEntry } from "@/persistence/repositories/worldInfoRepository";
+import type {
+  WorldInfoEntry,
+  WorldInfoSearchResult,
+} from "@/persistence/repositories/worldInfoRepository";
 import type { FullSaveExportV1 } from "@/persistence/exportSave";
 import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
 import type {
@@ -195,6 +198,25 @@ export class DbWorkerClient {
     if (response.type !== "list_world_info_entries_result") {
       throw new Error(
         `Unexpected response type for listWorldInfoEntries: ${response.type}`,
+      );
+    }
+
+    return response.payload;
+  }
+
+  public async searchWorldInfoEntries(
+    searchableText: string,
+  ): Promise<WorldInfoSearchResult> {
+    const response = await this.dispatch({
+      type: "search_world_info_entries",
+      payload: {
+        searchableText,
+      },
+    });
+
+    if (response.type !== "search_world_info_entries_result") {
+      throw new Error(
+        `Unexpected response type for searchWorldInfoEntries: ${response.type}`,
       );
     }
 

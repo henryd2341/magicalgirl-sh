@@ -9,8 +9,9 @@ import { GameEngineFacade } from "@/engine/gameEngineFacade";
 import { createSessionManager } from "@/engine/sessionManager";
 import { ensureVariableState } from "@/engine/variableStateBootstrap";
 import { OrchestratorService } from "@/orchestrator/orchestratorService";
-import { buildHarnessRequest } from "@/orchestrator/promptBuilder";
+import { buildConfiguredHarnessRequest } from "@/orchestrator/configuredPromptBuilder";
 import { FakeStreamingProviderClient } from "@/orchestrator/providerClient";
+import { getPromptPresetRepository } from "@/orchestrator/promptPreset";
 import {
   RecoveryService,
   type RollbackResult,
@@ -22,7 +23,6 @@ import type {
   UpdateVariablesToolResult,
 } from "@/orchestrator/toolEnvelope";
 import { ToolExecutor } from "@/orchestrator/toolExecutor";
-import systemPrompt from "@/content/systemPrompt.md?raw";
 import { getChatPersistenceClient } from "@/persistence/chatRuntime";
 import type { DbWorkerClient } from "@/persistence/dbClient";
 import { DbChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
@@ -47,6 +47,7 @@ import {
 } from "@/persistence/repositories/worldInfoRepository";
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
+import { usePromptPreviewStore } from "@/stores/promptPreviewStore";
 import type { BattleParticipant } from "@/types/battle";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 import { defineStore } from "pinia";
@@ -356,16 +357,18 @@ export const useSessionStore = defineStore("session", () => {
       gameEngineFacade,
       providerClient: new FakeStreamingProviderClient({}),
       toolExecutor,
-      buildRequest(input) {
-        return buildHarnessRequest({
+      async buildRequest(input) {
+        const request = await buildConfiguredHarnessRequest({
           ...input,
           chatRepository: chatRuntime.repository,
           variableRepository,
           worldInfoRepository,
-          systemPrompt,
+          promptPresetRepository: getPromptPresetRepository(),
           requestId,
           now: new Date().toISOString(),
         });
+        usePromptPreviewStore().record(request);
+        return request;
       },
       idFactory: {
         userMessageId: () => createPostCombatId("msg-post-combat-user"),
