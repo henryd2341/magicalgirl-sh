@@ -21,6 +21,7 @@ import type {
   EventLogRecord,
   SaveMetaRecord,
 } from "@/types/recovery";
+import type { RuntimeSnapshotRecord } from "@/types/runtimeSnapshot";
 
 export class DbWorkerClient {
   private readonly endpoint: DbWorkerEndpoint;
@@ -374,6 +375,47 @@ export class DbWorkerClient {
     if (response.type !== "replace_full_save_data_result") {
       throw new Error(
         `Unexpected response type for replaceFullSaveData: ${response.type}`,
+      );
+    }
+  }
+
+  public async saveRuntimeSnapshot(
+    record: RuntimeSnapshotRecord,
+  ): Promise<void> {
+    const response = await this.dispatch({
+      type: "save_runtime_snapshot",
+      payload: record,
+    });
+
+    if (response.type !== "save_runtime_snapshot_result") {
+      throw new Error(
+        `Unexpected response type for saveRuntimeSnapshot: ${response.type}`,
+      );
+    }
+  }
+
+  public async getRuntimeSnapshot(): Promise<RuntimeSnapshotRecord | null> {
+    const response = await this.dispatch({
+      type: "get_runtime_snapshot",
+    });
+
+    if (response.type !== "get_runtime_snapshot_result") {
+      throw new Error(
+        `Unexpected response type for getRuntimeSnapshot: ${response.type}`,
+      );
+    }
+
+    return response.payload;
+  }
+
+  public async clearRuntimeSnapshot(): Promise<void> {
+    const response = await this.dispatch({
+      type: "clear_runtime_snapshot",
+    });
+
+    if (response.type !== "clear_runtime_snapshot_result") {
+      throw new Error(
+        `Unexpected response type for clearRuntimeSnapshot: ${response.type}`,
       );
     }
   }

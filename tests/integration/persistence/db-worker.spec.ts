@@ -53,6 +53,7 @@ describe("DbWorkerClient", () => {
       "checkpoint_snapshot",
       "save_meta",
       "save_slot",
+      "runtime_snapshot",
       "test_record",
     ]);
 

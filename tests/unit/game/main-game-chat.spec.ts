@@ -8,6 +8,7 @@ import {
   createInProcessDbWorkerEndpoint,
 } from "@/persistence/dbClient";
 import { DbVariableRepository } from "@/persistence/repositories/variableRepository";
+import { DbRuntimeSnapshotRepository } from "@/persistence/repositories/runtimeSnapshotRepository";
 import { router } from "@/router";
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
@@ -212,5 +213,39 @@ describe("MainGameView chat persistence wiring", () => {
         screen.getByText("检测到战斗中刷新，已回滚到战斗前安全状态。"),
       ).toBeInTheDocument();
     });
+  });
+
+  it("restores post-combat ready runtime state after remounting with the same db worker", async () => {
+    const endpoint = createInProcessDbWorkerEndpoint(createDbWorkerRuntime());
+    const client = new DbWorkerClient(endpoint);
+    await client.initialize();
+    configureChatPersistenceClient(client);
+
+    await new DbRuntimeSnapshotRepository(client).saveCurrent({
+      id: "current",
+      updatedAt: "2026-05-26T00:00:00.000Z",
+      sessionSnapshot: {
+        sessionState: "POST_COMBAT_READY",
+        pipelineState: null,
+        activeRequestId: null,
+      },
+      pendingBattle: null,
+      activeBattle: null,
+    });
+
+    const firstRender = await renderMainGameWithFreshPinia();
+
+    expect(
+      await screen.findByRole("button", { name: "继续剧情" }),
+    ).toBeInTheDocument();
+
+    firstRender.unmount();
+
+    await renderMainGameWithFreshPinia();
+
+    expect(
+      await screen.findByRole("button", { name: "继续剧情" }),
+    ).toBeInTheDocument();
+    expect(useSessionStore().snapshot.sessionState).toBe("POST_COMBAT_READY");
   });
 });

@@ -61,5 +61,9 @@ export const migration001Init: DbMigration = {
     if (!state.saveSlots) {
       state.saveSlots = new Map();
     }
+
+    if (!state.runtimeSnapshot) {
+      state.runtimeSnapshot = null;
+    }
   },
 };

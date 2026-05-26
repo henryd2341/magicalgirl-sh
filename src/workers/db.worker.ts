@@ -17,6 +17,7 @@ import {
   type CreateSqliteDatabaseOptions,
   type SqliteDatabase,
 } from "@/persistence/sqlite/sqliteWasm";
+import type { ChatMessage } from "@/types/chat";
 import { DB_SCHEMA_VERSION } from "@/persistence/schema";
 import type {
   CheckpointKind,
@@ -24,6 +25,11 @@ import type {
   EventLogRecord,
   SaveMetaRecord,
 } from "@/types/recovery";
+import type { RuntimeSnapshotRecord } from "@/types/runtimeSnapshot";
+import type {
+  VariableChangeLogRecord,
+  VariableValueRecord,
+} from "@/types/variables";
 import { deepClone } from "@/utils/deepClone";
 
 export interface DbWorkerRuntime extends DbWorkerEndpoint {
@@ -33,6 +39,7 @@ export interface DbWorkerRuntime extends DbWorkerEndpoint {
 export interface DbWorkerRuntimeOptions {
   storage?: CreateSqliteDatabaseOptions["storage"];
   filename?: string;
+  sqlite3Factory?: CreateSqliteDatabaseOptions["sqlite3Factory"];
 }
 
 interface DbWorkerRuntimeState extends DbWorkerStateSnapshot {
@@ -80,6 +87,33 @@ interface SaveSlotRow extends Record<string, unknown> {
   payload_json: string;
 }
 
+interface ChatHistoryRow extends Record<string, unknown> {
+  id: string;
+  created_at: string;
+  message_json: string;
+}
+
+interface VariableValueRow extends Record<string, unknown> {
+  id: "current";
+  updated_at: string;
+  value_json: string;
+}
+
+interface VariableChangeLogRow extends Record<string, unknown> {
+  id: string;
+  created_at: string;
+  log_json: string;
+}
+
+interface RuntimeSnapshotRow extends Record<string, unknown> {
+  id: "current";
+  updated_at: string;
+  snapshot_json: string;
+  session_snapshot_json: string;
+  pending_battle_json: string | null;
+  active_battle_json: string | null;
+}
+
 function createInitialState(): DbWorkerStateSnapshot {
   return {
     migrations: new Set(),
@@ -94,6 +128,7 @@ function createInitialState(): DbWorkerStateSnapshot {
     eventLog: new Map(),
     saveMeta: new Map(),
     saveSlots: new Map(),
+    runtimeSnapshot: null,
   };
 }
 
@@ -154,6 +189,26 @@ function saveSlotFromRow(row: SaveSlotRow): SaveSlotRecord {
   };
 }
 
+function chatMessageFromRow(row: ChatHistoryRow): ChatMessage {
+  return parseJson<ChatMessage>(row.message_json);
+}
+
+function variableValueFromRow(row: VariableValueRow): VariableValueRecord {
+  return parseJson<VariableValueRecord>(row.value_json);
+}
+
+function variableChangeLogFromRow(
+  row: VariableChangeLogRow,
+): VariableChangeLogRecord {
+  return parseJson<VariableChangeLogRecord>(row.log_json);
+}
+
+function runtimeSnapshotFromRow(
+  row: RuntimeSnapshotRow,
+): RuntimeSnapshotRecord {
+  return parseJson<RuntimeSnapshotRecord>(row.snapshot_json);
+}
+
 async function initializeRecoverySchema(database: SqliteDatabase): Promise<void> {
   await database.exec(`
     CREATE TABLE IF NOT EXISTS checkpoint_snapshot (
@@ -207,6 +262,39 @@ async function initializeRecoverySchema(database: SqliteDatabase): Promise<void>
 
     CREATE INDEX IF NOT EXISTS idx_save_slot_imported_at
       ON save_slot (imported_at);
+
+    CREATE TABLE IF NOT EXISTS chat_history (
+      id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      message_json TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_chat_history_created_at
+      ON chat_history (created_at);
+
+    CREATE TABLE IF NOT EXISTS variable_value (
+      id TEXT PRIMARY KEY,
+      updated_at TEXT NOT NULL,
+      value_json TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS variable_change_log (
+      id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      log_json TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_variable_change_log_created_at
+      ON variable_change_log (created_at);
+
+    CREATE TABLE IF NOT EXISTS runtime_snapshot (
+      id TEXT PRIMARY KEY,
+      updated_at TEXT NOT NULL,
+      snapshot_json TEXT NOT NULL,
+      session_snapshot_json TEXT NOT NULL,
+      pending_battle_json TEXT,
+      active_battle_json TEXT
+    );
   `);
 }
 
@@ -216,14 +304,110 @@ async function ensureSqliteDatabase(
   if (!state.sqliteDatabase) {
     state.sqliteDatabase =
       state.sqliteOptions.storage === "memory"
-        ? await createTransientSqliteDatabase()
+        ? await createTransientSqliteDatabase({
+            sqlite3Factory: state.sqliteOptions.sqlite3Factory,
+          })
         : await createPersistentSqliteDatabase({
             filename: state.sqliteOptions.filename,
+            sqlite3Factory: state.sqliteOptions.sqlite3Factory,
           });
     await initializeRecoverySchema(state.sqliteDatabase);
   }
 
   return state.sqliteDatabase;
+}
+
+async function saveChatMessageRow(
+  database: SqliteDatabase,
+  message: ChatMessage,
+): Promise<void> {
+  await database.exec(
+    `
+      INSERT INTO chat_history (
+        id,
+        created_at,
+        message_json
+      )
+      VALUES (?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        created_at = excluded.created_at,
+        message_json = excluded.message_json
+    `,
+    [message.id, message.created_at, serializeJson(message)],
+  );
+}
+
+async function saveVariableValueRow(
+  database: SqliteDatabase,
+  record: VariableValueRecord,
+): Promise<void> {
+  await database.exec(
+    `
+      INSERT INTO variable_value (
+        id,
+        updated_at,
+        value_json
+      )
+      VALUES (?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        updated_at = excluded.updated_at,
+        value_json = excluded.value_json
+    `,
+    ["current", record.updatedAt, serializeJson(record)],
+  );
+}
+
+async function saveVariableChangeLogRow(
+  database: SqliteDatabase,
+  record: VariableChangeLogRecord,
+): Promise<void> {
+  await database.exec(
+    `
+      INSERT INTO variable_change_log (
+        id,
+        created_at,
+        log_json
+      )
+      VALUES (?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        created_at = excluded.created_at,
+        log_json = excluded.log_json
+    `,
+    [record.id, record.createdAt, serializeJson(record)],
+  );
+}
+
+async function saveRuntimeSnapshotRow(
+  database: SqliteDatabase,
+  record: RuntimeSnapshotRecord,
+): Promise<void> {
+  await database.exec(
+    `
+      INSERT INTO runtime_snapshot (
+        id,
+        updated_at,
+        snapshot_json,
+        session_snapshot_json,
+        pending_battle_json,
+        active_battle_json
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        updated_at = excluded.updated_at,
+        snapshot_json = excluded.snapshot_json,
+        session_snapshot_json = excluded.session_snapshot_json,
+        pending_battle_json = excluded.pending_battle_json,
+        active_battle_json = excluded.active_battle_json
+    `,
+    [
+      record.id,
+      record.updatedAt,
+      serializeJson(record),
+      serializeJson(record.sessionSnapshot),
+      serializeNullableJson(record.pendingBattle),
+      serializeNullableJson(record.activeBattle),
+    ],
+  );
 }
 
 async function saveCheckpointSnapshotRow(
@@ -426,7 +610,8 @@ export function createDbWorkerRuntime(
         }
 
         case "save_chat_message": {
-          state.chatHistory.set(request.payload.id, { ...request.payload });
+          const database = await ensureSqliteDatabase(state);
+          await saveChatMessageRow(database, request.payload);
           return {
             type: "save_chat_message_result",
             payload: {
@@ -436,26 +621,44 @@ export function createDbWorkerRuntime(
         }
 
         case "get_chat_message_by_id": {
-          const message = state.chatHistory.get(request.payload.id);
+          const database = await ensureSqliteDatabase(state);
+          const rows = await database.selectAll<ChatHistoryRow>(
+            `
+              SELECT id, created_at, message_json
+              FROM chat_history
+              WHERE id = ?
+              LIMIT 1
+            `,
+            [request.payload.id],
+          );
           return {
             type: "get_chat_message_by_id_result",
-            payload: message ? { ...message } : null,
+            payload: rows[0] ? deepClone(chatMessageFromRow(rows[0])) : null,
           };
         }
 
         case "list_chat_messages": {
+          const database = await ensureSqliteDatabase(state);
+          const rows = await database.selectAll<ChatHistoryRow>(
+            `
+              SELECT id, created_at, message_json
+              FROM chat_history
+              ORDER BY created_at ASC
+            `,
+          );
           return {
             type: "list_chat_messages_result",
-            payload: [...state.chatHistory.values()].map((message) => ({
-              ...message,
-            })),
+            payload: rows.map(chatMessageFromRow).map((message) =>
+              deepClone(message),
+            ),
           };
         }
 
         case "replace_chat_messages": {
-          state.chatHistory.clear();
+          const database = await ensureSqliteDatabase(state);
+          await database.exec("DELETE FROM chat_history");
           for (const message of request.payload) {
-            state.chatHistory.set(message.id, { ...message });
+            await saveChatMessageRow(database, message);
           }
           return {
             type: "replace_chat_messages_result",
@@ -466,7 +669,8 @@ export function createDbWorkerRuntime(
         }
 
         case "save_current_variable_value": {
-          state.variableValue = deepClone(request.payload);
+          const database = await ensureSqliteDatabase(state);
+          await saveVariableValueRow(database, request.payload);
           return {
             type: "save_current_variable_value_result",
             payload: {
@@ -476,19 +680,25 @@ export function createDbWorkerRuntime(
         }
 
         case "get_current_variable_value": {
+          const database = await ensureSqliteDatabase(state);
+          const rows = await database.selectAll<VariableValueRow>(
+            `
+              SELECT id, updated_at, value_json
+              FROM variable_value
+              WHERE id = ?
+              LIMIT 1
+            `,
+            ["current"],
+          );
           return {
             type: "get_current_variable_value_result",
-            payload: state.variableValue
-              ? deepClone(state.variableValue)
-              : null,
+            payload: rows[0] ? deepClone(variableValueFromRow(rows[0])) : null,
           };
         }
 
         case "append_variable_change_log": {
-          state.variableChangeLog.set(
-            request.payload.id,
-            deepClone(request.payload),
-          );
+          const database = await ensureSqliteDatabase(state);
+          await saveVariableChangeLogRow(database, request.payload);
           return {
             type: "append_variable_change_log_result",
             payload: {
@@ -498,9 +708,17 @@ export function createDbWorkerRuntime(
         }
 
         case "list_variable_change_logs": {
+          const database = await ensureSqliteDatabase(state);
+          const rows = await database.selectAll<VariableChangeLogRow>(
+            `
+              SELECT id, created_at, log_json
+              FROM variable_change_log
+              ORDER BY created_at ASC
+            `,
+          );
           return {
             type: "list_variable_change_logs_result",
-            payload: [...state.variableChangeLog.values()].map((record) =>
+            payload: rows.map(variableChangeLogFromRow).map((record) =>
               deepClone(record),
             ),
           };
@@ -821,6 +1039,10 @@ export function createDbWorkerRuntime(
           await database.exec("DELETE FROM checkpoint_snapshot");
           await database.exec("DELETE FROM event_log");
           await database.exec("DELETE FROM save_meta");
+          await database.exec("DELETE FROM chat_history");
+          await database.exec("DELETE FROM variable_value");
+          await database.exec("DELETE FROM variable_change_log");
+          await database.exec("DELETE FROM runtime_snapshot");
 
           for (const checkpoint of request.payload.checkpointSnapshots) {
             await saveCheckpointSnapshotRow(database, checkpoint);
@@ -834,18 +1056,16 @@ export function createDbWorkerRuntime(
             await saveSaveMetaRow(database, saveMeta);
           }
 
-          state.chatHistory.clear();
           for (const message of request.payload.chatMessages) {
-            state.chatHistory.set(message.id, { ...message });
+            await saveChatMessageRow(database, message);
           }
 
-          state.variableValue = request.payload.variableValue
-            ? deepClone(request.payload.variableValue)
-            : null;
+          if (request.payload.variableValue) {
+            await saveVariableValueRow(database, request.payload.variableValue);
+          }
 
-          state.variableChangeLog.clear();
           for (const record of request.payload.variableChangeLog) {
-            state.variableChangeLog.set(record.id, deepClone(record));
+            await saveVariableChangeLogRow(database, record);
           }
 
           state.worldInfo.clear();
@@ -859,6 +1079,52 @@ export function createDbWorkerRuntime(
               checkpointCount: request.payload.checkpointSnapshots.length,
               chatMessageCount: request.payload.chatMessages.length,
             },
+          };
+        }
+
+        case "save_runtime_snapshot": {
+          const database = await ensureSqliteDatabase(state);
+          await saveRuntimeSnapshotRow(database, request.payload);
+          state.runtimeSnapshot = deepClone(request.payload);
+          return {
+            type: "save_runtime_snapshot_result",
+            payload: {
+              savedId: request.payload.id,
+            },
+          };
+        }
+
+        case "get_runtime_snapshot": {
+          const database = await ensureSqliteDatabase(state);
+          const rows = await database.selectAll<RuntimeSnapshotRow>(
+            `
+              SELECT
+                id,
+                updated_at,
+                snapshot_json,
+                session_snapshot_json,
+                pending_battle_json,
+                active_battle_json
+              FROM runtime_snapshot
+              WHERE id = ?
+              LIMIT 1
+            `,
+            ["current"],
+          );
+          return {
+            type: "get_runtime_snapshot_result",
+            payload: rows[0]
+              ? deepClone(runtimeSnapshotFromRow(rows[0]))
+              : null,
+          };
+        }
+
+        case "clear_runtime_snapshot": {
+          const database = await ensureSqliteDatabase(state);
+          await database.exec("DELETE FROM runtime_snapshot");
+          state.runtimeSnapshot = null;
+          return {
+            type: "clear_runtime_snapshot_result",
           };
         }
       }

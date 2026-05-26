@@ -9,6 +9,7 @@ import type { WorldInfoEntry } from "@/persistence/repositories/worldInfoReposit
 import type { SqliteWasmCapabilities } from "@/persistence/sqlite/sqliteWasm";
 import type { FullSaveExportV1 } from "@/persistence/exportSave";
 import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
+import type { RuntimeSnapshotRecord } from "@/types/runtimeSnapshot";
 import type {
   CheckpointKind,
   CheckpointSnapshotRecord,
@@ -48,6 +49,7 @@ export interface DbWorkerStateSnapshot {
   eventLog: Map<string, EventLogRecord>;
   saveMeta: Map<string, SaveMetaRecord>;
   saveSlots: Map<string, SaveSlotRecord>;
+  runtimeSnapshot: RuntimeSnapshotRecord | null;
 }
 
 export type DbWorkerRequest =
@@ -148,6 +150,16 @@ export type DbWorkerRequest =
   | {
       type: "replace_full_save_data";
       payload: FullSaveExportV1["data"];
+    }
+  | {
+      type: "save_runtime_snapshot";
+      payload: RuntimeSnapshotRecord;
+    }
+  | {
+      type: "get_runtime_snapshot";
+    }
+  | {
+      type: "clear_runtime_snapshot";
     };
 
 export type DbWorkerSuccessResponse =
@@ -275,6 +287,19 @@ export type DbWorkerSuccessResponse =
         checkpointCount: number;
         chatMessageCount: number;
       };
+    }
+  | {
+      type: "save_runtime_snapshot_result";
+      payload: {
+        savedId: RuntimeSnapshotRecord["id"];
+      };
+    }
+  | {
+      type: "get_runtime_snapshot_result";
+      payload: RuntimeSnapshotRecord | null;
+    }
+  | {
+      type: "clear_runtime_snapshot_result";
     };
 
 export type DbWorkerErrorResponse = {

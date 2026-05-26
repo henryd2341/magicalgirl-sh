@@ -1,4 +1,5 @@
 import { BattleResultService } from "@/engine/battleResultService";
+import { RuntimePersistenceService } from "@/engine/runtimePersistenceService";
 import {
   CombatRefreshRecoveryService,
   type CombatRefreshRecoveryResult,
@@ -27,6 +28,10 @@ import type { DbWorkerClient } from "@/persistence/dbClient";
 import { DbChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
 import { DbCheckpointRepository } from "@/persistence/repositories/checkpointRepository";
 import { DbEventLogRepository } from "@/persistence/repositories/eventLogRepository";
+import {
+  DbRuntimeSnapshotRepository,
+  type RuntimeSnapshotRepository,
+} from "@/persistence/repositories/runtimeSnapshotRepository";
 import {
   DbVariableChangeLogRepository,
   DbVariableRepository,
@@ -62,6 +67,8 @@ export const useSessionStore = defineStore("session", () => {
   let variableRepository: VariableRepository = new InMemoryVariableRepository();
   let variableChangeLogRepository: VariableChangeLogRepository =
     new InMemoryVariableChangeLogRepository();
+  let runtimeSnapshotRepository: RuntimeSnapshotRepository | null = null;
+  let runtimePersistenceService: RuntimePersistenceService | null = null;
   const worldInfoRepository = new InMemoryWorldInfoRepository();
   let gameEngineFacade = new GameEngineFacade(sessionManager, {
     variableRepository,
@@ -92,20 +99,53 @@ export const useSessionStore = defineStore("session", () => {
   async function configurePersistence(input: { client: DbWorkerClient }) {
     const nextVariableRepository = new DbVariableRepository(input.client);
     await ensureVariableState(nextVariableRepository);
+    const nextRuntimeSnapshotRepository = new DbRuntimeSnapshotRepository(
+      input.client,
+    );
 
     variableRepository = nextVariableRepository;
     variableChangeLogRepository = new DbVariableChangeLogRepository(
       input.client,
     );
+    runtimeSnapshotRepository = nextRuntimeSnapshotRepository;
+    runtimePersistenceService = new RuntimePersistenceService({
+      repository: nextRuntimeSnapshotRepository,
+    });
 
     const currentSnapshot = gameEngineFacade.getSessionSnapshot();
     gameEngineFacade = new GameEngineFacade(sessionManager, {
       variableRepository,
       variableChangeLogRepository,
     });
-    gameEngineFacade.restoreSessionSnapshot(currentSnapshot);
+    const runtimeSnapshot = await runtimeSnapshotRepository.getCurrent();
+    const battleStore = useBattleStore();
+
+    if (runtimeSnapshot) {
+      gameEngineFacade.restoreSessionSnapshot(runtimeSnapshot.sessionSnapshot);
+      battleStore.restoreBattleSnapshot({
+        pendingBattle: runtimeSnapshot.pendingBattle ?? undefined,
+        activeBattle: runtimeSnapshot.activeBattle ?? undefined,
+      });
+    } else {
+      gameEngineFacade.restoreSessionSnapshot(currentSnapshot);
+    }
+
     toolExecutor = new ToolExecutor(gameEngineFacade);
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+  }
+
+  async function persistRuntimeSnapshot() {
+    if (!runtimePersistenceService) {
+      return;
+    }
+
+    const battleStore = useBattleStore();
+
+    await runtimePersistenceService.saveCurrent({
+      sessionSnapshot: gameEngineFacade.getSessionSnapshot(),
+      pendingBattle: battleStore.pendingBattle,
+      activeBattle: battleStore.activeBattle,
+    });
   }
 
   async function createRecoveryCheckpoint(input: {
@@ -187,6 +227,7 @@ export const useSessionStore = defineStore("session", () => {
   function beginAiRequest(requestId: string) {
     gameEngineFacade.beginAiRequest(requestId);
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    void persistRuntimeSnapshot();
   }
 
   async function executeTriggerBattle(
@@ -208,6 +249,8 @@ export const useSessionStore = defineStore("session", () => {
         encounterId: result.output.encounterId,
       });
     }
+
+    await persistRuntimeSnapshot();
 
     return result;
   }
@@ -249,6 +292,7 @@ export const useSessionStore = defineStore("session", () => {
       reason: "combat_active",
       encounterId: battleStore.activeBattle?.encounterId,
     });
+    await persistRuntimeSnapshot();
   }
 
   function cancelPendingBattle() {
@@ -263,6 +307,7 @@ export const useSessionStore = defineStore("session", () => {
     battleStore.clearPendingEncounter();
     gameEngineFacade.resetToIdle();
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    void persistRuntimeSnapshot();
   }
 
   async function completeActiveBattle() {
@@ -286,6 +331,7 @@ export const useSessionStore = defineStore("session", () => {
     gameEngineFacade.markPostCombatReady();
     snapshot.value = gameEngineFacade.getSessionSnapshot();
     await markLatestCombatCheckpointFinished();
+    await persistRuntimeSnapshot();
 
     return result;
   }
@@ -332,6 +378,7 @@ export const useSessionStore = defineStore("session", () => {
 
     await chatStore.refreshMessages();
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    await persistRuntimeSnapshot();
 
     return result;
   }
@@ -380,6 +427,8 @@ export const useSessionStore = defineStore("session", () => {
       await chatStore.refreshMessages();
     }
 
+    await persistRuntimeSnapshot();
+
     return result;
   }
 
@@ -398,6 +447,7 @@ export const useSessionStore = defineStore("session", () => {
       activeBattle: checkpoint.activeBattle,
     });
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    await persistRuntimeSnapshot();
   }
 
   async function rollbackToLatestIdleCheckpoint(): Promise<RollbackResult> {
@@ -438,6 +488,7 @@ export const useSessionStore = defineStore("session", () => {
     }
 
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    await persistRuntimeSnapshot();
 
     return result;
   }
