@@ -29,10 +29,12 @@ export interface BuildHarnessRequestInput {
   contextVersion?: number;
   now: string;
   budget?: ContextBudget;
+  mustacheVariables?: Record<string, string | number | boolean | null>;
 }
 
 interface SelectedWorldInfo {
-  entries: WorldInfoEntry[];
+  constantEntries: WorldInfoEntry[];
+  matchedEntries: WorldInfoEntry[];
   traces: ContextInjectionTrace[];
 }
 
@@ -106,6 +108,7 @@ function selectWorldInfoEntries(
   budget: ContextBudget,
 ): SelectedWorldInfo {
   const traces: ContextInjectionTrace[] = [];
+  const constantEntries: WorldInfoEntry[] = [];
   const matched: WorldInfoEntry[] = [];
 
   for (const entry of entries) {
@@ -117,6 +120,11 @@ function selectWorldInfoEntries(
         reason: "disabled",
         priority: entry.priority,
       });
+      continue;
+    }
+
+    if (entry.isConstant) {
+      constantEntries.push(entry);
       continue;
     }
 
@@ -137,9 +145,23 @@ function selectWorldInfoEntries(
     matched.push(entry);
   }
 
+  const sortedConstants = constantEntries.sort(
+    (left, right) => right.priority - left.priority,
+  );
   const sorted = matched.sort((left, right) => right.priority - left.priority);
   const selected = sorted.slice(0, budget.maxWorldInfoEntries);
   const selectedIds = new Set(selected.map((entry) => entry.id));
+
+  for (const entry of sortedConstants) {
+    traces.push({
+      sourceId: entry.id,
+      kind: "world_info",
+      included: true,
+      reason: "constant",
+      priority: entry.priority,
+      tokenEstimate: estimateTokens(entry.content),
+    });
+  }
 
   for (const entry of sorted) {
     traces.push({
@@ -155,7 +177,8 @@ function selectWorldInfoEntries(
   }
 
   return {
-    entries: selected,
+    constantEntries: sortedConstants,
+    matchedEntries: selected,
     traces,
   };
 }
@@ -168,6 +191,53 @@ function renderWorldInfo(entries: WorldInfoEntry[]): string {
   return entries
     .map((entry) => `[${entry.id}]\n${entry.content}`)
     .join("\n\n");
+}
+
+function applyMustacheVariables(
+  template: string,
+  variables: Record<string, string | number | boolean | null> = {},
+  variableState?: VariableValueRecord,
+): string {
+  return template.replace(
+    /{{\s*([A-Za-z0-9_.-]+)\s*}}/g,
+    (token, key: string) => {
+      if (!Object.prototype.hasOwnProperty.call(variables, key)) {
+        const stateValue = resolveVariablePath(variableState?.root, key);
+        return stateValue === undefined ? token : String(stateValue);
+      }
+
+      const value = variables[key];
+      return value === null ? "" : String(value);
+    },
+  );
+}
+
+function resolveVariablePath(source: unknown, path: string): unknown {
+  const segments = path.split(".");
+  let current = source;
+
+  for (const segmentName of segments) {
+    if (
+      current === null ||
+      typeof current !== "object" ||
+      !Object.prototype.hasOwnProperty.call(current, segmentName)
+    ) {
+      return undefined;
+    }
+
+    current = (current as Record<string, unknown>)[segmentName];
+  }
+
+  if (
+    current === null ||
+    typeof current === "string" ||
+    typeof current === "number" ||
+    typeof current === "boolean"
+  ) {
+    return current;
+  }
+
+  return undefined;
 }
 
 const ENVELOPE_FIELDS: EnvelopeField[] = [
@@ -268,20 +338,32 @@ export async function buildHarnessRequest(
     budget,
   );
   const tools = createToolDefinitions();
+  const renderedSystemPrompt = applyMustacheVariables(
+    input.systemPrompt,
+    input.mustacheVariables,
+    variableState,
+  );
 
   const segments = [
     segment({
       id: "system",
       kind: "system",
       title: "System Prompt",
-      content: input.systemPrompt,
+      content: renderedSystemPrompt,
       source: "systemPrompt",
     }),
     segment({
-      id: "world_info",
+      id: "constant_world_info",
       kind: "world_info",
-      title: "World Info",
-      content: renderWorldInfo(selectedWorldInfo.entries),
+      title: "Constant World Info",
+      content: renderWorldInfo(selectedWorldInfo.constantEntries),
+      source: "worldInfoRepository",
+    }),
+    segment({
+      id: "matched_world_info",
+      kind: "world_info",
+      title: "Matched World Info",
+      content: renderWorldInfo(selectedWorldInfo.matchedEntries),
       source: "worldInfoRepository",
     }),
     segment({
@@ -311,10 +393,22 @@ export async function buildHarnessRequest(
     segments,
     budget,
     worldInfoPriorities: new Map(
-      selectedWorldInfo.entries.map((entry) => [
-        entry.id,
-        entry.priority,
-      ]),
+      [
+        [
+          "constant_world_info",
+          Math.max(
+            0,
+            ...selectedWorldInfo.constantEntries.map((entry) => entry.priority),
+          ),
+        ],
+        [
+          "matched_world_info",
+          Math.max(
+            0,
+            ...selectedWorldInfo.matchedEntries.map((entry) => entry.priority),
+          ),
+        ],
+      ],
     ),
   });
 

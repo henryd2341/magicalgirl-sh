@@ -69,6 +69,7 @@ describe("full save export", () => {
       content: "存档护符会记录当前世界线。",
       priority: 90,
       enabled: true,
+      isConstant: false,
     });
     await eventLogRepository.append({
       id: "event-export-seed",
@@ -143,6 +144,7 @@ describe("full save export", () => {
     expect(parsed.data.worldInfo).toContainEqual(
       expect.objectContaining({
         id: "wi-export-rooftop",
+        isConstant: false,
       }),
     );
     expect(parsed.data.eventLog.map((event) => event.type)).toEqual([

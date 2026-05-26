@@ -77,6 +77,7 @@ describe("buildHarnessRequest", () => {
       content: "旧校舍在雨后会出现影魔涂鸦。",
       priority: 90,
       enabled: true,
+      isConstant: false,
     });
     await worldInfoRepository.save({
       id: "wi-disabled",
@@ -84,6 +85,7 @@ describe("buildHarnessRequest", () => {
       content: "禁用条目不能进入请求。",
       priority: 100,
       enabled: false,
+      isConstant: false,
     });
 
     const variableRepository = new InMemoryVariableRepository();
@@ -116,9 +118,10 @@ describe("buildHarnessRequest", () => {
       included: true,
       content: "你是本项目的叙事 Harness 宪法。",
     });
-    expect(request.segments.map((segment) => segment.kind)).toEqual([
+    expect(request.segments.map((segment) => segment.id)).toEqual([
       "system",
-      "world_info",
+      "constant_world_info",
+      "matched_world_info",
       "state",
       "tools",
       "history",
@@ -251,5 +254,86 @@ describe("buildHarnessRequest", () => {
       role: "system",
       content: "verbose developer battle diagnostics",
     });
+  });
+
+  it("injects constant world info before keyword matched entries without cascading matches", async () => {
+    const chatRepository = new InMemoryChatHistoryRepository();
+    await chatRepository.save(
+      createMessage({
+        id: "msg-cascade-source",
+        content: "今天的任务发生在弓川市。",
+        created_at: "2026-05-26T10:00:00.000Z",
+      }),
+    );
+
+    const worldInfoRepository = new InMemoryWorldInfoRepository();
+    await worldInfoRepository.save({
+      id: "raw_entries/世界观基础",
+      keywords: ["弓川市"],
+      content: "弓川市存在 M.A.S.C.O.T 监测网络。",
+      priority: 100,
+      enabled: true,
+      isConstant: true,
+    });
+    await worldInfoRepository.save({
+      id: "raw_entries/M.A.S.C.O.T",
+      keywords: ["M.A.S.C.O.T"],
+      content: "星偶负责通讯、传送与后勤。",
+      priority: 95,
+      enabled: true,
+      isConstant: false,
+    });
+    await worldInfoRepository.save({
+      id: "raw_entries/青井霞",
+      keywords: ["青井霞"],
+      content: "青井霞是已退役的初代魔法少女。",
+      priority: 80,
+      enabled: true,
+      isConstant: false,
+    });
+
+    const request = await buildHarnessRequest({
+      chatRepository,
+      variableRepository: new InMemoryVariableRepository(),
+      worldInfoRepository,
+      systemPrompt:
+        "stable {{player.name}} at {{world.location.name}} / {{missing.value}}",
+      userInput: "继续弓川市的任务。",
+      requestId: "req-world-info-order",
+      contextVersion: 18,
+      now: "2026-05-26T10:01:00.000Z",
+      mustacheVariables: {
+        "player.name": "雷伊",
+      },
+    });
+
+    expect(request.promptText).toContain(
+      "stable 雷伊 at 教室 / {{missing.value}}",
+    );
+    expect(request.promptText).toContain("弓川市存在 M.A.S.C.O.T 监测网络。");
+    expect(request.promptText).not.toContain("星偶负责通讯、传送与后勤。");
+    expect(request.promptText).not.toContain("青井霞是已退役的初代魔法少女。");
+    expect(request.segments.map((segment) => segment.id)).toEqual([
+      "system",
+      "constant_world_info",
+      "matched_world_info",
+      "state",
+      "tools",
+      "history",
+    ]);
+    expect(request.traces).toContainEqual(
+      expect.objectContaining({
+        sourceId: "raw_entries/世界观基础",
+        included: true,
+        reason: "constant",
+      }),
+    );
+    expect(request.traces).toContainEqual(
+      expect.objectContaining({
+        sourceId: "raw_entries/M.A.S.C.O.T",
+        included: false,
+        reason: "keyword_miss",
+      }),
+    );
   });
 });

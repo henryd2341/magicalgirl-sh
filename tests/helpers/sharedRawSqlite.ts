@@ -42,6 +42,11 @@ class SharedRawSqliteDatabase implements RawSqliteDatabase {
       return;
     }
 
+    if (normalized.startsWith("delete from world_info")) {
+      this.tables.set("world_info", []);
+      return;
+    }
+
     if (normalized.startsWith("insert into chat_history")) {
       this.upsert("chat_history", {
         id: bind[0],
@@ -81,6 +86,18 @@ class SharedRawSqliteDatabase implements RawSqliteDatabase {
       return;
     }
 
+    if (normalized.startsWith("insert into world_info")) {
+      this.upsert("world_info", {
+        id: bind[0],
+        keywords_json: bind[1],
+        content: bind[2],
+        priority: bind[3],
+        enabled: bind[4],
+        is_constant: bind[5],
+      });
+      return;
+    }
+
     throw new Error(`Unsupported shared raw sqlite exec: ${sql}`);
   }
 
@@ -112,6 +129,15 @@ class SharedRawSqliteDatabase implements RawSqliteDatabase {
 
     if (normalized.includes("from runtime_snapshot")) {
       return this.rows("runtime_snapshot").filter((row) => row.id === "current");
+    }
+
+    if (normalized.includes("from world_info")) {
+      return this.rows("world_info").sort((left, right) => {
+        const priorityDelta = Number(right.priority) - Number(left.priority);
+        return priorityDelta === 0
+          ? String(left.id).localeCompare(String(right.id))
+          : priorityDelta;
+      });
     }
 
     return [];

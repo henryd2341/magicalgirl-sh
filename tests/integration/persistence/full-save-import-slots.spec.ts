@@ -118,6 +118,7 @@ function createImportPayload(): FullSaveExportV1 {
           content: "这条世界书来自导入槽位。",
           priority: 10,
           enabled: true,
+          isConstant: false,
         },
       ],
     },

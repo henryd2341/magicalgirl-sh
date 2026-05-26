@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { seedRawWorldInfoEntries } from "@/content/rawWorldInfoLoader";
 import { getChatPersistenceClient } from "@/persistence/chatRuntime";
+import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useRouter } from "vue-router";
@@ -13,6 +15,7 @@ async function confirmNewGame() {
 
   if (persistenceClient) {
     await persistenceClient.resetCurrentGameData();
+    await seedRawWorldInfoEntries(new DbWorldInfoRepository(persistenceClient));
     await chatStore.configurePersistence({ client: persistenceClient });
     await sessionStore.configurePersistence({ client: persistenceClient });
   } else {

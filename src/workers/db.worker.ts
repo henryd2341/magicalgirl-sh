@@ -27,6 +27,7 @@ import type {
   SaveMetaRecord,
 } from "@/types/recovery";
 import type { RuntimeSnapshotRecord } from "@/types/runtimeSnapshot";
+import type { WorldInfoEntry } from "@/persistence/repositories/worldInfoRepository";
 import type {
   VariableChangeLogRecord,
   VariableValueRecord,
@@ -113,6 +114,15 @@ interface RuntimeSnapshotRow extends Record<string, unknown> {
   session_snapshot_json: string;
   pending_battle_json: string | null;
   active_battle_json: string | null;
+}
+
+interface WorldInfoRow extends Record<string, unknown> {
+  id: string;
+  keywords_json: string;
+  content: string;
+  priority: number;
+  enabled: number;
+  is_constant: number;
 }
 
 function createInitialState(): DbWorkerStateSnapshot {
@@ -208,6 +218,17 @@ function runtimeSnapshotFromRow(
   row: RuntimeSnapshotRow,
 ): RuntimeSnapshotRecord {
   return parseJson<RuntimeSnapshotRecord>(row.snapshot_json);
+}
+
+function worldInfoFromRow(row: WorldInfoRow): WorldInfoEntry {
+  return {
+    id: row.id,
+    keywords: parseJson<string[]>(row.keywords_json),
+    content: row.content,
+    priority: row.priority,
+    enabled: row.enabled === 1,
+    isConstant: row.is_constant === 1,
+  };
 }
 
 function createInitialVariableValue(now: string): VariableValueRecord {
@@ -309,6 +330,18 @@ async function initializeRecoverySchema(database: SqliteDatabase): Promise<void>
     CREATE INDEX IF NOT EXISTS idx_variable_change_log_created_at
       ON variable_change_log (created_at);
 
+    CREATE TABLE IF NOT EXISTS world_info (
+      id TEXT PRIMARY KEY,
+      keywords_json TEXT NOT NULL,
+      content TEXT NOT NULL,
+      priority INTEGER NOT NULL,
+      enabled INTEGER NOT NULL,
+      is_constant INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_world_info_priority
+      ON world_info (priority);
+
     CREATE TABLE IF NOT EXISTS runtime_snapshot (
       id TEXT PRIMARY KEY,
       updated_at TEXT NOT NULL,
@@ -396,6 +429,39 @@ async function saveVariableChangeLogRow(
         log_json = excluded.log_json
     `,
     [record.id, record.createdAt, serializeJson(record)],
+  );
+}
+
+async function saveWorldInfoRow(
+  database: SqliteDatabase,
+  entry: WorldInfoEntry,
+): Promise<void> {
+  await database.exec(
+    `
+      INSERT INTO world_info (
+        id,
+        keywords_json,
+        content,
+        priority,
+        enabled,
+        is_constant
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        keywords_json = excluded.keywords_json,
+        content = excluded.content,
+        priority = excluded.priority,
+        enabled = excluded.enabled,
+        is_constant = excluded.is_constant
+    `,
+    [
+      entry.id,
+      serializeJson(entry.keywords),
+      entry.content,
+      entry.priority,
+      entry.enabled ? 1 : 0,
+      entry.isConstant ? 1 : 0,
+    ],
   );
 }
 
@@ -747,6 +813,8 @@ export function createDbWorkerRuntime(
         }
 
         case "save_world_info_entry": {
+          const database = await ensureSqliteDatabase(state);
+          await saveWorldInfoRow(database, request.payload);
           state.worldInfo.set(request.payload.id, deepClone(request.payload));
           return {
             type: "save_world_info_entry_result",
@@ -757,11 +825,24 @@ export function createDbWorkerRuntime(
         }
 
         case "list_world_info_entries": {
+          const database = await ensureSqliteDatabase(state);
+          const rows = await database.selectAll<WorldInfoRow>(
+            `
+              SELECT
+                id,
+                keywords_json,
+                content,
+                priority,
+                enabled,
+                is_constant
+              FROM world_info
+              ORDER BY priority DESC, id ASC
+            `,
+          );
+          const entries = rows.map(worldInfoFromRow);
           return {
             type: "list_world_info_entries_result",
-            payload: [...state.worldInfo.values()].map((entry) =>
-              deepClone(entry),
-            ),
+            payload: entries.map((entry) => deepClone(entry)),
           };
         }
 
@@ -1064,6 +1145,7 @@ export function createDbWorkerRuntime(
           await database.exec("DELETE FROM chat_history");
           await database.exec("DELETE FROM variable_value");
           await database.exec("DELETE FROM variable_change_log");
+          await database.exec("DELETE FROM world_info");
           await database.exec("DELETE FROM runtime_snapshot");
 
           for (const checkpoint of request.payload.checkpointSnapshots) {
@@ -1092,6 +1174,7 @@ export function createDbWorkerRuntime(
 
           state.worldInfo.clear();
           for (const entry of request.payload.worldInfo) {
+            await saveWorldInfoRow(database, entry);
             state.worldInfo.set(entry.id, deepClone(entry));
           }
 
@@ -1162,6 +1245,7 @@ export function createDbWorkerRuntime(
           await database.exec("DELETE FROM chat_history");
           await database.exec("DELETE FROM variable_value");
           await database.exec("DELETE FROM variable_change_log");
+          await database.exec("DELETE FROM world_info");
           await database.exec("DELETE FROM runtime_snapshot");
 
           await saveVariableValueRow(database, initialVariableValue);

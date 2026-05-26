@@ -9,6 +9,7 @@ export interface WorldInfoEntry {
   content: string;
   priority: number;
   enabled: boolean;
+  isConstant: boolean;
 }
 
 export interface WorldInfoRepository {

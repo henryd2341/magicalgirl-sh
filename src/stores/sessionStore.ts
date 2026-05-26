@@ -40,7 +40,11 @@ import {
   type VariableChangeLogRepository,
   type VariableRepository,
 } from "@/persistence/repositories/variableRepository";
-import { InMemoryWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
+import {
+  DbWorldInfoRepository,
+  InMemoryWorldInfoRepository,
+  type WorldInfoRepository,
+} from "@/persistence/repositories/worldInfoRepository";
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
 import type { BattleParticipant } from "@/types/battle";
@@ -69,7 +73,7 @@ export const useSessionStore = defineStore("session", () => {
     new InMemoryVariableChangeLogRepository();
   let runtimeSnapshotRepository: RuntimeSnapshotRepository | null = null;
   let runtimePersistenceService: RuntimePersistenceService | null = null;
-  const worldInfoRepository = new InMemoryWorldInfoRepository();
+  let worldInfoRepository: WorldInfoRepository = new InMemoryWorldInfoRepository();
   let gameEngineFacade = new GameEngineFacade(sessionManager, {
     variableRepository,
     variableChangeLogRepository,
@@ -107,6 +111,7 @@ export const useSessionStore = defineStore("session", () => {
     variableChangeLogRepository = new DbVariableChangeLogRepository(
       input.client,
     );
+    worldInfoRepository = new DbWorldInfoRepository(input.client);
     runtimeSnapshotRepository = nextRuntimeSnapshotRepository;
     runtimePersistenceService = new RuntimePersistenceService({
       repository: nextRuntimeSnapshotRepository,
