@@ -160,6 +160,12 @@ export type DbWorkerRequest =
     }
   | {
       type: "clear_runtime_snapshot";
+    }
+  | {
+      type: "reset_current_game_data";
+      payload: {
+        now?: string;
+      };
     };
 
 export type DbWorkerSuccessResponse =
@@ -300,6 +306,12 @@ export type DbWorkerSuccessResponse =
     }
   | {
       type: "clear_runtime_snapshot_result";
+    }
+  | {
+      type: "reset_current_game_data_result";
+      payload: {
+        variableRootId: string;
+      };
     };
 
 export type DbWorkerErrorResponse = {

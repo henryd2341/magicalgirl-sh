@@ -420,6 +420,19 @@ export class DbWorkerClient {
     }
   }
 
+  public async resetCurrentGameData(input: { now?: string } = {}): Promise<void> {
+    const response = await this.dispatch({
+      type: "reset_current_game_data",
+      payload: input,
+    });
+
+    if (response.type !== "reset_current_game_data_result") {
+      throw new Error(
+        `Unexpected response type for resetCurrentGameData: ${response.type}`,
+      );
+    }
+  }
+
   private async dispatch(request: DbWorkerRequest): Promise<DbWorkerResponse> {
     const response = await this.endpoint.post(request);
 

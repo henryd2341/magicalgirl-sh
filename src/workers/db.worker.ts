@@ -19,6 +19,7 @@ import {
 } from "@/persistence/sqlite/sqliteWasm";
 import type { ChatMessage } from "@/types/chat";
 import { DB_SCHEMA_VERSION } from "@/persistence/schema";
+import { VariableEngine } from "@/engine/variableEngine";
 import type {
   CheckpointKind,
   CheckpointSnapshotRecord,
@@ -207,6 +208,27 @@ function runtimeSnapshotFromRow(
   row: RuntimeSnapshotRow,
 ): RuntimeSnapshotRecord {
   return parseJson<RuntimeSnapshotRecord>(row.snapshot_json);
+}
+
+function createInitialVariableValue(now: string): VariableValueRecord {
+  return {
+    ...new VariableEngine().createInitialState(),
+    updatedAt: now,
+  };
+}
+
+function createIdleRuntimeSnapshot(now: string): RuntimeSnapshotRecord {
+  return {
+    id: "current",
+    updatedAt: now,
+    sessionSnapshot: {
+      sessionState: "IDLE",
+      pipelineState: null,
+      activeRequestId: null,
+    },
+    pendingBattle: null,
+    activeBattle: null,
+  };
 }
 
 async function initializeRecoverySchema(database: SqliteDatabase): Promise<void> {
@@ -1125,6 +1147,33 @@ export function createDbWorkerRuntime(
           state.runtimeSnapshot = null;
           return {
             type: "clear_runtime_snapshot_result",
+          };
+        }
+
+        case "reset_current_game_data": {
+          const database = await ensureSqliteDatabase(state);
+          const now = request.payload.now ?? new Date().toISOString();
+          const initialVariableValue = createInitialVariableValue(now);
+          const idleRuntimeSnapshot = createIdleRuntimeSnapshot(now);
+
+          await database.exec("DELETE FROM checkpoint_snapshot");
+          await database.exec("DELETE FROM event_log");
+          await database.exec("DELETE FROM save_meta");
+          await database.exec("DELETE FROM chat_history");
+          await database.exec("DELETE FROM variable_value");
+          await database.exec("DELETE FROM variable_change_log");
+          await database.exec("DELETE FROM runtime_snapshot");
+
+          await saveVariableValueRow(database, initialVariableValue);
+          await saveRuntimeSnapshotRow(database, idleRuntimeSnapshot);
+          state.worldInfo.clear();
+          state.runtimeSnapshot = deepClone(idleRuntimeSnapshot);
+
+          return {
+            type: "reset_current_game_data_result",
+            payload: {
+              variableRootId: initialVariableValue.rootId,
+            },
           };
         }
       }

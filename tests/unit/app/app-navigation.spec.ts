@@ -1,8 +1,18 @@
 import AppShell from "@/app/AppShell.vue";
+import {
+  configureChatPersistenceClient,
+  resetChatPersistenceClient,
+} from "@/persistence/chatRuntime";
+import {
+  DbWorkerClient,
+  createInProcessDbWorkerEndpoint,
+} from "@/persistence/dbClient";
+import { DbChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
+import { createDbWorkerRuntime } from "@/workers/db.worker";
 import { router } from "@/router";
 import { fireEvent, render, screen, waitFor } from "@testing-library/vue";
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 async function renderApplicationAt(path: string) {
   const pinia = createPinia();
@@ -20,8 +30,13 @@ async function renderApplicationAt(path: string) {
 
 describe("application navigation flow", () => {
   beforeEach(async () => {
+    resetChatPersistenceClient();
     await router.push("/");
     await router.isReady();
+  });
+
+  afterEach(() => {
+    resetChatPersistenceClient();
   });
 
   it("navigates from the start screen to the title page when the player begins the session", async () => {
@@ -107,6 +122,40 @@ describe("application navigation flow", () => {
     await waitFor(() => {
       expect(router.currentRoute.value.name).toBe("game");
     });
+  });
+
+  it("starts a clean persistent game instead of inheriting old current progress", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    configureChatPersistenceClient(client);
+    await new DbChatHistoryRepository(client).save({
+      id: "msg-old-current-progress",
+      role: "user",
+      kind: "normal",
+      content: "旧存档不应出现在新游戏里。",
+      user_visible: true,
+      ai_visible: true,
+      provisional: false,
+      finalized: true,
+      failed: false,
+      created_at: "2026-05-26T02:00:00.000Z",
+    });
+
+    await renderApplicationAt("/new-game");
+
+    await fireEvent.click(
+      screen.getByRole("button", { name: "确认并进入主游戏" }),
+    );
+
+    await waitFor(() => {
+      expect(router.currentRoute.value.name).toBe("game");
+      expect(
+        screen.queryByText("旧存档不应出现在新游戏里。"),
+      ).not.toBeInTheDocument();
+    });
+    await expect(client.listChatMessages()).resolves.toEqual([]);
   });
 
   it("opens settings and save export from the main game top bar", async () => {

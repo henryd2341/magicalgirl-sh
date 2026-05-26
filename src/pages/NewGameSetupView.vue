@@ -1,9 +1,24 @@
 <script setup lang="ts">
+import { getChatPersistenceClient } from "@/persistence/chatRuntime";
+import { useChatStore } from "@/stores/chatStore";
+import { useSessionStore } from "@/stores/sessionStore";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
 
 async function confirmNewGame() {
+  const persistenceClient = getChatPersistenceClient();
+  const chatStore = useChatStore();
+  const sessionStore = useSessionStore();
+
+  if (persistenceClient) {
+    await persistenceClient.resetCurrentGameData();
+    await chatStore.configurePersistence({ client: persistenceClient });
+    await sessionStore.configurePersistence({ client: persistenceClient });
+  } else {
+    chatStore.resetToInMemoryPersistence();
+  }
+
   await router.push({ name: "game" });
 }
 
