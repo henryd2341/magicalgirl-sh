@@ -102,15 +102,19 @@
 
 .settings-view__form,
 .settings-view__mustache,
-.prompt-preview-drawer__body,
-.prompt-preview-drawer__list,
-.prompt-preview-drawer__metadata {
+.settings-view__mustache-preview,
+.settings-view__world-info,
+.settings-view__world-info-item,
+.prompt-viewer-drawer__body,
+.prompt-viewer-drawer__list,
+.prompt-viewer-drawer__metadata {
   display: grid;
   gap: var(--space-3);
 }
 
 .settings-view__textarea,
-.settings-view__number-input {
+.settings-view__number-input,
+.settings-view__text-input {
   width: 100%;
   padding: 0.9rem 1rem;
   border: 3px solid rgba(126, 200, 227, 0.32);
@@ -120,10 +124,17 @@
 }
 
 .settings-view__budget-grid,
-.prompt-preview-drawer__tabs {
+.prompt-viewer-drawer__tabs {
   display: grid;
   gap: var(--space-3);
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.settings-view__checkbox-label {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-2);
 }
 
 .settings-view__mustache code {
@@ -133,18 +144,54 @@
   background: rgba(126, 200, 227, 0.12);
 }
 
-.prompt-preview-drawer {
+.settings-view__pre {
+  max-height: 32dvh;
+  overflow: auto;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgba(18, 8, 20, 0.88);
+  white-space: pre-wrap;
+}
+
+.settings-view__resolution-list {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.settings-view__resolution-list li,
+.settings-view__world-info-header,
+.settings-view__world-info-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.settings-view__world-info-item {
+  padding: var(--space-3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+}
+
+.settings-view__subheading {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.prompt-viewer-drawer {
   margin-inline: var(--space-8);
   padding: var(--space-4);
 }
 
-.prompt-preview-drawer__pre {
+.prompt-viewer-drawer__pre {
   max-height: 38dvh;
   overflow: auto;
   white-space: pre-wrap;
 }
 
-.prompt-preview-drawer__item {
+.prompt-viewer-drawer__item {
   display: grid;
   gap: var(--space-2);
   padding: var(--space-3);

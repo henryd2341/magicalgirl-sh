@@ -17,6 +17,8 @@ export async function buildConfiguredHarnessRequest(
   return buildHarnessRequest({
     ...input,
     systemPrompt: preset.systemPrompt,
-    budget: preset.budget,
+    budget: {
+      maxTotalTokens: preset.maxTotalTokens,
+    },
   });
 }

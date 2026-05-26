@@ -1,6 +1,7 @@
 import { VariableEngine } from "@/engine/variableEngine";
 import { applyContextBudget } from "@/orchestrator/contextBudget";
 import { serializeVariableSnapshot } from "@/orchestrator/contextSerializer";
+import { renderMustacheTemplate } from "@/orchestrator/mustacheTemplate";
 import type {
   BuiltProviderRequest,
   ContextBudget,
@@ -44,8 +45,6 @@ let nextContextVersion = 1;
 export function createDefaultContextBudget(): ContextBudget {
   return {
     maxTotalTokens: 6000,
-    maxWorldInfoEntries: 4,
-    maxHistoryMessages: 8,
   };
 }
 
@@ -85,12 +84,10 @@ function sortMessagesByCreatedAt(messages: ChatMessage[]): ChatMessage[] {
 
 function selectHistory(
   messages: ChatMessage[],
-  budget: ContextBudget,
 ): ChatMessage[] {
-  const visibleMessages = sortMessagesByCreatedAt(
+  return sortMessagesByCreatedAt(
     messages.filter((message) => isAiVisibleFinalized(message)),
   );
-  return visibleMessages.slice(-budget.maxHistoryMessages);
 }
 
 function renderHistory(messages: ChatMessage[]): string {
@@ -105,35 +102,11 @@ function renderHistory(messages: ChatMessage[]): string {
 
 function applyWorldInfoBudget(
   searchResult: WorldInfoSearchResult,
-  budget: ContextBudget,
 ): SelectedWorldInfo {
-  const selected = searchResult.matchedEntries.slice(
-    0,
-    budget.maxWorldInfoEntries,
-  );
-  const selectedIds = new Set(selected.map((entry) => entry.id));
-
-  const traces = searchResult.traces.map((trace) => {
-    if (
-      trace.kind !== "world_info" ||
-      !trace.included ||
-      trace.reason === "constant" ||
-      selectedIds.has(trace.sourceId)
-    ) {
-      return trace;
-    }
-
-    return {
-      ...trace,
-      included: false,
-      reason: "budget_world_info_count",
-    };
-  });
-
   return {
     constantEntries: searchResult.constantEntries,
-    matchedEntries: selected,
-    traces,
+    matchedEntries: searchResult.matchedEntries,
+    traces: searchResult.traces,
   };
 }
 
@@ -145,103 +118,6 @@ function renderWorldInfo(entries: WorldInfoEntry[]): string {
   return entries
     .map((entry) => `[${entry.id}]\n${entry.content}`)
     .join("\n\n");
-}
-
-const MUSTACHE_ALIAS_PATHS = new Map<string, string>([
-  ["user", "player.profile.name"],
-]);
-
-interface ParsedMustacheToken {
-  key: string;
-  defaultValue?: string;
-}
-
-function parseMustacheToken(rawToken: string): ParsedMustacheToken {
-  const coalesceParts = rawToken.split(/\s+\?\?\s+/, 2);
-  if (coalesceParts.length === 2) {
-    return {
-      key: coalesceParts[0].trim(),
-      defaultValue: coalesceParts[1].trim(),
-    };
-  }
-
-  const defaultPipe = rawToken.match(/^(.+?)\|default=(.*)$/);
-  if (defaultPipe) {
-    return {
-      key: defaultPipe[1].trim(),
-      defaultValue: defaultPipe[2].trim(),
-    };
-  }
-
-  return {
-    key: rawToken.trim(),
-  };
-}
-
-function resolveMustachePath(key: string): string {
-  return MUSTACHE_ALIAS_PATHS.get(key) ?? key;
-}
-
-function isMissingMustacheValue(value: unknown): boolean {
-  return value === undefined || value === null || value === "";
-}
-
-function applyMustacheVariables(
-  template: string,
-  variables: Record<string, string | number | boolean | null> = {},
-  variableState?: VariableValueRecord,
-): string {
-  return template.replace(
-    /{{\s*([^{}]+?)\s*}}/g,
-    (token, rawToken: string) => {
-      const parsed = parseMustacheToken(rawToken);
-      const key = parsed.key;
-      let value: unknown;
-
-      if (!Object.prototype.hasOwnProperty.call(variables, key)) {
-        value = resolveVariablePath(
-          variableState?.root,
-          resolveMustachePath(key),
-        );
-      } else {
-        value = variables[key];
-      }
-
-      if (isMissingMustacheValue(value)) {
-        return parsed.defaultValue ?? token;
-      }
-
-      return String(value);
-    },
-  );
-}
-
-function resolveVariablePath(source: unknown, path: string): unknown {
-  const segments = path.split(".");
-  let current = source;
-
-  for (const segmentName of segments) {
-    if (
-      current === null ||
-      typeof current !== "object" ||
-      !Object.prototype.hasOwnProperty.call(current, segmentName)
-    ) {
-      return undefined;
-    }
-
-    current = (current as Record<string, unknown>)[segmentName];
-  }
-
-  if (
-    current === null ||
-    typeof current === "string" ||
-    typeof current === "number" ||
-    typeof current === "boolean"
-  ) {
-    return current;
-  }
-
-  return undefined;
 }
 
 const ENVELOPE_FIELDS: EnvelopeField[] = [
@@ -331,20 +207,19 @@ export async function buildHarnessRequest(
     getCurrentVariables(input.variableRepository),
   ]);
 
-  const historyMessages = selectHistory(messages, budget);
+  const historyMessages = selectHistory(messages);
   const searchableText = `${input.userInput}\n${historyMessages
     .map((message) => message.content)
     .join("\n")}`;
   const selectedWorldInfo = applyWorldInfoBudget(
     await input.worldInfoRepository.search(searchableText),
-    budget,
   );
   const tools = createToolDefinitions();
-  const renderedSystemPrompt = applyMustacheVariables(
+  const renderedSystemPrompt = renderMustacheTemplate(
     input.systemPrompt,
-    input.mustacheVariables,
     variableState,
-  );
+    input.mustacheVariables,
+  ).text;
 
   const segments = [
     segment({

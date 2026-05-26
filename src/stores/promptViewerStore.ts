@@ -2,7 +2,7 @@ import type { BuiltProviderRequest } from "@/orchestrator/harnessContextTypes";
 import { deepClone } from "@/utils/deepClone";
 import { defineStore } from "pinia";
 
-export const usePromptPreviewStore = defineStore("prompt-preview", {
+export const usePromptViewerStore = defineStore("prompt-viewer", {
   state: () => ({
     lastRequest: null as BuiltProviderRequest | null,
   }),

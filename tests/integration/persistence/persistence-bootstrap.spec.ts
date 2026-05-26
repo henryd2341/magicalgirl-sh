@@ -8,6 +8,7 @@ import {
 } from "@/persistence/dbClient";
 import { initializePersistentChatRuntime } from "@/persistence/persistenceBootstrap";
 import { DbVariableRepository } from "@/persistence/repositories/variableRepository";
+import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
 import { VariableEngine } from "@/engine/variableEngine";
 import { createDbWorkerRuntime } from "@/workers/db.worker";
 import { afterEach, describe, expect, it } from "vitest";
@@ -66,5 +67,22 @@ describe("persistence bootstrap", () => {
       stateHash: "existing-db-hash",
       updatedAt: "2026-05-25T12:59:00.000Z",
     });
+  });
+
+  it("syncs bundled raw world info entries during persistence startup", async () => {
+    const endpoint = createInProcessDbWorkerEndpoint(createDbWorkerRuntime());
+
+    const result = await initializePersistentChatRuntime({ endpoint });
+
+    await expect(
+      new DbWorldInfoRepository(result.client).list(),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "raw_entries/世界观基础",
+          enabled: true,
+        }),
+      ]),
+    );
   });
 });

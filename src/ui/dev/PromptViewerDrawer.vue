@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { usePromptPreviewStore } from "@/stores/promptPreviewStore";
+import { usePromptViewerStore } from "@/stores/promptViewerStore";
 import { computed, ref } from "vue";
 
-type PreviewTab = "prompt" | "segments" | "traces" | "metadata";
+type ViewerTab = "prompt" | "segments" | "traces" | "metadata";
 
-const previewStore = usePromptPreviewStore();
+const viewerStore = usePromptViewerStore();
 const isOpen = ref(false);
-const activeTab = ref<PreviewTab>("prompt");
+const activeTab = ref<ViewerTab>("prompt");
 
-const lastRequest = computed(() => previewStore.lastRequest);
+const lastRequest = computed(() => viewerStore.lastRequest);
 
-const tabs: Array<{ id: PreviewTab; label: string }> = [
+const tabs: Array<{ id: ViewerTab; label: string }> = [
   { id: "prompt", label: "Prompt" },
   { id: "segments", label: "Segments" },
   { id: "traces", label: "Traces" },
@@ -24,24 +24,24 @@ function toggleDrawer() {
 
 <template>
   <section
-    id="prompt-preview-drawer"
-    class="prompt-preview-drawer scrapbook-panel"
-    aria-label="开发者 Prompt Preview"
+    id="prompt-viewer-drawer"
+    class="prompt-viewer-drawer scrapbook-panel"
+    aria-label="开发者 Prompt Viewer"
   >
     <button
-      id="prompt-preview-toggle"
+      id="prompt-viewer-toggle"
       class="secondary-cta"
       type="button"
       @click="toggleDrawer"
     >
-      开发者 Prompt Preview
+      开发者 Prompt Viewer
     </button>
 
-    <div v-if="isOpen" class="prompt-preview-drawer__body">
-      <nav class="prompt-preview-drawer__tabs" aria-label="Prompt Preview Tabs">
+    <div v-if="isOpen" class="prompt-viewer-drawer__body">
+      <nav class="prompt-viewer-drawer__tabs" aria-label="Prompt Viewer Tabs">
         <button
           v-for="tab in tabs"
-          :id="`prompt-preview-tab-${tab.id}`"
+          :id="`prompt-viewer-tab-${tab.id}`"
           :key="tab.id"
           class="secondary-cta"
           type="button"
@@ -52,20 +52,20 @@ function toggleDrawer() {
         </button>
       </nav>
 
-      <p v-if="!lastRequest" class="prompt-preview-drawer__empty">
+      <p v-if="!lastRequest" class="prompt-viewer-drawer__empty">
         暂无 Harness Request。
       </p>
 
       <template v-else>
-        <pre v-if="activeTab === 'prompt'" class="prompt-preview-drawer__pre">{{
+        <pre v-if="activeTab === 'prompt'" class="prompt-viewer-drawer__pre">{{
           lastRequest.promptText
         }}</pre>
 
-        <div v-else-if="activeTab === 'segments'" class="prompt-preview-drawer__list">
+        <div v-else-if="activeTab === 'segments'" class="prompt-viewer-drawer__list">
           <article
             v-for="segment in lastRequest.segments"
             :key="segment.id"
-            class="prompt-preview-drawer__item"
+            class="prompt-viewer-drawer__item"
           >
             <strong>{{ segment.id }}</strong>
             <span>{{ segment.title }}</span>
@@ -75,11 +75,11 @@ function toggleDrawer() {
           </article>
         </div>
 
-        <div v-else-if="activeTab === 'traces'" class="prompt-preview-drawer__list">
+        <div v-else-if="activeTab === 'traces'" class="prompt-viewer-drawer__list">
           <article
             v-for="trace in lastRequest.traces"
             :key="`${trace.sourceId}-${trace.reason}`"
-            class="prompt-preview-drawer__item"
+            class="prompt-viewer-drawer__item"
           >
             <strong>{{ trace.sourceId }}</strong>
             <span>{{ trace.kind }}</span>
@@ -89,7 +89,7 @@ function toggleDrawer() {
           </article>
         </div>
 
-        <dl v-else class="prompt-preview-drawer__metadata">
+        <dl v-else class="prompt-viewer-drawer__metadata">
           <dt>request_id</dt>
           <dd>{{ lastRequest.metadata.request_id }}</dd>
           <dt>context_version</dt>

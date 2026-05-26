@@ -43,29 +43,6 @@ export function applyContextBudget(
   const worldInfoSegments = segments.filter(
     (segment) => segment.kind === "world_info" && segment.included,
   );
-  const sortedWorldInfo = [...worldInfoSegments].sort((left, right) => {
-    const leftPriority = input.worldInfoPriorities?.get(left.id) ?? 0;
-    const rightPriority = input.worldInfoPriorities?.get(right.id) ?? 0;
-    return rightPriority - leftPriority;
-  });
-
-  for (
-    let index = input.budget.maxWorldInfoEntries;
-    index < sortedWorldInfo.length;
-    index += 1
-  ) {
-    dropSegment(segments, sortedWorldInfo[index].id, "budget_world_info_count");
-  }
-
-  const historySegments = segments.filter(
-    (segment) => segment.kind === "history" && segment.included,
-  );
-  const extraHistoryCount =
-    historySegments.length - input.budget.maxHistoryMessages;
-  for (let index = 0; index < extraHistoryCount; index += 1) {
-    dropSegment(segments, historySegments[index].id, "budget_history_count");
-  }
-
   const worldInfoByAscPriority = [...worldInfoSegments]
     .filter((segment) => segment.included)
     .sort((left, right) => {

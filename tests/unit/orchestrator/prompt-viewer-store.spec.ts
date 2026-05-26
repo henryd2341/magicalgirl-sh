@@ -1,15 +1,15 @@
 import { createDefaultContextBudget } from "@/orchestrator/promptBuilder";
 import { setActivePinia, createPinia } from "pinia";
 import { beforeEach, describe, expect, it } from "vitest";
-import { usePromptPreviewStore } from "@/stores/promptPreviewStore";
+import { usePromptViewerStore } from "@/stores/promptViewerStore";
 
-describe("prompt preview store", () => {
+describe("prompt viewer store", () => {
   beforeEach(() => {
     setActivePinia(createPinia());
   });
 
   it("records and clears the latest Harness request", () => {
-    const store = usePromptPreviewStore();
+    const store = usePromptViewerStore();
 
     store.record({
       metadata: {
@@ -45,8 +45,6 @@ describe("prompt preview store", () => {
   it("keeps budget-compatible segment data for preview rendering", () => {
     expect(createDefaultContextBudget()).toMatchObject({
       maxTotalTokens: expect.any(Number),
-      maxWorldInfoEntries: expect.any(Number),
-      maxHistoryMessages: expect.any(Number),
     });
   });
 });

@@ -1,4 +1,7 @@
 import {
+  syncRawWorldInfoEntries,
+} from "@/content/rawWorldInfoLoader";
+import {
   configureChatPersistenceClient,
   getChatPersistenceClient,
 } from "@/persistence/chatRuntime";
@@ -10,6 +13,7 @@ import {
 import { ensureVariableState } from "@/engine/variableStateBootstrap";
 import type { DbInitResult, DbWorkerEndpoint } from "@/persistence/dbProtocol";
 import { DbVariableRepository } from "@/persistence/repositories/variableRepository";
+import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
 
 export interface InitializePersistentChatRuntimeInput {
   endpoint?: DbWorkerEndpoint;
@@ -45,6 +49,7 @@ export async function initializePersistentChatRuntime(
   await ensureVariableState(new DbVariableRepository(client), {
     now: input.now,
   });
+  await syncRawWorldInfoEntries(new DbWorldInfoRepository(client));
   configureChatPersistenceClient(client);
 
   return {

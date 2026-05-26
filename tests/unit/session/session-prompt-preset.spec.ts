@@ -6,17 +6,14 @@ import { InMemoryPromptPresetRepository } from "@/orchestrator/promptPreset";
 import { describe, expect, it } from "vitest";
 
 describe("configured Harness request builder", () => {
-  it("uses the saved prompt preset system prompt and budget", async () => {
+  it("uses the saved prompt preset system prompt and total token budget", async () => {
     const promptPresetRepository = new InMemoryPromptPresetRepository({
       now: () => "2026-05-26T12:03:00.000Z",
     });
     await promptPresetRepository.saveCurrent({
       systemPrompt: "custom configured system",
-      budget: {
-        maxTotalTokens: 2048,
-        maxWorldInfoEntries: 1,
-        maxHistoryMessages: 1,
-      },
+      maxTotalTokens: 2048,
+      previewMustacheVariables: false,
       updatedAt: "ignored",
     });
 

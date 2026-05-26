@@ -87,3 +87,38 @@ export async function seedRawWorldInfoEntries(
 
   return entries;
 }
+
+export async function syncRawWorldInfoEntries(
+  repository: WorldInfoRepository,
+  modules: Record<string, string> = rawEntryModules,
+): Promise<WorldInfoEntry[]> {
+  const rawEntries = buildRawWorldInfoEntries(modules);
+  const existingById = new Map(
+    (await repository.list()).map((entry) => [entry.id, entry]),
+  );
+  const syncedEntries = rawEntries.map((rawEntry) => {
+    const existing = existingById.get(rawEntry.id);
+    if (!existing) {
+      return rawEntry;
+    }
+
+    return {
+      ...rawEntry,
+      keywords: existing.keywords,
+      priority: existing.priority,
+      enabled: existing.enabled,
+      isConstant: existing.isConstant,
+    };
+  });
+
+  for (const entry of syncedEntries) {
+    await repository.save(entry);
+  }
+
+  return syncedEntries.sort((left, right) => {
+    const priorityDelta = right.priority - left.priority;
+    return priorityDelta === 0
+      ? left.id.localeCompare(right.id)
+      : priorityDelta;
+  });
+}

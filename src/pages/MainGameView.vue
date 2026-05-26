@@ -8,7 +8,7 @@ import GameConversationPanel from "@/ui/game/GameConversationPanel.vue";
 import GameInputDock from "@/ui/game/GameInputDock.vue";
 import GameStatusBanner from "@/ui/game/GameStatusBanner.vue";
 import GameTopBar from "@/ui/game/GameTopBar.vue";
-import PromptPreviewDrawer from "@/ui/dev/PromptPreviewDrawer.vue";
+import PromptViewerDrawer from "@/ui/dev/PromptViewerDrawer.vue";
 import PostCombatPanel from "@/ui/session/PostCombatPanel.vue";
 import { storeToRefs } from "pinia";
 import { computed, onMounted } from "vue";
@@ -81,7 +81,7 @@ onMounted(async () => {
     <GameConversationPanel />
     <PostCombatPanel v-if="shouldShowPostCombatPanel" />
     <GameInputDock />
-    <PromptPreviewDrawer />
+    <PromptViewerDrawer />
     <button type="button" @click="launchDebugBattleForTestingOnly">
       测试用：启动预置战斗
     </button>

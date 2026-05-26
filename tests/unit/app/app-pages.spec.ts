@@ -3,12 +3,26 @@ import NewGameSetupView from "@/pages/NewGameSetupView.vue";
 import SettingsView from "@/pages/SettingsView.vue";
 import SplashScreenView from "@/pages/SplashScreenView.vue";
 import StartScreenView from "@/pages/StartScreenView.vue";
+import {
+  configureChatPersistenceClient,
+  resetChatPersistenceClient,
+} from "@/persistence/chatRuntime";
+import {
+  DbWorkerClient,
+  createInProcessDbWorkerEndpoint,
+} from "@/persistence/dbClient";
+import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
 import { router } from "@/router";
-import { render, screen } from "@testing-library/vue";
+import { createDbWorkerRuntime } from "@/workers/db.worker";
+import { fireEvent, render, screen } from "@testing-library/vue";
 import { createPinia } from "pinia";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 describe("application page layering", () => {
+  beforeEach(() => {
+    resetChatPersistenceClient();
+  });
+
   it("registers dedicated routes for start, title, new game, main game, settings, and save export", () => {
     const routeSummary = router
       .getRoutes()
@@ -102,7 +116,7 @@ describe("application page layering", () => {
     );
   });
 
-  it("renders prompt builder controls on the settings page", () => {
+  it("renders prompt builder controls on the settings page", async () => {
     render(SettingsView, {
       global: {
         plugins: [createPinia(), router],
@@ -120,16 +134,69 @@ describe("application page layering", () => {
       "id",
       "prompt-max-total-tokens",
     );
-    expect(screen.getByLabelText("最大 world_info 条目")).toHaveAttribute(
+    expect(screen.queryByLabelText("最大 world_info 条目")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("最大历史消息数")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("预渲染 Mustache Var")).toHaveAttribute(
       "id",
-      "prompt-max-world-info-entries",
-    );
-    expect(screen.getByLabelText("最大历史消息数")).toHaveAttribute(
-      "id",
-      "prompt-max-history-messages",
+      "prompt-prerender-mustache-variables",
     );
     expect(screen.getByRole("button", { name: "保存 Prompt 设置" }))
       .toHaveAttribute("id", "settings-save-prompt-preset");
     expect(screen.getByText("{{user}}")).toBeInTheDocument();
+  });
+
+  it("renders editable world info metadata controls without editing content", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    configureChatPersistenceClient(client);
+    await new DbWorldInfoRepository(client).save({
+      id: "raw_entries/世界观基础",
+      keywords: ["弓川市"],
+      content: "弓川市是沿海都市。",
+      priority: 1000,
+      enabled: true,
+      isConstant: true,
+    });
+
+    render(SettingsView, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    });
+
+    expect(await screen.findByText("raw_entries/世界观基础")).toBeInTheDocument();
+    expect(screen.getByLabelText("raw_entries/世界观基础 常驻")).toBeChecked();
+    expect(screen.getByLabelText("raw_entries/世界观基础 关键词")).toHaveValue(
+      "弓川市",
+    );
+
+    await fireEvent.click(
+      screen.getAllByRole("button", { name: "查看正文" })[0],
+    );
+    expect(screen.getByText(/世界观基础:/)).toBeInTheDocument();
+    expect(screen.queryByDisplayValue(/世界观基础:/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "上移" })[0]).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "下移" })[0]).toBeInTheDocument();
+  });
+
+  it("loads bundled raw world info entries on the settings page when the DB table is empty", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    configureChatPersistenceClient(client);
+
+    render(SettingsView, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    });
+
+    expect(await screen.findByText("raw_entries/世界观基础")).toBeInTheDocument();
+    expect(
+      screen.queryByText("当前没有可编辑的 world_info 条目。"),
+    ).not.toBeInTheDocument();
   });
 });

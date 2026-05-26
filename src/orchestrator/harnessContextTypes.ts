@@ -21,8 +21,6 @@ export interface PromptSegment {
 
 export interface ContextBudget {
   maxTotalTokens: number;
-  maxWorldInfoEntries: number;
-  maxHistoryMessages: number;
 }
 
 export interface ContextInjectionTrace {

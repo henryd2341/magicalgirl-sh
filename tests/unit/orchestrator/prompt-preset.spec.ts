@@ -11,7 +11,8 @@ describe("prompt preset config", () => {
     expect(createDefaultPromptPresetConfig("2026-05-26T12:00:00.000Z"))
       .toEqual({
         systemPrompt,
-        budget: createDefaultContextBudget(),
+        maxTotalTokens: createDefaultContextBudget().maxTotalTokens,
+        previewMustacheVariables: false,
         updatedAt: "2026-05-26T12:00:00.000Z",
       });
   });
@@ -23,26 +24,43 @@ describe("prompt preset config", () => {
 
     await repository.saveCurrent({
       systemPrompt: "custom system prompt",
-      budget: {
-        maxTotalTokens: 1234,
-        maxWorldInfoEntries: 2,
-        maxHistoryMessages: 3,
-      },
+      maxTotalTokens: 1234,
+      previewMustacheVariables: true,
       updatedAt: "ignored-by-repository",
     });
 
     await expect(repository.getCurrent()).resolves.toEqual({
       systemPrompt: "custom system prompt",
-      budget: {
-        maxTotalTokens: 1234,
-        maxWorldInfoEntries: 2,
-        maxHistoryMessages: 3,
-      },
+      maxTotalTokens: 1234,
+      previewMustacheVariables: true,
       updatedAt: "2026-05-26T12:00:00.000Z",
     });
 
     await expect(repository.resetToDefault()).resolves.toEqual(
       createDefaultPromptPresetConfig("2026-05-26T12:00:00.000Z"),
     );
+  });
+
+  it("normalizes legacy budget-shaped prompt preset configs", async () => {
+    const repository = new InMemoryPromptPresetRepository({
+      now: () => "2026-05-26T12:00:00.000Z",
+    });
+
+    await repository.saveCurrent({
+      systemPrompt: "legacy prompt",
+      budget: {
+        maxTotalTokens: 4096,
+        maxWorldInfoEntries: 1,
+        maxHistoryMessages: 1,
+      },
+      updatedAt: "legacy",
+    });
+
+    await expect(repository.getCurrent()).resolves.toEqual({
+      systemPrompt: "legacy prompt",
+      maxTotalTokens: 4096,
+      previewMustacheVariables: false,
+      updatedAt: "2026-05-26T12:00:00.000Z",
+    });
   });
 });

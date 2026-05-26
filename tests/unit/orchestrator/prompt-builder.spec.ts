@@ -152,6 +152,63 @@ describe("buildHarnessRequest", () => {
     );
   });
 
+  it("does not cap visible history or matched world info by entry count", async () => {
+    const chatRepository = new InMemoryChatHistoryRepository();
+    for (let index = 1; index <= 10; index += 1) {
+      await chatRepository.save(
+        createMessage({
+          id: `msg-history-${index}`,
+          content: `可见历史 ${index}`,
+          created_at: `2026-05-26T12:${index.toString().padStart(2, "0")}:00.000Z`,
+        }),
+      );
+    }
+
+    const worldInfoRepository = new InMemoryWorldInfoRepository();
+    for (let index = 1; index <= 5; index += 1) {
+      await worldInfoRepository.save({
+        id: `wi-match-${index}`,
+        keywords: ["触发词"],
+        content: `命中条目 ${index}`,
+        priority: 100 - index,
+        enabled: true,
+        isConstant: false,
+      });
+    }
+
+    const request = await buildHarnessRequest({
+      chatRepository,
+      variableRepository: new InMemoryVariableRepository(),
+      worldInfoRepository,
+      systemPrompt: "stable",
+      userInput: "触发词",
+      requestId: "req-no-count-caps",
+      contextVersion: 22,
+      now: "2026-05-26T12:20:00.000Z",
+      budget: createDefaultContextBudget(),
+    });
+
+    for (let index = 1; index <= 10; index += 1) {
+      expect(request.promptText).toContain(`可见历史 ${index}`);
+    }
+    for (let index = 1; index <= 5; index += 1) {
+      expect(request.promptText).toContain(`命中条目 ${index}`);
+      expect(request.traces).toContainEqual(
+        expect.objectContaining({
+          sourceId: `wi-match-${index}`,
+          included: true,
+          reason: "keyword_match",
+        }),
+      );
+    }
+    expect(request.traces).not.toContainEqual(
+      expect.objectContaining({ reason: "budget_world_info_count" }),
+    );
+    expect(request.traces).not.toContainEqual(
+      expect.objectContaining({ reason: "budget_history_count" }),
+    );
+  });
+
   it("increments context versions and preserves the current variable state hash", async () => {
     const chatRepository = new InMemoryChatHistoryRepository();
     const worldInfoRepository = new InMemoryWorldInfoRepository();

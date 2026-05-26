@@ -36,8 +36,6 @@ describe("applyContextBudget", () => {
       ]),
       budget: {
         maxTotalTokens: 90,
-        maxWorldInfoEntries: 2,
-        maxHistoryMessages: 2,
       },
     });
 

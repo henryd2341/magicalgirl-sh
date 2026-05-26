@@ -13,7 +13,7 @@ import { router } from "@/router";
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
-import { usePromptPreviewStore } from "@/stores/promptPreviewStore";
+import { usePromptViewerStore } from "@/stores/promptViewerStore";
 import type { BattleParticipant } from "@/types/battle";
 import { createDbWorkerRuntime } from "@/workers/db.worker";
 import { fireEvent, render, screen, waitFor } from "@testing-library/vue";
@@ -250,11 +250,11 @@ describe("MainGameView chat persistence wiring", () => {
     expect(useSessionStore().snapshot.sessionState).toBe("POST_COMBAT_READY");
   });
 
-  it("renders the developer prompt preview drawer with the latest Harness request", async () => {
+  it("renders the developer prompt viewer drawer with the latest Harness request", async () => {
     await renderMainGameWithFreshPinia();
-    const previewStore = usePromptPreviewStore();
+    const viewerStore = usePromptViewerStore();
 
-    previewStore.record({
+    viewerStore.record({
       metadata: {
         request_id: "req-preview-drawer",
         context_version: 7,
@@ -287,12 +287,12 @@ describe("MainGameView chat persistence wiring", () => {
     });
 
     await fireEvent.click(
-      screen.getByRole("button", { name: "开发者 Prompt Preview" }),
+      screen.getByRole("button", { name: "开发者 Prompt Viewer" }),
     );
 
     expect(
-      screen.getByRole("region", { name: "开发者 Prompt Preview" }),
-    ).toHaveAttribute("id", "prompt-preview-drawer");
+      screen.getByRole("region", { name: "开发者 Prompt Viewer" }),
+    ).toHaveAttribute("id", "prompt-viewer-drawer");
     expect(screen.getByText("drawer system prompt")).toBeInTheDocument();
 
     await fireEvent.click(screen.getByRole("button", { name: "Traces" }));

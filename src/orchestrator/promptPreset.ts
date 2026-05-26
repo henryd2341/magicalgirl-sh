@@ -2,20 +2,33 @@
 
 import systemPrompt from "@/content/systemPrompt.md?raw";
 import { createDefaultContextBudget } from "@/orchestrator/promptBuilder";
-import type { ContextBudget } from "@/orchestrator/harnessContextTypes";
 import { deepClone } from "@/utils/deepClone";
 
 const STORAGE_KEY = "magicalgirl-sh.prompt-preset.v1";
 
 export interface PromptPresetConfig {
   systemPrompt: string;
-  budget: ContextBudget;
+  maxTotalTokens: number;
+  previewMustacheVariables: boolean;
   updatedAt: string;
 }
 
+interface LegacyPromptPresetConfig {
+  systemPrompt: string;
+  budget: {
+    maxTotalTokens: number;
+    maxWorldInfoEntries?: number;
+    maxHistoryMessages?: number;
+  };
+  previewMustacheVariables?: boolean;
+  updatedAt: string;
+}
+
+type PromptPresetInput = PromptPresetConfig | LegacyPromptPresetConfig;
+
 export interface PromptPresetRepository {
   getCurrent(): Promise<PromptPresetConfig>;
-  saveCurrent(config: PromptPresetConfig): Promise<void>;
+  saveCurrent(config: PromptPresetInput): Promise<void>;
   resetToDefault(): Promise<PromptPresetConfig>;
 }
 
@@ -32,22 +45,25 @@ export function createDefaultPromptPresetConfig(
 ): PromptPresetConfig {
   return {
     systemPrompt,
-    budget: createDefaultContextBudget(),
+    maxTotalTokens: createDefaultContextBudget().maxTotalTokens,
+    previewMustacheVariables: false,
     updatedAt: now,
   };
 }
 
 function normalizeConfig(
-  config: PromptPresetConfig,
+  config: PromptPresetInput,
   updatedAt: string,
 ): PromptPresetConfig {
+  const maxTotalTokens =
+    "budget" in config
+      ? config.budget.maxTotalTokens
+      : config.maxTotalTokens;
+
   return {
     systemPrompt: config.systemPrompt,
-    budget: {
-      maxTotalTokens: Number(config.budget.maxTotalTokens),
-      maxWorldInfoEntries: Number(config.budget.maxWorldInfoEntries),
-      maxHistoryMessages: Number(config.budget.maxHistoryMessages),
-    },
+    maxTotalTokens: Number(maxTotalTokens),
+    previewMustacheVariables: config.previewMustacheVariables ?? false,
     updatedAt,
   };
 }
@@ -69,7 +85,7 @@ export class InMemoryPromptPresetRepository
     );
   }
 
-  public async saveCurrent(config: PromptPresetConfig): Promise<void> {
+  public async saveCurrent(config: PromptPresetInput): Promise<void> {
     this.current = normalizeConfig(config, this.now());
   }
 
@@ -95,11 +111,11 @@ export class LocalStoragePromptPresetRepository
       return createDefaultPromptPresetConfig(this.now());
     }
 
-    const parsed = JSON.parse(stored) as PromptPresetConfig;
+    const parsed = JSON.parse(stored) as PromptPresetInput;
     return normalizeConfig(parsed, parsed.updatedAt);
   }
 
-  public async saveCurrent(config: PromptPresetConfig): Promise<void> {
+  public async saveCurrent(config: PromptPresetInput): Promise<void> {
     const normalized = normalizeConfig(config, this.now());
     globalThis.localStorage?.setItem(STORAGE_KEY, JSON.stringify(normalized));
   }

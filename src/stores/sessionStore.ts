@@ -47,7 +47,7 @@ import {
 } from "@/persistence/repositories/worldInfoRepository";
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
-import { usePromptPreviewStore } from "@/stores/promptPreviewStore";
+import { usePromptViewerStore } from "@/stores/promptViewerStore";
 import type { BattleParticipant } from "@/types/battle";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 import { defineStore } from "pinia";
@@ -367,7 +367,7 @@ export const useSessionStore = defineStore("session", () => {
           requestId,
           now: new Date().toISOString(),
         });
-        usePromptPreviewStore().record(request);
+        usePromptViewerStore().record(request);
         return request;
       },
       idFactory: {

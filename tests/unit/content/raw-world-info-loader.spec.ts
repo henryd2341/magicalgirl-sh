@@ -1,7 +1,9 @@
 import {
   buildRawWorldInfoEntries,
   RAW_WORLD_INFO_CONSTANT_IDS,
+  syncRawWorldInfoEntries,
 } from "@/content/rawWorldInfoLoader";
+import { InMemoryWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
 import { describe, expect, it } from "vitest";
 
 describe("raw world info loader", () => {
@@ -41,6 +43,39 @@ describe("raw world info loader", () => {
     expect(RAW_WORLD_INFO_CONSTANT_IDS).toEqual([
       "raw_entries/世界观基础",
       "raw_entries/M.A.S.C.O.T",
+    ]);
+  });
+
+  it("syncs bundled raw entries while preserving editable metadata", async () => {
+    const repository = new InMemoryWorldInfoRepository();
+    await repository.save({
+      id: "raw_entries/M.A.S.C.O.T",
+      keywords: ["星偶", "自定义关键词"],
+      content: "旧正文。",
+      priority: 123,
+      enabled: true,
+      isConstant: false,
+    });
+
+    const synced = await syncRawWorldInfoEntries(repository, {
+      "../../raw_entries/M.A.S.C.O.T.txt": "<MASCOT>\n新正文。",
+      "../../raw_entries/世界观基础.txt": "<worldview>\n弓川市与虫洞异常。",
+    });
+
+    expect(synced).toEqual([
+      expect.objectContaining({
+        id: "raw_entries/世界观基础",
+        content: "<worldview>\n弓川市与虫洞异常。",
+        priority: 1000,
+        isConstant: true,
+      }),
+      expect.objectContaining({
+        id: "raw_entries/M.A.S.C.O.T",
+        keywords: ["星偶", "自定义关键词"],
+        content: "<MASCOT>\n新正文。",
+        priority: 123,
+        isConstant: false,
+      }),
     ]);
   });
 });

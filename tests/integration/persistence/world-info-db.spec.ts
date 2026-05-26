@@ -133,4 +133,40 @@ describe("world_info persistence", () => {
       }),
     );
   });
+
+  it("updates world info metadata used by prompt builder controls", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    const repository = new DbWorldInfoRepository(client);
+
+    await repository.save({
+      id: "wi-editable",
+      keywords: ["旧关键词"],
+      content: "正文不可由 Prompt Builder 编辑。",
+      priority: 10,
+      enabled: true,
+      isConstant: false,
+    });
+    await repository.save({
+      id: "wi-editable",
+      keywords: ["新关键词", "别名"],
+      content: "正文不可由 Prompt Builder 编辑。",
+      priority: 120,
+      enabled: true,
+      isConstant: true,
+    });
+
+    await expect(repository.list()).resolves.toEqual([
+      {
+        id: "wi-editable",
+        keywords: ["新关键词", "别名"],
+        content: "正文不可由 Prompt Builder 编辑。",
+        priority: 120,
+        enabled: true,
+        isConstant: true,
+      },
+    ]);
+  });
 });
