@@ -193,21 +193,71 @@ function renderWorldInfo(entries: WorldInfoEntry[]): string {
     .join("\n\n");
 }
 
+const MUSTACHE_ALIAS_PATHS = new Map<string, string>([
+  ["user", "player.profile.name"],
+]);
+
+interface ParsedMustacheToken {
+  key: string;
+  defaultValue?: string;
+}
+
+function parseMustacheToken(rawToken: string): ParsedMustacheToken {
+  const coalesceParts = rawToken.split(/\s+\?\?\s+/, 2);
+  if (coalesceParts.length === 2) {
+    return {
+      key: coalesceParts[0].trim(),
+      defaultValue: coalesceParts[1].trim(),
+    };
+  }
+
+  const defaultPipe = rawToken.match(/^(.+?)\|default=(.*)$/);
+  if (defaultPipe) {
+    return {
+      key: defaultPipe[1].trim(),
+      defaultValue: defaultPipe[2].trim(),
+    };
+  }
+
+  return {
+    key: rawToken.trim(),
+  };
+}
+
+function resolveMustachePath(key: string): string {
+  return MUSTACHE_ALIAS_PATHS.get(key) ?? key;
+}
+
+function isMissingMustacheValue(value: unknown): boolean {
+  return value === undefined || value === null || value === "";
+}
+
 function applyMustacheVariables(
   template: string,
   variables: Record<string, string | number | boolean | null> = {},
   variableState?: VariableValueRecord,
 ): string {
   return template.replace(
-    /{{\s*([A-Za-z0-9_.-]+)\s*}}/g,
-    (token, key: string) => {
+    /{{\s*([^{}]+?)\s*}}/g,
+    (token, rawToken: string) => {
+      const parsed = parseMustacheToken(rawToken);
+      const key = parsed.key;
+      let value: unknown;
+
       if (!Object.prototype.hasOwnProperty.call(variables, key)) {
-        const stateValue = resolveVariablePath(variableState?.root, key);
-        return stateValue === undefined ? token : String(stateValue);
+        value = resolveVariablePath(
+          variableState?.root,
+          resolveMustachePath(key),
+        );
+      } else {
+        value = variables[key];
       }
 
-      const value = variables[key];
-      return value === null ? "" : String(value);
+      if (isMissingMustacheValue(value)) {
+        return parsed.defaultValue ?? token;
+      }
+
+      return String(value);
     },
   );
 }

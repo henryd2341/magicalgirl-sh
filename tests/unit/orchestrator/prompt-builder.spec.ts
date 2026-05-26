@@ -336,4 +336,68 @@ describe("buildHarnessRequest", () => {
       }),
     );
   });
+
+  it("resolves mustache aliases, defaults, and explicit variable overrides", async () => {
+    const variableRepository = new InMemoryVariableRepository();
+    const variableState = new VariableEngine().createInitialState();
+    variableState.root.player.profile.name = "小圆";
+    variableState.root.world.location.name = "弓川市";
+    await variableRepository.saveCurrent(variableState);
+
+    const request = await buildHarnessRequest({
+      chatRepository: new InMemoryChatHistoryRepository(),
+      variableRepository,
+      worldInfoRepository: new InMemoryWorldInfoRepository(),
+      systemPrompt: [
+        "alias={{user}}",
+        "path={{world.location.name}}",
+        "explicit={{nickname}}",
+        "pipeDefault={{emptyName|default=鹿目真昼}}",
+        "coalesceDefault={{missing.name ?? 鹿目真昼}}",
+        "missing={{missing.value}}",
+      ].join("\n"),
+      userInput: "检查变量插值。",
+      requestId: "req-mustache-alias-defaults",
+      contextVersion: 19,
+      now: "2026-05-26T11:00:00.000Z",
+      mustacheVariables: {
+        nickname: "雷伊",
+        emptyName: "",
+      },
+    });
+
+    expect(request.promptText).toContain("alias=小圆");
+    expect(request.promptText).toContain("path=弓川市");
+    expect(request.promptText).toContain("explicit=雷伊");
+    expect(request.promptText).toContain("pipeDefault=鹿目真昼");
+    expect(request.promptText).toContain("coalesceDefault=鹿目真昼");
+    expect(request.promptText).toContain("missing={{missing.value}}");
+  });
+
+  it("lets explicit mustache variables override the user alias", async () => {
+    const variableRepository = new InMemoryVariableRepository();
+    const variableState = new VariableEngine().createInitialState();
+    variableState.root.player.profile.name = "变量树姓名";
+    await variableRepository.saveCurrent(variableState);
+
+    const request = await buildHarnessRequest({
+      chatRepository: new InMemoryChatHistoryRepository(),
+      variableRepository,
+      worldInfoRepository: new InMemoryWorldInfoRepository(),
+      systemPrompt: "user={{user}}",
+      userInput: "检查显式变量优先级。",
+      requestId: "req-mustache-explicit-alias",
+      contextVersion: 20,
+      now: "2026-05-26T11:01:00.000Z",
+      mustacheVariables: {
+        user: "显式姓名",
+      },
+    });
+
+    const systemSegment = request.segments.find(
+      (segment) => segment.id === "system",
+    );
+    expect(systemSegment?.content).toBe("user=显式姓名");
+    expect(systemSegment?.content).not.toContain("变量树姓名");
+  });
 });
