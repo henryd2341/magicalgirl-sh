@@ -80,6 +80,7 @@ export interface GameVariablesRoot {
         agility: number;
         intelligence: number;
       } | null;
+      inParty?: boolean;
       flags?: Record<string, boolean>;
     }
   >;

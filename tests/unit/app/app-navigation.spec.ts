@@ -171,7 +171,14 @@ describe("application navigation flow", () => {
         screen.queryByText("旧存档不应出现在新游戏里。"),
       ).not.toBeInTheDocument();
     });
-    await expect(client.listChatMessages()).resolves.toEqual([]);
+    await expect(client.listChatMessages()).resolves.toEqual([
+      expect.objectContaining({
+        id: "msg-opening-ceremony",
+        role: "assistant",
+        finalized: true,
+        content: expect.stringContaining("弓川悠真"),
+      }),
+    ]);
     await expect(new DbVariableRepository(client).getCurrent()).resolves
       .toMatchObject({
         root: {

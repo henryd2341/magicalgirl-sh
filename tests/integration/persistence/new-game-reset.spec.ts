@@ -1,4 +1,5 @@
 import { VariableEngine } from "@/engine/variableEngine";
+import { renderOpeningMessage } from "@/content/openingMessage";
 import type { FullSaveExportV1 } from "@/persistence/exportSave";
 import {
   DbWorkerClient,
@@ -145,6 +146,12 @@ describe("new game current runtime reset", () => {
       stateHash: "initial",
       updatedAt: "2026-05-26T01:06:00.000Z",
     });
+    const vars = await variableRepository.getCurrent();
+    expect(vars?.root.player.flags.isNewTransfer).toBe(true);
+    expect(vars?.root.player.relationships["佐仓真央"]).toBe(50);
+    expect(Object.keys(vars!.root.characters)).toHaveLength(8);
+    expect(vars?.root.characters["佐仓真央"].inParty).toBe(true);
+    expect(vars?.root.characters["青井霞"].combat).toBeNull();
     await expect(client.listSaveSlots()).resolves.toEqual([
       expect.objectContaining({
         id: "slot-preserved",
@@ -152,3 +159,55 @@ describe("new game current runtime reset", () => {
     ]);
   });
 });
+
+  it("injects the opening message as a finalized assistant message after new game variables are written", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    const chatRepository = new DbChatHistoryRepository(client);
+    const variableRepository = new DbVariableRepository(client);
+
+    await client.resetCurrentGameData({
+      now: "2026-09-15T08:20:00.000Z",
+    });
+
+    const engine = new VariableEngine();
+    const current = (await variableRepository.getCurrent()) ?? engine.createInitialState();
+    const result = engine.applyPatchSet({
+      current,
+      envelope: {
+        request_id: "new-game-test",
+        context_version: 1,
+        state_hash: current.stateHash,
+        tool_call_id: "new-game-test-profile",
+        patches: [
+          { path: "player.profile.name", value: "鹿目真昼" },
+          { path: "player.profile.gender", value: "女" },
+        ],
+      },
+    });
+    await variableRepository.saveCurrent(result.next);
+
+    const openingMessage = renderOpeningMessage({
+      playerName: "鹿目真昼",
+      now: "2026-09-15T08:20:30.000Z",
+    });
+    await chatRepository.save(openingMessage);
+
+    const messages = await chatRepository.list();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      id: "msg-opening-ceremony",
+      role: "assistant",
+      kind: "normal",
+      finalized: true,
+      failed: false,
+      provisional: false,
+      user_visible: true,
+      ai_visible: true,
+      created_at: "2026-09-15T08:20:30.000Z",
+    });
+    expect(messages[0].content).toContain("鹿目真昼");
+    expect(messages[0].content).toContain("佐仓真央");
+  });

@@ -5,6 +5,7 @@ import { VariableEngine } from "@/engine/variableEngine";
 import { getChatPersistenceClient } from "@/persistence/chatRuntime";
 import { DbVariableRepository } from "@/persistence/repositories/variableRepository";
 import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
+import { renderOpeningMessage } from "@/content/openingMessage";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { ref } from "vue";
@@ -61,6 +62,12 @@ async function confirmNewGame() {
     });
     await chatStore.configurePersistence({ client: persistenceClient });
     await sessionStore.configurePersistence({ client: persistenceClient });
+    const openingMessage = renderOpeningMessage({
+      playerName: playerName.value.trim(),
+    });
+    const { repository } = chatStore.getActiveChatRuntime();
+    await repository.save(openingMessage);
+    await chatStore.refreshMessages();
   } else {
     chatStore.resetToInMemoryPersistence();
   }

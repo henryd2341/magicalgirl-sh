@@ -1,0 +1,30 @@
+{
+  "import": {
+    "autoGitignore": "ask"
+  },
+  "compile": {
+    "defaultTargets": [
+      "AGENTS.md",
+      "CLAUDE.md"
+    ],
+    "expandImportsInAgents": true,
+    "importPosition": "append",
+    "strictMode": false
+  },
+  "watch": {
+    "autoConvert": true,
+    "defaultIgnore": [
+      "node_modules/**",
+      ".git/**",
+      "dist/**",
+      "build/**",
+      "coverage/**"
+    ],
+    "additionalIgnore": [],
+    "excludeGitignored": true,
+    "onConflict": "ask"
+  },
+  "gitignore": {
+    "recommendIgnoreCompiled": "ask"
+  }
+}
