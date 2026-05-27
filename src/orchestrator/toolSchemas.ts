@@ -9,7 +9,7 @@ import type {
   UpdateVariablesToolInput,
 } from "@/orchestrator/toolEnvelope";
 
-const updateVariablesToolInputSchema = z
+export const updateVariablesToolInputSchema = z
   .object({
     patches: z
       .array(
@@ -24,7 +24,7 @@ const updateVariablesToolInputSchema = z
   })
   .strict();
 
-const triggerBattleToolInputSchema = z
+export const triggerBattleToolInputSchema = z
   .object({
     encounter_id: z.string().min(1),
     enemies: z

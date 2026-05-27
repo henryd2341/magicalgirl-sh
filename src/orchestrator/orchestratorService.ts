@@ -22,6 +22,15 @@ export interface BuildRequestForTurnInput {
   userInput: string;
 }
 
+type ChatMessageLifecyclePort = Pick<
+  ChatMessageService,
+  | "createUserMessage"
+  | "createAssistantProvisionalMessage"
+  | "appendAssistantChunk"
+  | "finalizeAssistantMessage"
+  | "markAssistantFailedDraft"
+>;
+
 export interface OrchestratorIdFactory {
   userMessageId: () => string;
   assistantMessageId: () => string;
@@ -34,7 +43,7 @@ export interface ToolExecutionPort {
 }
 
 export interface OrchestratorServiceDependencies {
-  chatService: ChatMessageService;
+  chatService: ChatMessageLifecyclePort;
   gameEngineFacade: GameEngineFacade;
   providerClient: ProviderClient;
   toolExecutor: ToolExecutionPort | null;
@@ -79,7 +88,7 @@ function wrapToolCall(
 }
 
 export class OrchestratorService {
-  private readonly chatService: ChatMessageService;
+  private readonly chatService: ChatMessageLifecyclePort;
 
   private readonly gameEngineFacade: GameEngineFacade;
 
@@ -219,6 +228,7 @@ export class OrchestratorService {
       if (assistantMessageCreated) {
         await this.chatService.markAssistantFailedDraft({
           messageId: assistantMessageId,
+          errorMessage: error instanceof Error ? error.message : String(error),
         });
       }
       this.gameEngineFacade.enterErrorRecovery();

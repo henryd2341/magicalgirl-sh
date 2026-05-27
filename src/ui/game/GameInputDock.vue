@@ -1,30 +1,19 @@
 <script setup lang="ts">
-import { useChatStore } from "@/stores/chatStore";
+import { useSessionStore } from "@/stores/sessionStore";
 import ChatInputBox from "@/ui/chat/ChatInputBox.vue";
 
-const chatStore = useChatStore();
-
-function createMessageId(): string {
-  const webCrypto = globalThis.crypto;
-
-  if (webCrypto && "randomUUID" in webCrypto) {
-    return webCrypto.randomUUID();
-  }
-
-  return `chat-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
-}
+const sessionStore = useSessionStore();
 
 async function submitMessage(content: string): Promise<void> {
-  await chatStore.createUserMessage({
-    id: createMessageId(),
-    content,
-    createdAt: new Date().toISOString(),
-  });
+  await sessionStore.runStoryTurn(content);
 }
 </script>
 
 <template>
   <section id="game-input-dock" class="game-input-dock">
-    <ChatInputBox @submit-message="submitMessage" />
+    <ChatInputBox
+      :disabled="sessionStore.isStoryTurnRunning"
+      @submit-message="submitMessage"
+    />
   </section>
 </template>

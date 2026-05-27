@@ -27,6 +27,7 @@ export interface FinalizeAssistantMessageInput {
 
 export interface MarkAssistantFailedDraftInput {
   messageId: string;
+  errorMessage?: string;
 }
 
 export interface CreateBattleSummaryMessageInput {
@@ -134,6 +135,10 @@ export class ChatMessageService {
     const updated: ChatMessage = {
       ...message,
       kind: "failed_draft",
+      content:
+        message.content.trim().length > 0 || !input.errorMessage
+          ? message.content
+          : `生成失败：${input.errorMessage}`,
       provisional: false,
       finalized: false,
       failed: true,

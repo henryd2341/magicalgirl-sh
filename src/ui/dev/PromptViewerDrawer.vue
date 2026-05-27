@@ -9,6 +9,7 @@ const isOpen = ref(false);
 const activeTab = ref<ViewerTab>("prompt");
 
 const lastRequest = computed(() => viewerStore.lastRequest);
+const lastProviderInfo = computed(() => viewerStore.lastProviderInfo);
 
 const tabs: Array<{ id: ViewerTab; label: string }> = [
   { id: "prompt", label: "Prompt" },
@@ -98,6 +99,18 @@ function toggleDrawer() {
           <dd>{{ lastRequest.metadata.state_hash }}</dd>
           <dt>issued_at</dt>
           <dd>{{ lastRequest.metadata.issued_at }}</dd>
+          <dt>provider_kind</dt>
+          <dd>{{ lastProviderInfo?.kind ?? "unknown" }}</dd>
+          <dt>provider_profile</dt>
+          <dd>{{ lastProviderInfo?.profileName ?? "unknown" }}</dd>
+          <dt>provider_base_url</dt>
+          <dd>{{ lastProviderInfo?.baseURL ?? "n/a" }}</dd>
+          <dt>provider_model</dt>
+          <dd>{{ lastProviderInfo?.model ?? "n/a" }}</dd>
+          <dt>provider_api_key</dt>
+          <dd>{{ lastProviderInfo?.hasApiKey ? "configured" : "not_configured" }}</dd>
+          <dt>provider_streaming</dt>
+          <dd>{{ lastProviderInfo?.streamingEnabled ? "enabled" : "disabled" }}</dd>
         </dl>
       </template>
     </div>

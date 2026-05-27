@@ -1,4 +1,5 @@
 import AppShell from "@/app/AppShell.vue";
+import ApiSettingsView from "@/pages/ApiSettingsView.vue";
 import MainGameView from "@/pages/MainGameView.vue";
 import NewGameSetupView from "@/pages/NewGameSetupView.vue";
 import SaveExportView from "@/pages/SaveExportView.vue";
@@ -19,6 +20,7 @@ export const router = createRouter({
         { path: "new-game", name: "new-game", component: NewGameSetupView },
         { path: "game", name: "game", component: MainGameView },
         { path: "settings", name: "settings", component: SettingsView },
+        { path: "api-settings", name: "api-settings", component: ApiSettingsView },
         { path: "save-export", name: "save-export", component: SaveExportView },
       ],
     },

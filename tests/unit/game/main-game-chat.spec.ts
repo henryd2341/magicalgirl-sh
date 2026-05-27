@@ -119,6 +119,34 @@ describe("MainGameView chat persistence wiring", () => {
     });
   });
 
+  it("runs a story turn through the configured provider when the player submits chat input", async () => {
+    const endpoint = createInProcessDbWorkerEndpoint(createDbWorkerRuntime());
+    const client = new DbWorkerClient(endpoint);
+    await client.initialize();
+    configureChatPersistenceClient(client);
+
+    await renderMainGameWithFreshPinia();
+
+    const textbox = screen.getByRole("textbox", { name: "故事输入框" });
+    await fireEvent.update(textbox, "调查旧校舍门口的影子。");
+    await fireEvent.click(screen.getByRole("button", { name: "发送讯号" }));
+
+    expect(
+      await screen.findByText("调查旧校舍门口的影子。"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "战斗后的空气慢慢安静下来，新的选择浮现在你面前。",
+      ),
+    ).toBeInTheDocument();
+    expect(usePromptViewerStore().lastProviderInfo).toMatchObject({
+      kind: "fake",
+      profileName: "Fake Provider",
+      hasApiKey: false,
+      streamingEnabled: true,
+    });
+  });
+
   it("routes session variable patches to the db-backed variable repository after mount", async () => {
     const endpoint = createInProcessDbWorkerEndpoint(createDbWorkerRuntime());
     const client = new DbWorkerClient(endpoint);

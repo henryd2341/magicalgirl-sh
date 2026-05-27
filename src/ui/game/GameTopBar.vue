@@ -7,6 +7,10 @@ async function openSettings() {
   await router.push({ name: "settings" });
 }
 
+async function openApiSettings() {
+  await router.push({ name: "api-settings" });
+}
+
 async function openSaveExport() {
   await router.push({ name: "save-export" });
 }
@@ -42,6 +46,14 @@ async function returnToTitle() {
         @click="openSettings"
       >
         设置
+      </button>
+      <button
+        id="game-open-api-settings"
+        class="secondary-cta"
+        type="button"
+        @click="openApiSettings"
+      >
+        API 设置
       </button>
       <button
         id="game-open-save-export"

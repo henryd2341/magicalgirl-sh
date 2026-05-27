@@ -1,4 +1,5 @@
 import MainGameView from "@/pages/MainGameView.vue";
+import ApiSettingsView from "@/pages/ApiSettingsView.vue";
 import NewGameSetupView from "@/pages/NewGameSetupView.vue";
 import SettingsView from "@/pages/SettingsView.vue";
 import SplashScreenView from "@/pages/SplashScreenView.vue";
@@ -23,7 +24,7 @@ describe("application page layering", () => {
     resetChatPersistenceClient();
   });
 
-  it("registers dedicated routes for start, title, new game, main game, settings, and save export", () => {
+  it("registers dedicated routes for start, title, new game, main game, settings, API settings, and save export", () => {
     const routeSummary = router
       .getRoutes()
       .filter((route) => typeof route.name === "string")
@@ -32,6 +33,7 @@ describe("application page layering", () => {
 
     expect(routeSummary).toEqual([
       { name: "start", path: "/" },
+      { name: "api-settings", path: "/api-settings" },
       { name: "game", path: "/game" },
       { name: "new-game", path: "/new-game" },
       { name: "save-export", path: "/save-export" },
@@ -143,6 +145,32 @@ describe("application page layering", () => {
     expect(screen.getByRole("button", { name: "保存 Prompt 设置" }))
       .toHaveAttribute("id", "settings-save-prompt-preset");
     expect(screen.getByText("{{user}}")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "API Provider 设置" }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByLabelText("API Key")).not.toBeInTheDocument();
+  });
+
+  it("renders API provider profile controls on the API settings page", async () => {
+    render(ApiSettingsView, {
+      global: {
+        plugins: [createPinia(), router],
+      },
+    });
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "API Provider 设置" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "新增 Profile" }))
+      .toHaveAttribute("id", "api-settings-add-profile");
+    expect(screen.getByRole("button", { name: "连接测试" }))
+      .toHaveAttribute("id", "api-settings-test-connection");
+    expect(screen.getByRole("button", { name: "获取模型列表" }))
+      .toHaveAttribute("id", "api-settings-fetch-models");
+    expect(screen.getByLabelText("流式生成")).toHaveAttribute(
+      "id",
+      "api-profile-streaming-enabled",
+    );
+    expect(screen.getByText("Fake Provider")).toBeInTheDocument();
   });
 
   it("renders editable world info metadata controls without editing content", async () => {

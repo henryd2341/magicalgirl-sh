@@ -82,6 +82,16 @@ describe("application navigation flow", () => {
       expect(router.currentRoute.value.name).toBe("game");
     });
 
+    await fireEvent.click(screen.getByRole("button", { name: "API 设置" }));
+    await waitFor(() => {
+      expect(router.currentRoute.value.name).toBe("api-settings");
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "返回主游戏" }));
+    await waitFor(() => {
+      expect(router.currentRoute.value.name).toBe("game");
+    });
+
     await fireEvent.click(screen.getByRole("button", { name: "存档导出" }));
     await waitFor(() => {
       expect(router.currentRoute.value.name).toBe("save-export");
@@ -164,6 +174,16 @@ describe("application navigation flow", () => {
     await fireEvent.click(screen.getByRole("button", { name: "设置" }));
     await waitFor(() => {
       expect(router.currentRoute.value.name).toBe("settings");
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "返回主游戏" }));
+    await waitFor(() => {
+      expect(router.currentRoute.value.name).toBe("game");
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "API 设置" }));
+    await waitFor(() => {
+      expect(router.currentRoute.value.name).toBe("api-settings");
     });
 
     await fireEvent.click(screen.getByRole("button", { name: "返回主游戏" }));

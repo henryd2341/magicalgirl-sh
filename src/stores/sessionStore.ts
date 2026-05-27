@@ -10,8 +10,8 @@ import { createSessionManager } from "@/engine/sessionManager";
 import { ensureVariableState } from "@/engine/variableStateBootstrap";
 import { OrchestratorService } from "@/orchestrator/orchestratorService";
 import { buildConfiguredHarnessRequest } from "@/orchestrator/configuredPromptBuilder";
-import { FakeStreamingProviderClient } from "@/orchestrator/providerClient";
 import { getPromptPresetRepository } from "@/orchestrator/promptPreset";
+import { createConfiguredProviderClient } from "@/orchestrator/providerSettings";
 import {
   RecoveryService,
   type RollbackResult,
@@ -61,6 +61,12 @@ function createPostCombatId(prefix: string): string {
     .slice(2, 10)}`;
 }
 
+function createStoryTurnId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random()
+    .toString(16)
+    .slice(2, 10)}`;
+}
+
 function createRecoveryId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random()
     .toString(16)
@@ -81,6 +87,7 @@ export const useSessionStore = defineStore("session", () => {
   });
   let toolExecutor = new ToolExecutor(gameEngineFacade);
   const snapshot = ref(gameEngineFacade.getSessionSnapshot());
+  const isStoryTurnRunning = ref(false);
 
   function createDbRecoveryRepositories(client: DbWorkerClient) {
     return {
@@ -342,6 +349,83 @@ export const useSessionStore = defineStore("session", () => {
     return result;
   }
 
+  async function createStoryOrchestratorService(options: {
+    requestId: string;
+    userMessageId: string;
+    assistantMessageId: string;
+  }): Promise<OrchestratorService> {
+    const chatStore = useChatStore();
+    const chatRuntime = chatStore.getActiveChatRuntime();
+    const configuredProvider = await createConfiguredProviderClient();
+    const repositories = getDbRecoveryRepositories();
+    const battleStore = useBattleStore();
+
+    return new OrchestratorService({
+      chatService: chatStore,
+      gameEngineFacade,
+      providerClient: configuredProvider.client,
+      toolExecutor,
+      checkpointManager: repositories
+        ? createCheckpointManager({
+            ...repositories,
+            getSessionSnapshot: () => gameEngineFacade.getSessionSnapshot(),
+            getPendingBattle: () => battleStore.pendingBattle,
+            getActiveBattle: () => battleStore.activeBattle,
+            idFactory: {
+              checkpointId: () => createRecoveryId("checkpoint"),
+              eventId: () => createRecoveryId("event"),
+            },
+          })
+        : undefined,
+      eventLogRepository: repositories?.eventLogRepository,
+      async buildRequest(input) {
+        const request = await buildConfiguredHarnessRequest({
+          ...input,
+          chatRepository: chatRuntime.repository,
+          variableRepository,
+          worldInfoRepository,
+          promptPresetRepository: getPromptPresetRepository(),
+          requestId: options.requestId,
+          now: new Date().toISOString(),
+        });
+        usePromptViewerStore().record(request, configuredProvider.providerInfo);
+        return request;
+      },
+      idFactory: {
+        userMessageId: () => options.userMessageId,
+        assistantMessageId: () => options.assistantMessageId,
+      },
+      now: () => new Date().toISOString(),
+    });
+  }
+
+  async function runStoryTurn(userInput: string) {
+    const chatStore = useChatStore();
+    isStoryTurnRunning.value = true;
+
+    try {
+      const orchestratorService = await createStoryOrchestratorService({
+        requestId: createStoryTurnId("story-turn"),
+        userMessageId: createStoryTurnId("msg-story-user"),
+        assistantMessageId: createStoryTurnId("msg-story-assistant"),
+      });
+
+      const result = await orchestratorService.runUserTurn({
+        userInput,
+        userVisible: true,
+        aiVisible: true,
+      });
+
+      await chatStore.refreshMessages();
+      snapshot.value = gameEngineFacade.getSessionSnapshot();
+      await persistRuntimeSnapshot();
+
+      return result;
+    } finally {
+      isStoryTurnRunning.value = false;
+    }
+  }
+
   async function continuePostCombatStory() {
     if (snapshot.value.sessionState !== "POST_COMBAT_READY") {
       throw new Error(
@@ -350,32 +434,10 @@ export const useSessionStore = defineStore("session", () => {
     }
 
     const chatStore = useChatStore();
-    const chatRuntime = chatStore.getActiveChatRuntime();
-    const requestId = createPostCombatId("post-combat-continue");
-    const orchestratorService = new OrchestratorService({
-      chatService: chatRuntime.service,
-      gameEngineFacade,
-      providerClient: new FakeStreamingProviderClient({}),
-      toolExecutor,
-      async buildRequest(input) {
-        const request = await buildConfiguredHarnessRequest({
-          ...input,
-          chatRepository: chatRuntime.repository,
-          variableRepository,
-          worldInfoRepository,
-          promptPresetRepository: getPromptPresetRepository(),
-          requestId,
-          now: new Date().toISOString(),
-        });
-        usePromptViewerStore().record(request);
-        return request;
-      },
-      idFactory: {
-        userMessageId: () => createPostCombatId("msg-post-combat-user"),
-        assistantMessageId: () =>
-          createPostCombatId("msg-post-combat-assistant"),
-      },
-      now: () => new Date().toISOString(),
+    const orchestratorService = await createStoryOrchestratorService({
+      requestId: createPostCombatId("post-combat-continue"),
+      userMessageId: createPostCombatId("msg-post-combat-user"),
+      assistantMessageId: createPostCombatId("msg-post-combat-assistant"),
     });
 
     const result = await orchestratorService.runUserTurn({
@@ -503,6 +565,7 @@ export const useSessionStore = defineStore("session", () => {
 
   return {
     snapshot,
+    isStoryTurnRunning,
     configurePersistence,
     beginAiRequest,
     executeUpdateVariables,
@@ -511,6 +574,7 @@ export const useSessionStore = defineStore("session", () => {
     startBattle,
     cancelPendingBattle,
     completeActiveBattle,
+    runStoryTurn,
     continuePostCombatStory,
     refreshSnapshot,
     markIdleCheckpointForRefreshRecovery,

@@ -185,6 +185,58 @@ describe("OrchestratorService", () => {
     );
   });
 
+  it("writes a visible failed draft message when the provider fails before streaming text", async () => {
+    const chatRepository = new InMemoryChatHistoryRepository();
+    const chatService = new ChatMessageService(chatRepository);
+    const variableRepository = new InMemoryVariableRepository();
+    await variableRepository.saveCurrent(new VariableEngine().createInitialState());
+    const facade = new GameEngineFacade(createSessionManager(), {
+      variableRepository,
+      variableChangeLogRepository: new InMemoryVariableChangeLogRepository(),
+    });
+
+    const service = new OrchestratorService({
+      chatService,
+      gameEngineFacade: facade,
+      providerClient: new FakeStreamingProviderClient({
+        textChunks: [],
+        error: new TypeError("Failed to fetch"),
+      }),
+      toolExecutor: null,
+      buildRequest(input) {
+        return buildHarnessRequest({
+          ...input,
+          chatRepository,
+          variableRepository,
+          worldInfoRepository: new InMemoryWorldInfoRepository(),
+          systemPrompt: "stable system",
+          requestId: "req-orchestrator-fetch-failure",
+          contextVersion: 1,
+          now: "2026-05-27T12:20:00.000Z",
+        });
+      },
+      idFactory: {
+        userMessageId: () => "msg-user-fetch-failure",
+        assistantMessageId: () => "msg-assistant-fetch-failure",
+      },
+      now: () => "2026-05-27T12:20:00.000Z",
+    });
+
+    const result = await service.runUserTurn({
+      userInput: "继续。",
+    });
+
+    const failedDraft = await chatRepository.getById(
+      "msg-assistant-fetch-failure",
+    );
+    expect(result.ok).toBe(false);
+    expect(failedDraft).toMatchObject({
+      kind: "failed_draft",
+      content: "生成失败：Failed to fetch",
+      failed: true,
+    });
+  });
+
   it("wraps provider tool calls with the current Harness metadata before executing them", async () => {
     const chatRepository = new InMemoryChatHistoryRepository();
     const chatService = new ChatMessageService(chatRepository);

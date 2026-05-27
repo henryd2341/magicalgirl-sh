@@ -7,6 +7,7 @@ const menuItems = [
   { id: "splash-start-new-game", label: "开始新游戏", routeName: "new-game" },
   { id: "splash-continue-game", label: "继续游戏", routeName: "game" },
   { id: "splash-open-settings", label: "设置", routeName: "settings" },
+  { id: "splash-open-api-settings", label: "API 设置", routeName: "api-settings" },
   {
     id: "splash-open-save-export",
     label: "存档导出",
