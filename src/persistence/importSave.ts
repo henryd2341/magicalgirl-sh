@@ -1,8 +1,11 @@
+import { syncPlayerGenderWorldInfoActivation } from "@/content/worldInfoActivation";
 import type { DbWorkerClient } from "@/persistence/dbClient";
 import {
   FULL_SAVE_EXPORT_FORMAT,
   type FullSaveExportV1,
 } from "@/persistence/exportSave";
+import { DbVariableRepository } from "@/persistence/repositories/variableRepository";
+import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
 import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 
@@ -152,6 +155,10 @@ export async function restoreFullSaveSlot(
   }
 
   await input.client.replaceFullSaveData(slot.payload.data);
+  await syncPlayerGenderWorldInfoActivation({
+    variableRepository: new DbVariableRepository(input.client),
+    worldInfoRepository: new DbWorldInfoRepository(input.client),
+  });
 
   return {
     ok: true,

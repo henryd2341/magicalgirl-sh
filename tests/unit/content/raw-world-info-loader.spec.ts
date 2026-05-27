@@ -10,6 +10,7 @@ describe("raw world info loader", () => {
   it("builds deterministic world info entries from raw entry modules", () => {
     const entries = buildRawWorldInfoEntries({
       "../../raw_entries/M.A.S.C.O.T.txt": "<MASCOT>\n星偶基础资料。",
+      "../../raw_entries/角色速览.txt": "{{user}}\n青井霞\n国津燕",
       "../../raw_entries/世界观基础.txt": "<worldview>\n弓川市与虫洞异常。",
       "../../raw_entries/青井霞.txt": "<青井霞_Information>\n青井霞角色档案。",
     });
@@ -20,6 +21,14 @@ describe("raw world info loader", () => {
         keywords: expect.arrayContaining(["世界观基础", "worldview"]),
         content: "<worldview>\n弓川市与虫洞异常。",
         priority: 1000,
+        enabled: true,
+        isConstant: true,
+      }),
+      expect.objectContaining({
+        id: "raw_entries/角色速览",
+        keywords: expect.arrayContaining(["角色速览"]),
+        content: "{{user}}\n青井霞\n国津燕",
+        priority: 995,
         enabled: true,
         isConstant: true,
       }),
@@ -42,6 +51,7 @@ describe("raw world info loader", () => {
     ]);
     expect(RAW_WORLD_INFO_CONSTANT_IDS).toEqual([
       "raw_entries/世界观基础",
+      "raw_entries/角色速览",
       "raw_entries/M.A.S.C.O.T",
     ]);
   });

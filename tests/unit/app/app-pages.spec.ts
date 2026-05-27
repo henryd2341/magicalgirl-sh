@@ -92,6 +92,14 @@ describe("application page layering", () => {
       "id",
       "new-game-player-name",
     );
+    expect(screen.getByLabelText("女")).toHaveAttribute(
+      "id",
+      "new-game-player-gender-female",
+    );
+    expect(screen.getByLabelText("男")).toHaveAttribute(
+      "id",
+      "new-game-player-gender-male",
+    );
     expect(
       screen.getByRole("button", { name: "确认并进入主游戏" }),
     ).toHaveAttribute("id", "new-game-confirm-start");
@@ -196,6 +204,7 @@ describe("application page layering", () => {
 
     expect(await screen.findByText("raw_entries/世界观基础")).toBeInTheDocument();
     expect(screen.getByLabelText("raw_entries/世界观基础 常驻")).toBeChecked();
+    expect(screen.getByLabelText("raw_entries/世界观基础 启用")).toBeChecked();
     expect(screen.getByLabelText("raw_entries/世界观基础 关键词")).toHaveValue(
       "弓川市",
     );

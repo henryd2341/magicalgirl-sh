@@ -85,4 +85,30 @@ describe("persistence bootstrap", () => {
       ]),
     );
   });
+
+  it("applies gender-specific raw world info activation during persistence startup", async () => {
+    const endpoint = createInProcessDbWorkerEndpoint(createDbWorkerRuntime());
+    const client = new DbWorkerClient(endpoint);
+    await client.initialize();
+    const variableState = new VariableEngine().createInitialState();
+    variableState.root.player.profile.gender = "男";
+    await new DbVariableRepository(client).saveCurrent(variableState);
+
+    const result = await initializePersistentChatRuntime({ endpoint });
+
+    await expect(
+      new DbWorldInfoRepository(result.client).list(),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "raw_entries/男user",
+          enabled: true,
+        }),
+        expect.objectContaining({
+          id: "raw_entries/女user",
+          enabled: false,
+        }),
+      ]),
+    );
+  });
 });

@@ -1,6 +1,7 @@
 import {
   syncRawWorldInfoEntries,
 } from "@/content/rawWorldInfoLoader";
+import { syncPlayerGenderWorldInfoActivation } from "@/content/worldInfoActivation";
 import {
   configureChatPersistenceClient,
   getChatPersistenceClient,
@@ -49,7 +50,13 @@ export async function initializePersistentChatRuntime(
   await ensureVariableState(new DbVariableRepository(client), {
     now: input.now,
   });
-  await syncRawWorldInfoEntries(new DbWorldInfoRepository(client));
+  const variableRepository = new DbVariableRepository(client);
+  const worldInfoRepository = new DbWorldInfoRepository(client);
+  await syncRawWorldInfoEntries(worldInfoRepository);
+  await syncPlayerGenderWorldInfoActivation({
+    variableRepository,
+    worldInfoRepository,
+  });
   configureChatPersistenceClient(client);
 
   return {

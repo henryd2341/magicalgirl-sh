@@ -11,6 +11,7 @@ import {
 } from "@/persistence/dbClient";
 import { DbChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
 import { DbVariableRepository } from "@/persistence/repositories/variableRepository";
+import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
 import { router } from "@/router";
 import { createDbWorkerRuntime } from "@/workers/db.worker";
 import { fireEvent, render, screen, waitFor } from "@testing-library/vue";
@@ -248,12 +249,14 @@ describe("SaveExportView", () => {
     const pinia = createPinia();
     setActivePinia(pinia);
     const chatRepository = new DbChatHistoryRepository(client);
+    const worldInfoRepository = new DbWorldInfoRepository(client);
     const variableValue = {
       ...new VariableEngine().createInitialState(),
       rootId: "root-ui-restored",
       stateHash: "hash-ui-restored",
       updatedAt: "2026-05-25T11:01:00.000Z",
     };
+    variableValue.root.player.profile.gender = "男";
     const payload: FullSaveExportV1 = {
       format: "magicalgirl-sh.full-save-export",
       version: 1,
@@ -317,7 +320,24 @@ describe("SaveExportView", () => {
         ],
         variableValue,
         variableChangeLog: [],
-        worldInfo: [],
+        worldInfo: [
+          {
+            id: "raw_entries/男user",
+            keywords: ["男user"],
+            content: "男性主角档案。",
+            priority: 500,
+            enabled: false,
+            isConstant: false,
+          },
+          {
+            id: "raw_entries/女user",
+            keywords: ["女user"],
+            content: "女性主角档案。",
+            priority: 500,
+            enabled: true,
+            isConstant: false,
+          },
+        ],
       },
     };
 
@@ -360,6 +380,18 @@ describe("SaveExportView", () => {
       ).toBeInTheDocument();
       expect(screen.getAllByText(/checkpoint-ui-restored/).length).toBeGreaterThan(
         0,
+      );
+      await expect(worldInfoRepository.list()).resolves.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "raw_entries/男user",
+            enabled: true,
+          }),
+          expect.objectContaining({
+            id: "raw_entries/女user",
+            enabled: false,
+          }),
+        ]),
       );
     });
   });

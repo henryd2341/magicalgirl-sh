@@ -209,6 +209,60 @@ describe("full save import slots", () => {
     expect(await worldInfoRepository.list()).toEqual(payload.data.worldInfo);
   });
 
+  it("syncs gender-exclusive world info entries after restoring an imported save slot", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    const worldInfoRepository = new DbWorldInfoRepository(client);
+    const payload = createImportPayload();
+
+    payload.data.variableValue!.root.player.profile.gender = "男";
+    payload.data.worldInfo = [
+      {
+        id: "raw_entries/男user",
+        keywords: ["男user"],
+        content: "男性主角档案。",
+        priority: 500,
+        enabled: false,
+        isConstant: false,
+      },
+      {
+        id: "raw_entries/女user",
+        keywords: ["女user"],
+        content: "女性主角档案。",
+        priority: 500,
+        enabled: true,
+        isConstant: false,
+      },
+    ];
+
+    await importFullSaveToSlot({
+      client,
+      jsonText: JSON.stringify(payload),
+      sourceFileName: "gender-activation-save.json",
+      idFactory: {
+        slotId: () => "slot-gender-activation",
+      },
+      now: () => "2026-05-25T08:06:00.000Z",
+    });
+
+    await restoreFullSaveSlot({ client, slotId: "slot-gender-activation" });
+
+    await expect(worldInfoRepository.list()).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "raw_entries/男user",
+          enabled: true,
+        }),
+        expect.objectContaining({
+          id: "raw_entries/女user",
+          enabled: false,
+        }),
+      ]),
+    );
+  });
+
   it("rejects malformed save JSON without creating a slot", async () => {
     const client = new DbWorkerClient(
       createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),

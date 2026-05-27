@@ -8,6 +8,7 @@ import {
   createInProcessDbWorkerEndpoint,
 } from "@/persistence/dbClient";
 import { DbChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
+import { DbVariableRepository } from "@/persistence/repositories/variableRepository";
 import { createDbWorkerRuntime } from "@/workers/db.worker";
 import { router } from "@/router";
 import { fireEvent, render, screen, waitFor } from "@testing-library/vue";
@@ -155,6 +156,11 @@ describe("application navigation flow", () => {
 
     await renderApplicationAt("/new-game");
 
+    await fireEvent.update(
+      screen.getByLabelText("角色姓名"),
+      "弓川悠真",
+    );
+    await fireEvent.click(screen.getByLabelText("男"));
     await fireEvent.click(
       screen.getByRole("button", { name: "确认并进入主游戏" }),
     );
@@ -166,6 +172,17 @@ describe("application navigation flow", () => {
       ).not.toBeInTheDocument();
     });
     await expect(client.listChatMessages()).resolves.toEqual([]);
+    await expect(new DbVariableRepository(client).getCurrent()).resolves
+      .toMatchObject({
+        root: {
+          player: {
+            profile: {
+              name: "弓川悠真",
+              gender: "男",
+            },
+          },
+        },
+      });
   });
 
   it("opens settings and save export from the main game top bar", async () => {

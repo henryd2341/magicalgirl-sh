@@ -209,6 +209,54 @@ describe("buildHarnessRequest", () => {
     );
   });
 
+  it("syncs gender-specific world info activation before selecting context", async () => {
+    const chatRepository = new InMemoryChatHistoryRepository();
+    const variableRepository = new InMemoryVariableRepository();
+    const variableState = new VariableEngine().createInitialState();
+    variableState.root.player.profile.gender = "男";
+    await variableRepository.saveCurrent(variableState);
+
+    const worldInfoRepository = new InMemoryWorldInfoRepository();
+    await worldInfoRepository.save({
+      id: "raw_entries/男user",
+      keywords: ["主角"],
+      content: "男性主角档案。",
+      priority: 500,
+      enabled: false,
+      isConstant: false,
+    });
+    await worldInfoRepository.save({
+      id: "raw_entries/女user",
+      keywords: ["主角"],
+      content: "女性主角档案。",
+      priority: 500,
+      enabled: true,
+      isConstant: false,
+    });
+
+    const request = await buildHarnessRequest({
+      chatRepository,
+      variableRepository,
+      worldInfoRepository,
+      systemPrompt: "stable",
+      userInput: "请检查主角状态。",
+      requestId: "req-gender-world-info",
+      contextVersion: 29,
+      now: "2026-05-27T15:00:00.000Z",
+      budget: createDefaultContextBudget(),
+    });
+
+    expect(request.promptText).toContain("男性主角档案。");
+    expect(request.promptText).not.toContain("女性主角档案。");
+    expect(request.traces).toContainEqual(
+      expect.objectContaining({
+        sourceId: "raw_entries/女user",
+        included: false,
+        reason: "disabled",
+      }),
+    );
+  });
+
   it("increments context versions and preserves the current variable state hash", async () => {
     const chatRepository = new InMemoryChatHistoryRepository();
     const worldInfoRepository = new InMemoryWorldInfoRepository();

@@ -9,11 +9,13 @@ const rawEntryModules = import.meta.glob<string>("../../raw_entries/*.txt", {
 
 export const RAW_WORLD_INFO_CONSTANT_IDS = [
   "raw_entries/世界观基础",
+  "raw_entries/角色速览",
   "raw_entries/M.A.S.C.O.T",
 ] as const;
 
 const constantPriorityById = new Map<string, number>([
   ["raw_entries/世界观基础", 1000],
+  ["raw_entries/角色速览", 995],
   ["raw_entries/M.A.S.C.O.T", 990],
 ]);
 

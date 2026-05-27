@@ -1,4 +1,5 @@
 import { VariableEngine } from "@/engine/variableEngine";
+import { syncPlayerGenderWorldInfoActivation } from "@/content/worldInfoActivation";
 import { applyContextBudget } from "@/orchestrator/contextBudget";
 import { serializeVariableSnapshot } from "@/orchestrator/contextSerializer";
 import { renderMustacheTemplate } from "@/orchestrator/mustacheTemplate";
@@ -206,6 +207,11 @@ export async function buildHarnessRequest(
     input.chatRepository.list(),
     getCurrentVariables(input.variableRepository),
   ]);
+  await syncPlayerGenderWorldInfoActivation({
+    variableRepository: input.variableRepository,
+    worldInfoRepository: input.worldInfoRepository,
+    variableState,
+  });
 
   const historyMessages = selectHistory(messages);
   const searchableText = `${input.userInput}\n${historyMessages

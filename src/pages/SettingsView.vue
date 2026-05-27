@@ -256,6 +256,17 @@ onMounted(async () => {
               {{ entry.id }} 常驻
             </label>
             <label
+              class="chat-input-box__label settings-view__checkbox-label"
+              :for="`world-info-${index}-enabled`"
+            >
+              <input
+                :id="`world-info-${index}-enabled`"
+                v-model="entry.enabled"
+                type="checkbox"
+              />
+              {{ entry.id }} 启用
+            </label>
+            <label
               class="chat-input-box__label"
               :for="`world-info-${index}-keywords`"
             >
