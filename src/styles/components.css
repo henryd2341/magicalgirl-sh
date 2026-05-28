@@ -180,6 +180,46 @@
   font-size: 1rem;
 }
 
+.chat-message-card__reasoning-fold {
+  margin-bottom: var(--space-3);
+  border-left: 3px solid var(--accent-blue);
+  padding-left: var(--space-3);
+}
+
+.chat-message-card__reasoning-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.chat-message-card__reasoning-toggle:hover {
+  color: var(--accent-blue);
+}
+
+.chat-message-card__reasoning-label {
+  font-weight: 700;
+}
+
+.chat-message-card__reasoning-count {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.chat-message-card__reasoning-content {
+  margin: var(--space-2) 0 0;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono, "Cascadia Code", "Fira Code", monospace);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
 .prompt-viewer-drawer {
   margin-inline: var(--space-8);
   padding: var(--space-4);

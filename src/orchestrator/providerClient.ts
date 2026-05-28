@@ -7,6 +7,7 @@ import type {
 
 export interface ProviderStreamCallbacks {
   onTextChunk: (chunk: string) => Promise<void> | void;
+  onReasoningChunk?: (chunk: string) => Promise<void> | void;
 }
 
 export interface ProviderStreamResult {

@@ -27,6 +27,7 @@ type ChatMessageLifecyclePort = Pick<
   | "createUserMessage"
   | "createAssistantProvisionalMessage"
   | "appendAssistantChunk"
+  | "appendAssistantReasoning"
   | "finalizeAssistantMessage"
   | "markAssistantFailedDraft"
 >;
@@ -178,6 +179,12 @@ export class OrchestratorService {
       const streamResult = await this.providerClient.stream(request, {
         onTextChunk: async (chunk) => {
           await this.chatService.appendAssistantChunk({
+            messageId: assistantMessageId,
+            chunk,
+          });
+        },
+        onReasoningChunk: async (chunk) => {
+          await this.chatService.appendAssistantReasoning({
             messageId: assistantMessageId,
             chunk,
           });

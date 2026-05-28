@@ -1,5 +1,6 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText, streamText, tool, type ModelMessage } from "ai";
+import { generateText, streamText, type ModelMessage } from "ai";
+import { createHarnessTools } from "@/orchestrator/harnessTools";
 
 import type {
   BuiltProviderRequest,
@@ -10,10 +11,6 @@ import type {
   ProviderStreamCallbacks,
   ProviderStreamResult,
 } from "@/orchestrator/providerClient";
-import {
-  triggerBattleToolInputSchema,
-  updateVariablesToolInputSchema,
-} from "@/orchestrator/toolSchemas";
 
 export interface AiSdkProviderClientConfig {
   providerName: string;
@@ -23,6 +20,7 @@ export interface AiSdkProviderClientConfig {
   temperature?: number;
   maxOutputTokens?: number;
   streamingEnabled?: boolean;
+  reasoningEffort?: "low" | "medium" | "high";
 }
 
 function normalizeFinishReason(
@@ -51,21 +49,6 @@ function toToolName(toolName: string): ProviderToolCallCandidate["tool_name"] {
   throw new Error(
     `[AI_SDK_PROVIDER_TOOL_UNSUPPORTED] Unsupported tool call: ${toolName}.`,
   );
-}
-
-function createHarnessTools() {
-  return {
-    update_variables: tool({
-      description:
-        "Apply one or more variable patches after the story state changes.",
-      inputSchema: updateVariablesToolInputSchema,
-    }),
-    trigger_battle: tool({
-      description:
-        "Request a pending battle encounter using the frozen trigger_battle contract.",
-      inputSchema: triggerBattleToolInputSchema,
-    }),
-  };
 }
 
 function toToolCallCandidate(toolCall: {
@@ -105,6 +88,15 @@ export class AiSdkProviderClient implements ProviderClient {
       tools: createHarnessTools(),
       temperature: this.config.temperature,
       maxOutputTokens: this.config.maxOutputTokens,
+      ...(this.config.reasoningEffort
+        ? {
+            providerOptions: {
+              [this.config.providerName]: {
+                reasoningEffort: this.config.reasoningEffort,
+              },
+            },
+          }
+        : {}),
     };
 
     if (this.config.streamingEnabled === false) {
@@ -149,6 +141,10 @@ export class AiSdkProviderClient implements ProviderClient {
 
       if (streamPart.type === "text" && streamPart.text !== undefined) {
         await callbacks.onTextChunk(streamPart.text);
+      }
+
+      if (streamPart.type === "reasoning" && streamPart.text !== undefined) {
+        await callbacks.onReasoningChunk?.(streamPart.text);
       }
 
       if (streamPart.type === "tool-call") {

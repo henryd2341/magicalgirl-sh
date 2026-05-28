@@ -20,6 +20,11 @@ export interface AppendAssistantChunkInput {
   chunk: string;
 }
 
+export interface AppendAssistantReasoningInput {
+  messageId: string;
+  chunk: string;
+}
+
 export interface FinalizeAssistantMessageInput {
   messageId: string;
   commitAck: boolean;
@@ -99,6 +104,21 @@ export class ChatMessageService {
     const updated: ChatMessage = {
       ...message,
       content: `${message.content}${input.chunk}`,
+    };
+
+    await this.repository.save(updated);
+    return updated;
+  }
+
+  public async appendAssistantReasoning(
+    input: AppendAssistantReasoningInput,
+  ): Promise<ChatMessage> {
+    const message = await this.requireMessage(input.messageId);
+    const prev = message.reasoning ?? "";
+
+    const updated: ChatMessage = {
+      ...message,
+      reasoning: `${prev}${input.chunk}`,
     };
 
     await this.repository.save(updated);

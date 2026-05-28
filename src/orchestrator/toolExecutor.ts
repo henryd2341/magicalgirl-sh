@@ -4,6 +4,10 @@ import {
   type ToolCallExecutionLedger,
 } from "@/engine/idempotencyService";
 import {
+  createHarnessToolExecutors,
+  type HarnessToolExecutors,
+} from "@/orchestrator/harnessTools";
+import {
   type ToolEnvelope,
   type ToolEnvelopeCandidate,
   type ToolExecutionError,
@@ -12,8 +16,6 @@ import {
   type TriggerBattleToolResult,
   type UpdateVariablesToolEnvelope,
   type UpdateVariablesToolResult,
-  toTriggerBattleCommandPayload,
-  toVariablePatchEnvelope,
 } from "@/orchestrator/toolEnvelope";
 import { validateToolEnvelope } from "@/orchestrator/toolSchemas";
 
@@ -31,6 +33,7 @@ type ToolExecutorResult<TEnvelope extends ToolEnvelopeCandidate> =
 
 export interface ToolExecutorDependencies {
   idempotencyLedger?: ToolCallExecutionLedger;
+  harnessExecutors?: HarnessToolExecutors;
   now?: () => string;
 }
 
@@ -63,6 +66,8 @@ export class ToolExecutor {
 
   private readonly now: () => string;
 
+  private readonly harnessExecutors: HarnessToolExecutors;
+
   public constructor(
     gameEngineFacade: GameEngineFacade,
     dependencies: ToolExecutorDependencies = {},
@@ -70,6 +75,13 @@ export class ToolExecutor {
     this.gameEngineFacade = gameEngineFacade;
     this.idempotencyLedger =
       dependencies.idempotencyLedger ?? new InMemoryToolCallExecutionLedger();
+    this.harnessExecutors =
+      dependencies.harnessExecutors ??
+      createHarnessToolExecutors({
+        dispatchCommand: this.gameEngineFacade.dispatchCommand.bind(
+          this.gameEngineFacade,
+        ),
+      });
     this.now = dependencies.now ?? (() => new Date().toISOString());
   }
 
@@ -82,43 +94,34 @@ export class ToolExecutor {
 
       switch (validatedEnvelope.tool_name) {
         case "update_variables": {
-          const result = await this.gameEngineFacade.dispatchCommand({
-            type: "APPLY_VARIABLE_PATCH",
-            envelope: toVariablePatchEnvelope(validatedEnvelope),
-          });
-
-          const executionResult: UpdateVariablesToolResult = {
-            ok: true,
-            tool_name: "update_variables",
+          const result = await this.harnessExecutors.update_variables.execute({
             tool_call_id: validatedEnvelope.tool_call_id,
-            commitAck: true,
-            output: {
-              next: result.next,
-              nextHash: result.nextHash,
+            input: validatedEnvelope.input,
+            envelope: {
+              request_id: validatedEnvelope.request_id,
+              context_version: validatedEnvelope.context_version,
+              state_hash: validatedEnvelope.state_hash,
             },
-          };
+          });
 
           await this.recordSuccessfulExecution(validatedEnvelope);
 
-          return executionResult as ToolExecutorResult<TEnvelope>;
+          return result as ToolExecutorResult<TEnvelope>;
         }
         case "trigger_battle": {
-          const result = await this.gameEngineFacade.dispatchCommand({
-            type: "TRIGGER_BATTLE",
-            payload: toTriggerBattleCommandPayload(validatedEnvelope),
-          });
-
-          const executionResult: TriggerBattleToolResult = {
-            ok: true,
-            tool_name: "trigger_battle",
+          const result = await this.harnessExecutors.trigger_battle.execute({
             tool_call_id: validatedEnvelope.tool_call_id,
-            commitAck: true,
-            output: result,
-          };
+            input: validatedEnvelope.input,
+            envelope: {
+              request_id: validatedEnvelope.request_id,
+              context_version: validatedEnvelope.context_version,
+              state_hash: validatedEnvelope.state_hash,
+            },
+          });
 
           await this.recordSuccessfulExecution(validatedEnvelope);
 
-          return executionResult as ToolExecutorResult<TEnvelope>;
+          return result as ToolExecutorResult<TEnvelope>;
         }
       }
     } catch (error) {

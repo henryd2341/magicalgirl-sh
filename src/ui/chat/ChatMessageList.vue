@@ -1,9 +1,24 @@
 <script setup lang="ts">
 import type { ChatMessage } from "@/types/chat";
+import { ref } from "vue";
 
 const props = defineProps<{
   messages: ChatMessage[];
 }>();
+
+const expandedReasoning = ref<Record<string, boolean>>({});
+
+function toggleReasoning(messageId: string): void {
+  expandedReasoning.value[messageId] = !expandedReasoning.value[messageId];
+}
+
+function isReasoningExpanded(messageId: string): boolean {
+  return expandedReasoning.value[messageId] ?? false;
+}
+
+function reasoningCharCount(message: ChatMessage): number {
+  return message.reasoning ? message.reasoning.length : 0;
+}
 
 function getStatusLabel(message: ChatMessage): string {
   if (message.failed) {
@@ -59,6 +74,26 @@ function getRoleLabel(message: ChatMessage): string {
           'chat-message-card--provisional': message.provisional,
         }"
       >
+        <div
+          v-if="message.role === 'assistant' && message.reasoning"
+          class="chat-message-card__reasoning-fold"
+        >
+          <button
+            class="chat-message-card__reasoning-toggle"
+            type="button"
+            :aria-expanded="isReasoningExpanded(message.id)"
+            @click="toggleReasoning(message.id)"
+          >
+            <span class="chat-message-card__reasoning-label">思考过程</span>
+            <span class="chat-message-card__reasoning-count">{{ reasoningCharCount(message) }} 字</span>
+          </button>
+          <p
+            v-if="isReasoningExpanded(message.id)"
+            class="chat-message-card__reasoning-content"
+          >
+            {{ message.reasoning }}
+          </p>
+        </div>
         <div class="chat-message-card__meta">
           <span class="stat-chip">{{ getRoleLabel(message) }}</span>
           <span

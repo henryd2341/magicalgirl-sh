@@ -512,4 +512,44 @@ describe("buildHarnessRequest", () => {
     expect(systemSegment?.content).toBe("user=显式姓名");
     expect(systemSegment?.content).not.toContain("变量树姓名");
   });
+
+  it("includes self-documenting tool descriptions with writable/read-only/hidden paths and envelope guide", async () => {
+    const request = await buildHarnessRequest({
+      chatRepository: new InMemoryChatHistoryRepository(),
+      variableRepository: new InMemoryVariableRepository(),
+      worldInfoRepository: new InMemoryWorldInfoRepository(),
+      systemPrompt: "stable",
+      userInput: "检查工具描述。",
+      requestId: "req-tool-descriptions",
+      contextVersion: 21,
+      now: "2026-05-28T10:00:00.000Z",
+    });
+
+    const toolsSegment = request.segments.find(
+      (segment) => segment.id === "tools",
+    );
+    expect(toolsSegment).toBeDefined();
+    const toolsContent = toolsSegment!.content;
+
+    expect(toolsContent).toContain("tool: update_variables");
+    expect(toolsContent).toContain("tool: trigger_battle");
+    expect(toolsContent).toContain("Writable paths");
+    expect(toolsContent).toContain("Read-only");
+    expect(toolsContent).toContain("Hidden");
+    expect(toolsContent).toContain("combat.level");
+    expect(toolsContent).toContain("combat.hp");
+    expect(toolsContent).toContain("player.money");
+    expect(toolsContent).toContain("player.relationships");
+    expect(toolsContent).toContain("inventory.items");
+    expect(toolsContent).toContain("encounter_id");
+    expect(toolsContent).toContain("narrative_reason");
+    expect(toolsContent).toContain("modifiers");
+    expect(toolsContent).toContain("player.profile.gender");
+
+    expect(toolsContent).toContain("Tool Call Envelope Guide");
+    expect(toolsContent).toContain("request_id");
+    expect(toolsContent).toContain("state_hash");
+    expect(toolsContent).toContain("tool_call_id");
+    expect(toolsContent).toContain("issued_at");
+  });
 });

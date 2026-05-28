@@ -23,6 +23,7 @@ export interface ProviderProfile {
   temperature: number;
   maxOutputTokens: number;
   streamingEnabled: boolean;
+  reasoningEffort?: "low" | "medium" | "high";
   builtIn: boolean;
   updatedAt: string;
 }
@@ -36,6 +37,7 @@ export interface ProviderProfileInput {
   temperature: number;
   maxOutputTokens: number;
   streamingEnabled: boolean;
+  reasoningEffort?: "low" | "medium" | "high";
 }
 
 export interface ProviderSettingsState {
@@ -117,6 +119,7 @@ function normalizeProfile(
     temperature: normalizeNumber(profile.temperature, 0.7),
     maxOutputTokens: normalizeNumber(profile.maxOutputTokens, 1024),
     streamingEnabled: profile.streamingEnabled,
+    reasoningEffort: profile.reasoningEffort,
     builtIn: profile.builtIn,
     updatedAt,
   };
@@ -204,6 +207,7 @@ function createProfileFromInput(input: {
       temperature: input.profile.temperature,
       maxOutputTokens: input.profile.maxOutputTokens,
       streamingEnabled: input.profile.streamingEnabled,
+      reasoningEffort: input.profile.reasoningEffort,
       builtIn: input.builtIn,
       updatedAt: input.updatedAt,
     },
@@ -527,6 +531,7 @@ export async function createConfiguredProviderClient(
       temperature: profile.temperature,
       maxOutputTokens: profile.maxOutputTokens,
       streamingEnabled: profile.streamingEnabled,
+      reasoningEffort: profile.reasoningEffort,
     }),
     providerInfo: toPromptViewerProviderInfo(profile),
   };

@@ -1,5 +1,6 @@
 import {
   ChatMessageService,
+  type AppendAssistantReasoningInput,
   type AppendAssistantChunkInput,
   type CreateBattleSummaryMessageInput,
   type CreateAssistantProvisionalMessageInput,
@@ -66,6 +67,11 @@ export const useChatStore = defineStore("chat", {
     },
     async appendAssistantChunk(payload: AppendAssistantChunkInput) {
       const message = await activeService.appendAssistantChunk(payload);
+      this.messages = await listMessages();
+      return message;
+    },
+    async appendAssistantReasoning(payload: AppendAssistantReasoningInput) {
+      const message = await activeService.appendAssistantReasoning(payload);
       this.messages = await listMessages();
       return message;
     },

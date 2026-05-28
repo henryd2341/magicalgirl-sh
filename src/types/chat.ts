@@ -8,6 +8,7 @@ export interface ChatMessage {
   kind: ChatMessageKind;
   summary_level?: ChatBattleSummaryLevel;
   content: string;
+  reasoning?: string;
   user_visible: boolean;
   ai_visible: boolean;
   provisional: boolean;

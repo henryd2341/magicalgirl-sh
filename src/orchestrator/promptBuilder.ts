@@ -135,30 +135,95 @@ function createToolDefinitions(): ProviderToolDefinition[] {
   return [
     {
       name: "update_variables",
-      description:
-        "Apply whitelisted variable patches through the local Game Engine. The model cannot directly mutate state.",
+      description: [
+        "Apply one or more variable patches to change game state.",
+        "Each patch has a \"path\" (where to write) and a \"value\" (what to write).",
+        "",
+        "=== Writable paths ===",
+        "",
+        "-- Basic profile (name/age/gender NOT visible in state snapshot) --",
+        "  player.profile.name        string            e.g. \"鹿目真昼\"",
+        "  player.profile.age         integer           e.g. 16",
+        "  player.profile.gender      \"男\" | \"女\"       e.g. \"女\"",
+        "  player.money               number (>=0)      e.g. 150  — visible in snapshot",
+        "",
+        "-- World (only displayText & name visible in state snapshot) --",
+        "  world.time.displayText     string            e.g. \"9月16日 周三 下午\"",
+        "  world.time.dayIndex        integer           e.g. 2",
+        "  world.time.timeSlot        string            e.g. \"下午\"",
+        "  world.location.id          string            e.g. \"school_rooftop\"",
+        "  world.location.name        string            e.g. \"天台\"",
+        "  world.location.description string            e.g. \"午后的天台空无一人，风很大。\"",
+        "",
+        "-- Flags (NOT visible in snapshot; use as narrative markers) --",
+        "  world.flags.<flag_name>     boolean           e.g. world.flags.storm_warning = true",
+        "  player.flags.<flag_name>    boolean           e.g. player.flags.isNewTransfer = false",
+        "",
+        "-- Relationships (NOT visible in snapshot; range 0-100) --",
+        "  player.relationships.<id>   integer (0-100)   e.g. player.relationships[\"佐仓真央\"] = 60",
+        "",
+        "-- Inventory (items visible in snapshot; battleItems NOT visible) --",
+        "  inventory.items.<item_id>        positive integer  e.g. inventory.items.potion = 3",
+        "  inventory.battleItems.<item_id>  positive integer  must NOT exceed inventory.items.<item_id>",
+        "",
+        "=== Read-only (visible in state snapshot, do NOT patch) ===",
+        "  combat.level, combat.hp (current/max), combat.mp (current/max), combat.attack,",
+        "  combat.defense, combat.agility, combat.intelligence — managed by battle engine",
+        "",
+        "=== Hidden (not visible, not writable) ===",
+        "  equipment, affairs, characters — managed by engine only",
+        "",
+        "Input: { \"patches\": [{ \"path\": \"...\", \"value\": ... }] }",
+        "Example: { \"patches\": [{ \"path\": \"player.money\", \"value\": 200 }, { \"path\": \"player.flags.helped_cat\", \"value\": true }] }",
+      ].join("\n"),
       envelopeFields: ENVELOPE_FIELDS,
     },
     {
       name: "trigger_battle",
-      description:
-        "Request a story-mode battle using local enemy ids only. The local engine validates and resolves combat.",
+      description: [
+        "Initiate a combat encounter. Places the game into pending battle state.",
+        "",
+        "Fields:",
+        "  encounter_id (string) — Unique identifier for this encounter, e.g. \"encounter_rooftop_shade\"",
+        "  enemies (array) — [{ \"enemy_id\": string, \"count\": integer >=1 }]",
+        "    enemy_id: enemy type identifier",
+        "    count: how many of this type",
+        "  modifiers (string[], optional) — Battle conditions, e.g. [\"ambush\", \"midnight\", \"first_battle\"]",
+        "  narrative_reason (string) — Why this battle is happening in the story",
+        "",
+        "Example:",
+        "  { \"encounter_id\": \"encounter_classroom_shade\", \"enemies\": [{ \"enemy_id\": \"shade_student\", \"count\": 1 }], \"modifiers\": [\"first_battle\"], \"narrative_reason\": \"一只暗影生物从虫洞出现，袭击了教室\" }",
+      ].join("\n"),
       envelopeFields: ENVELOPE_FIELDS,
     },
   ];
 }
 
+function renderEnvelopeGuide(): string {
+  return [
+    "=== Tool Call Envelope Guide ===",
+    "Every tool call must include these fields:",
+    "  request_id      — Copy from Harness Request metadata. Do not invent.",
+    "  context_version — Copy from Harness Request metadata.",
+    "  state_hash      — Copy from the Game State Snapshot. Must match exactly or the call is rejected.",
+    "  tool_call_id    — Generate a unique id. Format: call-<description>-<suffix>",
+    "  tool_name       — One of the available tool names. Must match exactly.",
+    "  input           — Tool-specific input object. See each tool's description for schema.",
+    "  issued_at       — ISO 8601 timestamp. Optional.",
+  ].join("\n");
+}
+
 function renderToolDefinitions(tools: ProviderToolDefinition[]): string {
-  return tools
-    .map(
-      (tool) =>
-        [
-          `tool: ${tool.name}`,
-          `description: ${tool.description}`,
-          `envelope: ${tool.envelopeFields.join(", ")}`,
-        ].join("\n"),
-    )
-    .join("\n\n");
+  const sections = tools.map(
+    (tool) =>
+      [
+        `tool: ${tool.name}`,
+        `description: ${tool.description}`,
+        `envelope: ${tool.envelopeFields.join(", ")}`,
+      ].join("\n"),
+  );
+
+  return [...sections, renderEnvelopeGuide()].join("\n\n");
 }
 
 function buildMessages(

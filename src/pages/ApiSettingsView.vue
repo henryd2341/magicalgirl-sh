@@ -29,6 +29,7 @@ const form = reactive({
   temperature: 0.7,
   maxOutputTokens: 1024,
   streamingEnabled: true,
+  reasoningEffort: "medium" as "low" | "medium" | "high" | undefined,
   builtIn: true,
 });
 
@@ -49,6 +50,7 @@ function applyProfile(profile: ProviderProfile): void {
   form.temperature = profile.temperature;
   form.maxOutputTokens = profile.maxOutputTokens;
   form.streamingEnabled = profile.streamingEnabled;
+  form.reasoningEffort = profile.reasoningEffort;
   form.builtIn = profile.builtIn;
 }
 
@@ -84,6 +86,7 @@ async function addProfile(): Promise<void> {
     temperature: 0.7,
     maxOutputTokens: 1024,
     streamingEnabled: true,
+    reasoningEffort: "medium",
   });
   await repository.setActiveProfile(profile.id);
   statusMessage.value = "Profile 已创建。";
@@ -105,6 +108,7 @@ async function saveCurrentProfile(): Promise<void> {
     temperature: Number(form.temperature),
     maxOutputTokens: Number(form.maxOutputTokens),
     streamingEnabled: form.streamingEnabled,
+    reasoningEffort: form.reasoningEffort,
   });
   statusMessage.value = "API Provider 设置已保存。";
   await refreshState();
@@ -138,6 +142,7 @@ function buildCurrentProfile(): ProviderProfile {
     temperature: Number(form.temperature),
     maxOutputTokens: Number(form.maxOutputTokens),
     streamingEnabled: form.streamingEnabled,
+    reasoningEffort: form.reasoningEffort,
     builtIn: form.builtIn,
     updatedAt: activeProfile.value?.updatedAt ?? new Date().toISOString(),
   };
@@ -294,6 +299,23 @@ onMounted(refreshState);
               :disabled="isBuiltInProfile"
             />
             流式生成
+          </label>
+          <label
+            v-if="form.kind === 'openai-compatible'"
+            class="chat-input-box__label"
+            for="api-profile-reasoning-effort"
+          >
+            Reasoning Effort
+            <select
+              id="api-profile-reasoning-effort"
+              v-model="form.reasoningEffort"
+              class="settings-view__text-input"
+              :disabled="isBuiltInProfile"
+            >
+              <option value="low">low</option>
+              <option value="medium">medium</option>
+              <option value="high">high</option>
+            </select>
           </label>
         </div>
 

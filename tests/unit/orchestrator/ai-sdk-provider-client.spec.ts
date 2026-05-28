@@ -286,4 +286,45 @@ describe("AiSdkProviderClient", () => {
       ],
     });
   });
+
+  it("passes enhanced tool descriptions with writable/read-only/hidden paths to the AI SDK", async () => {
+    aiSdkMocks.streamText.mockReturnValue({
+      fullStream: streamParts([
+        { type: "text", text: "ok" },
+        { type: "finish", finishReason: "stop" },
+      ]),
+    });
+
+    const client = new AiSdkProviderClient({
+      providerName: "gateway",
+      baseURL: "https://api.example.test/v1",
+      model: "story-model",
+      apiKey: "secret-key",
+    });
+
+    await client.stream(createRequest(), { onTextChunk: vi.fn() });
+
+    const streamTextCall = aiSdkMocks.streamText.mock.calls[0][0];
+    const tools = streamTextCall.tools as Record<string, { description: string }>;
+
+    expect(tools).toBeDefined();
+
+    const updateDesc = tools.update_variables.description;
+    expect(updateDesc).toContain("Writable paths");
+    expect(updateDesc).toContain("Read-only");
+    expect(updateDesc).toContain("Hidden");
+    expect(updateDesc).toContain("combat.level");
+    expect(updateDesc).toContain("player.money");
+    expect(updateDesc).toContain("player.relationships");
+    expect(updateDesc).toContain("inventory.items");
+    expect(updateDesc).toContain("equipment");
+    expect(updateDesc).toContain("characters");
+
+    const battleDesc = tools.trigger_battle.description;
+    expect(battleDesc).toContain("encounter_id");
+    expect(battleDesc).toContain("enemies");
+    expect(battleDesc).toContain("modifiers");
+    expect(battleDesc).toContain("narrative_reason");
+    expect(battleDesc).toContain("first_battle");
+  });
 });
