@@ -13,6 +13,8 @@ import { OrchestratorService } from "@/orchestrator/orchestratorService";
 import { buildConfiguredHarnessRequest } from "@/orchestrator/configuredPromptBuilder";
 import { getPromptPresetRepository } from "@/orchestrator/promptPreset";
 import { createConfiguredProviderClient } from "@/orchestrator/providerSettings";
+import { getProviderSettingsRepository } from "@/orchestrator/providerSettings";
+import { createConfiguredSummaryProviderClient } from "@/orchestrator/providerSettings";
 import {
   RecoveryService,
   type RollbackResult,
@@ -402,9 +404,6 @@ export const useSessionStore = defineStore("session", () => {
     });
   }
 
-  const SUMMARY_TRIGGER_MESSAGE_COUNT = 15;
-  const SUMMARY_OLD_RATIO = 0.5;
-
   async function maybeSummarizeHistory() {
     const chatStore = useChatStore();
     const messages = await chatStore.getActiveChatRuntime().repository.list();
@@ -412,11 +411,23 @@ export const useSessionStore = defineStore("session", () => {
       (m) => m.ai_visible && m.finalized && m.kind !== "context_summary",
     );
 
-    if (visibleMessages.length < SUMMARY_TRIGGER_MESSAGE_COUNT) {
+    const settingsRepo = getProviderSettingsRepository();
+    const settings = await settingsRepo.getState();
+
+    if (!settings.summaryEnabled) {
       return;
     }
 
-    const splitIndex = Math.floor(visibleMessages.length * SUMMARY_OLD_RATIO);
+    const estimatedTokens = visibleMessages.reduce(
+      (total, m) => total + Math.max(1, Math.ceil(m.content.length / 4)),
+      0,
+    );
+
+    if (estimatedTokens < settings.summaryTokenThreshold) {
+      return;
+    }
+
+    const splitIndex = Math.floor(visibleMessages.length * settings.summaryOldRatio);
     const oldMessages = visibleMessages.slice(0, splitIndex);
 
     if (oldMessages.length < 3) {
@@ -428,7 +439,7 @@ export const useSessionStore = defineStore("session", () => {
       (m) => m.kind === "context_summary" && m.finalized,
     );
 
-    const configuredProvider = await createConfiguredProviderClient();
+    const configuredProvider = await createConfiguredSummaryProviderClient();
     const summarizer = new ConversationSummarizer({
       providerClient: configuredProvider.client,
     });

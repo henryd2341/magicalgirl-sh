@@ -44,6 +44,10 @@ export interface ProviderProfileInput {
 export interface ProviderSettingsState {
   activeProfileId: string;
   profiles: ProviderProfile[];
+  summaryProfileId: string | null;
+  summaryEnabled: boolean;
+  summaryTokenThreshold: number;
+  summaryOldRatio: number;
 }
 
 export interface PromptViewerProviderInfo {
@@ -68,6 +72,8 @@ export interface ProviderSettingsRepository {
   setActiveProfile(profileId: string): Promise<void>;
   clearApiKey(profileId: string): Promise<void>;
   resetToDefault(): Promise<ProviderSettingsState>;
+  setSummaryProfile(profileId: string | null): Promise<void>;
+  updateSummaryConfig(patch: { summaryEnabled?: boolean; summaryTokenThreshold?: number; summaryOldRatio?: number }): Promise<void>;
 }
 
 export interface ProviderSettingsRepositoryOptions {
@@ -148,6 +154,10 @@ function normalizeState(
   return {
     activeProfileId,
     profiles: nextProfiles,
+    summaryProfileId: state.summaryProfileId ?? null,
+    summaryEnabled: state.summaryEnabled ?? true,
+    summaryTokenThreshold: state.summaryTokenThreshold ?? 4000,
+    summaryOldRatio: state.summaryOldRatio ?? 0.5,
   };
 }
 
@@ -175,6 +185,10 @@ export function createDefaultProviderSettingsState(
   return {
     activeProfileId: BUILTIN_FAKE_PROFILE_ID,
     profiles: [createBuiltInFakeProviderProfile(now)],
+    summaryProfileId: null,
+    summaryEnabled: true,
+    summaryTokenThreshold: 4000,
+    summaryOldRatio: 0.5,
   };
 }
 
@@ -278,6 +292,10 @@ function migrateV1Config(
   return {
     activeProfileId: migratedProfile.id,
     profiles: [state.profiles[0], migratedProfile],
+    summaryProfileId: null,
+    summaryEnabled: true,
+    summaryTokenThreshold: 4000,
+    summaryOldRatio: 0.5,
   };
 }
 
@@ -359,6 +377,7 @@ export class InMemoryProviderSettingsRepository
       (candidate) => candidate.id !== profileId,
     );
     this.state = {
+      ...state,
       activeProfileId:
         state.activeProfileId === profileId
           ? BUILTIN_FAKE_PROFILE_ID
@@ -383,6 +402,26 @@ export class InMemoryProviderSettingsRepository
   public async resetToDefault(): Promise<ProviderSettingsState> {
     this.state = createDefaultProviderSettingsState(this.now());
     return deepClone(this.state);
+  }
+
+  public async setSummaryProfile(profileId: string | null): Promise<void> {
+    const state = await this.getState();
+    if (profileId !== null) {
+      findProfileOrThrow(state, profileId);
+    }
+    this.state = { ...state, summaryProfileId: profileId };
+  }
+
+  public async updateSummaryConfig(
+    patch: { summaryEnabled?: boolean; summaryTokenThreshold?: number; summaryOldRatio?: number },
+  ): Promise<void> {
+    const state = await this.getState();
+    this.state = {
+      ...state,
+      summaryEnabled: patch.summaryEnabled ?? state.summaryEnabled,
+      summaryTokenThreshold: patch.summaryTokenThreshold ?? state.summaryTokenThreshold,
+      summaryOldRatio: patch.summaryOldRatio ?? state.summaryOldRatio,
+    };
   }
 }
 
@@ -479,6 +518,7 @@ export class LocalStorageProviderSettingsRepository
     }
 
     await this.saveState({
+      ...state,
       activeProfileId:
         state.activeProfileId === profileId
           ? BUILTIN_FAKE_PROFILE_ID
@@ -503,6 +543,46 @@ export class LocalStorageProviderSettingsRepository
     await this.saveState(state);
     return deepClone(state);
   }
+
+  public override async setSummaryProfile(profileId: string | null): Promise<void> {
+    const state = await this.getState();
+    if (profileId !== null) {
+      findProfileOrThrow(state, profileId);
+    }
+    await this.saveState({ ...state, summaryProfileId: profileId });
+  }
+
+  public override async updateSummaryConfig(
+    patch: { summaryEnabled?: boolean; summaryTokenThreshold?: number; summaryOldRatio?: number },
+  ): Promise<void> {
+    const state = await this.getState();
+    await this.saveState({
+      ...state,
+      summaryEnabled: patch.summaryEnabled ?? state.summaryEnabled,
+      summaryTokenThreshold: patch.summaryTokenThreshold ?? state.summaryTokenThreshold,
+      summaryOldRatio: patch.summaryOldRatio ?? state.summaryOldRatio,
+    });
+  }
+}
+
+export async function createConfiguredSummaryProviderClient(
+  repository: ProviderSettingsRepository = getProviderSettingsRepository(),
+): Promise<ConfiguredProviderClient> {
+  const state = await repository.getState();
+
+  if (state.summaryProfileId) {
+    const profile = state.profiles.find((p) => p.id === state.summaryProfileId);
+    if (profile) {
+      return createConfiguredProviderClient(
+        {
+          getActiveProfile: async () => profile,
+        } as ProviderSettingsRepository,
+      );
+    }
+  }
+
+  // Fall back to active profile
+  return createConfiguredProviderClient(repository);
 }
 
 export async function createConfiguredProviderClient(

@@ -64,6 +64,7 @@ async function refreshState(): Promise<void> {
   if (nextActiveProfile) {
     applyProfile(nextActiveProfile);
   }
+  loadSummaryConfig(state.value);
 }
 
 async function returnToGame(): Promise<void> {
@@ -166,6 +167,38 @@ async function fetchModels(): Promise<void> {
 
 function chooseModel(modelId: string): void {
   form.model = modelId;
+}
+
+// ---- Summary Settings ----
+
+const summaryForm = reactive({
+  enabled: true,
+  profileId: null as string | null,
+  tokenThreshold: 4000,
+  oldRatio: 0.5,
+});
+
+function loadSummaryConfig(settings: ProviderSettingsState): void {
+  summaryForm.enabled = settings.summaryEnabled;
+  summaryForm.profileId = settings.summaryProfileId;
+  summaryForm.tokenThreshold = settings.summaryTokenThreshold;
+  summaryForm.oldRatio = settings.summaryOldRatio;
+}
+
+async function saveSummaryEnabled(): Promise<void> {
+  await repository.updateSummaryConfig({ summaryEnabled: summaryForm.enabled });
+}
+
+async function saveSummaryProfile(): Promise<void> {
+  await repository.setSummaryProfile(summaryForm.profileId);
+}
+
+async function saveSummaryThreshold(): Promise<void> {
+  await repository.updateSummaryConfig({ summaryTokenThreshold: summaryForm.tokenThreshold });
+}
+
+async function saveSummaryRatio(): Promise<void> {
+  await repository.updateSummaryConfig({ summaryOldRatio: summaryForm.oldRatio });
 }
 
 onMounted(refreshState);
@@ -380,6 +413,68 @@ onMounted(refreshState);
           </button>
         </div>
       </form>
+
+      <!-- Summary Settings -->
+      <section class="settings-view__summary">
+        <h2>Summary Settings</h2>
+
+        <label class="settings-view__toggle">
+          <input
+            id="summary-enabled-toggle"
+            v-model="summaryForm.enabled"
+            type="checkbox"
+            @change="saveSummaryEnabled"
+          />
+          Enable auto-summarization
+        </label>
+
+        <div class="settings-view__field">
+          <label for="summary-provider-select">Summary Provider</label>
+          <select
+            id="summary-provider-select"
+            v-model="summaryForm.profileId"
+            :disabled="!summaryForm.enabled"
+            @change="saveSummaryProfile"
+          >
+            <option :value="null">Use Active Provider (default)</option>
+            <option
+              v-for="profile in state.profiles.filter((p) => p.kind !== 'fake')"
+              :key="profile.id"
+              :value="profile.id"
+            >
+              {{ profile.name }} ({{ profile.model }})
+            </option>
+          </select>
+        </div>
+
+        <div class="settings-view__field">
+          <label for="summary-token-threshold">Token Threshold: {{ summaryForm.tokenThreshold }}</label>
+          <input
+            id="summary-token-threshold"
+            v-model.number="summaryForm.tokenThreshold"
+            type="range"
+            min="1000"
+            max="16000"
+            step="500"
+            :disabled="!summaryForm.enabled"
+            @change="saveSummaryThreshold"
+          />
+        </div>
+
+        <div class="settings-view__field">
+          <label for="summary-old-ratio">Old Ratio: {{ Math.round(summaryForm.oldRatio * 100) }}%</label>
+          <input
+            id="summary-old-ratio"
+            v-model.number="summaryForm.oldRatio"
+            type="range"
+            min="0.2"
+            max="0.8"
+            step="0.05"
+            :disabled="!summaryForm.enabled"
+            @change="saveSummaryRatio"
+          />
+        </div>
+      </section>
 
       <div class="settings-view__actions">
         <button
