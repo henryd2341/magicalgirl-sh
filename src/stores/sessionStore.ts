@@ -1,5 +1,6 @@
 import { BattleResultService } from "@/engine/battleResultService";
 import { RuntimePersistenceService } from "@/engine/runtimePersistenceService";
+import { ConversationSummarizer } from "@/engine/conversationSummarizer";
 import {
   CombatRefreshRecoveryService,
   type CombatRefreshRecoveryResult,
@@ -356,7 +357,10 @@ export const useSessionStore = defineStore("session", () => {
   }): Promise<OrchestratorService> {
     const chatStore = useChatStore();
     const chatRuntime = chatStore.getActiveChatRuntime();
-    const configuredProvider = await createConfiguredProviderClient();
+    const configuredProvider = await createConfiguredProviderClient(
+      undefined,
+      { dispatchCommand: gameEngineFacade.dispatchCommand.bind(gameEngineFacade) },
+    );
     const repositories = getDbRecoveryRepositories();
     const battleStore = useBattleStore();
 
@@ -364,7 +368,6 @@ export const useSessionStore = defineStore("session", () => {
       chatService: chatStore,
       gameEngineFacade,
       providerClient: configuredProvider.client,
-      toolExecutor,
       checkpointManager: repositories
         ? createCheckpointManager({
             ...repositories,
@@ -399,6 +402,66 @@ export const useSessionStore = defineStore("session", () => {
     });
   }
 
+  const SUMMARY_TRIGGER_MESSAGE_COUNT = 15;
+  const SUMMARY_OLD_RATIO = 0.5;
+
+  async function maybeSummarizeHistory() {
+    const chatStore = useChatStore();
+    const messages = await chatStore.getActiveChatRuntime().repository.list();
+    const visibleMessages = messages.filter(
+      (m) => m.ai_visible && m.finalized && m.kind !== "context_summary",
+    );
+
+    if (visibleMessages.length < SUMMARY_TRIGGER_MESSAGE_COUNT) {
+      return;
+    }
+
+    const splitIndex = Math.floor(visibleMessages.length * SUMMARY_OLD_RATIO);
+    const oldMessages = visibleMessages.slice(0, splitIndex);
+
+    if (oldMessages.length < 3) {
+      return;
+    }
+
+    // Find previous summary if any, for progressive merging.
+    const previousSummary = messages.find(
+      (m) => m.kind === "context_summary" && m.finalized,
+    );
+
+    const configuredProvider = await createConfiguredProviderClient();
+    const summarizer = new ConversationSummarizer({
+      providerClient: configuredProvider.client,
+    });
+
+    const providerMessages = oldMessages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+    const summary = await summarizer.summarize({
+      messages: providerMessages,
+      previousSummary: previousSummary?.content,
+    });
+
+    if (!summary) {
+      return;
+    }
+
+    // Mark summarized messages as not ai_visible so the summary replaces them in AI context.
+    for (const msg of oldMessages) {
+      await chatStore.getActiveChatRuntime().repository.save({
+        ...msg,
+        ai_visible: false,
+      });
+    }
+
+    await chatStore.createContextSummaryMessage({
+      id: createStoryTurnId("ctx-summary"),
+      content: summary,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
   async function runStoryTurn(userInput: string) {
     const chatStore = useChatStore();
     isStoryTurnRunning.value = true;
@@ -419,6 +482,11 @@ export const useSessionStore = defineStore("session", () => {
       await chatStore.refreshMessages();
       snapshot.value = gameEngineFacade.getSessionSnapshot();
       await persistRuntimeSnapshot();
+
+      // Trigger summarization asynchronously — failure is non-fatal.
+      maybeSummarizeHistory().catch((err) => {
+        console.warn("[sessionStore] Summarization skipped:", err);
+      });
 
       return result;
     } finally {
@@ -449,6 +517,10 @@ export const useSessionStore = defineStore("session", () => {
     await chatStore.refreshMessages();
     snapshot.value = gameEngineFacade.getSessionSnapshot();
     await persistRuntimeSnapshot();
+
+    maybeSummarizeHistory().catch((err) => {
+      console.warn("[sessionStore] Summarization skipped:", err);
+    });
 
     return result;
   }

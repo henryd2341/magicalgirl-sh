@@ -6,7 +6,8 @@ export type PromptSegmentKind =
   | "world_info"
   | "state"
   | "tools"
-  | "history";
+  | "history"
+  | "summary";
 
 export interface PromptSegment {
   id: string;

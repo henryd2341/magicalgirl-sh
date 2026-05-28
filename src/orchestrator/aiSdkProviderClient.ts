@@ -1,11 +1,11 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText, streamText, type ModelMessage } from "ai";
-import { createHarnessTools } from "@/orchestrator/harnessTools";
+import { generateText, stepCountIs, streamText, type ModelMessage } from "ai";
 
-import type {
-  BuiltProviderRequest,
-  ProviderToolCallCandidate,
-} from "@/orchestrator/harnessContextTypes";
+import type { BuiltProviderRequest } from "@/orchestrator/harnessContextTypes";
+import {
+  createHarnessToolsWithExecute,
+  type HarnessToolExecutorDeps,
+} from "@/orchestrator/harnessTools";
 import type {
   ProviderClient,
   ProviderStreamCallbacks,
@@ -21,17 +21,13 @@ export interface AiSdkProviderClientConfig {
   maxOutputTokens?: number;
   streamingEnabled?: boolean;
   reasoningEffort?: "low" | "medium" | "high";
+  harnessDeps: HarnessToolExecutorDeps;
 }
 
 function normalizeFinishReason(
   finishReason: string | undefined,
-  toolCalls: ProviderToolCallCandidate[],
 ): ProviderStreamResult["finishReason"] {
-  if (finishReason === "tool-calls" || toolCalls.length > 0) {
-    return "tool_calls";
-  }
-
-  return "stop";
+  return finishReason === "tool-calls" ? "tool_calls" : "stop";
 }
 
 function toModelMessages(request: BuiltProviderRequest): ModelMessage[] {
@@ -39,28 +35,6 @@ function toModelMessages(request: BuiltProviderRequest): ModelMessage[] {
     role: message.role,
     content: message.content,
   }));
-}
-
-function toToolName(toolName: string): ProviderToolCallCandidate["tool_name"] {
-  if (toolName === "update_variables" || toolName === "trigger_battle") {
-    return toolName;
-  }
-
-  throw new Error(
-    `[AI_SDK_PROVIDER_TOOL_UNSUPPORTED] Unsupported tool call: ${toolName}.`,
-  );
-}
-
-function toToolCallCandidate(toolCall: {
-  toolName?: string;
-  toolCallId?: string;
-  input?: unknown;
-}): ProviderToolCallCandidate {
-  return {
-    tool_name: toToolName(toolCall.toolName ?? ""),
-    tool_call_id: toolCall.toolCallId ?? "",
-    input: toolCall.input,
-  };
 }
 
 export class AiSdkProviderClient implements ProviderClient {
@@ -82,10 +56,21 @@ export class AiSdkProviderClient implements ProviderClient {
           ? this.config.apiKey
           : undefined,
     });
+
+    const toolsWithExecute = createHarnessToolsWithExecute(
+      this.config.harnessDeps,
+      {
+        requestId: request.metadata.request_id,
+        contextVersion: request.metadata.context_version,
+        stateHash: request.metadata.state_hash,
+      },
+    );
+
     const modelOptions = {
       model: provider(this.config.model),
       messages: toModelMessages(request),
-      tools: createHarnessTools(),
+      tools: toolsWithExecute,
+      stopWhen: stepCountIs(5),
       temperature: this.config.temperature,
       maxOutputTokens: this.config.maxOutputTokens,
       ...(this.config.reasoningEffort
@@ -99,8 +84,29 @@ export class AiSdkProviderClient implements ProviderClient {
         : {}),
     };
 
+    const toolResults: ProviderStreamResult["toolResults"] = [];
+
     if (this.config.streamingEnabled === false) {
-      const result = (await generateText(modelOptions)) as {
+      const result = (await generateText({
+        ...modelOptions,
+        onStepFinish: (event) => {
+          for (const tc of event.toolCalls) {
+            const tr = event.toolResults.find(
+              (r) => r.toolCallId === tc.toolCallId,
+            );
+            toolResults.push({
+              tool_name: tc.toolName,
+              tool_call_id: tc.toolCallId,
+              ok: !("error" in (tr ?? {})),
+              output: tr && "output" in tr ? tr.output : undefined,
+              error:
+                tr && "error" in tr
+                  ? String(tr.error)
+                  : undefined,
+            });
+          }
+        },
+      })) as {
         text?: string;
         finishReason?: string;
         toolCalls?: Array<{
@@ -109,20 +115,38 @@ export class AiSdkProviderClient implements ProviderClient {
           input?: unknown;
         }>;
       };
-      const toolCalls = (result.toolCalls ?? []).map(toToolCallCandidate);
 
       if (result.text && result.text.length > 0) {
         await callbacks.onTextChunk(result.text);
       }
 
       return {
-        finishReason: normalizeFinishReason(result.finishReason, toolCalls),
-        toolCalls,
+        finishReason: normalizeFinishReason(result.finishReason),
+        toolResults,
       };
     }
 
-    const result = streamText(modelOptions);
-    const toolCalls: ProviderToolCallCandidate[] = [];
+    const result = streamText({
+      ...modelOptions,
+      onStepFinish: (event) => {
+        for (const tc of event.toolCalls) {
+          const tr = event.toolResults.find(
+            (r) => r.toolCallId === tc.toolCallId,
+          );
+          toolResults.push({
+            tool_name: tc.toolName,
+            tool_call_id: tc.toolCallId,
+            ok: !("error" in (tr ?? {})),
+            output: tr && "output" in tr ? tr.output : undefined,
+            error:
+              tr && "error" in tr
+                ? String(tr.error)
+                : undefined,
+          });
+        }
+      },
+    });
+
     let finishReason: string | undefined;
 
     for await (const part of result.fullStream) {
@@ -147,10 +171,6 @@ export class AiSdkProviderClient implements ProviderClient {
         await callbacks.onReasoningChunk?.(streamPart.text);
       }
 
-      if (streamPart.type === "tool-call") {
-        toolCalls.push(toToolCallCandidate(streamPart));
-      }
-
       if (streamPart.type === "finish") {
         finishReason = streamPart.finishReason;
       }
@@ -162,8 +182,8 @@ export class AiSdkProviderClient implements ProviderClient {
     }
 
     return {
-      finishReason: normalizeFinishReason(finishReason, toolCalls),
-      toolCalls,
+      finishReason: normalizeFinishReason(finishReason),
+      toolResults,
     };
   }
 }

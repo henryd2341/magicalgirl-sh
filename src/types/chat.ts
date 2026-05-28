@@ -1,5 +1,5 @@
 export type ChatMessageRole = "user" | "assistant" | "system";
-export type ChatMessageKind = "normal" | "battle_summary" | "failed_draft";
+export type ChatMessageKind = "normal" | "battle_summary" | "failed_draft" | "context_summary";
 export type ChatBattleSummaryLevel = "verbose" | "default" | "minimal";
 
 export interface ChatMessage {

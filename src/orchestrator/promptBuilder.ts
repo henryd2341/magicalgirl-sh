@@ -45,7 +45,7 @@ let nextContextVersion = 1;
 
 export function createDefaultContextBudget(): ContextBudget {
   return {
-    maxTotalTokens: 6000,
+    maxTotalTokens: 100000,
   };
 }
 
@@ -87,8 +87,30 @@ function selectHistory(
   messages: ChatMessage[],
 ): ChatMessage[] {
   return sortMessagesByCreatedAt(
-    messages.filter((message) => isAiVisibleFinalized(message)),
+    messages.filter(
+      (message) =>
+        isAiVisibleFinalized(message) && message.kind !== "context_summary",
+    ),
   );
+}
+
+function selectConversationSummaries(
+  messages: ChatMessage[],
+): ChatMessage[] {
+  return sortMessagesByCreatedAt(
+    messages.filter(
+      (message) => message.kind === "context_summary" && message.finalized,
+    ),
+  );
+}
+
+function renderConversationSummary(messages: ChatMessage[]): string {
+  if (messages.length === 0) {
+    return "";
+  }
+  // Only use the most recent summary for progressive merging
+  const latest = messages[messages.length - 1];
+  return latest.content;
 }
 
 function renderHistory(messages: ChatMessage[]): string {
@@ -132,48 +154,52 @@ const ENVELOPE_FIELDS: EnvelopeField[] = [
 ];
 
 function createToolDefinitions(): ProviderToolDefinition[] {
+function describeVariablePaths(): string {
+  const writable = [
+    "player.money",
+    "player.profile.name (string)",
+    "player.profile.gender (male|female)",
+    "player.profile.age (integer)",
+    "player.flags.* (boolean)",
+    "player.relationships.<character_id> (integer 0-100)",
+    "world.time.displayText (string)",
+    "world.time.timeSlot (string)",
+    "world.time.dayIndex (integer)",
+    "world.location.id (string)",
+    "world.location.name (string)",
+    "world.location.description (string)",
+    "world.flags.* (boolean)",
+    "inventory.items.<item_id> (quantity)",
+    "inventory.battleItems.<item_id> (quantity)",
+  ].join("\n  ");
+
+  const readOnly = [
+    "combat.level",
+    "combat.hp",
+    "combat.mp",
+    "combat.exp",
+    "characters.* (NPC info)",
+  ].join("\n  ");
+
+  return ["=== Path Visibility ===", "Writable paths (you may update via update_variables):", "  " + writable, "", "Read-only (visible in snapshot, do NOT update):", "  " + readOnly, "", "Hidden: system.*, stateHash, schemaVersion are never shown."].join("\n");
+}
+
+  const pathGuide = describeVariablePaths();
+
   return [
     {
       name: "update_variables",
       description: [
-        "Apply one or more variable patches to change game state.",
-        "Each patch has a \"path\" (where to write) and a \"value\" (what to write).",
+        "Update one or more game variables. Only use the Writable paths listed below.",
+        "The update is validated against JSON Schema and path whitelists. Invalid patches are rejected atomically.",
         "",
-        "=== Writable paths ===",
+        "Fields:",
+        "  patches (array) - [{ \"path\": string, \"value\": any }]",
+        "    path: dot-separated path into the variable tree, e.g. \"player.flags.helped_cat\"",
+        "    value: new value for that path (type must match)",
         "",
-        "-- Basic profile (name/age/gender NOT visible in state snapshot) --",
-        "  player.profile.name        string            e.g. \"鹿目真昼\"",
-        "  player.profile.age         integer           e.g. 16",
-        "  player.profile.gender      \"男\" | \"女\"       e.g. \"女\"",
-        "  player.money               number (>=0)      e.g. 150  — visible in snapshot",
+        pathGuide,
         "",
-        "-- World (only displayText & name visible in state snapshot) --",
-        "  world.time.displayText     string            e.g. \"9月16日 周三 下午\"",
-        "  world.time.dayIndex        integer           e.g. 2",
-        "  world.time.timeSlot        string            e.g. \"下午\"",
-        "  world.location.id          string            e.g. \"school_rooftop\"",
-        "  world.location.name        string            e.g. \"天台\"",
-        "  world.location.description string            e.g. \"午后的天台空无一人，风很大。\"",
-        "",
-        "-- Flags (NOT visible in snapshot; use as narrative markers) --",
-        "  world.flags.<flag_name>     boolean           e.g. world.flags.storm_warning = true",
-        "  player.flags.<flag_name>    boolean           e.g. player.flags.isNewTransfer = false",
-        "",
-        "-- Relationships (NOT visible in snapshot; range 0-100) --",
-        "  player.relationships.<id>   integer (0-100)   e.g. player.relationships[\"佐仓真央\"] = 60",
-        "",
-        "-- Inventory (items visible in snapshot; battleItems NOT visible) --",
-        "  inventory.items.<item_id>        positive integer  e.g. inventory.items.potion = 3",
-        "  inventory.battleItems.<item_id>  positive integer  must NOT exceed inventory.items.<item_id>",
-        "",
-        "=== Read-only (visible in state snapshot, do NOT patch) ===",
-        "  combat.level, combat.hp (current/max), combat.mp (current/max), combat.attack,",
-        "  combat.defense, combat.agility, combat.intelligence — managed by battle engine",
-        "",
-        "=== Hidden (not visible, not writable) ===",
-        "  equipment, affairs, characters — managed by engine only",
-        "",
-        "Input: { \"patches\": [{ \"path\": \"...\", \"value\": ... }] }",
         "Example: { \"patches\": [{ \"path\": \"player.money\", \"value\": 200 }, { \"path\": \"player.flags.helped_cat\", \"value\": true }] }",
       ].join("\n"),
       envelopeFields: ENVELOPE_FIELDS,
@@ -184,12 +210,12 @@ function createToolDefinitions(): ProviderToolDefinition[] {
         "Initiate a combat encounter. Places the game into pending battle state.",
         "",
         "Fields:",
-        "  encounter_id (string) — Unique identifier for this encounter, e.g. \"encounter_rooftop_shade\"",
-        "  enemies (array) — [{ \"enemy_id\": string, \"count\": integer >=1 }]",
+        "  encounter_id (string) - Unique identifier for this encounter, e.g. \"encounter_rooftop_shade\"",
+        "  enemies (array) - [{ \"enemy_id\": string, \"count\": integer >=1 }]",
         "    enemy_id: enemy type identifier",
         "    count: how many of this type",
-        "  modifiers (string[], optional) — Battle conditions, e.g. [\"ambush\", \"midnight\", \"first_battle\"]",
-        "  narrative_reason (string) — Why this battle is happening in the story",
+        "  modifiers (string[], optional) - Battle conditions, e.g. [\"ambush\", \"midnight\", \"first_battle\"]",
+        "  narrative_reason (string) - Why this battle is happening in the story",
         "",
         "Example:",
         "  { \"encounter_id\": \"encounter_classroom_shade\", \"enemies\": [{ \"enemy_id\": \"shade_student\", \"count\": 1 }], \"modifiers\": [\"first_battle\"], \"narrative_reason\": \"一只暗影生物从虫洞出现，袭击了教室\" }",
@@ -279,6 +305,7 @@ export async function buildHarnessRequest(
   });
 
   const historyMessages = selectHistory(messages);
+  const summaryMessages = selectConversationSummaries(messages);
   const searchableText = `${input.userInput}\n${historyMessages
     .map((message) => message.content)
     .join("\n")}`;
@@ -292,7 +319,7 @@ export async function buildHarnessRequest(
     input.mustacheVariables,
   ).text;
 
-  const segments = [
+  const segments: PromptSegment[] = [
     segment({
       id: "system",
       kind: "system",
@@ -336,6 +363,22 @@ export async function buildHarnessRequest(
       source: "chatHistoryRepository",
     }),
   ];
+
+  // Insert conversation summary right before history, with high priority.
+  // It's a separate segment so the budget algorithm treats it as non-droppable.
+  if (summaryMessages.length > 0) {
+    const summaryContent = renderConversationSummary(summaryMessages);
+    if (summaryContent) {
+      const historyIndex = segments.findIndex((s) => s.id === "history");
+      segments.splice(historyIndex, 0, segment({
+        id: "conversation_summary",
+        kind: "summary",
+        title: "Conversation Summary",
+        content: summaryContent,
+        source: "chatHistoryRepository",
+      }));
+    }
+  }
 
   const budgeted = applyContextBudget({
     segments,

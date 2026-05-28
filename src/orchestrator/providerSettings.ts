@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 
 import { AiSdkProviderClient } from "@/orchestrator/aiSdkProviderClient";
+import type { GameEngineFacade } from "@/engine/gameEngineFacade";
 import {
   FakeStreamingProviderClient,
   type ProviderClient,
@@ -506,6 +507,9 @@ export class LocalStorageProviderSettingsRepository
 
 export async function createConfiguredProviderClient(
   repository: ProviderSettingsRepository = getProviderSettingsRepository(),
+  harnessDeps?: {
+    dispatchCommand: GameEngineFacade["dispatchCommand"];
+  },
 ): Promise<ConfiguredProviderClient> {
   const profile = await repository.getActiveProfile();
 
@@ -532,6 +536,7 @@ export async function createConfiguredProviderClient(
       maxOutputTokens: profile.maxOutputTokens,
       streamingEnabled: profile.streamingEnabled,
       reasoningEffort: profile.reasoningEffort,
+      harnessDeps: harnessDeps ?? { dispatchCommand: (async () => { throw new Error("[PROVIDER_NO_HARNESS_DEPS] harnessDeps not provided."); }) as unknown as GameEngineFacade["dispatchCommand"] },
     }),
     providerInfo: toPromptViewerProviderInfo(profile),
   };

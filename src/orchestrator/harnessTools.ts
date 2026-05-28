@@ -28,6 +28,71 @@ export interface UpdateVariablesExecuteInput {
   };
 }
 
+export function createHarnessToolsWithExecute(
+  deps: HarnessToolExecutorDeps,
+  requestMeta: {
+    requestId: string;
+    contextVersion: number;
+    stateHash: string;
+  },
+) {
+  return {
+    update_variables: tool({
+      description: createHarnessTools().update_variables.description,
+      inputSchema: updateVariablesToolInputSchema,
+      execute: async (input, options) => {
+        const result = await deps.dispatchCommand({
+          type: "APPLY_VARIABLE_PATCH",
+          envelope: toVariablePatchEnvelope({
+            tool_name: "update_variables",
+            tool_call_id: options.toolCallId,
+            request_id: requestMeta.requestId,
+            context_version: requestMeta.contextVersion,
+            state_hash: requestMeta.stateHash,
+            input,
+          }),
+        });
+
+        return {
+          ok: true,
+          tool_name: "update_variables",
+          tool_call_id: options.toolCallId,
+          commitAck: true,
+          output: {
+            next: result.next,
+            nextHash: result.nextHash,
+          },
+        };
+      },
+    }),
+    trigger_battle: tool({
+      description: createHarnessTools().trigger_battle.description,
+      inputSchema: triggerBattleToolInputSchema,
+      execute: async (input, options) => {
+        const result = await deps.dispatchCommand({
+          type: "TRIGGER_BATTLE",
+          payload: toTriggerBattleCommandPayload({
+            tool_name: "trigger_battle",
+            tool_call_id: options.toolCallId,
+            request_id: requestMeta.requestId,
+            context_version: requestMeta.contextVersion,
+            state_hash: requestMeta.stateHash,
+            input,
+          }),
+        });
+
+        return {
+          ok: true,
+          tool_name: "trigger_battle",
+          tool_call_id: options.toolCallId,
+          commitAck: true,
+          output: result,
+        };
+      },
+    }),
+  };
+}
+
 export interface TriggerBattleExecuteInput {
   tool_call_id: string;
   input: TriggerBattleToolInput;

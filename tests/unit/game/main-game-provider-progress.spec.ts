@@ -1,6 +1,5 @@
 import type {
   BuiltProviderRequest,
-  ProviderToolCallCandidate,
 } from "@/orchestrator/harnessContextTypes";
 import type {
   ProviderClient,
@@ -46,7 +45,7 @@ class DeferredProviderClient implements ProviderClient {
 
     return {
       finishReason: "stop",
-      toolCalls: [] as ProviderToolCallCandidate[],
+      toolResults: [],
     };
   }
 }

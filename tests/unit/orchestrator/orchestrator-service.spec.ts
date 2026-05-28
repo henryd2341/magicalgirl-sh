@@ -6,7 +6,6 @@ import { VariableEngine } from "@/engine/variableEngine";
 import { FakeStreamingProviderClient } from "@/orchestrator/providerClient";
 import { OrchestratorService } from "@/orchestrator/orchestratorService";
 import { buildHarnessRequest } from "@/orchestrator/promptBuilder";
-import { ToolExecutor } from "@/orchestrator/toolExecutor";
 import { InMemoryChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
 import { InMemoryCheckpointRepository } from "@/persistence/repositories/checkpointRepository";
 import { InMemoryEventLogRepository } from "@/persistence/repositories/eventLogRepository";
@@ -51,7 +50,6 @@ describe("OrchestratorService", () => {
       providerClient: new FakeStreamingProviderClient({
         textChunks: ["旧校舍的门", "轻轻打开。"],
       }),
-      toolExecutor: null,
       buildRequest(input) {
         return buildHarnessRequest({
           ...input,
@@ -140,7 +138,6 @@ describe("OrchestratorService", () => {
         textChunks: ["半句文本"],
         error: new Error("provider unavailable"),
       }),
-      toolExecutor: null,
       buildRequest(input) {
         return buildHarnessRequest({
           ...input,
@@ -202,7 +199,6 @@ describe("OrchestratorService", () => {
         textChunks: [],
         error: new TypeError("Failed to fetch"),
       }),
-      toolExecutor: null,
       buildRequest(input) {
         return buildHarnessRequest({
           ...input,
@@ -237,7 +233,7 @@ describe("OrchestratorService", () => {
     });
   });
 
-  it("wraps provider tool calls with the current Harness metadata before executing them", async () => {
+  it("reports tool results from the provider stream", async () => {
     const chatRepository = new InMemoryChatHistoryRepository();
     const chatService = new ChatMessageService(chatRepository);
     const variableRepository = new InMemoryVariableRepository();
@@ -252,17 +248,15 @@ describe("OrchestratorService", () => {
       gameEngineFacade: facade,
       providerClient: new FakeStreamingProviderClient({
         textChunks: ["你捡起了硬币。"],
-        toolCalls: [
+        toolResults: [
           {
             tool_name: "update_variables",
             tool_call_id: "tool-update-money",
-            input: {
-              patches: [{ path: "player.money", value: 5 }],
-            },
+            ok: true,
+            output: { next: {}, nextHash: "hash" },
           },
         ],
       }),
-      toolExecutor: new ToolExecutor(facade),
       buildRequest(input) {
         return buildHarnessRequest({
           ...input,
@@ -286,9 +280,7 @@ describe("OrchestratorService", () => {
       userInput: "捡起地上的硬币。",
     });
 
-    const current = await variableRepository.getCurrent();
     expect(result.ok).toBe(true);
-    expect(current?.root.player.money).toBe(5);
     expect(result.toolResults).toEqual([
       expect.objectContaining({
         ok: true,
@@ -296,5 +288,57 @@ describe("OrchestratorService", () => {
         tool_call_id: "tool-update-money",
       }),
     ]);
+  });
+
+  it("throws when a tool result is not ok", async () => {
+    const chatRepository = new InMemoryChatHistoryRepository();
+    const chatService = new ChatMessageService(chatRepository);
+    const variableRepository = new InMemoryVariableRepository();
+    await variableRepository.saveCurrent(new VariableEngine().createInitialState());
+    const facade = new GameEngineFacade(createSessionManager(), {
+      variableRepository,
+      variableChangeLogRepository: new InMemoryVariableChangeLogRepository(),
+    });
+
+    const service = new OrchestratorService({
+      chatService,
+      gameEngineFacade: facade,
+      providerClient: new FakeStreamingProviderClient({
+        textChunks: [],
+        toolResults: [
+          {
+            tool_name: "update_variables",
+            tool_call_id: "tool-broken",
+            ok: false,
+            error: "state hash mismatch",
+          },
+        ],
+      }),
+      buildRequest(input) {
+        return buildHarnessRequest({
+          ...input,
+          chatRepository,
+          variableRepository,
+          worldInfoRepository: new InMemoryWorldInfoRepository(),
+          systemPrompt: "stable system",
+          requestId: "req-orchestrator-004",
+          contextVersion: 12,
+          now: "2026-05-23T02:00:00.000Z",
+        });
+      },
+      idFactory: {
+        userMessageId: () => "msg-user-004",
+        assistantMessageId: () => "msg-assistant-004",
+      },
+      now: () => "2026-05-23T02:00:00.000Z",
+    });
+
+    const result = await service.runUserTurn({
+      userInput: "触发失败工具。",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error?.message).toContain("TOOL_EXECUTION_FAILED");
+    expect(result.toolResults[0].ok).toBe(false);
   });
 });

@@ -44,6 +44,12 @@ export interface CreateBattleSummaryMessageInput {
   createdAt: string;
 }
 
+export interface CreateContextSummaryMessageInput {
+  id: string;
+  content: string;
+  createdAt: string;
+}
+
 function createChatLifecycleError(code: string, message: string): Error {
   return new Error(`[${code}] ${message}`);
 }
@@ -193,6 +199,26 @@ export class ChatMessageService {
     }
 
     return messages;
+  }
+
+  public async createContextSummaryMessage(
+    input: CreateContextSummaryMessageInput,
+  ): Promise<ChatMessage> {
+    const message: ChatMessage = {
+      id: input.id,
+      role: "system",
+      kind: "context_summary",
+      content: input.content,
+      user_visible: false,
+      ai_visible: true,
+      provisional: false,
+      finalized: true,
+      failed: false,
+      created_at: input.createdAt,
+    };
+
+    await this.repository.save(message);
+    return message;
   }
 
   private async requireMessage(messageId: string): Promise<ChatMessage> {

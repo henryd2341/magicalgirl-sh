@@ -2,7 +2,6 @@
 
 import type {
   BuiltProviderRequest,
-  ProviderToolCallCandidate,
 } from "@/orchestrator/harnessContextTypes";
 
 export interface ProviderStreamCallbacks {
@@ -12,7 +11,13 @@ export interface ProviderStreamCallbacks {
 
 export interface ProviderStreamResult {
   finishReason: "stop" | "tool_calls";
-  toolCalls: ProviderToolCallCandidate[];
+  toolResults: Array<{
+    tool_name: string;
+    tool_call_id: string;
+    ok: boolean;
+    output?: unknown;
+    error?: string;
+  }>;
 }
 
 export interface ProviderClient {
@@ -24,14 +29,14 @@ export interface ProviderClient {
 
 export interface FakeStreamingProviderClientInput {
   textChunks?: string[];
-  toolCalls?: ProviderToolCallCandidate[];
+  toolResults?: ProviderStreamResult["toolResults"];
   error?: Error;
 }
 
 export class FakeStreamingProviderClient implements ProviderClient {
   private readonly textChunks: string[];
 
-  private readonly toolCalls: ProviderToolCallCandidate[];
+  private readonly toolResults: ProviderStreamResult["toolResults"];
 
   private readonly error: Error | null;
 
@@ -40,7 +45,7 @@ export class FakeStreamingProviderClient implements ProviderClient {
       input.textChunks ?? [
         "战斗后的空气慢慢安静下来，新的选择浮现在你面前。",
       ];
-    this.toolCalls = input.toolCalls ?? [];
+    this.toolResults = input.toolResults ?? [];
     this.error = input.error ?? null;
   }
 
@@ -57,8 +62,8 @@ export class FakeStreamingProviderClient implements ProviderClient {
     }
 
     return {
-      finishReason: this.toolCalls.length > 0 ? "tool_calls" : "stop",
-      toolCalls: this.toolCalls.map((toolCall) => ({ ...toolCall })),
+      finishReason: this.toolResults.length > 0 ? "tool_calls" : "stop",
+      toolResults: this.toolResults.map((tr) => ({ ...tr })),
     };
   }
 }

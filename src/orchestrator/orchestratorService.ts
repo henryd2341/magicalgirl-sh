@@ -8,13 +8,8 @@ import type {
 import type { GameEngineFacade } from "@/engine/gameEngineFacade";
 import type {
   BuiltProviderRequest,
-  ProviderToolCallCandidate,
 } from "@/orchestrator/harnessContextTypes";
 import type { ProviderClient } from "@/orchestrator/providerClient";
-import type {
-  ToolEnvelopeCandidate,
-  ToolExecutionFailureResult,
-} from "@/orchestrator/toolEnvelope";
 import type { EventLogRepository } from "@/persistence/repositories/eventLogRepository";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 
@@ -37,17 +32,10 @@ export interface OrchestratorIdFactory {
   assistantMessageId: () => string;
 }
 
-export interface ToolExecutionPort {
-  execute(
-    envelope: ToolEnvelopeCandidate,
-  ): Promise<ToolExecutionFailureResult<string> | { ok: true; commitAck: true }>;
-}
-
 export interface OrchestratorServiceDependencies {
   chatService: ChatMessageLifecyclePort;
   gameEngineFacade: GameEngineFacade;
   providerClient: ProviderClient;
-  toolExecutor: ToolExecutionPort | null;
   checkpointManager?: Pick<CheckpointManager, "createCheckpoint">;
   eventLogRepository?: EventLogRepository;
   buildRequest: (
@@ -67,25 +55,12 @@ export interface RunUserTurnResult {
   ok: boolean;
   request: BuiltProviderRequest | null;
   assistantMessageId: string;
-  toolResults: Array<ToolExecutionFailureResult<string> | { ok: true }>;
+  toolResults: Array<{ tool_name: string; tool_call_id: string; ok: boolean; output?: unknown; error?: string }>;
   error?: Error;
 }
 
 function defaultId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}`;
-}
-
-function wrapToolCall(
-  toolCall: ProviderToolCallCandidate,
-  request: BuiltProviderRequest,
-): ToolEnvelopeCandidate {
-  return {
-    ...toolCall,
-    request_id: request.metadata.request_id,
-    context_version: request.metadata.context_version,
-    state_hash: request.metadata.state_hash,
-    issued_at: request.metadata.issued_at,
-  };
 }
 
 export class OrchestratorService {
@@ -95,7 +70,6 @@ export class OrchestratorService {
 
   private readonly providerClient: ProviderClient;
 
-  private readonly toolExecutor: ToolExecutionPort | null;
 
   private readonly checkpointManager:
     | {
@@ -119,7 +93,6 @@ export class OrchestratorService {
     this.chatService = dependencies.chatService;
     this.gameEngineFacade = dependencies.gameEngineFacade;
     this.providerClient = dependencies.providerClient;
-    this.toolExecutor = dependencies.toolExecutor;
     this.checkpointManager = dependencies.checkpointManager;
     this.eventLogRepository = dependencies.eventLogRepository;
     this.buildRequest = dependencies.buildRequest;
@@ -140,8 +113,7 @@ export class OrchestratorService {
     let request: BuiltProviderRequest | null = null;
     let checkpoint: CheckpointSnapshotRecord | null = null;
     let assistantMessageCreated = false;
-    const toolResults: Array<ToolExecutionFailureResult<string> | { ok: true }> =
-      [];
+    const toolResults: Array<{ tool_name: string; tool_call_id: string; ok: boolean; output?: unknown; error?: string }> = [];
 
     await this.chatService.createUserMessage({
       id: userMessageId,
@@ -190,24 +162,13 @@ export class OrchestratorService {
           });
         },
       });
+      toolResults.push(...streamResult.toolResults);
 
-      if (streamResult.toolCalls.length > 0) {
-        if (!this.toolExecutor) {
-          throw new Error("Tool calls were returned without a tool executor.");
-        }
-
-        this.gameEngineFacade.advancePipeline("VALIDATING_TOOLS");
-        this.gameEngineFacade.advancePipeline("EXECUTING_COMMANDS");
-        for (const toolCall of streamResult.toolCalls) {
-          const result = await this.toolExecutor.execute(
-            wrapToolCall(toolCall, request),
-          );
-          toolResults.push(result);
-
-          if (!result.ok || !result.commitAck) {
-            throw new Error("Tool execution failed before commitAck.");
-          }
-        }
+      const failedResult = streamResult.toolResults.find((tr) => !tr.ok);
+      if (failedResult) {
+        throw new Error(
+          `[TOOL_EXECUTION_FAILED] Tool ${failedResult.tool_name} (${failedResult.tool_call_id}) failed: ${failedResult.error ?? "unknown error"}`,
+        );
       }
 
       const snapshot = this.gameEngineFacade.getSessionSnapshot();

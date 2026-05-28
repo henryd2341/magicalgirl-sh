@@ -5,19 +5,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const aiSdkMocks = vi.hoisted(() => ({
   generateText: vi.fn(),
   streamText: vi.fn(),
-  tool: vi.fn((definition: unknown) => definition),
   createOpenAICompatible: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
   generateText: aiSdkMocks.generateText,
   streamText: aiSdkMocks.streamText,
-  tool: aiSdkMocks.tool,
+  stepCountIs: vi.fn((n: number) => ({ type: "stepCountIs", n })),
+  tool: vi.fn((definition: unknown) => definition),
 }));
 
 vi.mock("@ai-sdk/openai-compatible", () => ({
   createOpenAICompatible: aiSdkMocks.createOpenAICompatible,
 }));
+
+function createHarnessDeps() {
+  return {
+    dispatchCommand: vi.fn().mockResolvedValue({ next: {}, nextHash: "hash" }),
+  };
+}
 
 function createRequest(): BuiltProviderRequest {
   return {
@@ -61,7 +67,6 @@ describe("AiSdkProviderClient", () => {
   beforeEach(() => {
     aiSdkMocks.generateText.mockReset();
     aiSdkMocks.streamText.mockReset();
-    aiSdkMocks.tool.mockClear();
     aiSdkMocks.createOpenAICompatible.mockReset();
     aiSdkMocks.createOpenAICompatible.mockReturnValue((modelId: string) => ({
       provider: "compatible",
@@ -86,6 +91,7 @@ describe("AiSdkProviderClient", () => {
       apiKey: "",
       temperature: 0.7,
       maxOutputTokens: 512,
+      harnessDeps: createHarnessDeps(),
     });
 
     const result = await client.stream(createRequest(), {
@@ -97,7 +103,7 @@ describe("AiSdkProviderClient", () => {
     expect(chunks).toEqual(["旧校舍的门", "轻轻打开。"]);
     expect(result).toEqual({
       finishReason: "stop",
-      toolCalls: [],
+      toolResults: [],
     });
     expect(aiSdkMocks.createOpenAICompatible).toHaveBeenCalledWith({
       name: "local",
@@ -111,27 +117,17 @@ describe("AiSdkProviderClient", () => {
         temperature: 0.7,
         maxOutputTokens: 512,
         tools: expect.objectContaining({
-          update_variables: expect.any(Object),
-          trigger_battle: expect.any(Object),
+          update_variables: expect.objectContaining({ execute: expect.any(Function) }),
+          trigger_battle: expect.objectContaining({ execute: expect.any(Function) }),
         }),
       }),
     );
   });
 
-  it("maps AI SDK tool calls into Harness provider candidates", async () => {
+  it("passes stopWhen stepCountIs(5) to streamText", async () => {
     aiSdkMocks.streamText.mockReturnValue({
       fullStream: streamParts([
-        {
-          type: "tool-call",
-          toolCallId: "tool-trigger-001",
-          toolName: "trigger_battle",
-          input: {
-            encounter_id: "enc-ai-sdk",
-            enemies: [{ enemy_id: "shadow", count: 1 }],
-            narrative_reason: "真实模型触发测试。",
-          },
-        },
-        { type: "finish", finishReason: "tool-calls" },
+        { type: "finish", finishReason: "stop" },
       ]),
     });
 
@@ -140,53 +136,16 @@ describe("AiSdkProviderClient", () => {
       baseURL: "https://example.test/v1",
       model: "story-model",
       apiKey: "secret-key",
+      harnessDeps: createHarnessDeps(),
     });
 
-    const result = await client.stream(createRequest(), {
-      onTextChunk: vi.fn(),
-    });
+    await client.stream(createRequest(), { onTextChunk: vi.fn() });
 
-    expect(result.finishReason).toBe("tool_calls");
-    expect(result.toolCalls).toEqual([
-      {
-        tool_name: "trigger_battle",
-        tool_call_id: "tool-trigger-001",
-        input: {
-          encounter_id: "enc-ai-sdk",
-          enemies: [{ enemy_id: "shadow", count: 1 }],
-          narrative_reason: "真实模型触发测试。",
-        },
-      },
-    ]);
-    expect(aiSdkMocks.createOpenAICompatible).toHaveBeenCalledWith({
-      name: "gateway",
-      baseURL: "https://example.test/v1",
-      apiKey: "secret-key",
-    });
-  });
-
-  it("throws when the AI SDK reports an unknown Harness tool name", async () => {
-    aiSdkMocks.streamText.mockReturnValue({
-      fullStream: streamParts([
-        {
-          type: "tool-call",
-          toolCallId: "tool-unknown",
-          toolName: "unknown_tool",
-          input: {},
-        },
-      ]),
-    });
-
-    const client = new AiSdkProviderClient({
-      providerName: "gateway",
-      baseURL: "https://example.test/v1",
-      model: "story-model",
-      apiKey: "secret-key",
-    });
-
-    await expect(
-      client.stream(createRequest(), { onTextChunk: vi.fn() }),
-    ).rejects.toThrow("[AI_SDK_PROVIDER_TOOL_UNSUPPORTED]");
+    expect(aiSdkMocks.streamText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stopWhen: expect.any(Object),
+      }),
+    );
   });
 
   it("throws when the AI SDK full stream emits an error part", async () => {
@@ -204,6 +163,7 @@ describe("AiSdkProviderClient", () => {
       baseURL: "https://api.example.test/v1",
       model: "story-model",
       apiKey: "secret-key",
+      harnessDeps: createHarnessDeps(),
     });
 
     await expect(
@@ -215,7 +175,6 @@ describe("AiSdkProviderClient", () => {
     aiSdkMocks.generateText.mockResolvedValue({
       text: "旧校舍的门轻轻打开。",
       finishReason: "stop",
-      toolCalls: [],
     });
     const chunks: string[] = [];
 
@@ -225,6 +184,7 @@ describe("AiSdkProviderClient", () => {
       model: "story-model",
       apiKey: "secret-key",
       streamingEnabled: false,
+      harnessDeps: createHarnessDeps(),
     });
 
     const result = await client.stream(createRequest(), {
@@ -236,7 +196,7 @@ describe("AiSdkProviderClient", () => {
     expect(chunks).toEqual(["旧校舍的门轻轻打开。"]);
     expect(result).toEqual({
       finishReason: "stop",
-      toolCalls: [],
+      toolResults: [],
     });
     expect(aiSdkMocks.streamText).not.toHaveBeenCalled();
     expect(aiSdkMocks.generateText).toHaveBeenCalledWith(
@@ -245,86 +205,5 @@ describe("AiSdkProviderClient", () => {
         messages: createRequest().messages,
       }),
     );
-  });
-
-  it("maps generateText tool calls when streaming is disabled", async () => {
-    aiSdkMocks.generateText.mockResolvedValue({
-      text: "",
-      finishReason: "tool-calls",
-      toolCalls: [
-        {
-          type: "tool-call",
-          toolCallId: "tool-update-001",
-          toolName: "update_variables",
-          input: {
-            patches: [{ path: "player.money", value: 10 }],
-          },
-        },
-      ],
-    });
-
-    const client = new AiSdkProviderClient({
-      providerName: "gateway",
-      baseURL: "https://api.example.test/v1",
-      model: "story-model",
-      apiKey: "secret-key",
-      streamingEnabled: false,
-    });
-
-    await expect(
-      client.stream(createRequest(), { onTextChunk: vi.fn() }),
-    ).resolves.toEqual({
-      finishReason: "tool_calls",
-      toolCalls: [
-        {
-          tool_name: "update_variables",
-          tool_call_id: "tool-update-001",
-          input: {
-            patches: [{ path: "player.money", value: 10 }],
-          },
-        },
-      ],
-    });
-  });
-
-  it("passes enhanced tool descriptions with writable/read-only/hidden paths to the AI SDK", async () => {
-    aiSdkMocks.streamText.mockReturnValue({
-      fullStream: streamParts([
-        { type: "text", text: "ok" },
-        { type: "finish", finishReason: "stop" },
-      ]),
-    });
-
-    const client = new AiSdkProviderClient({
-      providerName: "gateway",
-      baseURL: "https://api.example.test/v1",
-      model: "story-model",
-      apiKey: "secret-key",
-    });
-
-    await client.stream(createRequest(), { onTextChunk: vi.fn() });
-
-    const streamTextCall = aiSdkMocks.streamText.mock.calls[0][0];
-    const tools = streamTextCall.tools as Record<string, { description: string }>;
-
-    expect(tools).toBeDefined();
-
-    const updateDesc = tools.update_variables.description;
-    expect(updateDesc).toContain("Writable paths");
-    expect(updateDesc).toContain("Read-only");
-    expect(updateDesc).toContain("Hidden");
-    expect(updateDesc).toContain("combat.level");
-    expect(updateDesc).toContain("player.money");
-    expect(updateDesc).toContain("player.relationships");
-    expect(updateDesc).toContain("inventory.items");
-    expect(updateDesc).toContain("equipment");
-    expect(updateDesc).toContain("characters");
-
-    const battleDesc = tools.trigger_battle.description;
-    expect(battleDesc).toContain("encounter_id");
-    expect(battleDesc).toContain("enemies");
-    expect(battleDesc).toContain("modifiers");
-    expect(battleDesc).toContain("narrative_reason");
-    expect(battleDesc).toContain("first_battle");
   });
 });

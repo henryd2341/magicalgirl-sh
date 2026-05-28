@@ -75,7 +75,6 @@ describe("checkpoint recovery integration", () => {
         textChunks: ["门后传来一句未完成的话。"],
         error: new Error("provider stream interrupted"),
       }),
-      toolExecutor: null,
       buildRequest(input) {
         return buildHarnessRequest({
           ...input,

@@ -26,6 +26,7 @@ export default [
       globals: {
         window: "readonly",
         document: "readonly",
+        console: "readonly",
       },
     },
   },
@@ -42,6 +43,7 @@ export default [
       globals: {
         window: "readonly",
         document: "readonly",
+        console: "readonly",
       },
     },
     rules: {
@@ -62,6 +64,7 @@ export default [
       globals: {
         window: "readonly",
         document: "readonly",
+        console: "readonly",
       },
     },
   },
