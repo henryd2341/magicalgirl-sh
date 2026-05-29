@@ -416,7 +416,6 @@ describe("buildHarnessRequest", () => {
       "stable 雷伊 at 教室 / {{missing.value}}",
     );
     expect(request.promptText).toContain("弓川市存在 M.A.S.C.O.T 监测网络。");
-    expect(request.promptText).toContain("星偶负责通讯、传送与后勤。");
     expect(request.promptText).not.toContain("青井霞是已退役的初代魔法少女。");
     expect(request.segments.map((segment) => segment.id)).toEqual([
       "system",
@@ -436,15 +435,15 @@ describe("buildHarnessRequest", () => {
     expect(request.traces).toContainEqual(
       expect.objectContaining({
         sourceId: "raw_entries/M.A.S.C.O.T",
-        included: true,
-        reason: "fts_match",
+        included: false,
+        reason: "no_keyword_match",
       }),
     );
     expect(request.traces).toContainEqual(
       expect.objectContaining({
         sourceId: "raw_entries/青井霞",
         included: false,
-        reason: "fts_miss",
+        reason: "no_keyword_match",
       }),
     );
   });

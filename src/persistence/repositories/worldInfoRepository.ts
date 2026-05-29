@@ -113,19 +113,6 @@ function hasKeywordMatch(entry: WorldInfoEntry, searchableText: string): boolean
   });
 }
 
-function hasTextMatch(
-  entry: WorldInfoEntry,
-  searchTerms: readonly string[],
-  ftsMatchedIds: ReadonlySet<string>,
-): boolean {
-  if (ftsMatchedIds.has(entry.id)) {
-    return true;
-  }
-
-  const searchableEntryText = normalizeSearchText(entry.content);
-  return searchTerms.some((term) => searchableEntryText.includes(term));
-}
-
 function includedWorldInfoTrace(
   entry: WorldInfoEntry,
   reason: string,
@@ -156,10 +143,8 @@ function droppedWorldInfoTrace(
 export function searchWorldInfoEntries(
   entries: readonly WorldInfoEntry[],
   searchableText: string,
-  ftsMatchedIds: ReadonlySet<string> = new Set(),
 ): WorldInfoSearchResult {
   const normalizedSearchableText = normalizeSearchText(searchableText);
-  const searchTerms = extractWorldInfoSearchTerms(searchableText);
   const constantEntries: WorldInfoEntry[] = [];
   const matchedEntries: WorldInfoEntry[] = [];
   const traces: ContextInjectionTrace[] = [];
@@ -181,13 +166,7 @@ export function searchWorldInfoEntries(
       continue;
     }
 
-    if (hasTextMatch(entry, searchTerms, ftsMatchedIds)) {
-      matchedEntries.push(entry);
-      traces.push(includedWorldInfoTrace(entry, "fts_match"));
-      continue;
-    }
-
-    traces.push(droppedWorldInfoTrace(entry, "fts_miss"));
+    traces.push(droppedWorldInfoTrace(entry, "no_keyword_match"));
   }
 
   const sortedConstants = sortWorldInfoEntries(constantEntries);

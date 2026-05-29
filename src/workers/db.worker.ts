@@ -938,17 +938,11 @@ export function createDbWorkerRuntime(
         case "search_world_info_entries": {
           const database = await ensureSqliteDatabase(state);
           const entries = await listWorldInfoRows(database);
-          const ftsMatchedIds = await findWorldInfoFtsMatchedIds(
-            database,
-            request.payload.searchableText,
-            state.worldInfoFtsAvailable,
-          );
           return {
             type: "search_world_info_entries_result",
             payload: searchWorldInfoEntries(
               entries,
-              request.payload.searchableText,
-              ftsMatchedIds,
+              request.payload.searchableText
             ),
           };
         }

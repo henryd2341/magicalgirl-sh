@@ -78,13 +78,16 @@ describe("world_info persistence", () => {
     ]);
   });
 
-  it("searches non-constant world info by body text and reports fts traces", async () => {
+  it("matches non-constant entries only by keyword, not by body text content", async () => {
     const client = new DbWorkerClient(
       createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
     );
     await client.initialize();
     const repository = new DbWorldInfoRepository(client);
 
+    // Keyword "后勤" does NOT appear in search text "请介绍星偶。"
+    // Content contains "星偶" which is in the search text — but
+    // non-constant entries should only match via keyword, not body text.
     await repository.save({
       id: "wi-mascot-body",
       keywords: ["后勤"],
@@ -115,14 +118,13 @@ describe("world_info persistence", () => {
     expect(result.constantEntries).toEqual([
       expect.objectContaining({ id: "wi-constant" }),
     ]);
-    expect(result.matchedEntries).toEqual([
-      expect.objectContaining({ id: "wi-mascot-body" }),
-    ]);
+    // No non-constant entry has its keyword in the search text.
+    expect(result.matchedEntries).toEqual([]);
     expect(result.traces).toContainEqual(
       expect.objectContaining({
         sourceId: "wi-mascot-body",
-        included: true,
-        reason: "fts_match",
+        included: false,
+        reason: "no_keyword_match",
       }),
     );
     expect(result.traces).toContainEqual(
@@ -132,6 +134,90 @@ describe("world_info persistence", () => {
         reason: "disabled",
       }),
     );
+  });
+
+  it("triggers non-constant entry when keyword is present in search text", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    const repository = new DbWorldInfoRepository(client);
+
+    await repository.save({
+      id: "wi-hero",
+      keywords: ["弓川", "女子学院"],
+      content: "弓川女子学院魔法少女档案。",
+      priority: 70,
+      enabled: true,
+      isConstant: false,
+    });
+
+    const result = await repository.search("弓川市的女子学院今天开学。");
+
+    expect(result.matchedEntries).toEqual([
+      expect.objectContaining({ id: "wi-hero" }),
+    ]);
+    expect(result.traces).toContainEqual(
+      expect.objectContaining({
+        sourceId: "wi-hero",
+        included: true,
+        reason: "keyword_match",
+      }),
+    );
+  });
+
+  it("does not trigger non-constant entry when only content shares vocabulary with search text", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    const repository = new DbWorldInfoRepository(client);
+
+    // Keyword is "变身" but content contains "弓川市" and "女子学院".
+    // Search text contains "弓川市" and "女子学院" but NOT "变身".
+    await repository.save({
+      id: "wi-shared-vocab",
+      keywords: ["变身"],
+      content: "弓川市女子学院的魔法少女在变身时会发光。",
+      priority: 70,
+      enabled: true,
+      isConstant: false,
+    });
+
+    const result = await repository.search("弓川市的女子学院今天开学。");
+
+    expect(result.matchedEntries).toEqual([]);
+    expect(result.traces).toContainEqual(
+      expect.objectContaining({
+        sourceId: "wi-shared-vocab",
+        included: false,
+        reason: "no_keyword_match",
+      }),
+    );
+  });
+
+  it("constant entries are always included regardless of keyword match", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    const repository = new DbWorldInfoRepository(client);
+
+    await repository.save({
+      id: "wi-constant-no-keyword",
+      keywords: ["世界观"],
+      content: "弓川市是沿海都市。",
+      priority: 90,
+      enabled: true,
+      isConstant: true,
+    });
+
+    const result = await repository.search("今天天气真好。");
+
+    expect(result.constantEntries).toEqual([
+      expect.objectContaining({ id: "wi-constant-no-keyword" }),
+    ]);
+    expect(result.matchedEntries).toEqual([]);
   });
 
   it("updates world info metadata used by prompt builder controls", async () => {
