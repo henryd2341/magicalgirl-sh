@@ -4,13 +4,9 @@
 
 ## 工具调用规则
 
-每个工具调用都是包含以下字段的完整 envelope：
-- `request_id` — 从本次 Harness Request 元数据复制。不要自己编。
-- `context_version` — 从本次 Harness Request 元数据复制。
-- `state_hash` — 从 Game State Snapshot 的 state_hash 复制。必须完全一致。
-- `tool_call_id` — 自己生成唯一 id，格式：`call-<简短描述>`。
-- `tool_name` — 从 Available Tools 列表中选择一个工具名，必须完全一致。
-- `input` — 工具特定的输入对象，格式参见各工具描述中列出的 schema。
-- `issued_at` — ISO 8601 时间戳，可选。
+使用原生 function calling 调用工具。
+只需指定 `tool_name` 和 `input` ——系统自动处理执行、幂等校验和上下文校验。
 
 输出应保持叙事连贯，尊重已注入的世界书、变量快照和最近可见历史。
+
+你的每次输出不应小于1000个字符。

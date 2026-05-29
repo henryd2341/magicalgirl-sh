@@ -454,7 +454,7 @@ onMounted(refreshState);
             v-model.number="summaryForm.tokenThreshold"
             type="range"
             min="1000"
-            max="16000"
+            max="1000000"
             step="500"
             :disabled="!summaryForm.enabled"
             @change="saveSummaryThreshold"

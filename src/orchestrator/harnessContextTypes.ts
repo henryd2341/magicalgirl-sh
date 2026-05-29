@@ -45,19 +45,9 @@ export interface ProviderMessage {
   content: string;
 }
 
-export type EnvelopeField =
-  | "request_id"
-  | "context_version"
-  | "state_hash"
-  | "tool_call_id"
-  | "tool_name"
-  | "input"
-  | "issued_at";
-
 export interface ProviderToolDefinition {
   name: "update_variables" | "trigger_battle";
   description: string;
-  envelopeFields: EnvelopeField[];
 }
 
 export interface BuiltProviderRequest {

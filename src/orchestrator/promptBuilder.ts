@@ -7,7 +7,6 @@ import type {
   BuiltProviderRequest,
   ContextBudget,
   ContextInjectionTrace,
-  EnvelopeField,
   PromptSegment,
   ProviderMessage,
   ProviderToolDefinition,
@@ -143,16 +142,6 @@ function renderWorldInfo(entries: WorldInfoEntry[]): string {
     .join("\n\n");
 }
 
-const ENVELOPE_FIELDS: EnvelopeField[] = [
-  "request_id",
-  "context_version",
-  "state_hash",
-  "tool_call_id",
-  "tool_name",
-  "input",
-  "issued_at",
-];
-
 function createToolDefinitions(): ProviderToolDefinition[] {
 function describeVariablePaths(): string {
   const writable = [
@@ -202,7 +191,6 @@ function describeVariablePaths(): string {
         "",
         "Example: { \"patches\": [{ \"path\": \"player.money\", \"value\": 200 }, { \"path\": \"player.flags.helped_cat\", \"value\": true }] }",
       ].join("\n"),
-      envelopeFields: ENVELOPE_FIELDS,
     },
     {
       name: "trigger_battle",
@@ -220,24 +208,10 @@ function describeVariablePaths(): string {
         "Example:",
         "  { \"encounter_id\": \"encounter_classroom_shade\", \"enemies\": [{ \"enemy_id\": \"shade_student\", \"count\": 1 }], \"modifiers\": [\"first_battle\"], \"narrative_reason\": \"一只暗影生物从虫洞出现，袭击了教室\" }",
       ].join("\n"),
-      envelopeFields: ENVELOPE_FIELDS,
     },
   ];
 }
 
-function renderEnvelopeGuide(): string {
-  return [
-    "=== Tool Call Envelope Guide ===",
-    "Every tool call must include these fields:",
-    "  request_id      — Copy from Harness Request metadata. Do not invent.",
-    "  context_version — Copy from Harness Request metadata.",
-    "  state_hash      — Copy from the Game State Snapshot. Must match exactly or the call is rejected.",
-    "  tool_call_id    — Generate a unique id. Format: call-<description>-<suffix>",
-    "  tool_name       — One of the available tool names. Must match exactly.",
-    "  input           — Tool-specific input object. See each tool's description for schema.",
-    "  issued_at       — ISO 8601 timestamp. Optional.",
-  ].join("\n");
-}
 
 function renderToolDefinitions(tools: ProviderToolDefinition[]): string {
   const sections = tools.map(
@@ -245,11 +219,10 @@ function renderToolDefinitions(tools: ProviderToolDefinition[]): string {
       [
         `tool: ${tool.name}`,
         `description: ${tool.description}`,
-        `envelope: ${tool.envelopeFields.join(", ")}`,
       ].join("\n"),
   );
 
-  return [...sections, renderEnvelopeGuide()].join("\n\n");
+  return sections.join("\n\n");
 }
 
 function buildMessages(

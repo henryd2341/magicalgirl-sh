@@ -513,7 +513,7 @@ describe("buildHarnessRequest", () => {
     expect(systemSegment?.content).not.toContain("变量树姓名");
   });
 
-  it("includes self-documenting tool descriptions with writable/read-only/hidden paths and envelope guide", async () => {
+  it("includes self-documenting tool descriptions with writable/read-only/hidden paths", async () => {
     const request = await buildHarnessRequest({
       chatRepository: new InMemoryChatHistoryRepository(),
       variableRepository: new InMemoryVariableRepository(),
@@ -546,10 +546,5 @@ describe("buildHarnessRequest", () => {
     expect(toolsContent).toContain("modifiers");
     expect(toolsContent).toContain("player.profile.gender");
 
-    expect(toolsContent).toContain("Tool Call Envelope Guide");
-    expect(toolsContent).toContain("request_id");
-    expect(toolsContent).toContain("state_hash");
-    expect(toolsContent).toContain("tool_call_id");
-    expect(toolsContent).toContain("issued_at");
   });
 });

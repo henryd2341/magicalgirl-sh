@@ -43,12 +43,10 @@ function createRequest(): BuiltProviderRequest {
       {
         name: "update_variables",
         description: "Update variables.",
-        envelopeFields: ["tool_name", "tool_call_id", "input"],
       },
       {
         name: "trigger_battle",
         description: "Trigger battle.",
-        envelopeFields: ["tool_name", "tool_call_id", "input"],
       },
     ],
     promptText: "stable system\n推开旧校舍的门。",
