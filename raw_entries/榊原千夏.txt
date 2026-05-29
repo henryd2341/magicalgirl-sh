@@ -1,4 +1,4 @@
-<榊原千夏_Information>
+<榊原千夏_Profile>
   姓名: 榊原千夏
   年龄: 14岁
   性别: 女
@@ -105,4 +105,4 @@
       - 行动小组的资深前辈，比真央入职更早
       - {{format_message_variable::stat_data.榊原千夏.关系}}
     对{{user}}的认知: 会以"新人"称呼，态度温和但不失距离感，需要时间观察才能放下前辈架子
-</榊原千夏_Information>
+</榊原千夏_Profile>

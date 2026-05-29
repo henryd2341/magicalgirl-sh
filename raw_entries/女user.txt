@@ -1,4 +1,4 @@
-<user_Information>
+<user_Profile>
   姓名: {{user}}
   年龄: 17岁
   性别: 女
@@ -39,4 +39,4 @@
     与行动小组其他成员的关系:
       定位: 战斗小队的新生代成员
       互动方式: 被校方和总部要求在校内与伙伴增进感情、加强协作能力
-</user_Information>
+</user_Profile>
