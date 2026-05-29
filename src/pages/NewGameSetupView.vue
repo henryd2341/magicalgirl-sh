@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { renderOpeningMessage } from "@/content/openingMessage";
 import { seedRawWorldInfoEntries } from "@/content/rawWorldInfoLoader";
 import { syncPlayerGenderWorldInfoActivation } from "@/content/worldInfoActivation";
 import { VariableEngine } from "@/engine/variableEngine";
 import { getChatPersistenceClient } from "@/persistence/chatRuntime";
 import { DbVariableRepository } from "@/persistence/repositories/variableRepository";
 import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
-import { renderOpeningMessage } from "@/content/openingMessage";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { ref } from "vue";
@@ -66,6 +66,7 @@ async function confirmNewGame() {
     await persistenceClient.clearRuntimeSnapshot();
     const openingMessage = renderOpeningMessage({
       playerName: playerName.value.trim(),
+      playerGender: playerGender.value.trim(),
     });
     const { repository } = chatStore.getActiveChatRuntime();
     await repository.save(openingMessage);
@@ -92,7 +93,9 @@ async function cancelNewGame() {
       <p class="eyebrow eyebrow--blue">New Game Setup</p>
       <h1 class="section-heading--playful">新游戏初始化</h1>
       <form class="new-game-setup-view__form">
-        <label class="chat-input-box__label" for="new-game-player-name">角色姓名</label>
+        <label class="chat-input-box__label" for="new-game-player-name"
+          >角色姓名</label
+        >
         <input
           id="new-game-player-name"
           v-model="playerName"

@@ -1,7 +1,7 @@
 import { renderMustacheTemplate } from "@/orchestrator/mustacheTemplate";
 import type { ChatMessage } from "@/types/chat";
 import openingMessageRawMale from "./开场白0.txt?raw";
-import openingMessageRawFemale from "./开场白1.txt";
+import openingMessageRawFemale from "./开场白1.txt?raw";
 
 export interface OpeningMessageInput {
   playerName: string;
