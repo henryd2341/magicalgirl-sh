@@ -4,6 +4,8 @@ import { createBattleSummaries } from "@/engine/battle/battleSummary";
 import type { CreateBattleSummaryMessageInput } from "@/engine/chatMessageService";
 import type { BattleSnapshot, BattleSummarySet } from "@/types/battle";
 import type { ChatMessage } from "@/types/chat";
+import { getEnemy } from "@/content/contentRegistry";
+import { calculateExpGained } from "@/engine/battle/formulaEngine";
 
 export interface BattleSummaryMessageWriter {
   createBattleSummaryMessages(
@@ -16,9 +18,16 @@ export interface BattleResultServiceDependencies {
   now?: () => string;
 }
 
+export interface BattleRewards {
+  expGained: number;
+  moneyGained: number;
+  enemyIds: string[];
+}
+
 export interface CommitResolvedBattleResult {
   summaries: BattleSummarySet;
   messages: ChatMessage[];
+  rewards: BattleRewards;
 }
 
 function createUnresolvedBattleResultError(): Error {
@@ -82,7 +91,41 @@ export class BattleResultService {
     this.now = dependencies.now ?? (() => new Date().toISOString());
   }
 
-  public async commitResolvedBattle(
+  public computeRewards(snapshot: BattleSnapshot): BattleRewards {
+    requireResolvedBattle(snapshot);
+
+    if (snapshot.battleResult?.outcome !== "victory") {
+      return { expGained: 0, moneyGained: 0, enemyIds: [] };
+    }
+
+    const playerLevel = snapshot.participants
+      .filter((p) => p.side === "player")
+      .reduce((max, p) => Math.max(max, p.level ?? 1), 1);
+
+    let expGained = 0;
+    let moneyGained = 0;
+    const enemyIds: string[] = [];
+
+    for (const participant of snapshot.participants) {
+      if (participant.side !== "enemy" || !participant.isDown) continue;
+      enemyIds.push(participant.id);
+      try {
+        const enemyDef = getEnemy(participant.id);
+        expGained += calculateExpGained(
+          enemyDef.expReward,
+          enemyDef.baseLevel,
+          playerLevel,
+        );
+        moneyGained += enemyDef.moneyReward;
+      } catch {
+        // Enemy not in content registry, skip
+      }
+    }
+
+    return { expGained, moneyGained, enemyIds };
+  }
+
+    public async commitResolvedBattle(
     snapshot: BattleSnapshot,
   ): Promise<CommitResolvedBattleResult> {
     requireResolvedBattle(snapshot);
@@ -91,10 +134,12 @@ export class BattleResultService {
     const messages = await this.chatService.createBattleSummaryMessages(
       createSummaryMessageInputs(snapshot, summaries, this.now()),
     );
+    const rewards = this.computeRewards(snapshot);
 
     return {
       summaries,
       messages,
+      rewards,
     };
   }
 }

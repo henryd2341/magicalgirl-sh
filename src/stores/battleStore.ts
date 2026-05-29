@@ -6,6 +6,7 @@ import {
   resolveEnemyTurn,
   resolveSelectedBattleAction,
 } from "@/engine/battle/battleResolver";
+import { createEnemyBattleParticipant } from "@/engine/battle/battleSetup";
 import {
   createBattleSnapshotFromPendingBattle,
   createPendingBattleSnapshot,
@@ -42,10 +43,22 @@ export const useBattleStore = defineStore("battle", {
         throw createPendingBattleRequiredError();
       }
 
+      // Build enemy participants from content
+      const enemyParticipants = this.pendingBattle.enemies.map(
+        createEnemyBattleParticipant,
+      );
+
+      const allParticipants = [...playerParty, ...enemyParticipants];
+
       this.activeBattle = createBattleSnapshotFromPendingBattle({
         pendingBattle: this.pendingBattle,
         playerParty,
       });
+
+      // Replace enemy participants with content-driven versions
+      if (this.activeBattle != null) {
+        this.activeBattle.participants = allParticipants;
+      }
 
       if (this.activeBattle?.pressTurnAllocation != null) {
         const { participantIds } = this.activeBattle.pressTurnAllocation;
@@ -91,6 +104,7 @@ export const useBattleStore = defineStore("battle", {
 
       const definition = getBattleActionDefinition(node.actionId);
       this.activeBattle.selectedActionId = definition.id;
+      this.activeBattle.selectedContentId = node.contentId ?? null;
 
       if (definition.selectionMode === "none") {
         this.confirmSelectedAction();

@@ -175,6 +175,10 @@ export interface BattleParticipant {
     current: number;
     max: number;
   };
+  attack?: number;
+  defense?: number;
+  agility?: number;
+  intelligence?: number;
   isDown: boolean;
   isActive: boolean;
   statusEffects?: string[];
@@ -238,6 +242,7 @@ export interface BattleActionMenuNode {
   description: string;
   kind: "action" | "group";
   actionId?: BattleActionId;
+  contentId?: string;
   children?: BattleActionMenuNode[];
 }
 
@@ -280,6 +285,7 @@ export interface BattleActionResolution {
   validationError?: BattleActionValidationError;
   actorId: string;
   actionId: BattleActionId;
+  contentId?: string;
   intendedTargetId?: string | null;
   outcomes: BattleActionOutcome[];
   pressTurnResult?: PressTurnSettlementResult;
@@ -306,6 +312,7 @@ export interface BattleSnapshot {
   currentActorId?: string | null;
   currentMenuNodeId?: string | null;
   selectedActionId?: BattleActionId | null;
+  selectedContentId?: string | null;
   selectedSwapOutParticipantId?: string | null;
   selectedSwapInParticipantId?: string | null;
   actionMenu?: BattleActionMenuNode[];

@@ -1,0 +1,5 @@
+{"id":"guard","name":"Guard","type":"buff","duration":1,"statModifiers":{},"stackable":false}
+{"id":"poison","name":"Poison","type":"dot","duration":3,"damagePercent":10,"stackable":false}
+{"id":"attack_up","name":"Attack Up","type":"buff","duration":3,"statModifiers":{"attack":3},"stackable":false}
+{"id":"defense_up","name":"Defense Up","type":"buff","duration":3,"statModifiers":{"defense":3},"stackable":false}
+{"id":"attack_down","name":"Attack Down","type":"debuff","duration":3,"statModifiers":{"attack":-3},"stackable":false}

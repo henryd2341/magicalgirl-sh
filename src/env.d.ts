@@ -9,3 +9,8 @@ declare module "*.vue" {
   >;
   export default component;
 }
+
+declare module "*.jsonl?raw" {
+  const content: string;
+  export default content;
+}

@@ -1,3 +1,4 @@
+import { resolveAffinityResult } from "@/engine/battle/battleAffinity";
 import { getBattleActionDefinition } from "@/engine/battle/battleActionCatalog";
 import {
   appendBattleLogs,
@@ -19,6 +20,21 @@ import {
   settlePressTurnResultByOutcome,
   settleSwapPressTurn,
 } from "@/engine/battle/pressTurn";
+import {
+  calculateDamage,
+  calculateGuardReduction,
+  calculateHitChance,
+  computeDerivedCombatStats,
+  resolveAffinityMultiplier,
+  resolveAffinityOutcomeType,
+  rollCrit,
+  rollHit,
+} from "@/engine/battle/formulaEngine";
+import {
+  getFormulaParams,
+  getItem,
+  getSkill,
+} from "@/content/contentRegistry";
 import type {
   BattleActionOutcome,
   BattleActionResolution,
@@ -28,21 +44,17 @@ import type {
   BattleSnapshot,
 } from "@/types/battle";
 
-const BASIC_SKILL_MP_COST = 3;
-const BASIC_SKILL_DAMAGE = 2;
-const BASIC_ITEM_HEAL = 2;
-const GUARD_STATUS_EFFECT = "guarding";
-const ENEMY_ATTACK_DAMAGE = 1;
+// ── Guard status effect ID (from content) ──
+
+const GUARD_EFFECT_ID = "guarding";
+
+// ── Participant cloning ──
 
 function cloneParticipant(participant: BattleParticipant): BattleParticipant {
   const cloned: BattleParticipant = {
     ...participant,
-    hp: {
-      ...participant.hp,
-    },
-    mp: {
-      ...participant.mp,
-    },
+    hp: { ...participant.hp },
+    mp: { ...participant.mp },
     statusEffects: [...(participant.statusEffects ?? [])],
   };
 
@@ -83,14 +95,8 @@ function applyOutcomeToParticipant(
 
   return {
     ...participant,
-    hp: {
-      ...participant.hp,
-      current: nextHpCurrent,
-    },
-    mp: {
-      ...participant.mp,
-      current: nextMpCurrent,
-    },
+    hp: { ...participant.hp, current: nextHpCurrent },
+    mp: { ...participant.mp, current: nextMpCurrent },
     isDown: nextHpCurrent === 0,
     statusEffects,
   };
@@ -102,7 +108,6 @@ function applyBattleOutcomes(
 ): BattleParticipant[] {
   return participants.map((participant) => {
     const clonedParticipant = cloneParticipant(participant);
-
     return outcomes.reduce(
       (currentParticipant, outcome) =>
         applyOutcomeToParticipant(currentParticipant, outcome),
@@ -110,6 +115,8 @@ function applyBattleOutcomes(
     );
   });
 }
+
+// ── Battle result factories ──
 
 function createVictoryBattleResult(
   participants: BattleParticipant[],
@@ -121,11 +128,11 @@ function createVictoryBattleResult(
     endReason: "all_enemies_down",
     turnCount,
     survivingParticipantIds: participants
-      .filter((participant) => !participant.isDown)
-      .map((participant) => participant.id),
+      .filter((p) => !p.isDown)
+      .map((p) => p.id),
     downParticipantIds: participants
-      .filter((participant) => participant.isDown)
-      .map((participant) => participant.id),
+      .filter((p) => p.isDown)
+      .map((p) => p.id),
   };
 }
 
@@ -139,11 +146,11 @@ function createDefeatBattleResult(
     endReason: "all_players_down",
     turnCount,
     survivingParticipantIds: participants
-      .filter((participant) => !participant.isDown)
-      .map((participant) => participant.id),
+      .filter((p) => !p.isDown)
+      .map((p) => p.id),
     downParticipantIds: participants
-      .filter((participant) => participant.isDown)
-      .map((participant) => participant.id),
+      .filter((p) => p.isDown)
+      .map((p) => p.id),
   };
 }
 
@@ -153,57 +160,141 @@ function getFirstAllowedTargetId(
 ): string | null {
   return (
     participants.find(
-      (participant) =>
-        participant.side === side &&
-        participant.isActive &&
-        !participant.isDown &&
-        participant.canAct !== false,
+      (p) =>
+        p.side === side && p.isActive && !p.isDown && p.canAct !== false,
     )?.id ?? null
   );
 }
+
+// ── Enemy turn target selection ──
 
 function selectEnemyTurnTarget(
   participants: BattleParticipant[],
 ): BattleParticipant | undefined {
   return participants
     .filter(
-      (participant) =>
-        participant.side === "player" &&
-        participant.isActive &&
-        !participant.isDown &&
-        participant.canAct !== false,
+      (p) =>
+        p.side === "player" && p.isActive && !p.isDown && p.canAct !== false,
     )
-    .reduce<BattleParticipant | undefined>((lowestHpTarget, participant) => {
-      if (lowestHpTarget == null) {
-        return participant;
-      }
-
-      return participant.hp.current < lowestHpTarget.hp.current
-        ? participant
-        : lowestHpTarget;
+    .reduce<BattleParticipant | undefined>((lowest, p) => {
+      if (lowest == null) return p;
+      return p.hp.current < lowest.hp.current ? p : lowest;
     }, undefined);
 }
 
 function hasGuardStatus(participant: BattleParticipant): boolean {
-  return (participant.statusEffects ?? []).includes(GUARD_STATUS_EFFECT);
+  return (participant.statusEffects ?? []).includes(GUARD_EFFECT_ID);
 }
 
-function calculateEnemyAttackDamage(target: BattleParticipant): number {
-  return hasGuardStatus(target)
-    ? Math.max(0, ENEMY_ATTACK_DAMAGE - 1)
-    : ENEMY_ATTACK_DAMAGE;
+// ── Core attack outcome builder ──
+
+interface BuildAttackOutcomesInput {
+  actorId: string;
+  actor: BattleParticipant;
+  targetId: string;
+  target: BattleParticipant;
+  skillPower: number;
+  skillElement: number;
+  skillAccuracy: number;
+  statDriver: "attack" | "intelligence";
 }
+
+function buildAttackOutcomes(
+  input: BuildAttackOutcomesInput,
+): BattleActionOutcome[] {
+  const params = getFormulaParams();
+  const { actor, target, skillPower, skillElement, skillAccuracy, statDriver } = input;
+
+  // Hit check
+  const hitChance = calculateHitChance(
+    skillAccuracy,
+    actor.combatStats?.accuracy ?? 90,
+    target.combatStats?.evasion ?? 80,
+    params.hitRate,
+  );
+
+  if (!rollHit(hitChance)) {
+    return [{
+      type: "miss",
+      tags: [],
+      actorId: input.actorId,
+      primaryTargetId: input.targetId,
+      finalTargetId: input.targetId,
+    }];
+  }
+
+  // Affinity check
+  const affinityProfile = target.affinities ?? {
+    weak: 0, resist: 0, nullify: 0, reflect: 0, absorb: 0,
+  };
+  const affinityOutcome = resolveAffinityOutcomeType(affinityProfile, skillElement);
+
+  if (affinityOutcome.outcomeType != null) {
+    return [{
+      type: affinityOutcome.outcomeType,
+      tags: [],
+      actorId: input.actorId,
+      primaryTargetId: input.targetId,
+      finalTargetId: input.targetId,
+      preventedBy: affinityOutcome.preventedBy,
+    }];
+  }
+
+  // Affinity multiplier
+  const affinityMult = resolveAffinityMultiplier(
+    affinityProfile,
+    skillElement,
+    params.affinity,
+  );
+
+  // Damage
+  const driverStat = statDriver === "attack" ? (actor.attack ?? 5) : (actor.intelligence ?? 5);
+  const defenderDef = target.defense ?? 5;
+
+  const damage = calculateDamage(
+    driverStat,
+    actor.level ?? 1,
+    defenderDef,
+    skillPower,
+    affinityMult,
+    params.damage,
+  );
+
+  // Crit check
+  const critChance = actor.combatStats?.critRate ?? 5;
+  const isCrit = rollCrit(critChance);
+
+  // Determine tags
+  const tags: BattleActionResolution["outcomes"][0]["tags"] = [];
+  const affinityResult = resolveAffinityResult(affinityProfile, skillElement);
+
+  if (affinityResult === "weak") tags.push("weak");
+  if (isCrit) tags.push("critical");
+
+  return [{
+    type: "hit",
+    tags,
+    actorId: input.actorId,
+    primaryTargetId: input.targetId,
+    finalTargetId: input.targetId,
+    hpDelta: -damage,
+  }];
+}
+
+// ── Guard guard status clearing ──
 
 function clearGuardStatusEffects(
   participants: BattleParticipant[],
 ): BattleParticipant[] {
-  return participants.map((participant) => ({
-    ...participant,
-    statusEffects: (participant.statusEffects ?? []).filter(
-      (statusEffect) => statusEffect !== GUARD_STATUS_EFFECT,
+  return participants.map((p) => ({
+    ...p,
+    statusEffects: (p.statusEffects ?? []).filter(
+      (effect) => effect !== GUARD_EFFECT_ID,
     ),
   }));
 }
+
+// ── Swap validation ──
 
 function validateSwapSelection(
   snapshot: BattleSnapshot,
@@ -215,60 +306,33 @@ function validateSwapSelection(
   }
 
   const playerParticipants = snapshot.participants.filter(
-    (participant) => participant.side === "player",
+    (p) => p.side === "player",
   );
-  const activePlayers = playerParticipants.filter(
-    (participant) => participant.isActive,
-  );
-  const reservePlayers = playerParticipants.filter(
-    (participant) => !participant.isActive,
-  );
+  const activePlayers = playerParticipants.filter((p) => p.isActive);
+  const reservePlayers = playerParticipants.filter((p) => !p.isActive);
 
   if (activePlayers.length === 1 && reservePlayers.length === 0) {
     return { ok: false, error: "swap_unavailable" };
   }
 
   const swapOut = snapshot.participants.find(
-    (participant) => participant.id === snapshot.selectedSwapOutParticipantId,
+    (p) => p.id === snapshot.selectedSwapOutParticipantId,
   );
-
-  if (swapOut == null) {
-    return { ok: false, error: "swap_out_not_found" };
-  }
-
-  if (!swapOut.isActive) {
-    return { ok: false, error: "swap_out_not_active" };
-  }
+  if (swapOut == null) return { ok: false, error: "swap_out_not_found" };
+  if (!swapOut.isActive) return { ok: false, error: "swap_out_not_active" };
 
   if (snapshot.selectedSwapInParticipantId == null) {
-    return {
-      ok: true,
-      swapOutId: swapOut.id,
-      swapInId: null,
-    };
+    return { ok: true, swapOutId: swapOut.id, swapInId: null };
   }
 
   const swapIn = snapshot.participants.find(
-    (participant) => participant.id === snapshot.selectedSwapInParticipantId,
+    (p) => p.id === snapshot.selectedSwapInParticipantId,
   );
+  if (swapIn == null) return { ok: false, error: "swap_in_not_found" };
+  if (swapIn.isActive) return { ok: false, error: "swap_in_not_reserve" };
+  if (swapIn.isDown) return { ok: false, error: "swap_in_down" };
 
-  if (swapIn == null) {
-    return { ok: false, error: "swap_in_not_found" };
-  }
-
-  if (swapIn.isActive) {
-    return { ok: false, error: "swap_in_not_reserve" };
-  }
-
-  if (swapIn.isDown) {
-    return { ok: false, error: "swap_in_down" };
-  }
-
-  return {
-    ok: true,
-    swapOutId: swapOut.id,
-    swapInId: swapIn.id,
-  };
+  return { ok: true, swapOutId: swapOut.id, swapInId: swapIn.id };
 }
 
 function applySwapToParticipants(
@@ -276,24 +340,11 @@ function applySwapToParticipants(
   swapOutId: string,
   swapInId: string | null,
 ): BattleParticipant[] {
-  return participants.map((participant) => {
-    const clonedParticipant = cloneParticipant(participant);
-
-    if (clonedParticipant.id === swapOutId) {
-      return {
-        ...clonedParticipant,
-        isActive: false,
-      };
-    }
-
-    if (swapInId != null && clonedParticipant.id === swapInId) {
-      return {
-        ...clonedParticipant,
-        isActive: true,
-      };
-    }
-
-    return clonedParticipant;
+  return participants.map((p) => {
+    const cloned = cloneParticipant(p);
+    if (cloned.id === swapOutId) return { ...cloned, isActive: false };
+    if (swapInId != null && cloned.id === swapInId) return { ...cloned, isActive: true };
+    return cloned;
   });
 }
 
@@ -301,7 +352,6 @@ function createSwapResolution(
   snapshot: BattleSnapshot,
 ): BattleActionResolution {
   const validation = validateSwapSelection(snapshot);
-
   if (!validation.ok) {
     return {
       ok: false,
@@ -331,12 +381,13 @@ function createSwapResolution(
   };
 }
 
+// ── Press turn resolution from outcomes ──
+
 export function createPressTurnResolutionForOutcomes(
   snapshot: BattleSnapshot,
   outcomes: BattleActionOutcome[],
 ): BattleActionResolution {
   const aggregatedOutcome = aggregatePressTurnOutcome(outcomes);
-
   return {
     ok: true,
     actorId: snapshot.currentActorId ?? "unknown-actor",
@@ -355,6 +406,8 @@ export function createPressTurnResolutionForOutcomes(
     summaryLog: [],
   };
 }
+
+// ── Main action resolver ──
 
 export function resolveSelectedBattleAction(
   snapshot: BattleSnapshot,
@@ -384,11 +437,7 @@ export function resolveSelectedBattleAction(
     resolution.actionId === "swap"
       ? (() => {
           const validation = validateSwapSelection(normalizedSnapshot);
-
-          if (!validation.ok) {
-            return normalizedSnapshot.participants;
-          }
-
+          if (!validation.ok) return normalizedSnapshot.participants;
           return applySwapToParticipants(
             normalizedSnapshot.participants,
             validation.swapOutId,
@@ -402,11 +451,11 @@ export function resolveSelectedBattleAction(
   const nextPressTurn =
     resolution.pressTurnResult?.after ?? normalizedSnapshot.pressTurn;
   const allEnemiesDefeated = participants
-    .filter((participant) => participant.side === "enemy")
-    .every((participant) => participant.isDown);
+    .filter((p) => p.side === "enemy")
+    .every((p) => p.isDown);
   const allPlayersDefeated = participants
-    .filter((participant) => participant.side === "player")
-    .every((participant) => participant.isDown);
+    .filter((p) => p.side === "player")
+    .every((p) => p.isDown);
   const playerTurnExhausted = isPressTurnExhausted(nextPressTurn);
   const nextActorId = playerTurnExhausted
     ? null
@@ -459,26 +508,22 @@ export function resolveSelectedBattleAction(
   return nextSnapshot;
 }
 
+// ── Enemy turn resolver ──
+
 export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
   if (snapshot.phase !== "ENEMY_TURN") {
     return snapshot;
   }
 
+  const params = getFormulaParams();
   const turnCount = snapshot.turnCount ?? 1;
   const enemyActors = snapshot.participants.filter(
-    (participant) =>
-      participant.side === "enemy" &&
-      participant.isActive &&
-      !participant.isDown &&
-      participant.canAct !== false,
+    (p) =>
+      p.side === "enemy" && p.isActive && !p.isDown && p.canAct !== false,
   );
 
   if (enemyActors.length === 0) {
-    const battleResult = createVictoryBattleResult(
-      snapshot.participants,
-      turnCount,
-    );
-
+    const battleResult = createVictoryBattleResult(snapshot.participants, turnCount);
     return {
       ...snapshot,
       lifecycleState: "RESOLVED",
@@ -504,24 +549,34 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
   for (let index = 0; index < attackCount; index += 1) {
     const actor = enemyActors[index % enemyActors.length];
     const target = selectEnemyTurnTarget(participants);
+    if (actor == null || target == null) break;
 
-    if (actor == null || target == null) {
-      break;
+    // Use formula engine for enemy damage
+    const actorAtk = actor.attack ?? 5;
+    const targetDef = target.defense ?? 5;
+    let damage = calculateDamage(
+      actorAtk,
+      actor.level ?? 1,
+      targetDef,
+      10, // basic attack power for enemies
+      1.0, // neutral affinity
+      params.damage,
+    );
+
+    // Apply guard reduction
+    if (hasGuardStatus(target)) {
+      damage = calculateGuardReduction(damage, params.guard);
     }
 
-    const damage = calculateEnemyAttackDamage(target);
     const nextHp = Math.max(0, target.hp.current - damage);
-    participants = participants.map((participant) =>
-      participant.id === target.id
+    participants = participants.map((p) =>
+      p.id === target.id
         ? {
-            ...participant,
-            hp: {
-              ...participant.hp,
-              current: nextHp,
-            },
+            ...p,
+            hp: { ...p.hp, current: nextHp },
             isDown: nextHp === 0,
           }
-        : participant,
+        : p,
     );
     logs.push(createEnemyAttackLogEntry(turnCount, actor, target, damage));
   }
@@ -529,12 +584,11 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
   participants = clearGuardStatusEffects(participants);
 
   const allPlayersDefeated = participants
-    .filter((participant) => participant.side === "player")
-    .every((participant) => participant.isDown);
+    .filter((p) => p.side === "player")
+    .every((p) => p.isDown);
 
   if (allPlayersDefeated) {
     const battleResult = createDefeatBattleResult(participants, turnCount);
-
     return {
       ...snapshot,
       participants,
@@ -579,21 +633,7 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
   };
 }
 
-function createInsufficientMpResolution(
-  snapshot: BattleSnapshot,
-  actionId: BattleActionResolution["actionId"],
-): BattleActionResolution {
-  return {
-    ok: false,
-    validationError: "insufficient_mp",
-    actorId: snapshot.currentActorId ?? "unknown-actor",
-    actionId,
-    intendedTargetId: snapshot.selectedTargetId,
-    outcomes: [],
-    verboseLog: [],
-    summaryLog: [],
-  };
-}
+// ── Detailed action resolution ──
 
 export function resolveSelectedBattleActionToResolution(
   snapshot: BattleSnapshot,
@@ -629,6 +669,7 @@ export function resolveSelectedBattleActionToResolution(
 
   const definition = getBattleActionDefinition(snapshot.selectedActionId);
 
+  // Pass
   if (definition.resolutionKind === "pass") {
     return {
       ok: true,
@@ -642,10 +683,12 @@ export function resolveSelectedBattleActionToResolution(
     };
   }
 
+  // Swap
   if (definition.resolutionKind === "swap") {
     return createSwapResolution(snapshot);
   }
 
+  // Guard
   if (definition.resolutionKind === "guard") {
     const outcome: BattleActionOutcome = {
       type: "hit",
@@ -653,7 +696,7 @@ export function resolveSelectedBattleActionToResolution(
       actorId,
       primaryTargetId: actorId,
       finalTargetId: actorId,
-      appliedStatusEffects: [GUARD_STATUS_EFFECT],
+      appliedStatusEffects: [GUARD_EFFECT_ID],
     };
 
     return {
@@ -665,6 +708,7 @@ export function resolveSelectedBattleActionToResolution(
     };
   }
 
+  // No selection mode action
   if (definition.selectionMode === "none") {
     return {
       ok: true,
@@ -677,6 +721,7 @@ export function resolveSelectedBattleActionToResolution(
     };
   }
 
+  // Target validation
   if (snapshot.selectedTargetId == null) {
     return {
       ok: false,
@@ -691,9 +736,8 @@ export function resolveSelectedBattleActionToResolution(
   }
 
   const target = snapshot.participants.find(
-    (participant) => participant.id === snapshot.selectedTargetId,
+    (p) => p.id === snapshot.selectedTargetId,
   );
-
   if (target == null) {
     return {
       ok: false,
@@ -720,65 +764,296 @@ export function resolveSelectedBattleActionToResolution(
     };
   }
 
+  const actor = snapshot.participants.find((p) => p.id === actorId);
+
+  // ── Skill resolution (content-driven) ──
+
   if (definition.resolutionKind === "skill") {
-    const actor = snapshot.participants.find(
-      (participant) => participant.id === actorId,
-    );
+    // Backward compat: if no contentId, use old hardcoded placeholder behavior
+    if (snapshot.selectedContentId == null) {
+      // Old placeholder: fixed 2 damage, 3 MP cost
+      if (actor != null && actor.mp.current < 3) {
+        return {
+          ok: false,
+          validationError: "insufficient_mp",
+          actorId,
+          actionId: definition.id,
+          intendedTargetId: snapshot.selectedTargetId,
+          outcomes: [],
+          verboseLog: [],
+          summaryLog: [],
+        };
+      }
 
-    if (actor == null || actor.mp.current < BASIC_SKILL_MP_COST) {
-      return createInsufficientMpResolution(snapshot, definition.id);
-    }
-
-    const outcomes: BattleActionOutcome[] = [
-      {
+      const outcome: BattleActionOutcome = {
         type: "hit",
         tags: [],
         actorId,
         primaryTargetId: snapshot.selectedTargetId,
         finalTargetId: snapshot.selectedTargetId,
-        hpDelta: -BASIC_SKILL_DAMAGE,
-      },
-      {
+        hpDelta: -2,
+      };
+      const mpOutcome: BattleActionOutcome = {
         type: "hit",
         tags: [],
         actorId,
         primaryTargetId: actorId,
         finalTargetId: actorId,
-        mpDelta: -BASIC_SKILL_MP_COST,
-      },
-    ];
+        mpDelta: -3,
+      };
+
+      return {
+        ...createPressTurnResolutionForOutcomes(snapshot, [outcome, mpOutcome]),
+        actionId: definition.id,
+        intendedTargetId: snapshot.selectedTargetId,
+        verboseLog: [
+          `${actorId} used basic-skill on ${snapshot.selectedTargetId}.`,
+        ],
+        summaryLog: ["Basic Skill hit"],
+      };
+    }
+
+    const contentId = snapshot.selectedContentId;
+    let skillContent: ReturnType<typeof getSkill>;
+
+    try {
+      skillContent = getSkill(contentId);
+    } catch {
+      return {
+        ok: false,
+        validationError: "action_not_found",
+        actorId,
+        actionId: definition.id,
+        contentId,
+        intendedTargetId: snapshot.selectedTargetId,
+        outcomes: [],
+        verboseLog: [],
+        summaryLog: [],
+      };
+    }
+
+    // MP check
+    if (actor != null && actor.mp.current < skillContent.mpCost) {
+      return {
+        ok: false,
+        validationError: "insufficient_mp",
+        actorId,
+        actionId: definition.id,
+        contentId,
+        intendedTargetId: snapshot.selectedTargetId,
+        outcomes: [],
+        verboseLog: [],
+        summaryLog: [],
+      };
+    }
+
+    // Heal skills
+    if (skillContent.category === "heal") {
+      const healOutcome: BattleActionOutcome = {
+        type: "hit",
+        tags: [],
+        actorId,
+        primaryTargetId: snapshot.selectedTargetId,
+        finalTargetId: snapshot.selectedTargetId,
+        hpDelta: skillContent.power,
+      };
+      const mpOutcome: BattleActionOutcome = {
+        type: "hit",
+        tags: [],
+        actorId,
+        primaryTargetId: actorId,
+        finalTargetId: actorId,
+        mpDelta: -skillContent.mpCost,
+      };
+
+      return {
+        ...createPressTurnResolutionForOutcomes(snapshot, [healOutcome, mpOutcome]),
+        actionId: definition.id,
+        contentId,
+        intendedTargetId: snapshot.selectedTargetId,
+        verboseLog: [
+          `${actorId} used ${skillContent.name} on ${snapshot.selectedTargetId}.`,
+        ],
+        summaryLog: [`${skillContent.name} used`],
+      };
+    }
+
+    // Support skills (status effect application)
+    if (skillContent.category === "support") {
+      const outcomes: BattleActionOutcome[] = [];
+      const appliedEffects: string[] = [];
+
+      if (skillContent.statusEffects != null) {
+        for (const se of skillContent.statusEffects) {
+          if (Math.random() * 100 < se.chance) {
+            appliedEffects.push(se.effectId);
+          }
+        }
+      }
+
+      if (appliedEffects.length > 0) {
+        outcomes.push({
+          type: "hit",
+          tags: [],
+          actorId,
+          primaryTargetId: snapshot.selectedTargetId,
+          finalTargetId: snapshot.selectedTargetId,
+          appliedStatusEffects: appliedEffects,
+        });
+      }
+
+      const mpOutcome: BattleActionOutcome = {
+        type: "hit",
+        tags: [],
+        actorId,
+        primaryTargetId: actorId,
+        finalTargetId: actorId,
+        mpDelta: -skillContent.mpCost,
+      };
+      outcomes.push(mpOutcome);
+
+      return {
+        ...createPressTurnResolutionForOutcomes(snapshot, outcomes),
+        actionId: definition.id,
+        contentId,
+        intendedTargetId: snapshot.selectedTargetId,
+        verboseLog: [
+          `${actorId} used ${skillContent.name} on ${snapshot.selectedTargetId}.`,
+        ],
+        summaryLog: [`${skillContent.name} used`],
+      };
+    }
+
+    // Offensive skills (physical / magic)
+    if (actor == null) {
+      return {
+        ok: false,
+        validationError: "action_not_found",
+        actorId,
+        actionId: definition.id,
+        contentId,
+        intendedTargetId: snapshot.selectedTargetId,
+        outcomes: [],
+        verboseLog: [],
+        summaryLog: [],
+      };
+    }
+
+    const outcomes = buildAttackOutcomes({
+      actorId,
+      actor,
+      targetId: snapshot.selectedTargetId,
+      target,
+      skillPower: skillContent.power,
+      skillElement: skillContent.element,
+      skillAccuracy: skillContent.accuracy,
+      statDriver: skillContent.statDriver,
+    });
+
+    // MP cost outcome
+    if (skillContent.mpCost > 0) {
+      outcomes.push({
+        type: "hit",
+        tags: [],
+        actorId,
+        primaryTargetId: actorId,
+        finalTargetId: actorId,
+        mpDelta: -skillContent.mpCost,
+      });
+    }
 
     return {
       ...createPressTurnResolutionForOutcomes(snapshot, outcomes),
       actionId: definition.id,
+      contentId,
       intendedTargetId: snapshot.selectedTargetId,
       verboseLog: [
-        `${actorId} used ${definition.id} on ${snapshot.selectedTargetId}.`,
+        `${actorId} used ${skillContent.name} on ${snapshot.selectedTargetId}.`,
       ],
-      summaryLog: [`${definition.label} hit`],
+      summaryLog: [`${skillContent.name} used`],
     };
   }
+
+  // ── Item resolution (content-driven) ──
 
   if (definition.resolutionKind === "item") {
-    const outcome: BattleActionOutcome = {
-      type: "hit",
-      tags: [],
-      actorId,
-      primaryTargetId: snapshot.selectedTargetId,
-      finalTargetId: snapshot.selectedTargetId,
-      hpDelta: BASIC_ITEM_HEAL,
-    };
+    // Backward compat: if no contentId, use old hardcoded placeholder
+    if (snapshot.selectedContentId == null) {
+      const outcome: BattleActionOutcome = {
+        type: "hit",
+        tags: [],
+        actorId,
+        primaryTargetId: snapshot.selectedTargetId,
+        finalTargetId: snapshot.selectedTargetId,
+        hpDelta: 2,
+      };
+
+      return {
+        ...createPressTurnResolutionForOutcomes(snapshot, [outcome]),
+        actionId: definition.id,
+        intendedTargetId: snapshot.selectedTargetId,
+        verboseLog: [
+          `${actorId} used basic-item on ${snapshot.selectedTargetId}.`,
+        ],
+        summaryLog: ["Basic Item healed"],
+      };
+    }
+
+    const contentId = snapshot.selectedContentId;
+    let itemContent: ReturnType<typeof getItem>;
+
+    try {
+      itemContent = getItem(contentId);
+    } catch {
+      return {
+        ok: false,
+        validationError: "action_not_found",
+        actorId,
+        actionId: definition.id,
+        contentId,
+        intendedTargetId: snapshot.selectedTargetId,
+        outcomes: [],
+        verboseLog: [],
+        summaryLog: [],
+      };
+    }
+
+    const outcomes: BattleActionOutcome[] = [];
+
+    if (itemContent.healHp != null) {
+      outcomes.push({
+        type: "hit",
+        tags: [],
+        actorId,
+        primaryTargetId: snapshot.selectedTargetId,
+        finalTargetId: snapshot.selectedTargetId,
+        hpDelta: itemContent.healHp,
+      });
+    }
+    if (itemContent.healMp != null) {
+      outcomes.push({
+        type: "hit",
+        tags: [],
+        actorId,
+        primaryTargetId: snapshot.selectedTargetId,
+        finalTargetId: snapshot.selectedTargetId,
+        mpDelta: itemContent.healMp,
+      });
+    }
 
     return {
-      ...createPressTurnResolutionForOutcomes(snapshot, [outcome]),
+      ...createPressTurnResolutionForOutcomes(snapshot, outcomes),
       actionId: definition.id,
+      contentId,
       intendedTargetId: snapshot.selectedTargetId,
       verboseLog: [
-        `${actorId} used ${definition.id} on ${snapshot.selectedTargetId}.`,
+        `${actorId} used ${itemContent.name} on ${snapshot.selectedTargetId}.`,
       ],
-      summaryLog: [`${definition.label} healed`],
+      summaryLog: [`${itemContent.name} used`],
     };
   }
+
+  // ── Attack resolution (content-driven) ──
 
   if (definition.resolutionKind !== "attack") {
     return {
@@ -792,22 +1067,36 @@ export function resolveSelectedBattleActionToResolution(
     };
   }
 
-  const outcome: BattleActionOutcome = {
-    type: "hit",
-    tags: [],
+  // Use the "attack" skill from content
+  const attackSkill = getSkill("attack");
+  const outcomes = buildAttackOutcomes({
     actorId,
-    primaryTargetId: snapshot.selectedTargetId,
-    finalTargetId: snapshot.selectedTargetId,
-    hpDelta: -1,
-  };
+    actor: actor ?? {
+      id: actorId,
+      side: "player" as const,
+      displayName: actorId,
+      level: 1,
+      hp: { current: 1, max: 1 },
+      mp: { current: 0, max: 0 },
+      isDown: false,
+      isActive: true,
+    },
+    targetId: snapshot.selectedTargetId,
+    target,
+    skillPower: attackSkill.power,
+    skillElement: attackSkill.element,
+    skillAccuracy: attackSkill.accuracy,
+    statDriver: attackSkill.statDriver,
+  });
 
   return {
-    ...createPressTurnResolutionForOutcomes(snapshot, [outcome]),
+    ...createPressTurnResolutionForOutcomes(snapshot, outcomes),
     actionId: definition.id,
+    contentId: "attack",
     intendedTargetId: snapshot.selectedTargetId,
     verboseLog: [
-      `${actorId} used ${definition.id} on ${snapshot.selectedTargetId}.`,
+      `${actorId} used Attack on ${snapshot.selectedTargetId}.`,
     ],
-    summaryLog: [`${definition.label} hit`],
+    summaryLog: ["Attack hit"],
   };
 }

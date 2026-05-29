@@ -1,0 +1,1 @@
+{"damage":{"varianceMin":0.95,"varianceMax":1.05,"levelInfluence":0.01,"minDamage":1},"affinity":{"weak":1.5,"resist":0.5,"nullify":0,"normal":1.0},"hitRate":{"agilityInfluence":0.2,"minHitRate":5,"maxHitRate":95},"critRate":{"base":5,"agilityBonus":0.1,"max":50},"exp":{"baseExpToNext":50,"levelExponent":1.5},"guard":{"damageReduction":1}}

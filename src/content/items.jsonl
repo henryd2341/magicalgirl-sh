@@ -1,0 +1,6 @@
+{"id":"herb","name":"Herb","description":"Restores 10 HP to one ally.","type":"consumable","healHp":10,"usableInBattle":true}
+{"id":"ether","name":"Ether","description":"Restores 10 MP to one ally.","type":"consumable","healMp":10,"usableInBattle":true}
+{"id":"antidote","name":"Antidote","description":"Cures poison from one ally.","type":"consumable","usableInBattle":true}
+{"id":"power_band","name":"Power Band","description":"A band that enhances physical strength. +2 ATK","type":"accessory","modifiers":{"attack":2}}
+{"id":"guard_ring","name":"Guard Ring","description":"A ring that provides protection. +2 DEF","type":"accessory","modifiers":{"defense":2}}
+{"id":"swift_anklet","name":"Swift Anklet","description":"An anklet that improves agility. +2 AGI","type":"accessory","modifiers":{"agility":2}}

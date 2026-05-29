@@ -1,0 +1,9 @@
+{"id":"attack","name":"Attack","description":"Basic physical attack.","category":"physical","element":"Physical","power":10,"mpCost":0,"targetType":"single_enemy","accuracy":90,"statDriver":"attack"}
+{"id":"agi","name":"Agi","description":"Light Fire damage to one enemy.","category":"magic","element":"Fire","power":20,"mpCost":4,"targetType":"single_enemy","accuracy":95,"statDriver":"intelligence"}
+{"id":"bufu","name":"Bufu","description":"Light Ice damage to one enemy.","category":"magic","element":"Ice","power":20,"mpCost":4,"targetType":"single_enemy","accuracy":95,"statDriver":"intelligence"}
+{"id":"zan","name":"Zan","description":"Light Wind damage to one enemy.","category":"magic","element":"Wind","power":20,"mpCost":4,"targetType":"single_enemy","accuracy":95,"statDriver":"intelligence"}
+{"id":"dia","name":"Dia","description":"Light HP recovery to one ally.","category":"heal","element":"Heal","power":25,"mpCost":5,"targetType":"single_ally","accuracy":100,"statDriver":"intelligence"}
+{"id":"cleave","name":"Cleave","description":"Moderate Physical damage to one enemy.","category":"physical","element":"Physical","power":25,"mpCost":6,"targetType":"single_enemy","accuracy":85,"statDriver":"attack"}
+{"id":"mudo","name":"Mudo","description":"Light Dark damage to one enemy.","category":"magic","element":"Dark","power":20,"mpCost":6,"targetType":"single_enemy","accuracy":90,"statDriver":"intelligence"}
+{"id":"tarukaja","name":"Tarukaja","description":"Raises attack of one ally for 3 turns.","category":"support","element":"None","power":0,"mpCost":8,"targetType":"single_ally","accuracy":100,"statDriver":"intelligence","statusEffects":[{"effectId":"attack_up","chance":100}]}
+{"id":"poisma","name":"Poisma","description":"Poisons one enemy for 3 turns.","category":"support","element":"Ailment","power":0,"mpCost":5,"targetType":"single_enemy","accuracy":80,"statDriver":"intelligence","statusEffects":[{"effectId":"poison","chance":100}]}
