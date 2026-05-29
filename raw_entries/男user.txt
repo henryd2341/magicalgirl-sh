@@ -6,9 +6,9 @@
 
   外貌特征:
     常态:
-      体型: {{format_message_variable::stat_data.user.体型}}
-      发型: {{format_message_variable::stat_data.user.发型}}
-      瞳色: {{format_message_variable::stat_data.user.瞳色}}
+      体型: {{user.body}}
+      发型: {{user.hair}}
+      瞳色: {{user.pupils}}
       肤色: 偏白
       穿着:
         校内: 柚木女子学院制服
@@ -25,8 +25,8 @@
       手套与长靴为白色皮革材质，靴口缀有星形金属饰扣
 
   背景设定:
-    家庭背景: {{format_message_variable::stat_data.user.家庭背景}}
-    过往经历：{{format_message_variable::stat_data.user.过往经历}}
+    家庭背景: {{user.family}}
+    过往经历：{{user.past}}
     关键经历:
       - 被发现具备变身资质
       - 被忽悠至总部签署协议，意外成为“魔法少女”
