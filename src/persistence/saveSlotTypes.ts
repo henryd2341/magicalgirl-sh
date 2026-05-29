@@ -1,4 +1,4 @@
-import type { FullSaveExportV1 } from "@/persistence/exportSave";
+import type { FullSaveExportPayload } from "@/persistence/exportSave";
 
 export interface SaveSlotRecord {
   id: string;
@@ -9,5 +9,5 @@ export interface SaveSlotRecord {
   createdCheckpointId: string;
   saveMetaId: string;
   label: string;
-  payload: FullSaveExportV1;
+  payload: FullSaveExportPayload;
 }

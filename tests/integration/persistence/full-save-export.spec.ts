@@ -1,6 +1,6 @@
 import {
   createFullSaveExport,
-  type FullSaveExportV1,
+  type FullSaveExportV2,
 } from "@/persistence/exportSave";
 import {
   DbWorkerClient,
@@ -116,10 +116,10 @@ describe("full save export", () => {
       checkpointId: "checkpoint-save-export-001",
     });
 
-    const parsed = JSON.parse(result.jsonText) as FullSaveExportV1;
+    const parsed = JSON.parse(result.jsonText) as FullSaveExportV2;
     expect(parsed).toMatchObject({
       format: "magicalgirl-sh.full-save-export",
-      version: 1,
+      version: 2,
       exportedAt: "2026-05-25T01:12:03.000Z",
       exportId: "export-full-001",
       createdCheckpointId: "checkpoint-save-export-001",
@@ -209,7 +209,7 @@ describe("full save export", () => {
       now: () => "2026-05-25T13:02:00.000Z",
     });
 
-    const parsed = JSON.parse(result.jsonText) as FullSaveExportV1;
+    const parsed = JSON.parse(result.jsonText) as FullSaveExportV2;
     expect(parsed.data.variableValue).toMatchObject({
       rootId: "game_variables_root",
       stateHash: "initial",

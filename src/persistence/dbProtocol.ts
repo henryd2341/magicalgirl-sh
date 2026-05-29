@@ -10,7 +10,7 @@ import type {
   WorldInfoSearchResult,
 } from "@/persistence/repositories/worldInfoRepository";
 import type { SqliteWasmCapabilities } from "@/persistence/sqlite/sqliteWasm";
-import type { FullSaveExportV1 } from "@/persistence/exportSave";
+import type { FullSaveExportV2 } from "@/persistence/exportSave";
 import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
 import type { RuntimeSnapshotRecord } from "@/types/runtimeSnapshot";
 import type {
@@ -157,8 +157,15 @@ export type DbWorkerRequest =
       };
     }
   | {
+      type: "rename_save_slot";
+      payload: {
+        id: string;
+        label: string;
+      };
+    }
+  | {
       type: "replace_full_save_data";
-      payload: FullSaveExportV1["data"];
+      payload: FullSaveExportV2["data"];
     }
   | {
       type: "save_runtime_snapshot";
@@ -298,6 +305,12 @@ export type DbWorkerSuccessResponse =
       type: "delete_save_slot_result";
       payload: {
         deletedId: string;
+      };
+    }
+  | {
+      type: "rename_save_slot_result";
+      payload: {
+        renamedId: string;
       };
     }
   | {

@@ -11,8 +11,8 @@ async function openApiSettings() {
   await router.push({ name: "api-settings" });
 }
 
-async function openSaveExport() {
-  await router.push({ name: "save-export" });
+async function openSaveManage() {
+  await router.push({ name: "save-manage" });
 }
 
 async function returnToTitle() {
@@ -56,12 +56,12 @@ async function returnToTitle() {
         API 设置
       </button>
       <button
-        id="game-open-save-export"
+        id="game-open-save-manage"
         class="secondary-cta"
         type="button"
-        @click="openSaveExport"
+        @click="openSaveManage"
       >
-        存档导出
+        存档管理
       </button>
     </nav>
   </header>

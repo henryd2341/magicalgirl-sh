@@ -24,7 +24,7 @@ describe("application page layering", () => {
     resetChatPersistenceClient();
   });
 
-  it("registers dedicated routes for start, title, new game, main game, settings, API settings, and save export", () => {
+  it("registers dedicated routes for start, title, new game, main game, settings, API settings, and save management", () => {
     const routeSummary = router
       .getRoutes()
       .filter((route) => typeof route.name === "string")
@@ -36,7 +36,7 @@ describe("application page layering", () => {
       { name: "api-settings", path: "/api-settings" },
       { name: "game", path: "/game" },
       { name: "new-game", path: "/new-game" },
-      { name: "save-export", path: "/save-export" },
+      { name: "save-manage", path: "/save-manage" },
       { name: "settings", path: "/settings" },
       { name: "title", path: "/title" },
     ]);

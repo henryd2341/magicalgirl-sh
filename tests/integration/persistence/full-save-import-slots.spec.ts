@@ -206,7 +206,13 @@ describe("full save import slots", () => {
     expect(await variableChangeLogRepository.list()).toEqual(
       payload.data.variableChangeLog,
     );
-    expect(await worldInfoRepository.list()).toEqual(payload.data.worldInfo);
+    // After restore, raw_entries are synced too. Verify the imported entry is preserved.
+    const restoredWorldInfo = await worldInfoRepository.list();
+    const importedEntry = restoredWorldInfo.find((e) => e.id === "wi-imported");
+    expect(importedEntry).toBeDefined();
+    expect(importedEntry!.content).toBe("这条世界书来自导入槽位。");
+    expect(importedEntry!.enabled).toBe(true);
+    expect(importedEntry!.keywords).toEqual(["导入"]);
   });
 
   it("syncs gender-exclusive world info entries after restoring an imported save slot", async () => {

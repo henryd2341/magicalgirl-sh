@@ -4,13 +4,16 @@ import type { DbWorkerClient } from "@/persistence/dbClient";
 import type { ContextInjectionTrace } from "@/orchestrator/harnessContextTypes";
 import { deepClone } from "@/utils/deepClone";
 
-export interface WorldInfoEntry {
+export interface WorldInfoActivationState {
   id: string;
   keywords: string[];
-  content: string;
   priority: number;
   enabled: boolean;
   isConstant: boolean;
+}
+
+export interface WorldInfoEntry extends WorldInfoActivationState {
+  content: string;
 }
 
 export interface WorldInfoRepository {

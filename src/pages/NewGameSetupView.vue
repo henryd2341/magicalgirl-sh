@@ -62,6 +62,8 @@ async function confirmNewGame() {
     });
     await chatStore.configurePersistence({ client: persistenceClient });
     await sessionStore.configurePersistence({ client: persistenceClient });
+    // Ensure stale runtime snapshot from any previous session cannot survive.
+    await persistenceClient.clearRuntimeSnapshot();
     const openingMessage = renderOpeningMessage({
       playerName: playerName.value.trim(),
     });

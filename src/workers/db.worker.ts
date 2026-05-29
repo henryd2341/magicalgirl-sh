@@ -8,7 +8,7 @@ import type {
   DbWorkerResponse,
   DbWorkerStateSnapshot,
 } from "@/persistence/dbProtocol";
-import type { FullSaveExportV1 } from "@/persistence/exportSave";
+import type { FullSaveExportPayload } from "@/persistence/exportSave";
 import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
 import { runMigrations } from "@/persistence/migrationRunner";
 import {
@@ -201,7 +201,7 @@ function saveSlotFromRow(row: SaveSlotRow): SaveSlotRecord {
     createdCheckpointId: row.created_checkpoint_id,
     saveMetaId: row.save_meta_id,
     label: row.label,
-    payload: parseJson<FullSaveExportV1>(row.payload_json),
+    payload: parseJson<FullSaveExportPayload>(row.payload_json),
   };
 }
 
@@ -353,7 +353,8 @@ async function initializeRecoverySchema(database: SqliteDatabase): Promise<void>
       snapshot_json TEXT NOT NULL,
       session_snapshot_json TEXT NOT NULL,
       pending_battle_json TEXT,
-      active_battle_json TEXT
+      active_battle_json TEXT,
+      session_token TEXT NOT NULL DEFAULT ''
     );
   `);
 }
@@ -1242,6 +1243,24 @@ export function createDbWorkerRuntime(
           };
         }
 
+        case "rename_save_slot": {
+          const database = await ensureSqliteDatabase(state);
+          const slot = state.saveSlots.get(request.payload.id);
+          if (slot) {
+            slot.label = request.payload.label;
+            await database.exec(
+              "UPDATE save_slot SET label = ?, payload_json = ? WHERE id = ?",
+              [slot.label, serializeJson(slot.payload), slot.id],
+            );
+          }
+          return {
+            type: "rename_save_slot_result",
+            payload: {
+              renamedId: request.payload.id,
+            },
+          };
+        }
+
         case "replace_full_save_data": {
           const database = await ensureSqliteDatabase(state);
 
@@ -1282,7 +1301,17 @@ export function createDbWorkerRuntime(
           }
 
           state.worldInfo.clear();
-          for (const entry of request.payload.worldInfo) {
+          for (const activationState of request.payload.worldInfo) {
+            // Raw entries come with empty content (synced from files later).
+            // Non-raw entries preserve their original content.
+            const entry = {
+              id: activationState.id,
+              keywords: activationState.keywords,
+              content: (activationState as { content?: string }).content ?? "",
+              priority: activationState.priority,
+              enabled: activationState.enabled,
+              isConstant: activationState.isConstant,
+            };
             await saveWorldInfoRow(database, entry);
             if (state.worldInfoFtsAvailable) {
               await saveWorldInfoFtsRow(database, entry);

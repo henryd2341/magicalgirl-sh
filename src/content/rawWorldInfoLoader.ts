@@ -113,6 +113,13 @@ export async function syncRawWorldInfoEntries(
     };
   });
 
+  // Preserve entries that exist in DB but not in raw_entries (e.g., imported save data).
+  for (const [id, existing] of existingById) {
+    if (!rawEntries.some((re) => re.id === id)) {
+      syncedEntries.push(existing);
+    }
+  }
+
   for (const entry of syncedEntries) {
     await repository.save(entry);
   }

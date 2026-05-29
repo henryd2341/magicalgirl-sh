@@ -220,6 +220,36 @@ async function restoreSlot(slot: SaveSlotRecord) {
   }
 }
 
+const isRenamingSlotId = ref<string | null>(null);
+const renameInputValue = ref("");
+
+function startRenameSlot(slot: SaveSlotRecord) {
+  isRenamingSlotId.value = slot.id;
+  renameInputValue.value = slot.label;
+}
+
+function cancelRenameSlot() {
+  isRenamingSlotId.value = null;
+  renameInputValue.value = "";
+}
+
+async function confirmRenameSlot(slot: SaveSlotRecord) {
+  if (!persistenceClient || !renameInputValue.value.trim()) {
+    return;
+  }
+
+  try {
+    await persistenceClient.renameSaveSlot({
+      id: slot.id,
+      label: renameInputValue.value.trim(),
+    });
+    await refreshSaveSlots();
+  } finally {
+    isRenamingSlotId.value = null;
+    renameInputValue.value = "";
+  }
+}
+
 async function deleteSlot(slot: SaveSlotRecord) {
   if (
     !persistenceClient ||
@@ -269,8 +299,8 @@ function exportSlot(slot: SaveSlotRecord) {
     role="main"
   >
     <section class="save-export-view__panel">
-      <p class="eyebrow eyebrow--lime">Save Export</p>
-      <h1 class="section-heading--playful">存档导出入口</h1>
+      <p class="eyebrow eyebrow--lime">Save Manager</p>
+      <h1 class="section-heading--playful">存档管理</h1>
       <p class="hero-subtitle">
         创建当前时刻的 save checkpoint，或导入完整恢复数据包到槽位。
       </p>
@@ -345,7 +375,40 @@ function exportSlot(slot: SaveSlotRecord) {
           :key="slot.id"
           class="save-export-view__slot"
         >
-          <h3 class="hero-subtitle">{{ slot.label }}</h3>
+          <h3 class="hero-subtitle">
+            <template v-if="isRenamingSlotId === slot.id">
+              <input
+                v-model="renameInputValue"
+                class="primary-cta"
+                style="width: 300px"
+                @keyup.enter="confirmRenameSlot(slot)"
+              />
+              <button
+                type="button"
+                class="secondary-cta"
+                @click="confirmRenameSlot(slot)"
+              >
+                确认
+              </button>
+              <button
+                type="button"
+                class="secondary-cta secondary-cta--warning"
+                @click="cancelRenameSlot"
+              >
+                取消
+              </button>
+            </template>
+            <template v-else>
+              {{ slot.label }}
+              <button
+                type="button"
+                class="secondary-cta"
+                @click="startRenameSlot(slot)"
+              >
+                重命名
+              </button>
+            </template>
+          </h3>
           <p>{{ slot.sourceFileName }}</p>
           <p>{{ slot.createdCheckpointId }}</p>
           <div class="save-export-view__actions">

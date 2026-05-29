@@ -16,7 +16,7 @@ import type {
   WorldInfoEntry,
   WorldInfoSearchResult,
 } from "@/persistence/repositories/worldInfoRepository";
-import type { FullSaveExportV1 } from "@/persistence/exportSave";
+import type { FullSaveExportV2 } from "@/persistence/exportSave";
 import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
 import type {
   CheckpointKind,
@@ -387,7 +387,7 @@ export class DbWorkerClient {
   }
 
   public async replaceFullSaveData(
-    data: FullSaveExportV1["data"],
+    data: FullSaveExportV2["data"],
   ): Promise<void> {
     const response = await this.dispatch({
       type: "replace_full_save_data",

@@ -1,8 +1,11 @@
+import { syncRawWorldInfoEntries } from "@/content/rawWorldInfoLoader";
 import { syncPlayerGenderWorldInfoActivation } from "@/content/worldInfoActivation";
 import type { DbWorkerClient } from "@/persistence/dbClient";
 import {
   FULL_SAVE_EXPORT_FORMAT,
+  type FullSaveExportPayload,
   type FullSaveExportV1,
+  type FullSaveExportV2,
 } from "@/persistence/exportSave";
 import { DbVariableRepository } from "@/persistence/repositories/variableRepository";
 import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
@@ -58,7 +61,7 @@ function assertArray(value: unknown, fieldName: string): asserts value is unknow
   }
 }
 
-export function parseFullSaveImport(jsonText: string): FullSaveExportV1 {
+export function parseFullSaveImport(jsonText: string): FullSaveExportPayload {
   let parsed: unknown;
 
   try {
@@ -71,8 +74,13 @@ export function parseFullSaveImport(jsonText: string): FullSaveExportV1 {
     throw invalidImport("Payload must be an object.");
   }
 
-  if (parsed.format !== FULL_SAVE_EXPORT_FORMAT || parsed.version !== 1) {
-    throw invalidImport("Unsupported save export format or version.");
+  if (parsed.format !== FULL_SAVE_EXPORT_FORMAT) {
+    throw invalidImport("Unsupported save export format.");
+  }
+
+  const version = parsed.version;
+  if (version !== 1 && version !== 2) {
+    throw invalidImport("Unsupported save export version. Expected 1 or 2.");
   }
 
   if (
@@ -92,19 +100,29 @@ export function parseFullSaveImport(jsonText: string): FullSaveExportV1 {
   assertArray(parsed.data.variableChangeLog, "variableChangeLog");
   assertArray(parsed.data.worldInfo, "worldInfo");
 
+  if (version === 2) {
+    const payload = parsed as unknown as FullSaveExportV2;
+    const createdCheckpoint = payload.data.checkpointSnapshots.find(
+      (checkpoint) => checkpoint.id === payload.createdCheckpointId,
+    );
+    if (!createdCheckpoint || createdCheckpoint.kind !== "save_checkpoint") {
+      throw invalidImport("createdCheckpointId must point to a save checkpoint.");
+    }
+    return payload;
+  }
+
+  // v1: worldInfo has content but we don't use it on import
   const payload = parsed as unknown as FullSaveExportV1;
   const createdCheckpoint = payload.data.checkpointSnapshots.find(
     (checkpoint) => checkpoint.id === payload.createdCheckpointId,
   );
-
   if (!createdCheckpoint || createdCheckpoint.kind !== "save_checkpoint") {
     throw invalidImport("createdCheckpointId must point to a save checkpoint.");
   }
-
   return payload;
 }
 
-function createSlotLabel(payload: FullSaveExportV1): string {
+function createSlotLabel(payload: FullSaveExportPayload): string {
   const saveMeta = payload.data.saveMeta.find(
     (record) => record.id === payload.saveMetaId,
   );
@@ -155,6 +173,7 @@ export async function restoreFullSaveSlot(
   }
 
   await input.client.replaceFullSaveData(slot.payload.data);
+  await syncRawWorldInfoEntries(new DbWorldInfoRepository(input.client));
   await syncPlayerGenderWorldInfoActivation({
     variableRepository: new DbVariableRepository(input.client),
     worldInfoRepository: new DbWorldInfoRepository(input.client),

@@ -21,7 +21,7 @@ export const router = createRouter({
         { path: "game", name: "game", component: MainGameView },
         { path: "settings", name: "settings", component: SettingsView },
         { path: "api-settings", name: "api-settings", component: ApiSettingsView },
-        { path: "save-export", name: "save-export", component: SaveExportView },
+        { path: "save-manage", name: "save-manage", component: SaveExportView },
       ],
     },
   ],

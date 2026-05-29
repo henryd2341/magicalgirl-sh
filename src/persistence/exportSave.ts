@@ -10,6 +10,7 @@ import type {
   VariableRepository,
 } from "@/persistence/repositories/variableRepository";
 import type {
+  WorldInfoActivationState,
   WorldInfoEntry,
   WorldInfoRepository,
 } from "@/persistence/repositories/worldInfoRepository";
@@ -27,6 +28,30 @@ import type {
 
 export const FULL_SAVE_EXPORT_FORMAT = "magicalgirl-sh.full-save-export";
 
+export interface WorldInfoSaveEntry extends WorldInfoActivationState {
+  /** Only stored for entries not in raw_entries/. Empty string for raw_entries. */
+  content: string;
+}
+
+export interface FullSaveExportV2 {
+  format: typeof FULL_SAVE_EXPORT_FORMAT;
+  version: 2;
+  exportedAt: string;
+  exportId: string;
+  createdCheckpointId: string;
+  saveMetaId: string;
+  data: {
+    checkpointSnapshots: CheckpointSnapshotRecord[];
+    saveMeta: SaveMetaRecord[];
+    eventLog: EventLogRecord[];
+    chatMessages: ChatMessage[];
+    variableValue: VariableValueRecord | null;
+    variableChangeLog: VariableChangeLogRecord[];
+    worldInfo: WorldInfoSaveEntry[];
+  };
+}
+
+/** Legacy v1 format for import compatibility. */
 export interface FullSaveExportV1 {
   format: typeof FULL_SAVE_EXPORT_FORMAT;
   version: 1;
@@ -44,6 +69,9 @@ export interface FullSaveExportV1 {
     worldInfo: WorldInfoEntry[];
   };
 }
+
+/** All supported save export formats. */
+export type FullSaveExportPayload = FullSaveExportV2 | FullSaveExportV1;
 
 export interface FullSaveExportRepositories {
   checkpointRepository: CheckpointRepository;
@@ -115,6 +143,18 @@ function formatTimestampParts(isoTimestamp: string): {
   };
 }
 
+function entryToActivationState(entry: WorldInfoEntry): WorldInfoSaveEntry {
+  const isRaw = entry.id.startsWith("raw_entries/");
+  return {
+    id: entry.id,
+    keywords: entry.keywords,
+    priority: entry.priority,
+    enabled: entry.enabled,
+    isConstant: entry.isConstant,
+    content: isRaw ? "" : entry.content,
+  };
+}
+
 export async function createFullSaveExport(
   input: CreateFullSaveExportInput,
 ): Promise<CreateFullSaveExportResult> {
@@ -160,9 +200,12 @@ export async function createFullSaveExport(
 
   await input.repositories.saveMetaRepository.save(exportRecord);
 
-  const exportPayload: FullSaveExportV1 = {
+  const fullEntries = await input.repositories.worldInfoRepository.list();
+  const activationStates = fullEntries.map(entryToActivationState);
+
+  const exportPayload: FullSaveExportV2 = {
     format: FULL_SAVE_EXPORT_FORMAT,
-    version: 1,
+    version: 2,
     exportedAt,
     exportId,
     createdCheckpointId: checkpoint.id,
@@ -175,7 +218,7 @@ export async function createFullSaveExport(
       variableValue: await input.repositories.variableRepository.getCurrent(),
       variableChangeLog:
         await input.repositories.variableChangeLogRepository.list(),
-      worldInfo: await input.repositories.worldInfoRepository.list(),
+      worldInfo: activationStates,
     },
   };
 
