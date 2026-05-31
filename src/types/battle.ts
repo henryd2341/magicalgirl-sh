@@ -1,5 +1,3 @@
-import { createDefaultBattleCommandMenuTree } from "@/engine/battle/battleActionCatalog";
-import { createPressTurnStateForSide } from "@/engine/battle/pressTurn";
 import type { TriggerBattleEnemyInput } from "@/orchestrator/toolEnvelope";
 
 export const BATTLE_LIFECYCLE_STATES = [
@@ -162,6 +160,12 @@ export interface BattleParticipantCombatStats {
   critRate: number;
 }
 
+export interface ActiveStatusEffect {
+  effectId: string;
+  remainingDuration: number;
+  stacks: number;
+}
+
 export interface BattleParticipant {
   id: string;
   side: CombatantSide;
@@ -181,7 +185,7 @@ export interface BattleParticipant {
   intelligence?: number;
   isDown: boolean;
   isActive: boolean;
-  statusEffects?: string[];
+  statusEffects?: ActiveStatusEffect[];
   affinities?: BattleAffinityProfile;
   combatStats?: BattleParticipantCombatStats;
   canAct?: boolean;
@@ -246,6 +250,11 @@ export interface BattleActionMenuNode {
   children?: BattleActionMenuNode[];
 }
 
+export interface AppliedStatusEffectPayload {
+  effectId: string;
+  duration: number;
+}
+
 export interface BattleActionOutcome {
   type: BattleActionOutcomeType;
   tags: BattleActionOutcomeTag[];
@@ -254,7 +263,9 @@ export interface BattleActionOutcome {
   finalTargetId?: string | null;
   hpDelta?: number;
   mpDelta?: number;
-  appliedStatusEffects?: string[];
+  appliedStatusEffects?: AppliedStatusEffectPayload[];
+  consumedShieldEffectId?: string;
+  removedStatusEffectIds?: string[];
   preventedBy?: "nullify" | "reflect" | "absorb";
 }
 
@@ -330,126 +341,4 @@ export interface CreatePendingBattleSnapshotInput {
 export interface CreateBattleSnapshotFromPendingBattleInput {
   pendingBattle: PendingBattleSnapshot;
   playerParty: BattleParticipant[];
-}
-
-export function expandTriggerBattleEnemies(
-  enemies: TriggerBattleEnemyInput[],
-): BattleEnemyInstance[] {
-  const expanded: BattleEnemyInstance[] = [];
-  let runningIndex = 1;
-
-  for (const enemy of enemies) {
-    for (let countIndex = 0; countIndex < enemy.count; countIndex += 1) {
-      expanded.push({
-        instanceId: `enemy-${runningIndex}`,
-        enemyId: enemy.enemy_id,
-        displayName: enemy.enemy_id,
-        side: "enemy",
-      });
-      runningIndex += 1;
-    }
-  }
-
-  return expanded;
-}
-
-export function createPendingBattleSnapshot(
-  input: CreatePendingBattleSnapshotInput,
-): PendingBattleSnapshot {
-  return {
-    lifecycleState: "PENDING",
-    encounterId: input.encounterId,
-    narrativeReason: input.narrativeReason,
-    enemies: expandTriggerBattleEnemies(input.enemies),
-  };
-}
-
-export function createBattleSnapshotFromPendingBattle(
-  input: CreateBattleSnapshotFromPendingBattleInput,
-): BattleSnapshot {
-  const playerParticipants: BattleParticipant[] = input.playerParty.map(
-    (participant) => ({
-      ...participant,
-      level: participant.level ?? 1,
-      isActive: participant.isActive ?? true,
-      statusEffects: participant.statusEffects ?? [],
-      affinities: participant.affinities ?? {
-        weak: 0,
-        resist: 0,
-        nullify: 0,
-        reflect: 0,
-        absorb: 0,
-      },
-      combatStats: participant.combatStats ?? {
-        accuracy: 100,
-        evasion: 100,
-        critRate: 0,
-      },
-      canAct: participant.canAct ?? true,
-    }),
-  );
-
-  const enemyParticipants: BattleParticipant[] =
-    input.pendingBattle.enemies.map((enemy) => ({
-      id: enemy.instanceId,
-      side: "enemy",
-      displayName: enemy.displayName,
-      level: 1,
-      hp: {
-        current: 1,
-        max: 1,
-      },
-      mp: {
-        current: 0,
-        max: 0,
-      },
-      isDown: false,
-      isActive: true,
-      statusEffects: [],
-      affinities: {
-        weak: 0,
-        resist: 0,
-        nullify: 0,
-        reflect: 0,
-        absorb: 0,
-      },
-      combatStats: {
-        accuracy: 100,
-        evasion: 100,
-        critRate: 0,
-      },
-      canAct: true,
-    }));
-
-  const participants = [...playerParticipants, ...enemyParticipants];
-  const playerActingParticipantIds = playerParticipants
-    .filter(
-      (participant) =>
-        participant.isActive &&
-        !participant.isDown &&
-        participant.canAct !== false,
-    )
-    .map((participant) => participant.id);
-
-  return {
-    lifecycleState: "ACTIVE",
-    phase: "PLAYER_COMMAND",
-    encounterId: input.pendingBattle.encounterId,
-    participants,
-    pressTurn: createPressTurnStateForSide(participants, "player"),
-    pressTurnAllocation: {
-      participantIds: playerActingParticipantIds,
-      initialIconCount: playerActingParticipantIds.length,
-    },
-    turnCount: 1,
-    selectedTargetId: enemyParticipants[0]?.id ?? null,
-    currentActorId: playerParticipants[0]?.id ?? null,
-    currentMenuNodeId: null,
-    selectedActionId: null,
-    selectedSwapOutParticipantId: null,
-    selectedSwapInParticipantId: null,
-    actionMenu: createDefaultBattleCommandMenuTree(),
-    battleResult: undefined,
-    battleLog: [],
-  };
 }

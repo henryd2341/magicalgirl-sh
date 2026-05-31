@@ -118,21 +118,6 @@ describe("combat flow integration", () => {
     battleStore.selectTarget("enemy-1");
 
     expect(sessionStore.snapshot.sessionState).toBe("IN_COMBAT");
-    expect(battleStore.activeBattle?.phase).toBe("ENEMY_TURN");
-    expect(
-      battleStore.activeBattle?.participants.find(
-        (participant) => participant.id === "enemy-1",
-      )?.hp.current,
-    ).toBe(1);
-
-    battleStore.resolveEnemyTurn();
-
-    expect(battleStore.activeBattle?.phase).toBe("PLAYER_COMMAND");
-    expect(battleStore.activeBattle?.turnCount).toBe(2);
-
-    battleStore.selectAction("attack");
-    battleStore.selectTarget("enemy-1");
-
     expect(battleStore.activeBattle?.lifecycleState).toBe("RESOLVED");
     expect(battleStore.activeBattle?.phase).toBe("RESULT");
 

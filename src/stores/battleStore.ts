@@ -6,10 +6,12 @@ import {
   resolveEnemyTurn,
   resolveSelectedBattleAction,
 } from "@/engine/battle/battleResolver";
-import { createEnemyBattleParticipant } from "@/engine/battle/battleSetup";
 import {
   createBattleSnapshotFromPendingBattle,
+  createEnemyBattleParticipant,
   createPendingBattleSnapshot,
+} from "@/engine/battle/battleSetup";
+import {
   type BattleActionId,
   type BattleParticipant,
   type BattleSnapshot,

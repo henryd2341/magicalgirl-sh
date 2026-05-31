@@ -48,6 +48,13 @@ export interface GameVariablesRoot {
       defense: number;
       agility: number;
       intelligence: number;
+      allocatedPoints: {
+        attack: number;
+        defense: number;
+        agility: number;
+        intelligence: number;
+      };
+      unspentPoints: number;
     };
     money: number;
     equipment: {
@@ -79,6 +86,13 @@ export interface GameVariablesRoot {
         defense: number;
         agility: number;
         intelligence: number;
+        allocatedPoints: {
+          attack: number;
+          defense: number;
+          agility: number;
+          intelligence: number;
+        };
+        unspentPoints: number;
       } | null;
       inParty?: boolean;
       flags?: Record<string, boolean>;

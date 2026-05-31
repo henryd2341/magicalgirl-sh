@@ -4,15 +4,17 @@ import {
 } from "@/engine/battle/battleActionCatalog";
 import type { TriggerBattleToolInput } from "@/orchestrator/toolEnvelope";
 import {
+  createBattleSnapshotFromPendingBattle,
+  createPendingBattleSnapshot,
+  expandTriggerBattleEnemies,
+} from "@/engine/battle/battleSetup";
+import {
   BATTLE_LIFECYCLE_STATES,
   BATTLE_PHASES,
   BATTLE_RESULT_END_REASONS,
   BATTLE_RESULT_OUTCOMES,
   BATTLE_ELEMENTS as BattleElement,
   COMBATANT_SIDES,
-  createBattleSnapshotFromPendingBattle,
-  createPendingBattleSnapshot,
-  expandTriggerBattleEnemies,
   type BattleActionOutcome,
   type BattleActionResolution,
   type BattleResult,
@@ -185,56 +187,32 @@ describe("battle types", () => {
   it("creates the default battle command tree with root-level action and group nodes", () => {
     const commandTree = createDefaultBattleCommandMenuTree();
 
-    expect(commandTree).toHaveLength(6);
-    expect(commandTree).toEqual([
-      expect.objectContaining({
-        id: "attack-action",
-        kind: "action",
-        actionId: "attack",
-        label: "Attack",
-      }),
-      expect.objectContaining({
-        id: "skill-group",
-        kind: "group",
-        label: "Skill",
-      }),
-      expect.objectContaining({
-        id: "guard-action",
-        kind: "action",
-        actionId: "guard",
-        label: "Guard",
-      }),
-      expect.objectContaining({
-        id: "item-group",
-        kind: "group",
-        label: "Item",
-      }),
-      expect.objectContaining({
-        id: "pass-action",
-        kind: "action",
-        actionId: "pass",
-        label: "Pass",
-      }),
-      expect.objectContaining({
-        id: "swap-action",
-        kind: "action",
-        actionId: "swap",
-        label: "Swap",
-      }),
-    ]);
+    expect(commandTree.length).toBeGreaterThanOrEqual(5);
+
+    const findNode = (id: string) => commandTree.find((n) => n.id === id);
+    expect(findNode("attack-action")).toEqual(expect.objectContaining({ kind: "action", actionId: "attack" }));
+    expect(findNode("guard-action")).toEqual(expect.objectContaining({ kind: "action", actionId: "guard" }));
+    expect(findNode("item-group")).toEqual(expect.objectContaining({ kind: "group", label: "Item" }));
+    expect(findNode("pass-action")).toEqual(expect.objectContaining({ kind: "action", actionId: "pass" }));
+    expect(findNode("swap-action")).toEqual(expect.objectContaining({ kind: "action", actionId: "swap" }));
+
+    const skillGroups = commandTree.filter((n) => n.kind === "group" && n.id.startsWith("skill-group-"));
+    expect(skillGroups.length).toBeGreaterThanOrEqual(1);
+    for (const sg of skillGroups) {
+      expect(sg.children?.length).toBeGreaterThan(0);
+      expect(sg.children?.every((c) => c.kind === "action" && c.actionId === "basic-skill")).toBe(true);
+    }
   });
 
   it("creates skill and item group nodes with leaf action children", () => {
     const commandTree = createDefaultBattleCommandMenuTree();
 
-    const skillGroup = commandTree.find((node) => node.id === "skill-group");
+    const skillGroup = commandTree.find((node) => node.id.startsWith("skill-group-"));
     const itemGroup = commandTree.find((node) => node.id === "item-group");
 
     expect(skillGroup).toEqual(
       expect.objectContaining({
-        id: "skill-group",
         kind: "group",
-        label: "Skill",
         children: expect.any(Array),
       }),
     );
@@ -302,9 +280,9 @@ describe("battle types", () => {
     expect(getBattleActionDefinition("basic-skill")).toEqual(
       expect.objectContaining({
         id: "basic-skill",
-        label: "Basic Skill",
+        label: "Skill",
         selectionMode: "selective",
-        allowedSides: ["enemy"],
+        allowedSides: ["enemy", "player"],
         resolutionKind: "skill",
       }),
     );
@@ -312,7 +290,7 @@ describe("battle types", () => {
     expect(getBattleActionDefinition("basic-item")).toEqual(
       expect.objectContaining({
         id: "basic-item",
-        label: "Basic Item",
+        label: "Item",
         selectionMode: "selective",
         allowedSides: ["player"],
         resolutionKind: "item",
@@ -322,7 +300,7 @@ describe("battle types", () => {
 
   it("keeps target selection rules on executable leaf action definitions instead of group menu nodes", () => {
     const commandTree = createDefaultBattleCommandMenuTree();
-    const skillGroup = commandTree.find((node) => node.id === "skill-group");
+    const skillGroup = commandTree.find((node) => node.id.startsWith("skill-group-"));
 
     expect(skillGroup).toBeDefined();
     expect(skillGroup).toEqual(

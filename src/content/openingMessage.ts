@@ -17,7 +17,7 @@ export function renderOpeningMessage(input: OpeningMessageInput): ChatMessage {
     openingMessageRaw = openingMessageRawFemale;
   }
   const result = renderMustacheTemplate(openingMessageRaw, undefined, {
-    user: input.playerName,
+    user: input.playerName || "玩家",
   });
 
   return {

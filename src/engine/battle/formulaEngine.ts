@@ -140,6 +140,29 @@ export function calculateExpGained(
 
 // ── Growth table ──
 
+export interface AllocatedPoints {
+  attack: number;
+  defense: number;
+  agility: number;
+  intelligence: number;
+}
+
+/**
+ * Combine base growth stats with manually allocated points.
+ * atk/def/agi/int = base + allocated; hp/mp come from statsAtLevel.
+ */
+export function computeGrowthStats(
+  base: GrowthStats,
+  allocated: AllocatedPoints,
+): Pick<CombatStats, "attack" | "defense" | "agility" | "intelligence"> {
+  return {
+    attack: base.attack + allocated.attack,
+    defense: base.defense + allocated.defense,
+    agility: base.agility + allocated.agility,
+    intelligence: base.intelligence + allocated.intelligence,
+  };
+}
+
 export function statsAtLevel(
   base: GrowthStats,
   perLevel: GrowthStats,

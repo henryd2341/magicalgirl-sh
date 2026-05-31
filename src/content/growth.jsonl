@@ -1,2 +1,2 @@
-{"id":"player","base":{"hp":60,"mp":30,"attack":5,"defense":5,"agility":5,"intelligence":5},"perLevel":{"hp":15,"mp":6,"attack":2,"defense":2,"agility":2,"intelligence":2}}
-{"id":"sao_makoto","base":{"hp":50,"mp":40,"attack":4,"defense":4,"agility":7,"intelligence":7},"perLevel":{"hp":12,"mp":8,"attack":2,"defense":2,"agility":3,"intelligence":3}}
+{"id":"player","base":{"hp":60,"mp":30,"attack":5,"defense":5,"agility":5,"intelligence":5},"perLevel":{"hp":15,"mp":6,"attack":0,"defense":0,"agility":0,"intelligence":0,"freePoints":3}}
+{"id":"npc","base":{"hp":50,"mp":40,"attack":4,"defense":4,"agility":7,"intelligence":7},"perLevel":{"hp":12,"mp":8,"attack":0,"defense":0,"agility":0,"intelligence":0,"freePoints":2}}

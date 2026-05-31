@@ -1,39 +1,44 @@
-import { z } from "zod";
+import { BATTLE_ELEMENTS, type BattleElement } from "@/types/battle";
 import type {
-  EnemyContent,
   FormulaParams,
   GrowthContent,
   ItemContent,
   ResolvedEnemyContent,
   ResolvedSkillContent,
-  SkillContent,
   StatusEffectContent,
 } from "@/types/content";
-import { BATTLE_ELEMENTS, type BattleElement } from "@/types/battle";
+import { z } from "zod";
 
 // ── Zod schemas for raw content ──
 
 const statusEffectPayloadSchema = z.object({
   effectId: z.string().min(1),
-  chance: z.number().int().min(0).max(100),
+  chance: z.number().int().min(0).max(200),
 });
 
 const skillContentSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   description: z.string(),
-  category: z.enum(["physical", "magic", "heal", "support"]),
+  category: z.enum(["physical", "magic", "heal", "support", "passive"]),
   element: z.string().min(1),
   power: z.number().int().min(0),
   mpCost: z.number().int().min(0),
-  targetType: z.enum(["single_enemy", "all_enemies", "single_ally", "all_allies", "self"]),
-  accuracy: z.number().int().min(0).max(100),
+  targetType: z.enum([
+    "single_enemy",
+    "all_enemies",
+    "single_ally",
+    "all_allies",
+    "self",
+  ]),
+  accuracy: z.number().int().min(0).max(200),
   statDriver: z.enum(["attack", "intelligence"]),
+  critRate: z.number().int().min(0).max(100).optional(),
   statusEffects: z.array(statusEffectPayloadSchema).optional(),
 });
 
 const combatStatsSchema = z.object({
-  hp: z.number().int().min(1),
+  hp: z.number().int().min(1).max(999),
   mp: z.number().int().min(0),
   attack: z.number().int().min(0),
   defense: z.number().int().min(0),
@@ -67,6 +72,7 @@ const growthStatsSchema = z.object({
   defense: z.number().int().min(0),
   agility: z.number().int().min(0),
   intelligence: z.number().int().min(0),
+  freePoints: z.number().int().min(0).optional(),
 });
 
 const growthContentSchema = z.object({
@@ -130,12 +136,14 @@ const statusEffectContentSchema = z.object({
   name: z.string().min(1),
   type: z.enum(["dot", "hot", "buff", "debuff", "ailment"]),
   duration: z.number().int().min(1),
-  statModifiers: z.object({
-    attack: z.number().int().optional(),
-    defense: z.number().int().optional(),
-    agility: z.number().int().optional(),
-    intelligence: z.number().int().optional(),
-  }).optional(),
+  statModifiers: z
+    .object({
+      attack: z.number().int().optional(),
+      defense: z.number().int().optional(),
+      agility: z.number().int().optional(),
+      intelligence: z.number().int().optional(),
+    })
+    .optional(),
   damagePercent: z.number().min(0).max(100).optional(),
   healPercent: z.number().min(0).max(100).optional(),
   stackable: z.boolean(),
@@ -171,7 +179,11 @@ function elementsToMask(names: string[]): number {
   return names.reduce((mask, name) => mask | resolveElement(name), 0);
 }
 
-function parseJsonl<T>(raw: string, schema: z.ZodSchema<T>, label: string): T[] {
+function parseJsonl<T>(
+  raw: string,
+  schema: z.ZodSchema<T>,
+  label: string,
+): T[] {
   const lines = raw.split("\n").filter((line) => line.trim().length > 0);
   return lines.map((line, index) => {
     try {
@@ -188,11 +200,11 @@ function parseJsonl<T>(raw: string, schema: z.ZodSchema<T>, label: string): T[] 
 // Using explicit imports instead of import.meta.glob because vitest
 // does not support eager ?raw glob patterns for .jsonl files.
 
-import formulasRaw from "./formulas.jsonl?raw";
 import enemiesRaw from "./enemies.jsonl?raw";
-import skillsRaw from "./skills.jsonl?raw";
-import itemsRaw from "./items.jsonl?raw";
+import formulasRaw from "./formulas.jsonl?raw";
 import growthRaw from "./growth.jsonl?raw";
+import itemsRaw from "./items.jsonl?raw";
+import skillsRaw from "./skills.jsonl?raw";
 import statusEffectsRaw from "./status_effects.jsonl?raw";
 
 const RAW_CONTENT: Record<string, string> = {
@@ -223,7 +235,11 @@ let _formulaParams: FormulaParams | null = null;
 
 function loadSkills(): Map<string, ResolvedSkillContent> {
   if (_skills != null) return _skills;
-  const raw = parseJsonl(getRawContent("skills.jsonl"), skillContentSchema, "skills.jsonl");
+  const raw = parseJsonl(
+    getRawContent("skills.jsonl"),
+    skillContentSchema,
+    "skills.jsonl",
+  );
   _skills = new Map();
   for (const skill of raw) {
     _skills.set(skill.id, {
@@ -236,7 +252,11 @@ function loadSkills(): Map<string, ResolvedSkillContent> {
 
 function loadEnemies(): Map<string, ResolvedEnemyContent> {
   if (_enemies != null) return _enemies;
-  const raw = parseJsonl(getRawContent("enemies.jsonl"), enemyContentSchema, "enemies.jsonl");
+  const raw = parseJsonl(
+    getRawContent("enemies.jsonl"),
+    enemyContentSchema,
+    "enemies.jsonl",
+  );
   _enemies = new Map();
   for (const enemy of raw) {
     _enemies.set(enemy.id, {
@@ -255,7 +275,11 @@ function loadEnemies(): Map<string, ResolvedEnemyContent> {
 
 function loadItems(): Map<string, ItemContent> {
   if (_items != null) return _items;
-  const raw = parseJsonl(getRawContent("items.jsonl"), itemContentSchema, "items.jsonl");
+  const raw = parseJsonl(
+    getRawContent("items.jsonl"),
+    itemContentSchema,
+    "items.jsonl",
+  );
   _items = new Map();
   for (const item of raw) {
     _items.set(item.id, item);
@@ -265,7 +289,11 @@ function loadItems(): Map<string, ItemContent> {
 
 function loadGrowth(): Map<string, GrowthContent> {
   if (_growth != null) return _growth;
-  const raw = parseJsonl(getRawContent("growth.jsonl"), growthContentSchema, "growth.jsonl");
+  const raw = parseJsonl(
+    getRawContent("growth.jsonl"),
+    growthContentSchema,
+    "growth.jsonl",
+  );
   _growth = new Map();
   for (const growth of raw) {
     _growth.set(growth.id, growth);
@@ -275,7 +303,11 @@ function loadGrowth(): Map<string, GrowthContent> {
 
 function loadStatusEffects(): Map<string, StatusEffectContent> {
   if (_statusEffects != null) return _statusEffects;
-  const raw = parseJsonl(getRawContent("status_effects.jsonl"), statusEffectContentSchema, "status_effects.jsonl");
+  const raw = parseJsonl(
+    getRawContent("status_effects.jsonl"),
+    statusEffectContentSchema,
+    "status_effects.jsonl",
+  );
   _statusEffects = new Map();
   for (const effect of raw) {
     _statusEffects.set(effect.id, effect);
@@ -285,12 +317,20 @@ function loadStatusEffects(): Map<string, StatusEffectContent> {
 
 function loadFormulaParams(): FormulaParams {
   if (_formulaParams != null) return _formulaParams;
-  const raw = parseJsonl(getRawContent("formulas.jsonl"), formulaParamsSchema, "formulas.jsonl");
+  const raw = parseJsonl(
+    getRawContent("formulas.jsonl"),
+    formulaParamsSchema,
+    "formulas.jsonl",
+  );
   _formulaParams = raw[0]!;
   return _formulaParams;
 }
 
 // ── Public lookup API ──
+
+export function getAllSkills(): Map<string, ResolvedSkillContent> {
+  return loadSkills();
+}
 
 export function getSkill(id: string): ResolvedSkillContent {
   const skills = loadSkills();
@@ -325,6 +365,10 @@ export function getStatusEffect(id: string): StatusEffectContent {
   const effect = effects.get(id);
   if (effect == null) throw new Error(`Status effect not found: "${id}"`);
   return effect;
+}
+
+export function getStatusEffectMap(): Map<string, StatusEffectContent> {
+  return loadStatusEffects();
 }
 
 export function getFormulaParams(): FormulaParams {

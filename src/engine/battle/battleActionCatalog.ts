@@ -3,6 +3,8 @@ import type {
   BattleActionId,
   BattleActionMenuNode,
 } from "@/types/battle";
+import { getAllSkills } from "@/content/contentRegistry";
+import type { ResolvedSkillContent } from "@/types/content";
 
 const BATTLE_ACTION_DEFINITIONS: Record<
   BattleActionId,
@@ -64,7 +66,85 @@ export function getBattleActionDefinition(
   return BATTLE_ACTION_DEFINITIONS[actionId];
 }
 
+const SKILL_CATEGORY_LABELS: Record<string, string> = {
+  "物理·剑系": "物理·剑系",
+  "物理·弓系": "物理·弓系",
+  "物理·枪系": "物理·枪系",
+  "火系魔法": "火系魔法",
+  "冰系魔法": "冰系魔法",
+  "风系魔法": "风系魔法",
+  "雷系魔法": "雷系魔法",
+  "土系魔法": "土系魔法",
+  "光系魔法": "光系魔法",
+  "暗系魔法": "暗系魔法",
+  "回复魔法": "回复魔法",
+  "辅助技能": "辅助技能",
+  "异常技能": "异常技能",
+  "护盾技能": "护盾技能",
+  "万能魔法": "万能魔法",
+  "专属技能": "专属技能",
+};
+
+function classifySkill(skill: ResolvedSkillContent): string | null {
+  const id = parseInt(skill.id, 10);
+  if (isNaN(id)) return null;
+  if (id >= 1 && id <= 18) return "物理·剑系";
+  if (id >= 19 && id <= 28) return "物理·弓系";
+  if (id >= 29 && id <= 36) return "物理·枪系";
+  if (id >= 37 && id <= 43) return "火系魔法";
+  if (id >= 44 && id <= 50) return "冰系魔法";
+  if (id >= 51 && id <= 57) return "风系魔法";
+  if (id >= 58 && id <= 64) return "雷系魔法";
+  if (id >= 65 && id <= 71) return "土系魔法";
+  if (id >= 72 && id <= 78) return "光系魔法";
+  if (id >= 79 && id <= 85) return "暗系魔法";
+  if (id >= 86 && id <= 91) return "回复魔法";
+  if (id >= 92 && id <= 105) return "辅助技能";
+  if (id >= 106 && id <= 112) return "异常技能";
+  if (id >= 113 && id <= 132) return "护盾技能";
+  if (id >= 181 && id <= 186) return "万能魔法";
+  if (id >= 165 && id <= 187) return "专属技能";
+  return null;
+}
+
+function buildSkillMenuGroups(
+  skills: Map<string, ResolvedSkillContent>,
+): BattleActionMenuNode[] {
+  const groups = new Map<string, ResolvedSkillContent[]>();
+
+  for (const skill of skills.values()) {
+    if (skill.category === "passive") continue;
+    const group = classifySkill(skill);
+    if (group == null) continue;
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group)!.push(skill);
+  }
+
+  const nodes: BattleActionMenuNode[] = [];
+  for (const [groupName, groupSkills] of groups) {
+    nodes.push({
+      id: `skill-group-${groupName}`,
+      kind: "group",
+      label: SKILL_CATEGORY_LABELS[groupName] ?? groupName,
+      description: `打开${groupName}列表。`,
+      children: groupSkills.map((skill) => ({
+        id: `skill-action-${skill.id}`,
+        kind: "action",
+        actionId: "basic-skill",
+        contentId: skill.id,
+        label: skill.name,
+        description: skill.description,
+      })),
+    });
+  }
+
+  return nodes;
+}
+
 export function createDefaultBattleCommandMenuTree(): BattleActionMenuNode[] {
+  const skills = getAllSkills();
+  const skillGroups = buildSkillMenuGroups(skills);
+
   return [
     {
       id: "attack-action",
@@ -73,21 +153,7 @@ export function createDefaultBattleCommandMenuTree(): BattleActionMenuNode[] {
       label: "Attack",
       description: "使用基础攻击对单体敌人造成伤害。",
     },
-    {
-      id: "skill-group",
-      kind: "group",
-      label: "Skill",
-      description: "打开技能列表。",
-      children: [
-        {
-          id: "basic-skill-action",
-          kind: "action",
-          actionId: "basic-skill",
-          label: "Basic Skill",
-          description: "施放一个默认的单体技能占位动作。",
-        },
-      ],
-    },
+    ...skillGroups,
     {
       id: "guard-action",
       kind: "action",

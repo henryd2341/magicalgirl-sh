@@ -322,7 +322,9 @@
         "attack",
         "defense",
         "agility",
-        "intelligence"
+        "intelligence",
+        "allocatedPoints",
+        "unspentPoints"
       ],
       "properties": {
         "level": {
@@ -397,6 +399,46 @@
           "type": "integer",
           "minimum": 0,
           "title": "智力"
+        },
+        "allocatedPoints": {
+          "type": "object",
+          "title": "已分配自由点数",
+          "description": "玩家手动分配的自由点数，决定攻击/防御/敏捷/智力超出基础的数值。",
+          "additionalProperties": false,
+          "required": [
+            "attack",
+            "defense",
+            "agility",
+            "intelligence"
+          ],
+          "properties": {
+            "attack": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "攻击加点"
+            },
+            "defense": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "防御加点"
+            },
+            "agility": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "敏捷加点"
+            },
+            "intelligence": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "智力加点"
+            }
+          }
+        },
+        "unspentPoints": {
+          "type": "integer",
+          "minimum": 0,
+          "title": "未分配自由点数",
+          "description": "升级获得但尚未分配的自由点数。"
         }
       }
     },

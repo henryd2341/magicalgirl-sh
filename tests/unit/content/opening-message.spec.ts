@@ -5,6 +5,7 @@ describe("opening message", () => {
   it("renders a finalized assistant message with the player name interpolated", () => {
     const message = renderOpeningMessage({
       playerName: "鹿目真昼",
+      playerGender: "女",
       now: "2026-09-15T00:01:00.000Z",
     });
 
@@ -24,6 +25,7 @@ describe("opening message", () => {
   it("renders the default name placeholder when player name is empty", () => {
     const message = renderOpeningMessage({
       playerName: "",
+      playerGender: "女",
       now: "2026-09-15T00:02:00.000Z",
     });
 
@@ -33,6 +35,7 @@ describe("opening message", () => {
   it("does not inject request metadata fields", () => {
     const message = renderOpeningMessage({
       playerName: "鹿目真昼",
+      playerGender: "女",
       now: "2026-09-15T00:03:00.000Z",
     });
 

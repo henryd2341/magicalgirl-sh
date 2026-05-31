@@ -67,6 +67,13 @@ describe("DbVariableRepository", () => {
             defense: 4,
             agility: 6,
             intelligence: 7,
+            allocatedPoints: {
+              attack: 0,
+              defense: 0,
+              agility: 0,
+              intelligence: 0,
+            },
+            unspentPoints: 0,
           },
           money: 120,
           equipment: {

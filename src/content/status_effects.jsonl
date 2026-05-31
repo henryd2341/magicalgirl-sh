@@ -1,5 +1,38 @@
-{"id":"guard","name":"Guard","type":"buff","duration":1,"statModifiers":{},"stackable":false}
-{"id":"poison","name":"Poison","type":"dot","duration":3,"damagePercent":10,"stackable":false}
-{"id":"attack_up","name":"Attack Up","type":"buff","duration":3,"statModifiers":{"attack":3},"stackable":false}
-{"id":"defense_up","name":"Defense Up","type":"buff","duration":3,"statModifiers":{"defense":3},"stackable":false}
-{"id":"attack_down","name":"Attack Down","type":"debuff","duration":3,"statModifiers":{"attack":-3},"stackable":false}
+{"id":"attack_up","name":"攻击力上升","type":"buff","duration":3,"statModifiers":{"attack":1},"stackable":true}
+{"id":"attack_down","name":"攻击力下降","type":"debuff","duration":3,"statModifiers":{"attack":-1},"stackable":true}
+{"id":"defense_up","name":"防御力上升","type":"buff","duration":3,"statModifiers":{"defense":1},"stackable":true}
+{"id":"defense_down","name":"防御力下降","type":"debuff","duration":3,"statModifiers":{"defense":-1},"stackable":true}
+{"id":"agility_up","name":"敏捷上升","type":"buff","duration":3,"statModifiers":{"agility":1},"stackable":true}
+{"id":"agility_down","name":"敏捷下降","type":"debuff","duration":3,"statModifiers":{"agility":-1},"stackable":true}
+{"id":"charge","name":"蓄力","type":"buff","duration":999,"stackable":false}
+{"id":"chant","name":"吟唱","type":"buff","duration":999,"stackable":false}
+{"id":"focus","name":"专注","type":"buff","duration":999,"stackable":false}
+{"id":"fire_null","name":"火焰无效盾","type":"buff","duration":1,"stackable":false}
+{"id":"fire_reflect","name":"火焰反射盾","type":"buff","duration":1,"stackable":false}
+{"id":"fire_absorb","name":"火焰吸收盾","type":"buff","duration":1,"stackable":false}
+{"id":"ice_null","name":"冰水无效盾","type":"buff","duration":1,"stackable":false}
+{"id":"ice_reflect","name":"冰水反射盾","type":"buff","duration":1,"stackable":false}
+{"id":"ice_absorb","name":"冰水吸收盾","type":"buff","duration":1,"stackable":false}
+{"id":"wind_null","name":"疾风无效盾","type":"buff","duration":1,"stackable":false}
+{"id":"wind_reflect","name":"疾风反射盾","type":"buff","duration":1,"stackable":false}
+{"id":"wind_absorb","name":"疾风吸收盾","type":"buff","duration":1,"stackable":false}
+{"id":"electric_null","name":"雷鸣无效盾","type":"buff","duration":1,"stackable":false}
+{"id":"electric_reflect","name":"雷鸣反射盾","type":"buff","duration":1,"stackable":false}
+{"id":"electric_absorb","name":"雷鸣吸收盾","type":"buff","duration":1,"stackable":false}
+{"id":"earth_null","name":"岩土无效盾","type":"buff","duration":1,"stackable":false}
+{"id":"earth_reflect","name":"岩土反射盾","type":"buff","duration":1,"stackable":false}
+{"id":"earth_absorb","name":"岩土吸收盾","type":"buff","duration":1,"stackable":false}
+{"id":"element_null","name":"全元素无效盾","type":"buff","duration":1,"stackable":false}
+{"id":"physical_null","name":"物理无效盾","type":"buff","duration":1,"stackable":false}
+{"id":"physical_reflect","name":"物理反射盾","type":"buff","duration":1,"stackable":false}
+{"id":"physical_absorb","name":"物理吸收盾","type":"buff","duration":1,"stackable":false}
+{"id":"ailment_null","name":"异常状态无效盾","type":"buff","duration":1,"stackable":false}
+{"id":"sleep","name":"睡眠","type":"ailment","duration":3,"stackable":false}
+{"id":"poison","name":"中毒","type":"dot","duration":3,"damagePercent":10,"stackable":false}
+{"id":"seal","name":"封技","type":"ailment","duration":3,"stackable":false}
+{"id":"blind","name":"致盲","type":"ailment","duration":3,"stackable":false}
+{"id":"instant_death","name":"即死","type":"ailment","duration":1,"stackable":false}
+{"id":"burn","name":"燃烧","type":"dot","duration":3,"damagePercent":10,"stackable":false}
+{"id":"freeze","name":"冻结","type":"ailment","duration":1,"stackable":false}
+{"id":"paralyze","name":"麻痹","type":"ailment","duration":3,"statModifiers":{"attack":-1},"stackable":false}
+{"id":"guard","name":"防御","type":"buff","duration":1,"stackable":false}

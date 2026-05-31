@@ -254,13 +254,14 @@ describe("MainGameView battle overlay entrypoint", () => {
 
     await waitForActiveBattleOverlay();
 
-    await fireEvent.click(screen.getByRole("button", { name: "Skill" }));
+    await fireEvent.click(screen.getByRole("button", { name: "物理·剑系" }));
 
-    expect(battleStore.activeBattle?.currentMenuNodeId).toBe("skill-group");
+    expect(battleStore.activeBattle?.currentMenuNodeId).toBe("skill-group-物理·剑系");
     expect(battleStore.activeBattle?.selectedActionId).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Basic Skill" }),
-    ).toBeInTheDocument();
+    const skillButtons = screen.getAllByRole("button").filter(
+      (btn) => btn.getAttribute("aria-pressed") !== null,
+    );
+    expect(skillButtons.length).toBeGreaterThan(0);
     expect(
       screen.getByRole("button", { name: "返回根菜单" }),
     ).toBeInTheDocument();
@@ -378,7 +379,7 @@ describe("MainGameView battle overlay entrypoint", () => {
     await waitForActiveBattleOverlay();
 
     const attackButton = screen.getByRole("button", { name: "Attack" });
-    const skillButton = screen.getByRole("button", { name: "Skill" });
+    const skillButton = screen.getByRole("button", { name: "物理·剑系" });
 
     expect(attackButton).toHaveAttribute("aria-pressed", "false");
     expect(skillButton).toHaveAttribute("aria-pressed", "false");
@@ -467,12 +468,12 @@ describe("MainGameView battle overlay entrypoint", () => {
       battleStore.activeBattle?.participants.find(
         (participant) => participant.id === "enemy-2",
       )?.hp.current,
-    ).toBe(1);
+    ).toBe(0);
     expect(
       battleStore.activeBattle?.participants.find(
         (participant) => participant.id === "enemy-1",
       )?.hp.current,
-    ).toBe(1);
+    ).toBe(5);
   });
 
   it("locks the command column while the active battle is in enemy turn", async () => {
@@ -527,7 +528,7 @@ describe("MainGameView battle overlay entrypoint", () => {
       within(commandRegion).getByRole("button", { name: "Attack" }),
     ).toBeDisabled();
     expect(
-      within(commandRegion).getByRole("button", { name: "Skill" }),
+      within(commandRegion).getByRole("button", { name: "物理·剑系" }),
     ).toBeDisabled();
 
     await fireEvent.click(
@@ -749,26 +750,9 @@ describe("MainGameView battle overlay entrypoint", () => {
     await fireEvent.click(screen.getByRole("button", { name: /loop-shadow/ }));
 
     expect(sessionStore.snapshot.sessionState).toBe("IN_COMBAT");
-    expect(battleStore.activeBattle.phase).toBe("ENEMY_TURN");
-    expect(screen.getByText("ENEMY_TURN")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Attack" })).toBeDisabled();
-
-    await fireEvent.click(
-      await screen.findByRole("button", { name: "结算敌方回合" }),
-    );
-
-    expect(battleStore.activeBattle.phase).toBe("PLAYER_COMMAND");
-    expect(screen.getByText("PLAYER_COMMAND")).toBeInTheDocument();
-    expect(screen.getByLabelText("回合与 Press Turn 区域")).toHaveTextContent(
-      "Turn 2",
-    );
-    expect(screen.getByRole("button", { name: "Attack" })).not.toBeDisabled();
-
-    await fireEvent.click(screen.getByRole("button", { name: "Attack" }));
-    await fireEvent.click(screen.getByRole("button", { name: /loop-shadow/ }));
-
     expect(battleStore.activeBattle.lifecycleState).toBe("RESOLVED");
     expect(battleStore.activeBattle.phase).toBe("RESULT");
+
     expect(screen.getByRole("heading", { name: "战斗结束" })).toBeInTheDocument();
     expect(screen.getByLabelText("行动指令区域")).toHaveTextContent(
       "完成战斗",

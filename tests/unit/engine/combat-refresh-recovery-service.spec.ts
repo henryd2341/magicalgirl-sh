@@ -7,11 +7,11 @@ import { InMemoryChatHistoryRepository } from "@/persistence/repositories/chatHi
 import { InMemoryCheckpointRepository } from "@/persistence/repositories/checkpointRepository";
 import { InMemoryEventLogRepository } from "@/persistence/repositories/eventLogRepository";
 import { InMemoryVariableRepository } from "@/persistence/repositories/variableRepository";
+import { type BattleParticipant } from "@/types/battle";
 import {
   createBattleSnapshotFromPendingBattle,
   createPendingBattleSnapshot,
-  type BattleParticipant,
-} from "@/types/battle";
+} from "@/engine/battle/battleSetup";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 import { describe, expect, it } from "vitest";
 

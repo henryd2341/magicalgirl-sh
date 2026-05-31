@@ -15,7 +15,13 @@ export interface CombatStats {
 
 // ── Skill Content (one line in skills.jsonl) ──
 
-export const SKILL_CATEGORIES = ["physical", "magic", "heal", "support"] as const;
+export const SKILL_CATEGORIES = [
+  "physical",
+  "magic",
+  "heal",
+  "support",
+  "passive",
+] as const;
 export type SkillCategory = (typeof SKILL_CATEGORIES)[number];
 
 export const SKILL_TARGET_TYPES = [
@@ -29,7 +35,7 @@ export type SkillTargetType = (typeof SKILL_TARGET_TYPES)[number];
 
 export interface StatusEffectPayload {
   effectId: string;
-  chance: number; // 0–100
+  chance: number; // 0–200
 }
 
 export interface SkillContent {
@@ -41,8 +47,11 @@ export interface SkillContent {
   power: number;
   mpCost: number;
   targetType: SkillTargetType;
-  accuracy: number; // 0–100, base hit chance
+  accuracy: number; // 0–200, base hit chance
   statDriver: "attack" | "intelligence";
+  critRate?: number; // per-skill bonus crit rate, additive with base
+  hitCount?: number; // min hits, default 1
+  hitCountMax?: number; // max hits for random range, default = hitCount
   statusEffects?: StatusEffectPayload[];
 }
 
@@ -85,6 +94,7 @@ export interface GrowthStats {
   defense: number;
   agility: number;
   intelligence: number;
+  freePoints?: number;
 }
 
 export interface GrowthContent {
