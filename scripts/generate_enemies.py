@@ -15,8 +15,9 @@ SKILLS_PATH = ROOT / "src" / "content" / "skills.jsonl"
 OUT_PATH = ROOT / "src" / "content" / "enemies.jsonl"
 
 # ── Naming tables ──
+# Mix of 2/3/4-character names: ~20% / ~50% / ~30%
 
-ELEMENT_PREFIXES = {
+ELEMENT_PREFIXES_1 = {
     "Physical": ["钢", "刃", "角", "牙", "棘", "铁", "烈", "蛮", "斗", "碎"],
     "Fire":     ["炎", "熔", "灼", "烬", "焚", "焰", "爆", "燐", "焦", "煅"],
     "Ice":      ["冰", "霜", "潮", "涟", "汐", "寒", "冻", "雪", "凌", "晶"],
@@ -27,14 +28,30 @@ ELEMENT_PREFIXES = {
     "Dark":     ["暗", "影", "冥", "渊", "噬", "幽", "晦", "魇", "黯", "蚀"],
 }
 
-BEAST_TYPES = ["兽", "虫", "蜥", "蛇", "鸟", "鱼", "龟", "蛙", "隼", "马",
-               "狐", "犬", "猫", "兔", "蟹", "蝎", "猿", "熊", "蛭", "蝠"]
+ELEMENT_PREFIXES_2 = {
+    "Physical": ["钢铁", "利刃", "蛮力", "碎岩", "钢角", "铁棘", "烈风", "斗魂", "棘刺", "破山"],
+    "Fire":     ["烈焰", "熔岩", "灼热", "焚化", "爆炎", "燐火", "焦热", "炽焰", "劫火", "阳炎"],
+    "Ice":      ["冰霜", "寒冰", "霜冻", "雪华", "冰晶", "冻土", "极寒", "凛冬", "冰凌", "凝霜"],
+    "Wind":     ["疾风", "飓风", "风暴", "旋风", "岚雾", "飘羽", "缭乱", "翔空", "狂飙", "纷扰"],
+    "Electric": ["雷霆", "电光", "霹雳", "磁暴", "闪电", "弧光", "震雷", "鸣雷", "紫电", "迅雷"],
+    "Earth":    ["岩石", "砂岩", "晶峦", "磐石", "峰岳", "岗岩", "砾石", "地脉", "巨岩", "重岩"],
+    "Light":    ["光辉", "曜日", "圣光", "煌星", "皎月", "璀璨", "明亮", "烁光", "晨辉", "莹光"],
+    "Dark":     ["暗影", "深渊", "幽冥", "噬光", "晦暗", "魇梦", "蚀日", "黯夜", "幽玄", "冥府"],
+}
+
+CREATURES_1 = ["兽", "蝶", "蜥", "蟒", "鸟", "鱼", "龟", "牛", "隼", "鹿",
+               "狐", "犬", "猫", "兔", "蟹", "蝎", "熊", "豹", "蝠"]
+
+CREATURES_2 = ["飞蛾", "巨蜥", "毒蛇", "猛禽", "海兽", "陆龟",
+               "剑隼", "角马", "猎犬", "影猫", "白兔", "巨蟹",
+                "天鹅", "暴熊", "暗蝠", "坚龟", "幻蛇", "巨兽", "水母", 
+                "飞蛇", "鳞鱼", "刃龟", "火鸟"]
 
 # ── Level tiers (2 enemies per tier, 10 tiers per element) ──
 
 def level_for_tier(tier: int, variant: int) -> int:
     """variant: 0 = basic, 1 = advanced within tier"""
-    base_levels = [1, 3, 6, 10, 15, 21, 29, 39, 52, 68]
+    base_levels = [1, 4, 8, 14, 22, 32, 45, 62]
     offset = variant * random.randint(1, 2)
     return base_levels[tier] + offset
 
@@ -69,7 +86,7 @@ def compute_stats(base_level: int, element: str):
 ALL_ELEMENTS = ["Physical", "Fire", "Ice", "Wind", "Electric", "Earth", "Light", "Dark"]
 
 ELEMENT_WEAKNESS = {
-    "Physical": [],          # no fixed weakness
+    "Physical": [],
     "Fire":     ["Ice"],
     "Ice":      ["Electric"],
     "Wind":     ["Earth"],
@@ -90,19 +107,16 @@ ELEMENT_RESIST = {
     "Dark":     ["Dark"],
 }
 
-# Physical enemies get a random extra resist
 PHYSICAL_EXTRA_RESIST_ELEMENTS = ["Fire", "Ice", "Wind", "Electric", "Earth"]
 
 def make_affinities(element: str, tier: int, variant: int, seed_idx: int):
     weak = list(ELEMENT_WEAKNESS.get(element, []))
     resist = list(ELEMENT_RESIST.get(element, []))
 
-    # Physical gets a random extra resist from the 5 basic elements
     if element == "Physical":
         extra = PHYSICAL_EXTRA_RESIST_ELEMENTS[seed_idx % len(PHYSICAL_EXTRA_RESIST_ELEMENTS)]
         if extra not in resist:
             resist.append(extra)
-        # also random weakness from the remaining basic elements
         weak_candidates = [e for e in PHYSICAL_EXTRA_RESIST_ELEMENTS if e != extra]
         weak.append(weak_candidates[seed_idx % len(weak_candidates)])
 
@@ -110,13 +124,11 @@ def make_affinities(element: str, tier: int, variant: int, seed_idx: int):
     reflect = []
     absorb = []
 
-    # Higher tiers gain extra defenses
     if tier >= 6:
         candidates = [e for e in ALL_ELEMENTS if e not in weak and e not in resist and e != element]
         if candidates:
             resist.append(candidates[seed_idx % len(candidates)])
     if tier >= 8:
-        # upgrade one resist to nullify or add nullify
         if resist and variant == 1:
             upgraded = resist.pop()
             nullify.append(upgraded)
@@ -196,7 +208,6 @@ SKILL_POOL = {
     },
 }
 
-# Support/debuff skills granted to higher tiers (selected enemies)
 SUPPORT_SKILLS = ["94", "95", "96", "97", "98", "99", "100", "101", "102"]
 AILMENT_SKILLS = ["104", "105", "106", "107", "108", "109", "110"]
 
@@ -208,7 +219,6 @@ def assign_skills(element: str, tier: int, variant: int, seed_idx: int):
         idx = min(variant, len(pool) - 1)
         skills.append(pool[idx])
 
-    # Higher tiers: add support or ailment skills
     rng = random.Random(seed_idx * 100 + tier * 10 + variant)
     if tier >= 5 and variant == 1 and rng.random() < 0.5:
         skills.append(rng.choice(SUPPORT_SKILLS))
@@ -222,7 +232,7 @@ def assign_skills(element: str, tier: int, variant: int, seed_idx: int):
 def compute_rewards(base_level: int, variant: int):
     exp = base_level * 8 + 5
     money = base_level * 5 + 8
-    if variant == 1:  # advanced variant bonus
+    if variant == 1:
         exp = round(exp * 1.3)
         money = round(money * 1.3)
     return exp, money
@@ -231,9 +241,26 @@ def compute_rewards(base_level: int, variant: int):
 
 def make_name(element: str, tier: int, variant: int, seed_idx: int):
     rng = random.Random(seed_idx + tier * 20)
-    prefix = ELEMENT_PREFIXES[element][(tier + variant) % len(ELEMENT_PREFIXES[element])]
-    creature = BEAST_TYPES[(seed_idx * 7 + tier * 3 + variant) % len(BEAST_TYPES)]
-    return f"{prefix}{creature}"
+    style = rng.randint(0, 99)
+    p1 = ELEMENT_PREFIXES_1[element]
+    p2 = ELEMENT_PREFIXES_2[element]
+    c1 = CREATURES_1
+    c2 = CREATURES_2
+    pi = (seed_idx * 3 + tier) % 10
+    ci = (seed_idx * 7 + tier * 3 + variant) % len(c1)
+
+    if style < 20:
+        # 2-char
+        return f"{p1[pi]}{c1[ci]}"
+    elif style < 65:
+        # 3-char
+        if rng.random() < 0.5:
+            return f"{p1[pi]}{c2[ci]}"
+        else:
+            return f"{p2[pi]}{c1[ci]}"
+    else:
+        # 4-char
+        return f"{p2[pi]}{c2[ci]}"
 
 # ── Generate ──
 
@@ -243,8 +270,8 @@ def generate():
     enemies = []
     idx = 0
     for element in ELEMENT_ORDER:
-        for tier in range(10):
-            for variant in range(2):
+        for tier in range(8):
+            for variant in range(1):
                 idx += 1
                 base_level = level_for_tier(tier, variant)
                 name = make_name(element, tier, variant, idx)
@@ -275,35 +302,30 @@ def main():
     enemies = generate()
 
     if dry_run:
-        print(f"Would generate {len(enemies)} enemies.")
-        print(f"\nFirst 10:")
-        for e in enemies[:10]:
-            print(f"  [{e['id']}] {e['name']} Lv{e['baseLevel']} "
-                  f"HP:{e['stats']['hp']} ATK:{e['stats']['attack']} "
-                  f"skills:{e['skills']} rewards:{e['expReward']}/{e['moneyReward']}")
-        print(f"\nLast 10:")
+        print(f"Would generate {len(enemies)} enemies.\n")
+        for e in enemies[:15]:
+            print(f"  [{e['id']:>3}] {e['name']:<8} Lv{e['baseLevel']:>2}  "
+                  f"HP:{e['stats']['hp']:>4}  skills:{e['skills']}")
+        print(f"  ...")
         for e in enemies[-10:]:
-            print(f"  [{e['id']}] {e['name']} Lv{e['baseLevel']} "
-                  f"HP:{e['stats']['hp']} ATK:{e['stats']['attack']} "
-                  f"skills:{e['skills']} affinities:{e['affinities']}")
+            print(f"  [{e['id']:>3}] {e['name']:<8} Lv{e['baseLevel']:>2}  "
+                  f"HP:{e['stats']['hp']:>4}  skills:{e['skills']}")
         return
 
-    # Write JSONL
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         for e in enemies:
             f.write(json.dumps(e, ensure_ascii=False) + "\n")
 
     print(f"Generated {len(enemies)} enemies -> {OUT_PATH}")
-
-    # Quick stats
     levels = [e["baseLevel"] for e in enemies]
     print(f"Level range: {min(levels)} - {max(levels)}")
-    for el in ELEMENT_ORDER:
-        pref_set = set(ELEMENT_PREFIXES[el])
-        count = sum(1 for e in enemies if e["name"][0] in pref_set)
-        lv_range = [e["baseLevel"] for e in enemies if e["name"][0] in pref_set]
-        print(f"  {el}: {count} enemies, Lv{min(lv_range)}-{max(lv_range)}")
+    # name length distribution
+    lens = {}
+    for e in enemies:
+        l = len(e["name"])
+        lens[l] = lens.get(l, 0) + 1
+    print(f"Name lengths: {dict(sorted(lens.items()))}")
 
 if __name__ == "__main__":
     main()
