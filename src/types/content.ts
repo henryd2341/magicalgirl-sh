@@ -108,6 +108,17 @@ export interface GrowthContent {
 export const ITEM_TYPES = ["consumable", "accessory"] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 
+export const ITEM_TIERS = ["common", "uncommon", "rare", "legendary"] as const;
+export type ItemTier = (typeof ITEM_TIERS)[number];
+
+export const ITEM_ACCESSORY_EFFECTS = [
+  "auto_buff_start",
+  "no_press_penalty",
+  "pass_free",
+  "miss_consume_all",
+] as const;
+export type ItemAccessoryEffect = (typeof ITEM_ACCESSORY_EFFECTS)[number];
+
 export type AccessoryModifiers = Partial<
   Pick<CombatStats, "attack" | "defense" | "agility" | "intelligence">
 >;
@@ -117,12 +128,23 @@ export interface ItemContent {
   name: string;
   description: string;
   type: ItemType;
+  tier: ItemTier;
+  price: number;
   // consumable
   healHp?: number;
   healMp?: number;
   usableInBattle?: boolean;
+  revivePercent?: number;
+  cureStatus?: string[];
+  damageFixed?: number;
+  tempModifiers?: {
+    stats: AccessoryModifiers;
+    duration: number;
+  };
   // accessory
   modifiers?: AccessoryModifiers;
+  accessoryEffects?: ItemAccessoryEffect[];
+  affinityResist?: Partial<Record<string, "resist" | "nullify" | "reflect" | "absorb">>;
 }
 
 // ── Formula Parameters (single-line formulas.jsonl) ──

@@ -93,10 +93,21 @@ const itemContentSchema = z.object({
   name: z.string().min(1),
   description: z.string(),
   type: z.enum(["consumable", "accessory"]),
+  tier: z.enum(["common", "uncommon", "rare", "legendary"]),
+  price: z.number().int().min(0),
   healHp: z.number().int().min(0).optional(),
   healMp: z.number().int().min(0).optional(),
   usableInBattle: z.boolean().optional(),
+  revivePercent: z.number().int().min(0).optional(),
+  cureStatus: z.array(z.string()).optional(),
+  damageFixed: z.number().int().min(0).optional(),
+  tempModifiers: z.object({
+    stats: accessoryModifiersSchema,
+    duration: z.number().int().min(1),
+  }).optional(),
   modifiers: accessoryModifiersSchema.optional(),
+  accessoryEffects: z.array(z.enum(["auto_buff_start", "no_press_penalty", "pass_free", "miss_consume_all"])).optional(),
+  affinityResist: z.record(z.enum(["Physical", "Fire", "Ice", "Wind", "Electric", "Earth", "Light", "Dark", "Ailment"]), z.enum(["resist", "nullify", "reflect", "absorb"])).optional(),
 });
 
 const formulaParamsSchema = z.object({
