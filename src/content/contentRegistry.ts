@@ -136,7 +136,7 @@ const skillTreeNodeSchema = z.object({
 const characterContentSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  element: z.string().min(1),
+  affinities: enemyAffinitiesRawSchema,
   growthId: z.string().min(1),
   innateSkills: z.array(z.string()),
   skillTree: z.array(skillTreeNodeSchema),

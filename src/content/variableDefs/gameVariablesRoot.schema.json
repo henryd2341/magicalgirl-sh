@@ -477,6 +477,7 @@
         "money",
         "equipment",
         "relationships",
+        "learnedSkills",
         "flags"
       ],
       "properties": {
@@ -524,6 +525,21 @@
           "x-aiWritableBy": [
             "update_flags"
           ],
+          "x-aiContext": true
+        },
+        "learnedSkills": {
+          "type": "object",
+          "title": "已学技能",
+          "description": "各角色已学会的技能ID列表。键为角色ID，值为技能ID数组。",
+          "propertyNames": {
+            "$ref": "#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          },
+          "x-aiAccess": "read_only",
           "x-aiContext": true
         }
       }
