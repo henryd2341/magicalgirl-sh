@@ -490,8 +490,8 @@
           "type": "integer",
           "minimum": 0,
           "title": "金钱",
-          "description": "持有金币数量。AI只读，商店、奖励、战斗结算等本地命令可修改。",
-          "x-aiAccess": "read_only",
+          "description": "持有金币数量。",
+          "x-aiAccess": "read_write",
           "x-aiWritableBy": [],
           "x-aiContext": true
         },

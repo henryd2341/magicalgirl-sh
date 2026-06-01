@@ -6,6 +6,7 @@ import type {
   ResolvedEnemyContent,
   ResolvedSkillContent,
   StatusEffectContent,
+  CharacterContent,
 } from "@/types/content";
 import { z } from "zod";
 
@@ -34,7 +35,22 @@ const skillContentSchema = z.object({
   accuracy: z.number().int().min(0).max(200),
   statDriver: z.enum(["attack", "intelligence"]),
   critRate: z.number().int().min(0).max(100).optional(),
+  hitCount: z.number().int().min(1).optional(),
+  hitCountMax: z.number().int().min(1).optional(),
   statusEffects: z.array(statusEffectPayloadSchema).optional(),
+  healPercent: z.number().int().min(0).max(100).optional(),
+  revives: z.boolean().optional(),
+  passiveEffects: z.array(z.object({
+    hook: z.enum(["on_damage_calc", "on_turn_start", "on_death_check", "on_exp_calc", "on_status_chance"]),
+    type: z.enum(["element_boost", "element_nullify", "element_resist", "crit_boost", "hp_regen", "mp_regen", "endure", "exp_boost", "status_boost", "damage_boost"]),
+    value: z.number(),
+    element: z.string().optional(),
+    condition: z.object({
+      stat: z.enum(["hp"]),
+      threshold: z.number(),
+      operator: z.enum(["below", "above"]),
+    }).optional(),
+  })).optional(),
 });
 
 const combatStatsSchema = z.object({
@@ -108,6 +124,22 @@ const itemContentSchema = z.object({
   modifiers: accessoryModifiersSchema.optional(),
   accessoryEffects: z.array(z.enum(["auto_buff_start", "no_press_penalty", "pass_free", "miss_consume_all"])).optional(),
   affinityResist: z.record(z.enum(["Physical", "Fire", "Ice", "Wind", "Electric", "Earth", "Light", "Dark", "Ailment"]), z.enum(["resist", "nullify", "reflect", "absorb"])).optional(),
+});
+
+const skillTreeNodeSchema = z.object({
+  skillId: z.string().min(1),
+  requiredLevel: z.number().int().min(1),
+  prerequisites: z.array(z.string()),
+  cost: z.number().int().min(0),
+});
+
+const characterContentSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  element: z.string().min(1),
+  growthId: z.string().min(1),
+  innateSkills: z.array(z.string()),
+  skillTree: z.array(skillTreeNodeSchema),
 });
 
 const formulaParamsSchema = z.object({
@@ -217,6 +249,7 @@ import growthRaw from "./growth.jsonl?raw";
 import itemsRaw from "./items.jsonl?raw";
 import skillsRaw from "./skills.jsonl?raw";
 import statusEffectsRaw from "./status_effects.jsonl?raw";
+import charactersRaw from "./characters.jsonl?raw";
 
 const RAW_CONTENT: Record<string, string> = {
   "formulas.jsonl": formulasRaw,
@@ -225,6 +258,7 @@ const RAW_CONTENT: Record<string, string> = {
   "items.jsonl": itemsRaw,
   "growth.jsonl": growthRaw,
   "status_effects.jsonl": statusEffectsRaw,
+  "characters.jsonl": charactersRaw,
 };
 
 function getRawContent(filename: string): string {
@@ -243,6 +277,7 @@ let _items: Map<string, ItemContent> | null = null;
 let _growth: Map<string, GrowthContent> | null = null;
 let _statusEffects: Map<string, StatusEffectContent> | null = null;
 let _formulaParams: FormulaParams | null = null;
+let _characters: Map<string, CharacterContent> | null = null;
 
 function loadSkills(): Map<string, ResolvedSkillContent> {
   if (_skills != null) return _skills;
@@ -337,6 +372,20 @@ function loadFormulaParams(): FormulaParams {
   return _formulaParams;
 }
 
+function loadCharacters(): Map<string, CharacterContent> {
+  if (_characters != null) return _characters;
+  const raw = parseJsonl(
+    getRawContent("characters.jsonl"),
+    characterContentSchema,
+    "characters.jsonl",
+  );
+  _characters = new Map();
+  for (const character of raw) {
+    _characters.set(character.id, character);
+  }
+  return _characters;
+}
+
 // ── Public lookup API ──
 
 export function getAllSkills(): Map<string, ResolvedSkillContent> {
@@ -416,4 +465,15 @@ export function hasEnemy(id: string): boolean {
 
 export function hasSkill(id: string): boolean {
   return loadSkills().has(id);
+}
+
+export function getCharacter(id: string): CharacterContent {
+  const characters = loadCharacters();
+  const character = characters.get(id);
+  if (character == null) throw new Error(`Character not found: "${id}"`);
+  return character;
+}
+
+export function getAllCharacterIds(): string[] {
+  return Array.from(loadCharacters().keys());
 }
