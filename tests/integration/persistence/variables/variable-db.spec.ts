@@ -82,6 +82,7 @@ describe("DbVariableRepository", () => {
           relationships: {
             kazusa: 2,
           },
+          learnedSkills: {},
           flags: {
             met_rooftop_girl: true,
           },

@@ -61,6 +61,7 @@ export interface GameVariablesRoot {
       accessory: string | null;
     };
     relationships: Record<string, number>;
+    learnedSkills: Record<string, string[]>;
     flags: Record<string, boolean>;
   };
   characters: Record<

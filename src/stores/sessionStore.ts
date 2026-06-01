@@ -55,6 +55,9 @@ import type { BattleParticipant } from "@/types/battle";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import { getCharacter } from "@/content/contentRegistry";
+import type { CharacterContent, SkillTreeNode } from "@/types/content";
+import { createDefaultBattleCommandMenuTree } from "@/engine/battle/battleActionCatalog";
 
 const POST_COMBAT_CONTINUE_INPUT = "请根据最近的战斗摘要继续剧情。";
 
@@ -91,6 +94,132 @@ export const useSessionStore = defineStore("session", () => {
   let toolExecutor = new ToolExecutor(gameEngineFacade);
   const snapshot = ref(gameEngineFacade.getSessionSnapshot());
   const isStoryTurnRunning = ref(false);
+
+  // ── Skill tree state ──
+  const learnedSkills = ref<Map<string, Set<string>>>(new Map());
+
+  async function loadLearnedSkills() {
+    try {
+      const varState = await variableRepository.getCurrent();
+      if (!varState?.root.player.learnedSkills) return;
+      const map = new Map<string, Set<string>>();
+      for (const [charId, skillIds] of Object.entries(
+        varState.root.player.learnedSkills,
+      )) {
+        map.set(charId, new Set(skillIds));
+      }
+      learnedSkills.value = map;
+    } catch {
+      // variableRepository unavailable; keep empty map
+    }
+  }
+
+  function isSkillLearned(characterId: string, skillId: string): boolean {
+    const skills = learnedSkills.value.get(characterId);
+    if (!skills) return false;
+    return skills.has(skillId);
+  }
+
+  function getLearnableSkills(
+    characterId: string,
+    currentLevel: number,
+  ): SkillTreeNode[] {
+    let character: CharacterContent;
+    try {
+      character = getCharacter(characterId);
+    } catch {
+      return [];
+    }
+
+    const learned = learnedSkills.value.get(characterId) ?? new Set<string>();
+
+    return character.skillTree.filter((node) => {
+      if (learned.has(node.skillId)) return false;
+      if (currentLevel < node.requiredLevel) return false;
+      if (node.prerequisites.length > 0) {
+        const allPrereqsMet = node.prerequisites.every((prereq) =>
+          learned.has(prereq),
+        );
+        if (!allPrereqsMet) return false;
+      }
+      return true;
+    });
+  }
+
+  type LearnSkillResult =
+    | "ok"
+    | "not_in_tree"
+    | "already_learned"
+    | "level_insufficient"
+    | "missing_prerequisites"
+    | "insufficient_money";
+
+  async function learnSkill(
+    characterId: string,
+    skillId: string,
+  ): Promise<LearnSkillResult> {
+    let character: CharacterContent;
+    try {
+      character = getCharacter(characterId);
+    } catch {
+      return "not_in_tree";
+    }
+
+    const node = character.skillTree.find((n) => n.skillId === skillId);
+    if (!node) return "not_in_tree";
+
+    const learned = learnedSkills.value.get(characterId) ?? new Set<string>();
+    if (learned.has(skillId)) return "already_learned";
+
+    // Read current variable state for level and money
+    const varState = await variableRepository.getCurrent();
+    if (!varState) return "level_insufficient";
+
+    const currentLevel = varState.root.player.combat.level;
+    if (currentLevel < node.requiredLevel) return "level_insufficient";
+
+    if (node.prerequisites.length > 0) {
+      const allMet = node.prerequisites.every((p) => learned.has(p));
+      if (!allMet) return "missing_prerequisites";
+    }
+
+    const currentMoney = varState.root.player.money;
+    if (currentMoney < node.cost) return "insufficient_money";
+
+    // Deduct money via variable patch
+    const newMoney = currentMoney - node.cost;
+    const skillCallId = `skill-learn-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
+    // Build updated learned skills list for persistence
+    const currentLearnedForChar =
+      varState.root.player.learnedSkills?.[characterId] ?? [];
+    const updatedLearnedForChar = [...currentLearnedForChar, skillId];
+
+    // Deduct money and persist learned skills atomically
+    await toolExecutor.execute({
+      tool_name: "update_variables" as const,
+      request_id: `skill-learn-${characterId}-${skillId}`,
+      context_version: varState.version,
+      state_hash: varState.stateHash,
+      tool_call_id: skillCallId,
+      input: {
+        patches: [
+          { path: "player.money", value: newMoney },
+          {
+            path: `player.learnedSkills.${characterId}`,
+            value: updatedLearnedForChar,
+          },
+        ],
+      },
+    });
+
+    // Add to learned skills
+    const updated = new Set(learned);
+    updated.add(skillId);
+    learnedSkills.value = new Map(learnedSkills.value).set(characterId, updated);
+    snapshot.value = gameEngineFacade.getSessionSnapshot();
+
+    return "ok";
+  }
 
   function createDbRecoveryRepositories(client: DbWorkerClient) {
     return {
@@ -302,6 +431,26 @@ export const useSessionStore = defineStore("session", () => {
     const battleStore = useBattleStore();
 
     battleStore.startBattle(playerParty);
+
+    // Filter action menu to show only skills the current character has learned
+    const firstPlayer = playerParty.find((p) => p.side === "player" && p.characterId);
+    if (firstPlayer?.characterId && battleStore.activeBattle) {
+      const charSkills = learnedSkills.value.get(firstPlayer.characterId);
+      // Include innate skills (e.g. attack) from the character's definition
+      let availableIds: Set<string> | undefined;
+      try {
+        const char = getCharacter(firstPlayer.characterId);
+        const innate = new Set(char.innateSkills);
+        if (charSkills) {
+          charSkills.forEach((sid) => innate.add(sid));
+        }
+        availableIds = innate;
+      } catch {
+        availableIds = charSkills ?? undefined;
+      }
+      battleStore.activeBattle.actionMenu = createDefaultBattleCommandMenuTree(availableIds);
+    }
+
     gameEngineFacade.enterCombat();
     snapshot.value = gameEngineFacade.getSessionSnapshot();
     await markCombatCheckpoint({
@@ -527,6 +676,7 @@ export const useSessionStore = defineStore("session", () => {
 
     await chatStore.refreshMessages();
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    await loadLearnedSkills();
     await persistRuntimeSnapshot();
 
     maybeSummarizeHistory().catch((err) => {
@@ -649,6 +799,10 @@ export const useSessionStore = defineStore("session", () => {
   return {
     snapshot,
     isStoryTurnRunning,
+    learnedSkills,
+    isSkillLearned,
+    getLearnableSkills,
+    learnSkill,
     configurePersistence,
     beginAiRequest,
     executeUpdateVariables,

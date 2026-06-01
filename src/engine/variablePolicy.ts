@@ -57,6 +57,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
       relationships: {
         "佐仓真央": 50,
       },
+      learnedSkills: {},
       flags: {
         isNewTransfer: true,
       },

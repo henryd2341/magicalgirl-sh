@@ -98,6 +98,7 @@ export function createPlayerBattleParticipant(
   level: number,
   growthId: string,
   allocatedPoints: AllocatedPoints,
+  characterId?: string,
   accessoryModifiers?: Partial<Pick<BattleParticipant, "attack" | "defense" | "agility" | "intelligence">>,
 ): BattleParticipant {
   const growth = getGrowth(growthId);
@@ -124,6 +125,7 @@ export function createPlayerBattleParticipant(
     id,
     side: "player",
     displayName,
+    characterId,
     level,
     hp: {
       current: hpMp.hp.current,

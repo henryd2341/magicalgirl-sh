@@ -53,6 +53,9 @@ export interface SkillContent {
   hitCount?: number; // min hits, default 1
   hitCountMax?: number; // max hits for random range, default = hitCount
   statusEffects?: StatusEffectPayload[];
+  healPercent?: number; // if set, heal uses percentage of target max HP instead of raw power
+  revives?: boolean; // can this heal skill revive a downed target
+  passiveEffects?: PassiveEffectDef[]; // passive skill effects
 }
 
 // ── Enemy Content (one line in enemies.jsonl) ──
@@ -224,4 +227,61 @@ export interface StatusEffectTickResult {
     Pick<CombatStats, "attack" | "defense" | "agility" | "intelligence">
   >;
   expired: boolean;
+}
+
+// ── Passive Effect definitions ──
+
+export const PASSIVE_HOOKS = [
+  "on_damage_calc",
+  "on_turn_start",
+  "on_death_check",
+  "on_exp_calc",
+  "on_status_chance",
+] as const;
+export type PassiveHook = (typeof PASSIVE_HOOKS)[number];
+
+export const PASSIVE_EFFECT_TYPES = [
+  "element_boost",
+  "element_nullify",
+  "element_resist",
+  "crit_boost",
+  "hp_regen",
+  "mp_regen",
+  "endure",
+  "exp_boost",
+  "status_boost",
+  "damage_boost",
+] as const;
+export type PassiveEffectType = (typeof PASSIVE_EFFECT_TYPES)[number];
+
+export interface PassiveCondition {
+  stat: "hp";
+  threshold: number;
+  operator: "below" | "above";
+}
+
+export interface PassiveEffectDef {
+  hook: PassiveHook;
+  type: PassiveEffectType;
+  value: number;
+  element?: string;
+  condition?: PassiveCondition;
+}
+
+// ── Character Content (characters.jsonl) ──
+
+export interface SkillTreeNode {
+  skillId: string;
+  requiredLevel: number;
+  prerequisites: string[];
+  cost: number;
+}
+
+export interface CharacterContent {
+  id: string;
+  name: string;
+  affinities: EnemyAffinitiesRaw;
+  growthId: string;
+  innateSkills: string[];
+  skillTree: SkillTreeNode[];
 }

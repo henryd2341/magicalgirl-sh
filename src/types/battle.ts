@@ -170,6 +170,7 @@ export interface BattleParticipant {
   id: string;
   side: CombatantSide;
   displayName: string;
+  characterId?: string;
   level?: number;
   hp: {
     current: number;
@@ -189,6 +190,8 @@ export interface BattleParticipant {
   affinities?: BattleAffinityProfile;
   combatStats?: BattleParticipantCombatStats;
   canAct?: boolean;
+  passiveEffects?: import("@/types/content").PassiveEffectDef[];
+  endureUsed?: boolean;
 }
 
 export interface BattleResult {

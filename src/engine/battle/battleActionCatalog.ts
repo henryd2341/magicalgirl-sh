@@ -104,16 +104,20 @@ function classifySkill(skill: ResolvedSkillContent): string | null {
   if (id >= 113 && id <= 132) return "护盾技能";
   if (id >= 181 && id <= 186) return "万能魔法";
   if (id >= 165 && id <= 187) return "专属技能";
+  if (id >= 186 && id <= 189) return "辅助技能";
+  if (id >= 190 && id <= 191) return "异常技能";
   return null;
 }
 
 function buildSkillMenuGroups(
   skills: Map<string, ResolvedSkillContent>,
+  availableSkillIds?: Set<string>,
 ): BattleActionMenuNode[] {
   const groups = new Map<string, ResolvedSkillContent[]>();
 
   for (const skill of skills.values()) {
     if (skill.category === "passive") continue;
+    if (availableSkillIds && !availableSkillIds.has(skill.id)) continue;
     const group = classifySkill(skill);
     if (group == null) continue;
     if (!groups.has(group)) groups.set(group, []);
@@ -141,9 +145,11 @@ function buildSkillMenuGroups(
   return nodes;
 }
 
-export function createDefaultBattleCommandMenuTree(): BattleActionMenuNode[] {
+export function createDefaultBattleCommandMenuTree(
+  availableSkillIds?: Set<string>,
+): BattleActionMenuNode[] {
   const skills = getAllSkills();
-  const skillGroups = buildSkillMenuGroups(skills);
+  const skillGroups = buildSkillMenuGroups(skills, availableSkillIds);
 
   return [
     {

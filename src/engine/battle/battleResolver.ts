@@ -40,6 +40,12 @@ import {
   tickStatusEffects,
 } from "@/engine/battle/statusEffectEngine";
 import {
+  applyPassiveAffinities,
+  applyPassivesAtHook,
+  collectPassives,
+  elementBitToName,
+} from "@/engine/battle/passiveEffectEngine";
+import {
   getFormulaParams,
   getItem,
   getSkill,
@@ -69,6 +75,8 @@ function cloneParticipant(participant: BattleParticipant): BattleParticipant {
     hp: { ...participant.hp },
     mp: { ...participant.mp },
     statusEffects: (participant.statusEffects ?? []).map((e) => ({ ...e })),
+    passiveEffects: participant.passiveEffects,
+    endureUsed: participant.endureUsed,
   };
 
   if (participant.affinities != null) {
@@ -128,12 +136,26 @@ function applyOutcomeToParticipant(
     );
   }
 
+  // Endure check: intercept death via passive before marking isDown
+  let finalHp = nextHpCurrent;
+  let endureUsed = participant.endureUsed ?? false;
+  if (finalHp <= 0 && !endureUsed) {
+    const passives = collectPassives(participant.passiveEffects);
+    const ctx = applyPassivesAtHook(passives, "on_death_check", {
+      hpAfterDamage: finalHp,
+      endureUsed,
+    }) as { hpAfterDamage: number; endureUsed: boolean };
+    finalHp = ctx.hpAfterDamage;
+    endureUsed = ctx.endureUsed;
+  }
+
   return {
     ...participant,
-    hp: { ...participant.hp, current: nextHpCurrent },
+    hp: { ...participant.hp, current: finalHp },
     mp: { ...participant.mp, current: nextMpCurrent },
-    isDown: nextHpCurrent === 0,
+    isDown: finalHp <= 0,
     statusEffects,
+    endureUsed,
   };
 }
 
@@ -339,8 +361,8 @@ function buildAttackOutcomes(
     const effectiveTargetStats = computeEffectiveStats(target, target.statusEffects ?? [], effectMap);
 
     // Damage
-    const driverStat = statDriver === "attack" ? effectiveStats.attack : effectiveStats.intelligence;
-    const defenderDef = effectiveTargetStats.defense;
+    const driverStat = (statDriver === "attack" ? effectiveStats.attack : effectiveStats.intelligence) ?? 5;
+    const defenderDef = effectiveTargetStats.defense ?? 5;
 
     let damage = calculateDamage(
       driverStat,
@@ -376,6 +398,16 @@ function buildAttackOutcomes(
         }
       }
     }
+
+    // Passive: element boost / damage boost
+    const actorHpPercent = actor.hp.max > 0 ? Math.round(actor.hp.current / actor.hp.max * 100) : 100;
+    const passives = collectPassives(actor.passiveEffects);
+    const dmgCtx = applyPassivesAtHook(passives, "on_damage_calc", {
+      damage,
+      element: elementBitToName(skillElement),
+      actorHpPercent,
+    }) as { damage: number; element: string; actorHpPercent: number };
+    damage = dmgCtx.damage;
 
     // Crit check
     const baseCrit = actor.combatStats?.critRate ?? 5;
@@ -697,8 +729,23 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
   participants = participants.map((p) => {
     if (p.isDown) return p;
     const tickResult = tickStatusEffects(p.statusEffects ?? [], p.hp, effectMap);
-    const nextHp = Math.max(0, Math.min(p.hp.max, p.hp.current + tickResult.hpDelta));
+    let nextHp = Math.max(0, Math.min(p.hp.max, p.hp.current + tickResult.hpDelta));
+    let nextMp = p.mp.current;
     const updatedEffects = tickResult.updatedEffects;
+
+    // Passive regen (hp_regen / mp_regen)
+    const passives = collectPassives(p.passiveEffects);
+    if (passives.length > 0) {
+      const regenCtx = applyPassivesAtHook(passives, "on_turn_start", {
+        hpMax: p.hp.max,
+        mpMax: p.mp.max,
+        hpCurrent: nextHp,
+        mpCurrent: nextMp,
+      }) as { hpMax: number; mpMax: number; hpCurrent: number; mpCurrent: number };
+      nextHp = regenCtx.hpCurrent;
+      nextMp = regenCtx.mpCurrent;
+    }
+
     // Ailment: sleep/freeze disable action. Paralyze: 50% chance.
     const disabled = isDisabledByAilment(updatedEffects) || isParalyzed(updatedEffects);
     // Seal: disable skill MP-cost actions (checked during resolution via MP)
@@ -706,6 +753,7 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
       ...p,
       statusEffects: updatedEffects,
       hp: { ...p.hp, current: nextHp },
+      mp: { ...p.mp, current: nextMp },
       isDown: nextHp === 0,
       canAct: disabled ? false : (p.canAct ?? true),
     };
