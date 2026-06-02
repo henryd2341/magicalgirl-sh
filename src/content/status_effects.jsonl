@@ -1,5 +1,5 @@
-{"id":"attack_up","name":"攻击力上升","type":"buff","duration":3,"statModifiers":{"attack":1},"stackable":true}
-{"id":"attack_down","name":"攻击力下降","type":"debuff","duration":3,"statModifiers":{"attack":-1},"stackable":true}
+{"id":"attack_up","name":"攻击力上升","type":"buff","duration":3,"statModifiers":{"attack":1, "intelligence":1},"stackable":true}
+{"id":"attack_down","name":"攻击力下降","type":"debuff","duration":3,"statModifiers":{"attack":-1, "intelligence":-1},"stackable":true}
 {"id":"defense_up","name":"防御力上升","type":"buff","duration":3,"statModifiers":{"defense":1},"stackable":true}
 {"id":"defense_down","name":"防御力下降","type":"debuff","duration":3,"statModifiers":{"defense":-1},"stackable":true}
 {"id":"agility_up","name":"敏捷上升","type":"buff","duration":3,"statModifiers":{"agility":1},"stackable":true}

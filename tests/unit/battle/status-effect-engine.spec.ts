@@ -7,15 +7,24 @@ import {
   tickStatusEffects,
 } from "@/engine/battle/statusEffectEngine";
 import type { ActiveStatusEffect } from "@/types/battle";
-
-// Hardcoded element bitmasks to avoid circular import with contentRegistry
-const ELEM = { Physical: 1, Fire: 4, Ice: 8, Electric: 16, Wind: 32, Earth: 64 } as const;
 import type { StatusEffectContent } from "@/types/content";
 import { describe, expect, it } from "vitest";
 
+// Hardcoded element bitmasks to avoid circular import with contentRegistry
+const ELEM = {
+  Physical: 1,
+  Fire: 4,
+  Ice: 8,
+  Electric: 16,
+  Wind: 32,
+  Earth: 64,
+} as const;
+
 // ── Helpers ──
 
-function makeEffectMap(effects: StatusEffectContent[]): Map<string, StatusEffectContent> {
+function makeEffectMap(
+  effects: StatusEffectContent[],
+): Map<string, StatusEffectContent> {
   const map = new Map<string, StatusEffectContent>();
   for (const e of effects) map.set(e.id, e);
   return map;
@@ -55,50 +64,133 @@ describe("statusEffectEngine", () => {
       expect(result.intelligence).toBe(6);
     });
 
-    it("applies attack_up stack to attack", () => {
+    // ── attack_up multiplicative stacking (1.25^n) ──
+
+    it("attack_up stack 1: attack and intelligence become 1.25x", () => {
       const effects: ActiveStatusEffect[] = [
         { effectId: "attack_up", remainingDuration: 3, stacks: 1 },
       ];
       const map = makeEffectMap([
-        se("attack_up", "buff", 3, { statModifiers: { attack: 1 }, stackable: true }),
+        se("attack_up", "buff", 3, {
+          statModifiers: { attack: 1, intelligence: 1 },
+          stackable: true,
+        }),
       ]);
-      const result = computeEffectiveStats({ attack: 10, defense: 5, agility: 5, intelligence: 5 }, effects, map);
-      expect(result.attack).toBe(11);
+      const result = computeEffectiveStats(
+        { attack: 10, defense: 5, agility: 5, intelligence: 10 },
+        effects,
+        map,
+      );
+      // 10 * 1.25 = 12.5 → 13
+      expect(result.attack).toBe(13);
+      expect(result.intelligence).toBe(13);
     });
 
-    it("clamps attack_up to +2 max", () => {
+    it("attack_up stack 2: attack and intelligence become 1.25^2 ≈ 1.5625x", () => {
       const effects: ActiveStatusEffect[] = [
-        { effectId: "attack_up", remainingDuration: 3, stacks: 3 },
+        { effectId: "attack_up", remainingDuration: 3, stacks: 2 },
       ];
       const map = makeEffectMap([
-        se("attack_up", "buff", 3, { statModifiers: { attack: 1 }, stackable: true }),
+        se("attack_up", "buff", 3, {
+          statModifiers: { attack: 1, intelligence: 1 },
+          stackable: true,
+        }),
       ]);
-      const result = computeEffectiveStats({ attack: 10, defense: 5, agility: 5, intelligence: 5 }, effects, map);
-      expect(result.attack).toBe(12); // +2 max
+      const result = computeEffectiveStats(
+        { attack: 10, defense: 5, agility: 5, intelligence: 10 },
+        effects,
+        map,
+      );
+      // 10 * 1.25^2 = 10 * 1.5625 = 15.625 → 16
+      expect(result.attack).toBe(16);
+      expect(result.intelligence).toBe(16);
     });
 
-    it("applies defense_down to defense", () => {
+    // ── attack_down multiplicative stacking (0.8^n) ──
+
+    it("attack_down stack 1: attack and intelligence become 0.8x", () => {
       const effects: ActiveStatusEffect[] = [
-        { effectId: "defense_down", remainingDuration: 3, stacks: 1 },
+        { effectId: "attack_down", remainingDuration: 3, stacks: 1 },
       ];
       const map = makeEffectMap([
-        se("defense_down", "debuff", 3, { statModifiers: { defense: -1 }, stackable: true }),
+        se("attack_down", "debuff", 3, {
+          statModifiers: { attack: -1, intelligence: -1 },
+          stackable: true,
+        }),
       ]);
-      const result = computeEffectiveStats({ attack: 5, defense: 8, agility: 5, intelligence: 5 }, effects, map);
-      expect(result.defense).toBe(7);
+      const result = computeEffectiveStats(
+        { attack: 10, defense: 5, agility: 5, intelligence: 10 },
+        effects,
+        map,
+      );
+      // 10 * 0.8 = 8
+      expect(result.attack).toBe(8);
+      expect(result.intelligence).toBe(8);
     });
 
-    it("cancels out attack_up + attack_down", () => {
+    it("attack_down stack 2: attack and intelligence become 0.8^2 = 0.64x", () => {
+      const effects: ActiveStatusEffect[] = [
+        { effectId: "attack_down", remainingDuration: 3, stacks: 2 },
+      ];
+      const map = makeEffectMap([
+        se("attack_down", "debuff", 3, {
+          statModifiers: { attack: -1, intelligence: -1 },
+          stackable: true,
+        }),
+      ]);
+      const result = computeEffectiveStats(
+        { attack: 10, defense: 5, agility: 5, intelligence: 10 },
+        effects,
+        map,
+      );
+      // 10 * 0.8^2 = 10 * 0.64 = 6.4 → 6
+      expect(result.attack).toBe(6);
+      expect(result.intelligence).toBe(6);
+    });
+
+    // ── Combined: attack_up + attack_down cancel out ──
+
+    it("cancels out attack_up + attack_down multiplicatively", () => {
       const effects: ActiveStatusEffect[] = [
         { effectId: "attack_up", remainingDuration: 3, stacks: 1 },
         { effectId: "attack_down", remainingDuration: 2, stacks: 1 },
       ];
       const map = makeEffectMap([
-        se("attack_up", "buff", 3, { statModifiers: { attack: 1 }, stackable: true }),
-        se("attack_down", "debuff", 3, { statModifiers: { attack: -1 }, stackable: true }),
+        se("attack_up", "buff", 3, {
+          statModifiers: { attack: 1 },
+          stackable: true,
+        }),
+        se("attack_down", "debuff", 3, {
+          statModifiers: { attack: -1 },
+          stackable: true,
+        }),
       ]);
-      const result = computeEffectiveStats({ attack: 10, defense: 5, agility: 5, intelligence: 5 }, effects, map);
+      const result = computeEffectiveStats(
+        { attack: 10, defense: 5, agility: 5, intelligence: 5 },
+        effects,
+        map,
+      );
+      // 10 * 1.25 * 0.8 = 10
       expect(result.attack).toBe(10);
+    });
+
+    it("defense_down stack 1 applies 0.8x to defense", () => {
+      const effects: ActiveStatusEffect[] = [
+        { effectId: "defense_down", remainingDuration: 3, stacks: 1 },
+      ];
+      const map = makeEffectMap([
+        se("defense_down", "debuff", 3, {
+          statModifiers: { defense: -1 },
+          stackable: true,
+        }),
+      ]);
+      const result = computeEffectiveStats(
+        { attack: 5, defense: 8, agility: 5, intelligence: 5 },
+        effects,
+        map,
+      );
+      // 8 * 0.8 = 6.4 → 6
+      expect(result.defense).toBe(6);
     });
   });
 
@@ -110,11 +202,18 @@ describe("statusEffectEngine", () => {
         [],
         "attack_up",
         3,
-        se("attack_up", "buff", 3, { statModifiers: { attack: 1 }, stackable: true }),
+        se("attack_up", "buff", 3, {
+          statModifiers: { attack: 1 },
+          stackable: true,
+        }),
       );
       expect(result.applied).toBe(true);
       expect(result.effects).toHaveLength(1);
-      expect(result.effects[0]).toMatchObject({ effectId: "attack_up", remainingDuration: 3, stacks: 1 });
+      expect(result.effects[0]).toMatchObject({
+        effectId: "attack_up",
+        remainingDuration: 3,
+        stacks: 1,
+      });
     });
 
     it("stacks a stackable effect", () => {
@@ -125,13 +224,16 @@ describe("statusEffectEngine", () => {
         existing,
         "attack_up",
         3,
-        se("attack_up", "buff", 3, { statModifiers: { attack: 1 }, stackable: true }),
+        se("attack_up", "buff", 3, {
+          statModifiers: { attack: 1 },
+          stackable: true,
+        }),
       );
       expect(result.effects[0].stacks).toBe(2);
       expect(result.effects[0].remainingDuration).toBe(3); // refreshed
     });
 
-    it("does not add new stacks once max is reached", () => {
+    it("does not add new stacks once max (2) is reached", () => {
       const existing: ActiveStatusEffect[] = [
         { effectId: "attack_up", remainingDuration: 1, stacks: 2 },
       ];
@@ -139,7 +241,10 @@ describe("statusEffectEngine", () => {
         existing,
         "attack_up",
         3,
-        se("attack_up", "buff", 3, { statModifiers: { attack: 1 }, stackable: true }),
+        se("attack_up", "buff", 3, {
+          statModifiers: { attack: 1 },
+          stackable: true,
+        }),
       );
       expect(result.applied).toBe(false);
       expect(result.effects[0].stacks).toBe(2);
@@ -149,7 +254,12 @@ describe("statusEffectEngine", () => {
       const existing: ActiveStatusEffect[] = [
         { effectId: "charge", remainingDuration: 1, stacks: 1 },
       ];
-      const result = applyStatusEffect(existing, "charge", 999, se("charge", "buff", 999));
+      const result = applyStatusEffect(
+        existing,
+        "charge",
+        999,
+        se("charge", "buff", 999),
+      );
       expect(result.effects[0].remainingDuration).toBe(999);
     });
   });
@@ -162,9 +272,16 @@ describe("statusEffectEngine", () => {
         { effectId: "attack_up", remainingDuration: 1, stacks: 1 },
       ];
       const map = makeEffectMap([
-        se("attack_up", "buff", 3, { statModifiers: { attack: 1 }, stackable: true }),
+        se("attack_up", "buff", 3, {
+          statModifiers: { attack: 1 },
+          stackable: true,
+        }),
       ]);
-      const result = tickStatusEffects(effects, { current: 100, max: 100 }, map);
+      const result = tickStatusEffects(
+        effects,
+        { current: 100, max: 100 },
+        map,
+      );
       expect(result.updatedEffects).toHaveLength(0);
       expect(result.expiredEffectIds).toEqual(["attack_up"]);
     });
@@ -176,7 +293,11 @@ describe("statusEffectEngine", () => {
       const map = makeEffectMap([
         se("poison", "dot", 3, { damagePercent: 10 }),
       ]);
-      const result = tickStatusEffects(effects, { current: 100, max: 100 }, map);
+      const result = tickStatusEffects(
+        effects,
+        { current: 100, max: 100 },
+        map,
+      );
       expect(result.hpDelta).toBe(-10); // 10% of 100
       expect(result.updatedEffects).toHaveLength(1); // still 1 turn remaining
     });
@@ -185,10 +306,12 @@ describe("statusEffectEngine", () => {
       const effects: ActiveStatusEffect[] = [
         { effectId: "charge", remainingDuration: 999, stacks: 1 },
       ];
-      const map = makeEffectMap([
-        se("charge", "buff", 999),
-      ]);
-      const result = tickStatusEffects(effects, { current: 100, max: 100 }, map);
+      const map = makeEffectMap([se("charge", "buff", 999)]);
+      const result = tickStatusEffects(
+        effects,
+        { current: 100, max: 100 },
+        map,
+      );
       expect(result.updatedEffects).toHaveLength(1);
       expect(result.updatedEffects[0].remainingDuration).toBe(999);
     });
@@ -197,9 +320,7 @@ describe("statusEffectEngine", () => {
       const effects: ActiveStatusEffect[] = [
         { effectId: "instant_death", remainingDuration: 1, stacks: 1 },
       ];
-      const map = makeEffectMap([
-        se("instant_death", "ailment", 1),
-      ]);
+      const map = makeEffectMap([se("instant_death", "ailment", 1)]);
       const result = tickStatusEffects(effects, { current: 50, max: 100 }, map);
       expect(result.hpDelta).toBe(-50); // full HP
     });
@@ -284,15 +405,27 @@ describe("statusEffectEngine", () => {
 
   describe("isDisabledByAilment", () => {
     it("returns true for sleep", () => {
-      expect(isDisabledByAilment([{ effectId: "sleep", remainingDuration: 2, stacks: 1 }])).toBe(true);
+      expect(
+        isDisabledByAilment([
+          { effectId: "sleep", remainingDuration: 2, stacks: 1 },
+        ]),
+      ).toBe(true);
     });
 
     it("returns true for freeze", () => {
-      expect(isDisabledByAilment([{ effectId: "freeze", remainingDuration: 1, stacks: 1 }])).toBe(true);
+      expect(
+        isDisabledByAilment([
+          { effectId: "freeze", remainingDuration: 1, stacks: 1 },
+        ]),
+      ).toBe(true);
     });
 
     it("returns false for non-disabling effects", () => {
-      expect(isDisabledByAilment([{ effectId: "attack_up", remainingDuration: 3, stacks: 1 }])).toBe(false);
+      expect(
+        isDisabledByAilment([
+          { effectId: "attack_up", remainingDuration: 3, stacks: 1 },
+        ]),
+      ).toBe(false);
     });
 
     it("returns false when no effects", () => {

@@ -1,12 +1,12 @@
 import { BATTLE_ELEMENTS, type BattleElement } from "@/types/battle";
 import type {
+  CharacterContent,
   FormulaParams,
   GrowthContent,
   ItemContent,
   ResolvedEnemyContent,
   ResolvedSkillContent,
   StatusEffectContent,
-  CharacterContent,
 } from "@/types/content";
 import { z } from "zod";
 
@@ -40,22 +40,45 @@ const skillContentSchema = z.object({
   statusEffects: z.array(statusEffectPayloadSchema).optional(),
   healPercent: z.number().int().min(0).max(100).optional(),
   revives: z.boolean().optional(),
-  passiveEffects: z.array(z.object({
-    hook: z.enum(["on_damage_calc", "on_turn_start", "on_death_check", "on_exp_calc", "on_status_chance"]),
-    type: z.enum(["element_boost", "element_nullify", "element_resist", "crit_boost", "hp_regen", "mp_regen", "endure", "exp_boost", "status_boost", "damage_boost"]),
-    value: z.number(),
-    element: z.string().optional(),
-    condition: z.object({
-      stat: z.enum(["hp"]),
-      threshold: z.number(),
-      operator: z.enum(["below", "above"]),
-    }).optional(),
-  })).optional(),
+  passiveEffects: z
+    .array(
+      z.object({
+        hook: z.enum([
+          "on_damage_calc",
+          "on_turn_start",
+          "on_death_check",
+          "on_exp_calc",
+          "on_status_chance",
+        ]),
+        type: z.enum([
+          "element_boost",
+          "element_nullify",
+          "element_resist",
+          "crit_boost",
+          "hp_regen",
+          "mp_regen",
+          "endure",
+          "exp_boost",
+          "status_boost",
+          "damage_boost",
+        ]),
+        value: z.number(),
+        element: z.string().optional(),
+        condition: z
+          .object({
+            stat: z.enum(["hp"]),
+            threshold: z.number(),
+            operator: z.enum(["below", "above"]),
+          })
+          .optional(),
+      }),
+    )
+    .optional(),
 });
 
 const combatStatsSchema = z.object({
   hp: z.number().int().min(1).max(999),
-  mp: z.number().int().min(0),
+  mp: z.number().int().min(0).max(999),
   attack: z.number().int().min(0),
   defense: z.number().int().min(0),
   agility: z.number().int().min(0),
@@ -117,13 +140,39 @@ const itemContentSchema = z.object({
   revivePercent: z.number().int().min(0).optional(),
   cureStatus: z.array(z.string()).optional(),
   damageFixed: z.number().int().min(0).optional(),
-  tempModifiers: z.object({
-    stats: accessoryModifiersSchema,
-    duration: z.number().int().min(1),
-  }).optional(),
+  tempModifiers: z
+    .object({
+      stats: accessoryModifiersSchema,
+      duration: z.number().int().min(1),
+    })
+    .optional(),
   modifiers: accessoryModifiersSchema.optional(),
-  accessoryEffects: z.array(z.enum(["auto_buff_start", "no_press_penalty", "pass_free", "miss_consume_all"])).optional(),
-  affinityResist: z.record(z.enum(["Physical", "Fire", "Ice", "Wind", "Electric", "Earth", "Light", "Dark", "Ailment"]), z.enum(["resist", "nullify", "reflect", "absorb"])).optional(),
+  accessoryEffects: z
+    .array(
+      z.enum([
+        "auto_buff_start",
+        "no_press_penalty",
+        "pass_free",
+        "miss_consume_all",
+      ]),
+    )
+    .optional(),
+  affinityResist: z
+    .record(
+      z.enum([
+        "Physical",
+        "Fire",
+        "Ice",
+        "Wind",
+        "Electric",
+        "Earth",
+        "Light",
+        "Dark",
+        "Ailment",
+      ]),
+      z.enum(["resist", "nullify", "reflect", "absorb"]),
+    )
+    .optional(),
 });
 
 const skillTreeNodeSchema = z.object({
@@ -243,13 +292,13 @@ function parseJsonl<T>(
 // Using explicit imports instead of import.meta.glob because vitest
 // does not support eager ?raw glob patterns for .jsonl files.
 
+import charactersRaw from "./characters.jsonl?raw";
 import enemiesRaw from "./enemies.jsonl?raw";
 import formulasRaw from "./formulas.jsonl?raw";
 import growthRaw from "./growth.jsonl?raw";
 import itemsRaw from "./items.jsonl?raw";
 import skillsRaw from "./skills.jsonl?raw";
 import statusEffectsRaw from "./status_effects.jsonl?raw";
-import charactersRaw from "./characters.jsonl?raw";
 
 const RAW_CONTENT: Record<string, string> = {
   "formulas.jsonl": formulasRaw,

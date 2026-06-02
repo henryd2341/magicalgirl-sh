@@ -3,10 +3,7 @@ import type {
   BattleElement,
   BattleParticipant,
 } from "@/types/battle";
-import type {
-  StatusEffectContent,
-} from "@/types/content";
-
+import type { StatusEffectContent } from "@/types/content";
 
 // ── Shield effect → element + kind mapping ──
 
@@ -19,11 +16,11 @@ interface ShieldEntry {
 
 function buildShieldMap(): Record<string, ShieldEntry> {
   const elements: Record<string, BattleElement> = {
-    fire: 4,       // Fire = 1 << 2
-    ice: 8,        // Ice = 1 << 3
-    wind: 32,      // Wind = 1 << 5
-    electric: 16,  // Electric = 1 << 4
-    earth: 64,     // Earth = 1 << 6
+    fire: 4, // Fire = 1 << 2
+    ice: 8, // Ice = 1 << 3
+    wind: 32, // Wind = 1 << 5
+    electric: 16, // Electric = 1 << 4
+    earth: 64, // Earth = 1 << 6
   };
 
   const map: Record<string, ShieldEntry> = {};
@@ -78,11 +75,19 @@ export function checkShield(
 
 // ── Effective stats computation ──
 
-const STAT_MODIFIER_KEYS = ["attack", "defense", "agility", "intelligence"] as const;
+const STAT_MODIFIER_KEYS = [
+  "attack",
+  "defense",
+  "agility",
+  "intelligence",
+] as const;
 const MAX_STAT_STACKS = 2;
 
 export function computeEffectiveStats(
-  base: Pick<BattleParticipant, "attack" | "defense" | "agility" | "intelligence">,
+  base: Pick<
+    BattleParticipant,
+    "attack" | "defense" | "agility" | "intelligence"
+  >,
   activeEffects: ActiveStatusEffect[],
   effectMap: Map<string, StatusEffectContent>,
 ): Pick<BattleParticipant, "attack" | "defense" | "agility" | "intelligence"> {
@@ -100,16 +105,14 @@ export function computeEffectiveStats(
     for (const key of STAT_MODIFIER_KEYS) {
       const mod = content.statModifiers[key];
       if (mod != null) {
-        result[key] += mod * effect.stacks;
+        // Multiplicative stacking: buffs use 1.25^n, debuffs use 0.8^n
+        if (mod > 0) {
+          result[key] = Math.round(result[key] * Math.pow(1.25, effect.stacks));
+        } else if (mod < 0) {
+          result[key] = Math.round(result[key] * Math.pow(0.8, effect.stacks));
+        }
       }
     }
-  }
-
-  // Clamp to ±MAX_STAT_STACKS
-  for (const key of STAT_MODIFIER_KEYS) {
-    const baseVal = base[key] ?? 5;
-    const delta = result[key] - baseVal;
-    result[key] = baseVal + Math.max(-MAX_STAT_STACKS, Math.min(MAX_STAT_STACKS, delta));
   }
 
   return result;
@@ -130,7 +133,11 @@ export function applyStatusEffect(
       const newStacks = Math.min(MAX_STAT_STACKS, existing.stacks + 1);
       const updated = effects.map((e) =>
         e.effectId === effectId
-          ? { ...e, stacks: newStacks, remainingDuration: Math.max(e.remainingDuration, duration) }
+          ? {
+              ...e,
+              stacks: newStacks,
+              remainingDuration: Math.max(e.remainingDuration, duration),
+            }
           : e,
       );
       return { effects: updated, applied: newStacks > existing.stacks };
@@ -215,7 +222,11 @@ export function tickStatusEffects(
 export function consumeChargeChantFocus(
   effects: ActiveStatusEffect[],
   skillCategory: "physical" | "magic" | "heal" | "support" | "passive",
-): { effects: ActiveStatusEffect[]; damageMultiplier: number; guaranteedCrit: boolean } {
+): {
+  effects: ActiveStatusEffect[];
+  damageMultiplier: number;
+  guaranteedCrit: boolean;
+} {
   let damageMultiplier = 1;
   let guaranteedCrit = false;
 
@@ -239,7 +250,8 @@ export function consumeChargeChantFocus(
   const removeIds: string[] = [];
   if (hasCharge && skillCategory === "physical") removeIds.push("charge");
   if (hasChant && skillCategory === "magic") removeIds.push("chant");
-  if (hasFocus && (skillCategory === "physical" || skillCategory === "magic")) removeIds.push("focus");
+  if (hasFocus && (skillCategory === "physical" || skillCategory === "magic"))
+    removeIds.push("focus");
 
   if (removeIds.length === 0) {
     return { effects, damageMultiplier, guaranteedCrit };
@@ -251,9 +263,7 @@ export function consumeChargeChantFocus(
 
 // ── Ailment disability check ──
 
-export function isDisabledByAilment(
-  effects: ActiveStatusEffect[],
-): boolean {
+export function isDisabledByAilment(effects: ActiveStatusEffect[]): boolean {
   return effects.some((e) => e.effectId === "sleep" || e.effectId === "freeze");
 }
 
