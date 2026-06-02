@@ -120,6 +120,7 @@ describe("buildHarnessRequest", () => {
     });
     expect(request.segments.map((segment) => segment.id)).toEqual([
       "system",
+      "skills",
       "constant_world_info",
       "matched_world_info",
       "state",
@@ -419,6 +420,7 @@ describe("buildHarnessRequest", () => {
     expect(request.promptText).not.toContain("青井霞是已退役的初代魔法少女。");
     expect(request.segments.map((segment) => segment.id)).toEqual([
       "system",
+      "skills",
       "constant_world_info",
       "matched_world_info",
       "state",

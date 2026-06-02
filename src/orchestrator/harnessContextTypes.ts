@@ -3,6 +3,7 @@ import type { ChatMessageRole } from "@/types/chat";
 
 export type PromptSegmentKind =
   | "system"
+  | "skills"
   | "world_info"
   | "state"
   | "tools"
@@ -46,7 +47,7 @@ export interface ProviderMessage {
 }
 
 export interface ProviderToolDefinition {
-  name: "update_variables" | "trigger_battle";
+  name: "update_variables" | "trigger_battle" | "read_skill";
   description: string;
 }
 

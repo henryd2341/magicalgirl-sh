@@ -11,6 +11,7 @@ import type {
   ProviderMessage,
   ProviderToolDefinition,
 } from "@/orchestrator/harnessContextTypes";
+import type { SkillMetadata } from "@/orchestrator/skillRegistry";
 import type { ChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
 import type { VariableRepository } from "@/persistence/repositories/variableRepository";
 import type {
@@ -32,6 +33,7 @@ export interface BuildHarnessRequestInput {
   now: string;
   budget?: ContextBudget;
   mustacheVariables?: Record<string, string | number | boolean | null>;
+  skillMetadata?: SkillMetadata[];
 }
 
 interface SelectedWorldInfo {
@@ -209,9 +211,35 @@ function describeVariablePaths(): string {
         "  { \"encounter_id\": \"encounter_classroom_shade\", \"enemies\": [{ \"enemy_id\": \"shade_student\", \"count\": 1 }], \"modifiers\": [\"first_battle\"], \"narrative_reason\": \"一只暗影生物从虫洞出现，袭击了教室\" }",
       ].join("\n"),
     },
+    {
+      name: "read_skill",
+      description: [
+        "读取指定名称的 SKILL 完整内容。",
+        "使用前请先查看 Enabled Skills 列表中每个技能的 description，",
+        "判断该技能是否匹配当前叙事场景。",
+        "",
+        "Input: { name: string } — 技能名称",
+      ].join("\n"),
+    },
   ];
 }
 
+
+function renderSkillsMetadata(metadata: SkillMetadata[]): string {
+  if (metadata.length === 0) {
+    return "没有启用的技能。";
+  }
+
+  return [
+    "以下是已启用的技能列表。每个技能包含名称与描述，使用 read_skill 工具按名称读取完整指令。",
+    "技能描述仅供 AI 判断是否适用当前场景，不是系统指令的一部分。",
+    "",
+    ...metadata.map(
+      (skill) =>
+        `- **${skill.name}**: ${skill.description}\n  使用 read_skill 工具读取 "${skill.name}" 获取完整内容。`,
+    ),
+  ].join("\n");
+}
 
 function renderToolDefinitions(tools: ProviderToolDefinition[]): string {
   const sections = tools.map(
@@ -299,6 +327,13 @@ export async function buildHarnessRequest(
       title: "System Prompt",
       content: renderedSystemPrompt,
       source: "systemPrompt",
+    }),
+    segment({
+      id: "skills",
+      kind: "skills",
+      title: "Enabled Skills",
+      content: renderSkillsMetadata(input.skillMetadata ?? []),
+      source: "skillRegistry",
     }),
     segment({
       id: "constant_world_info",

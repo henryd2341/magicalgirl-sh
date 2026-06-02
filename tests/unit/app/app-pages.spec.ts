@@ -134,7 +134,7 @@ describe("application page layering", () => {
     });
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "设置 / Prompt Builder" }),
+      screen.getByRole("heading", { level: 1, name: "设置" }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("System Prompt")).toHaveAttribute(
       "id",

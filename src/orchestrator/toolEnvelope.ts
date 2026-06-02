@@ -34,6 +34,15 @@ export interface TriggerBattleCommandResult {
   encounterId: string;
 }
 
+export interface ReadSkillToolInput {
+  name: string;
+}
+
+export interface ReadSkillToolEnvelope extends BaseToolEnvelope {
+  tool_name: "read_skill";
+  input: ReadSkillToolInput;
+}
+
 export interface BaseToolEnvelope {
   tool_name: string;
   request_id: string;
@@ -59,7 +68,8 @@ export interface TriggerBattleToolEnvelope extends BaseToolEnvelope {
 
 export type ToolEnvelope =
   | UpdateVariablesToolEnvelope
-  | TriggerBattleToolEnvelope;
+  | TriggerBattleToolEnvelope
+  | ReadSkillToolEnvelope;
 
 export interface ToolExecutionSuccessResult<TToolName extends string, TOutput> {
   ok: true;

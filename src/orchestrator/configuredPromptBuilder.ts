@@ -3,10 +3,12 @@ import {
   type BuildHarnessRequestInput,
 } from "@/orchestrator/promptBuilder";
 import type { PromptPresetRepository } from "@/orchestrator/promptPreset";
+import type { SkillMetadata } from "@/orchestrator/skillRegistry";
 
 export interface BuildConfiguredHarnessRequestInput
   extends Omit<BuildHarnessRequestInput, "systemPrompt" | "budget"> {
   promptPresetRepository: PromptPresetRepository;
+  skillMetadata?: SkillMetadata[];
 }
 
 export async function buildConfiguredHarnessRequest(
@@ -20,5 +22,6 @@ export async function buildConfiguredHarnessRequest(
     budget: {
       maxTotalTokens: preset.maxTotalTokens,
     },
+    skillMetadata: input.skillMetadata,
   });
 }

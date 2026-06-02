@@ -3,6 +3,8 @@ import { z, type ZodIssue } from "zod";
 import type {
   ToolEnvelopeCandidate,
   ToolEnvelope,
+  ReadSkillToolEnvelope,
+  ReadSkillToolInput,
   TriggerBattleToolEnvelope,
   TriggerBattleToolInput,
   UpdateVariablesToolEnvelope,
@@ -39,6 +41,12 @@ export const triggerBattleToolInputSchema = z
       .min(1),
     modifiers: z.array(z.string().min(1)).optional(),
     narrative_reason: z.string().min(1),
+  })
+  .strict();
+
+export const readSkillToolInputSchema = z
+  .object({
+    name: z.string().min(1),
   })
   .strict();
 
@@ -223,6 +231,19 @@ export function validateTriggerBattleToolInput(
   return result.data;
 }
 
+export function validateReadSkillToolInput(
+  input: unknown,
+): ReadSkillToolInput {
+  const result = readSkillToolInputSchema.safeParse(input);
+  if (!result.success) {
+    throw new Error(
+      "[TOOL_INPUT_INVALID] read_skill input must include a string name.",
+    );
+  }
+
+  return result.data;
+}
+
 export function validateToolEnvelope(
   envelope: ToolEnvelopeCandidate,
 ): ToolEnvelope {
@@ -255,6 +276,18 @@ export function validateToolEnvelope(
         tool_call_id: parsed.tool_call_id,
         issued_at: parsed.issued_at,
         input: validateTriggerBattleToolInput(parsed.input),
+      };
+      return validatedEnvelope;
+    }
+    case "read_skill": {
+      const validatedEnvelope: ReadSkillToolEnvelope = {
+        tool_name: "read_skill",
+        request_id: parsed.request_id,
+        context_version: parsed.context_version,
+        state_hash: parsed.state_hash,
+        tool_call_id: parsed.tool_call_id,
+        issued_at: parsed.issued_at,
+        input: validateReadSkillToolInput(parsed.input),
       };
       return validatedEnvelope;
     }

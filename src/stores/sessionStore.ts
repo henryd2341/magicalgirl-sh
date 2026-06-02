@@ -51,6 +51,7 @@ import {
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
 import { usePromptViewerStore } from "@/stores/promptViewerStore";
+import { useSkillStore } from "@/stores/skillStore";
 import type { BattleParticipant } from "@/types/battle";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 import { defineStore } from "pinia";
@@ -716,12 +717,14 @@ export const useSessionStore = defineStore("session", () => {
         : undefined,
       eventLogRepository: repositories?.eventLogRepository,
       async buildRequest(input) {
+        const skillStore = useSkillStore();
         const request = await buildConfiguredHarnessRequest({
           ...input,
           chatRepository: chatRuntime.repository,
           variableRepository,
           worldInfoRepository,
           promptPresetRepository: getPromptPresetRepository(),
+          skillMetadata: skillStore.enabledMetadata,
           requestId: options.requestId,
           now: new Date().toISOString(),
         });

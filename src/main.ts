@@ -3,9 +3,17 @@ import App from "./App.vue";
 import { initializePersistentChatRuntime } from "./persistence/persistenceBootstrap";
 import { router } from "./router";
 import { pinia } from "./stores";
+import { skillRegistry } from "./orchestrator/skillRegistry";
 import "./styles/index.css";
 
+const builtinSkillModules = import.meta.glob<string>(
+  "./content/agentSkills/**/SKILL.md",
+  { query: "?raw", import: "default", eager: true },
+);
+
 async function bootstrapApp() {
+  skillRegistry.loadBuiltinSkills(builtinSkillModules);
+
   try {
     await initializePersistentChatRuntime();
   } catch {

@@ -13,13 +13,17 @@ import {
   DbWorldInfoRepository,
   type WorldInfoEntry,
 } from "@/persistence/repositories/worldInfoRepository";
+import { useSkillStore } from "@/stores/skillStore";
+import SkillSettingsPanel from "@/ui/settings/SkillSettingsPanel.vue";
 import type { VariableValueRecord } from "@/types/variables";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 
 const router = useRouter();
 const repository = getPromptPresetRepository();
+const skillStore = useSkillStore();
 const statusMessage = ref("");
+const activeTab = ref<"prompt" | "skills">("prompt");
 const variableState = ref<VariableValueRecord>(
   new VariableEngine().createInitialState(),
 );
@@ -159,6 +163,7 @@ async function resetPromptPreset() {
 
 onMounted(async () => {
   applyConfig(await repository.getCurrent());
+  skillStore.loadSkills();
   await Promise.all([loadWorldInfoEntries(), loadVariableState()]);
 });
 </script>
@@ -166,8 +171,29 @@ onMounted(async () => {
 <template>
   <main id="settings-view" class="settings-view scrapbook-panel" role="main">
     <section class="settings-view__panel">
-      <p class="eyebrow eyebrow--blue">Prompt Builder</p>
-      <h1 class="section-heading--playful">设置 / Prompt Builder</h1>
+      <p class="eyebrow eyebrow--blue">Settings</p>
+      <h1 class="section-heading--playful">设置</h1>
+
+      <nav class="settings-view__tabs" aria-label="设置分类">
+        <button
+          class="secondary-cta"
+          :class="{ 'primary-cta': activeTab === 'prompt' }"
+          type="button"
+          @click="activeTab = 'prompt'"
+        >
+          Prompt Builder
+        </button>
+        <button
+          class="secondary-cta"
+          :class="{ 'primary-cta': activeTab === 'skills' }"
+          type="button"
+          @click="activeTab = 'skills'"
+        >
+          技能 (Skills)
+        </button>
+      </nav>
+
+      <template v-if="activeTab === 'prompt'">
       <form class="settings-view__form" @submit.prevent="savePromptPreset">
         <label class="chat-input-box__label" for="prompt-system-prompt">
           System Prompt
@@ -339,6 +365,10 @@ onMounted(async () => {
           返回主游戏
         </button>
       </div>
+      </template>
+
+      <SkillSettingsPanel v-if="activeTab === 'skills'" />
+
     </section>
   </main>
 </template>

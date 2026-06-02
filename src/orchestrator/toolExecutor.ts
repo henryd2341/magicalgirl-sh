@@ -12,6 +12,7 @@ import {
   type ToolEnvelopeCandidate,
   type ToolExecutionError,
   type ToolExecutionFailureResult,
+  type ReadSkillToolEnvelope,
   type TriggerBattleToolEnvelope,
   type TriggerBattleToolResult,
   type UpdateVariablesToolEnvelope,
@@ -29,7 +30,9 @@ type ToolExecutorResult<TEnvelope extends ToolEnvelopeCandidate> =
     ? UpdateVariablesToolResult
     : TEnvelope extends TriggerBattleToolEnvelope
       ? TriggerBattleToolResult
-      : UnknownToolResult;
+      : TEnvelope extends ReadSkillToolEnvelope
+        ? UnknownToolResult
+        : UnknownToolResult;
 
 export interface ToolExecutorDependencies {
   idempotencyLedger?: ToolCallExecutionLedger;
@@ -122,6 +125,19 @@ export class ToolExecutor {
           await this.recordSuccessfulExecution(validatedEnvelope);
 
           return result as ToolExecutorResult<TEnvelope>;
+        }
+        case "read_skill": {
+          const result = await this.harnessExecutors.read_skill.execute({
+            tool_call_id: validatedEnvelope.tool_call_id,
+            input: validatedEnvelope.input,
+            envelope: {
+              request_id: validatedEnvelope.request_id,
+              context_version: validatedEnvelope.context_version,
+              state_hash: validatedEnvelope.state_hash,
+            },
+          });
+
+          return result as unknown as ToolExecutorResult<TEnvelope>;
         }
       }
     } catch (error) {
