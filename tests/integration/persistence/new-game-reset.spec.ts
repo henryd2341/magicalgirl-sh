@@ -191,6 +191,7 @@ describe("new game current runtime reset", () => {
 
     const openingMessage = renderOpeningMessage({
       playerName: "鹿目真昼",
+      playerGender: "女",
       now: "2026-09-15T08:20:30.000Z",
     });
     await chatRepository.save(openingMessage);

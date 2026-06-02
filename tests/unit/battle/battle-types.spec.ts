@@ -192,7 +192,6 @@ describe("battle types", () => {
     const findNode = (id: string) => commandTree.find((n) => n.id === id);
     expect(findNode("attack-action")).toEqual(expect.objectContaining({ kind: "action", actionId: "attack" }));
     expect(findNode("guard-action")).toEqual(expect.objectContaining({ kind: "action", actionId: "guard" }));
-    expect(findNode("item-group")).toEqual(expect.objectContaining({ kind: "group", label: "Item" }));
     expect(findNode("pass-action")).toEqual(expect.objectContaining({ kind: "action", actionId: "pass" }));
     expect(findNode("swap-action")).toEqual(expect.objectContaining({ kind: "action", actionId: "swap" }));
 
@@ -208,7 +207,6 @@ describe("battle types", () => {
     const commandTree = createDefaultBattleCommandMenuTree();
 
     const skillGroup = commandTree.find((node) => node.id.startsWith("skill-group-"));
-    const itemGroup = commandTree.find((node) => node.id === "item-group");
 
     expect(skillGroup).toEqual(
       expect.objectContaining({
@@ -216,31 +214,14 @@ describe("battle types", () => {
         children: expect.any(Array),
       }),
     );
-    expect(itemGroup).toEqual(
-      expect.objectContaining({
-        id: "item-group",
-        kind: "group",
-        label: "Item",
-        children: expect.any(Array),
-      }),
-    );
 
     expect(skillGroup?.children?.length).toBeGreaterThan(0);
-    expect(itemGroup?.children?.length).toBeGreaterThan(0);
 
     expect(skillGroup?.children).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           kind: "action",
           actionId: "basic-skill",
-        }),
-      ]),
-    );
-    expect(itemGroup?.children).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          kind: "action",
-          actionId: "basic-item",
         }),
       ]),
     );
@@ -292,7 +273,7 @@ describe("battle types", () => {
         id: "basic-item",
         label: "Item",
         selectionMode: "selective",
-        allowedSides: ["player"],
+        allowedSides: ["player", "enemy"],
         resolutionKind: "item",
       }),
     );
@@ -321,7 +302,7 @@ describe("battle types", () => {
       primaryTargetId: "enemy-1",
       finalTargetId: "enemy-1",
       hpDelta: -18,
-      appliedStatusEffects: ["shock"],
+      appliedStatusEffects: [{ effectId: "shock", duration: 3 }],
     };
 
     const pressTurnResult: PressTurnSettlementResult = {

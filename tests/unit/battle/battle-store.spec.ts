@@ -785,7 +785,9 @@ describe("battleStore", () => {
         actorId: "enemy-1",
         actionId: "enemy_attack",
         targetId: "player-heroine-1",
-        summary: expect.stringMatching(/menu-shadow attacked 鹿目真昼 for \d+ damage\./),
+        summary: expect.stringMatching(
+          /menu-shadow attacked 鹿目真昼 for \d+ damage\./,
+        ),
       },
       {
         id: "turn-2-player-round-start",
@@ -847,17 +849,19 @@ describe("battleStore", () => {
     expect(store.activeBattle?.battleResult).toEqual({
       outcome: expect.stringMatching(/victory|defeat/),
       winningSide: expect.any(String),
-      endReason: expect.stringMatching(/all_enemies_down|all_allies_down|all_players_down/),
+      endReason: expect.stringMatching(
+        /all_enemies_down|all_allies_down|all_players_down/,
+      ),
       turnCount: expect.any(Number),
       survivingParticipantIds: expect.any(Array),
       downParticipantIds: expect.any(Array),
     });
-    expect(store.activeBattle?.battleLog?.map((entry) => entry.summary)).toEqual(
-      [
-        expect.stringContaining("used"),
-        expect.stringMatching(/loop-shadow attacked 鹿目真昼 for \d+ damage\./),
-        expect.stringContaining("down"),
-      ],
-    );
+    expect(
+      store.activeBattle?.battleLog?.map((entry) => entry.summary),
+    ).toEqual([
+      expect.stringContaining("used"),
+      expect.stringMatching(/loop-shadow attacked 鹿目真昼 for \d+ damage\./),
+      expect.stringContaining("down"),
+    ]);
   });
 });

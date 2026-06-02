@@ -676,7 +676,7 @@ describe("battleResolver", () => {
     const player = resolved.participants.find(
       (p) => p.id === "player-heroine-1",
     )!;
-    expect(player.statusEffects.some((e: { effectId: string }) => e.effectId === "guard")).toBe(true);
+    expect(player.statusEffects?.some((e: { effectId: string }) => e.effectId === "guard")).toBe(true);
   });
 
   // ── Basic Skill (backward compat, no contentId) ──
