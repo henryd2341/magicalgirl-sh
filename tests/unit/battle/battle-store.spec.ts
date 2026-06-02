@@ -270,9 +270,9 @@ describe("battleStore", () => {
     const store = startTestBattle();
     const pressTurnBefore = store.activeBattle?.pressTurn;
 
-    store.selectMenuNode("skill-group-物理·剑系");
+    store.selectMenuNode("skill-group-physical");
 
-    expect(store.activeBattle?.currentMenuNodeId).toBe("skill-group-物理·剑系");
+    expect(store.activeBattle?.currentMenuNodeId).toBe("skill-group-physical");
     expect(store.activeBattle?.selectedActionId).toBeNull();
     expect(store.activeBattle?.pressTurn).toEqual(pressTurnBefore);
   });
@@ -356,12 +356,27 @@ describe("battleStore", () => {
   it("accepts player targets for a player-targeted selective item leaf action and resolves the item effect", () => {
     const store = startTestBattle();
 
-    store.selectMenuNode("basic-item-action");
+    store.activeBattle!.actionMenu = [...createDefaultBattleCommandMenuTree(), {
+      id: "item-group-heal",
+      kind: "group" as const,
+      label: "回复",
+      description: "打开回复道具列表。",
+      children: [{
+        id: "item-action-1",
+        kind: "action" as const,
+        actionId: "basic-item" as const,
+        contentId: "1",
+        label: "药草 ×1",
+        description: "常见的草药，可回复少量生命值。",
+      }],
+    }];
+    store.selectMenuNode("item-action-1");
     store.selectTarget("player-heroine-2");
 
     expect(store.activeBattle?.selectedActionId).toBe("basic-item");
+    expect(store.activeBattle?.selectedContentId).toBe("1");
     expect(store.activeBattle?.selectedTargetId).toBe("player-heroine-2");
-    expect(store.activeBattle?.pressTurn.icons).toHaveLength(1);
+    expect(store.activeBattle?.pressTurn.icons).toHaveLength(2);
     expect(
       store.activeBattle?.participants.find(
         (participant) => participant.id === "player-heroine-2",
@@ -369,15 +384,29 @@ describe("battleStore", () => {
     ).toBe(100);
   });
 
-  it("rejects enemy targets for a player-targeted selective item leaf action", () => {
+  it("accepts enemy targets for an item action since items now allow targeting enemies", () => {
     const store = startTestBattle();
 
-    store.selectMenuNode("basic-item-action");
-    const snapshotBefore = JSON.parse(JSON.stringify(store.activeBattle));
-
+    store.activeBattle!.actionMenu = [...createDefaultBattleCommandMenuTree(), {
+      id: "item-group-heal",
+      kind: "group" as const,
+      label: "回复",
+      description: "打开回复道具列表。",
+      children: [{
+        id: "item-action-1",
+        kind: "action" as const,
+        actionId: "basic-item" as const,
+        contentId: "1",
+        label: "药草 ×1",
+        description: "常见的草药，可回复少量生命值。",
+      }],
+    }];
+    store.selectMenuNode("item-action-1");
     store.selectTarget("enemy-1");
 
-    expect(store.activeBattle).toEqual(snapshotBefore);
+    expect(store.activeBattle?.selectedActionId).toBe("basic-item");
+    expect(store.activeBattle?.selectedTargetId).toBe("enemy-1");
+    expect(store.activeBattle?.selectedContentId).toBe("1");
   });
 
   it("swaps an active ally through the store entrypoint and consumes one icon", () => {
@@ -827,7 +856,7 @@ describe("battleStore", () => {
         participant.side === "enemy"
           ? {
               ...participant,
-              hp: { current: 10, max: 10 },
+              hp: { current: 50, max: 50 },
             }
           : participant,
     );

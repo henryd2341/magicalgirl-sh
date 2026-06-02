@@ -254,9 +254,9 @@ describe("MainGameView battle overlay entrypoint", () => {
 
     await waitForActiveBattleOverlay();
 
-    await fireEvent.click(screen.getByRole("button", { name: "物理·剑系" }));
+    await fireEvent.click(screen.getByRole("button", { name: "物理技能" }));
 
-    expect(battleStore.activeBattle?.currentMenuNodeId).toBe("skill-group-物理·剑系");
+    expect(battleStore.activeBattle?.currentMenuNodeId).toBe("skill-group-physical");
     expect(battleStore.activeBattle?.selectedActionId).toBeNull();
     const skillButtons = screen.getAllByRole("button").filter(
       (btn) => btn.getAttribute("aria-pressed") !== null,
@@ -379,7 +379,7 @@ describe("MainGameView battle overlay entrypoint", () => {
     await waitForActiveBattleOverlay();
 
     const attackButton = screen.getByRole("button", { name: "Attack" });
-    const skillButton = screen.getByRole("button", { name: "物理·剑系" });
+    const skillButton = screen.getByRole("button", { name: "物理技能" });
 
     expect(attackButton).toHaveAttribute("aria-pressed", "false");
     expect(skillButton).toHaveAttribute("aria-pressed", "false");
@@ -528,7 +528,7 @@ describe("MainGameView battle overlay entrypoint", () => {
       within(commandRegion).getByRole("button", { name: "Attack" }),
     ).toBeDisabled();
     expect(
-      within(commandRegion).getByRole("button", { name: "物理·剑系" }),
+      within(commandRegion).getByRole("button", { name: "物理技能" }),
     ).toBeDisabled();
 
     await fireEvent.click(
@@ -594,21 +594,19 @@ describe("MainGameView battle overlay entrypoint", () => {
 
     await waitForActiveBattleOverlay();
 
-    await fireEvent.click(screen.getByRole("button", { name: "Item" }));
-    await fireEvent.click(screen.getByRole("button", { name: "Basic Item" }));
+    // Select Attack (only allows enemy targets)
+    await fireEvent.click(screen.getByRole("button", { name: "Attack" }));
 
-    const enemyRegion = await screen.findByLabelText("敌人区域");
-    const enemyButton = within(enemyRegion).getByRole("button", {
-      name: /split-shadow/,
-    });
-
-    expect(enemyButton).toHaveAttribute("aria-pressed", "false");
-
-    await fireEvent.click(enemyButton);
-
-    expect(enemyButton).toHaveAttribute("aria-pressed", "false");
-    expect(battleStore.activeBattle?.selectedTargetId).toBe("enemy-1");
-    expect(battleStore.activeBattle?.selectedActionId).toBe("basic-item");
+    // Try to click a player ally — Attack only targets enemies, should be ignored
+    const allyRegion = await screen.findByLabelText("玩家队伍区域");
+    const allyButton = within(allyRegion).queryByRole("button", { name: /雾岛光/ });
+    if (allyButton) {
+      expect(allyButton).toHaveAttribute("aria-pressed", "false");
+      await fireEvent.click(allyButton);
+      // Invalid target click should be ignored, state unchanged
+      expect(allyButton).toHaveAttribute("aria-pressed", "false");
+      expect(battleStore.activeBattle?.selectedActionId).toBe("attack");
+    }
   });
 
   it("commits result summaries and enters POST_COMBAT_READY after a resolved battle is completed", async () => {

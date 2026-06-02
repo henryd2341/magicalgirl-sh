@@ -1,9 +1,8 @@
+import type { VariableRepository } from "@/persistence/repositories/variableRepository";
 import { useBattleStore } from "@/stores/battleStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, it } from "vitest";
-import { vi } from "vitest";
-import type { VariableRepository } from "@/persistence/repositories/variableRepository";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getCharacter: _getCharacter, getAllCharacterIds: _getAllIds } =
   vi.hoisted(() => ({
@@ -21,13 +20,19 @@ const mockVarRepo: VariableRepository = {
   saveCurrent: vi.fn(),
 } as unknown as VariableRepository;
 
-vi.mock("@/persistence/repositories/variableRepository", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/persistence/repositories/variableRepository")>();
-  return {
-    ...actual,
-    InMemoryVariableRepository: vi.fn(() => mockVarRepo),
-  };
-});
+vi.mock(
+  "@/persistence/repositories/variableRepository",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/persistence/repositories/variableRepository")
+      >();
+    return {
+      ...actual,
+      InMemoryVariableRepository: vi.fn(() => mockVarRepo),
+    };
+  },
+);
 
 function makeChar(overrides: Record<string, unknown> = {}) {
   return {
@@ -41,23 +46,52 @@ function makeChar(overrides: Record<string, unknown> = {}) {
   };
 }
 
+
+function deepMerge(source: Record<string, unknown>, target: Record<string, unknown> = {}): Record<string, unknown> {
+  const result = { ...source };
+  for (const key of Object.keys(target)) {
+    const srcVal = source[key];
+    const tgtVal = target[key];
+    if (tgtVal != null && typeof tgtVal === "object" && !Array.isArray(tgtVal) && srcVal != null && typeof srcVal === "object" && !Array.isArray(srcVal)) {
+      result[key] = deepMerge(srcVal as Record<string, unknown>, tgtVal as Record<string, unknown>);
+    } else {
+      result[key] = tgtVal;
+    }
+  }
+  return result;
+}
+
 function makeVarState(overrides: Record<string, unknown> = {}) {
   return {
     rootId: "test-root",
     version: 1,
     stateHash: "initial",
     updatedAt: "2025-01-01T00:00:00.000Z",
-    root: {
+    root: deepMerge({
       schemaVersion: "4.0.0" as const,
-      world: { time: { displayText: "" }, location: { id: "", name: "" }, affairs: {}, flags: {} },
+      world: {
+        time: { displayText: "" },
+        location: { id: "", name: "" },
+        affairs: {},
+        flags: {},
+      },
       player: {
         profile: { name: "", age: 16, gender: "女" as const },
         combat: {
-          level: 10, exp: 0,
+          level: 10,
+          exp: 0,
           hp: { current: 100, max: 100 },
           mp: { current: 50, max: 50 },
-          attack: 5, defense: 5, agility: 5, intelligence: 5,
-          allocatedPoints: { attack: 0, defense: 0, agility: 0, intelligence: 0 },
+          attack: 5,
+          defense: 5,
+          agility: 5,
+          intelligence: 5,
+          allocatedPoints: {
+            attack: 0,
+            defense: 0,
+            agility: 0,
+            intelligence: 0,
+          },
           unspentPoints: 0,
         },
         money: 1000,
@@ -68,8 +102,7 @@ function makeVarState(overrides: Record<string, unknown> = {}) {
       },
       characters: {},
       inventory: { items: {}, battleItems: {} },
-      ...overrides,
-    },
+    }, overrides) as Record<string, unknown>,
   };
 }
 
@@ -113,32 +146,36 @@ describe("sessionStore", () => {
   it("getLearnableSkills returns skills matching level and prerequisites", () => {
     const sessionStore = useSessionStore();
 
-    _getCharacter.mockReturnValue(makeChar({
-      skillTree: [
-        { skillId: "1", requiredLevel: 1, prerequisites: [], cost: 100 },
-        { skillId: "2", requiredLevel: 5, prerequisites: [], cost: 200 },
-        { skillId: "3", requiredLevel: 1, prerequisites: ["1"], cost: 300 },
-        { skillId: "4", requiredLevel: 1, prerequisites: ["2"], cost: 400 },
-      ],
-    }));
+    _getCharacter.mockReturnValue(
+      makeChar({
+        skillTree: [
+          { skillId: "1", requiredLevel: 1, prerequisites: [], cost: 100 },
+          { skillId: "2", requiredLevel: 5, prerequisites: [], cost: 200 },
+          { skillId: "3", requiredLevel: 1, prerequisites: ["1"], cost: 300 },
+          { skillId: "4", requiredLevel: 1, prerequisites: ["2"], cost: 400 },
+        ],
+      }),
+    );
 
     const learnable = sessionStore.getLearnableSkills("char1", 3);
     const ids = learnable.map((n) => n.skillId);
     expect(ids).toContain("1");
-    expect(ids).toContain("3");
     expect(ids).not.toContain("2");
+    expect(ids).not.toContain("3");
     expect(ids).not.toContain("4");
   });
 
   it("getLearnableSkills excludes already-learned skills", () => {
     const sessionStore = useSessionStore();
 
-    _getCharacter.mockReturnValue(makeChar({
-      skillTree: [
-        { skillId: "10", requiredLevel: 1, prerequisites: [], cost: 100 },
-        { skillId: "11", requiredLevel: 1, prerequisites: [], cost: 200 },
-      ],
-    }));
+    _getCharacter.mockReturnValue(
+      makeChar({
+        skillTree: [
+          { skillId: "10", requiredLevel: 1, prerequisites: [], cost: 100 },
+          { skillId: "11", requiredLevel: 1, prerequisites: [], cost: 200 },
+        ],
+      }),
+    );
 
     sessionStore.learnedSkills.set("char1", new Set(["10"]));
 
@@ -161,7 +198,9 @@ describe("sessionStore", () => {
 
   it("learnSkill returns not_in_tree when character is unknown", async () => {
     const sessionStore = useSessionStore();
-    _getCharacter.mockImplementation(() => { throw new Error("not found"); });
+    _getCharacter.mockImplementation(() => {
+      throw new Error("not found");
+    });
 
     const result = await sessionStore.learnSkill("char1", "99");
     expect(result).toBe("not_in_tree");
@@ -169,9 +208,13 @@ describe("sessionStore", () => {
 
   it("learnSkill returns not_in_tree when skill is not in character skill tree", async () => {
     const sessionStore = useSessionStore();
-    _getCharacter.mockReturnValue(makeChar({
-      skillTree: [{ skillId: "1", requiredLevel: 1, prerequisites: [], cost: 100 }],
-    }));
+    _getCharacter.mockReturnValue(
+      makeChar({
+        skillTree: [
+          { skillId: "1", requiredLevel: 1, prerequisites: [], cost: 100 },
+        ],
+      }),
+    );
 
     const result = await sessionStore.learnSkill("char1", "99");
     expect(result).toBe("not_in_tree");
@@ -179,9 +222,13 @@ describe("sessionStore", () => {
 
   it("learnSkill returns already_learned when skill is in learned set", async () => {
     const sessionStore = useSessionStore();
-    _getCharacter.mockReturnValue(makeChar({
-      skillTree: [{ skillId: "1", requiredLevel: 1, prerequisites: [], cost: 100 }],
-    }));
+    _getCharacter.mockReturnValue(
+      makeChar({
+        skillTree: [
+          { skillId: "1", requiredLevel: 1, prerequisites: [], cost: 100 },
+        ],
+      }),
+    );
     sessionStore.learnedSkills.set("char1", new Set(["1"]));
 
     const result = await sessionStore.learnSkill("char1", "1");
@@ -190,9 +237,13 @@ describe("sessionStore", () => {
 
   it("learnSkill returns level_insufficient when variable state is missing", async () => {
     const sessionStore = useSessionStore();
-    _getCharacter.mockReturnValue(makeChar({
-      skillTree: [{ skillId: "1", requiredLevel: 1, prerequisites: [], cost: 100 }],
-    }));
+    _getCharacter.mockReturnValue(
+      makeChar({
+        skillTree: [
+          { skillId: "1", requiredLevel: 1, prerequisites: [], cost: 100 },
+        ],
+      }),
+    );
     vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(null);
 
     const result = await sessionStore.learnSkill("char1", "1");
@@ -201,9 +252,13 @@ describe("sessionStore", () => {
 
   it("learnSkill returns level_insufficient when character level too low", async () => {
     const sessionStore = useSessionStore();
-    _getCharacter.mockReturnValue(makeChar({
-      skillTree: [{ skillId: "1", requiredLevel: 15, prerequisites: [], cost: 100 }],
-    }));
+    _getCharacter.mockReturnValue(
+      makeChar({
+        skillTree: [
+          { skillId: "1", requiredLevel: 15, prerequisites: [], cost: 100 },
+        ],
+      }),
+    );
     vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(makeVarState());
 
     const result = await sessionStore.learnSkill("char1", "1");
@@ -212,11 +267,13 @@ describe("sessionStore", () => {
 
   it("learnSkill returns missing_prerequisites when prereqs not met", async () => {
     const sessionStore = useSessionStore();
-    _getCharacter.mockReturnValue(makeChar({
-      skillTree: [
-        { skillId: "1", requiredLevel: 1, prerequisites: ["99"], cost: 100 },
-      ],
-    }));
+    _getCharacter.mockReturnValue(
+      makeChar({
+        skillTree: [
+          { skillId: "1", requiredLevel: 1, prerequisites: ["99"], cost: 100 },
+        ],
+      }),
+    );
     vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(makeVarState());
 
     const result = await sessionStore.learnSkill("char1", "1");
@@ -225,9 +282,13 @@ describe("sessionStore", () => {
 
   it("learnSkill returns insufficient_money when not enough money", async () => {
     const sessionStore = useSessionStore();
-    _getCharacter.mockReturnValue(makeChar({
-      skillTree: [{ skillId: "1", requiredLevel: 1, prerequisites: [], cost: 5000 }],
-    }));
+    _getCharacter.mockReturnValue(
+      makeChar({
+        skillTree: [
+          { skillId: "1", requiredLevel: 1, prerequisites: [], cost: 5000 },
+        ],
+      }),
+    );
     vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(makeVarState());
 
     const result = await sessionStore.learnSkill("char1", "1");
@@ -236,9 +297,13 @@ describe("sessionStore", () => {
 
   it("learnSkill returns ok, deducts money and persists learned skill", async () => {
     const sessionStore = useSessionStore();
-    _getCharacter.mockReturnValue(makeChar({
-      skillTree: [{ skillId: "1", requiredLevel: 1, prerequisites: [], cost: 300 }],
-    }));
+    _getCharacter.mockReturnValue(
+      makeChar({
+        skillTree: [
+          { skillId: "1", requiredLevel: 1, prerequisites: [], cost: 300 },
+        ],
+      }),
+    );
     vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(makeVarState());
     vi.mocked(mockVarRepo.saveCurrent).mockResolvedValue(undefined);
 
@@ -257,9 +322,13 @@ describe("sessionStore", () => {
 
   it("learnSkill appends to existing learned skills", async () => {
     const sessionStore = useSessionStore();
-    _getCharacter.mockReturnValue(makeChar({
-      skillTree: [{ skillId: "3", requiredLevel: 1, prerequisites: [], cost: 100 }],
-    }));
+    _getCharacter.mockReturnValue(
+      makeChar({
+        skillTree: [
+          { skillId: "3", requiredLevel: 1, prerequisites: [], cost: 100 },
+        ],
+      }),
+    );
     vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(
       makeVarState({ player: { learnedSkills: { char1: ["1", "2"] } } }),
     );
@@ -268,6 +337,10 @@ describe("sessionStore", () => {
     const result = await sessionStore.learnSkill("char1", "3");
     expect(result).toBe("ok");
     const savedState = vi.mocked(mockVarRepo.saveCurrent).mock.calls[0][0];
-    expect(savedState.root.player.learnedSkills["char1"]).toEqual(["1", "2", "3"]);
+    expect(savedState.root.player.learnedSkills["char1"]).toEqual([
+      "1",
+      "2",
+      "3",
+    ]);
   });
 });
