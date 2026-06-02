@@ -304,6 +304,7 @@ export interface BattleActionResolution {
   intendedTargetId?: string | null;
   outcomes: BattleActionOutcome[];
   pressTurnResult?: PressTurnSettlementResult;
+  consumedItemId?: string;
   verboseLog: string[];
   summaryLog: string[];
 }
@@ -334,6 +335,8 @@ export interface BattleSnapshot {
   battleResult?: BattleResult;
   resultSummary?: string;
   battleLog?: BattleLogEntry[];
+  /** Transient: set after item use, consumed by store layer */
+  consumedItemId?: string | null;
 }
 
 export interface CreatePendingBattleSnapshotInput {

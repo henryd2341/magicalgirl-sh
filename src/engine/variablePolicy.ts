@@ -55,7 +55,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         accessory: null,
       },
       relationships: {
-        "佐仓真央": 50,
+        佐仓真央: 50,
       },
       learnedSkills: {},
       flags: {
@@ -63,7 +63,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
       },
     },
     characters: {
-      "佐仓真央": {
+      佐仓真央: {
         displayName: "佐仓真央",
         identity: "柚木女子学院高一 / 现役魔法少女",
         relationshipTag: "同班同学，行动小组的前辈",
@@ -92,7 +92,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         equippedSkills: [],
       },
 
-      "榊原琉音": {
+      榊原琉音: {
         displayName: "榊原琉音",
         identity: "柚木女子学院初二 / 现役魔法少女",
         relationshipTag: "行动小组的资深前辈",
@@ -121,7 +121,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         equippedSkills: [],
       },
 
-      "榊原千夏": {
+      榊原千夏: {
         displayName: "榊原千夏",
         identity: "柚木女子学院初二 / 现役魔法少女",
         relationshipTag: "行动小组的资深前辈",
@@ -150,7 +150,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         equippedSkills: [],
       },
 
-      "国津燕": {
+      国津燕: {
         displayName: "国津燕",
         identity: "柚木女子学院高三 / 学生会长",
         relationshipTag: "学姐，校级管理者",
@@ -179,7 +179,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         equippedSkills: [],
       },
 
-      "盐田堇子": {
+      盐田堇子: {
         displayName: "盐田堇子",
         identity: "柚木女子学院高一",
         relationshipTag: "同级生",
@@ -208,7 +208,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         equippedSkills: [],
       },
 
-      "永江铃奈": {
+      永江铃奈: {
         displayName: "永江铃奈",
         identity: "柚木女子学院高一",
         relationshipTag: "同班同学",
@@ -237,7 +237,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         equippedSkills: [],
       },
 
-      "青井霞": {
+      青井霞: {
         displayName: "青井霞",
         identity: "初代魔法少女（退役）",
         relationshipTag: "间接知晓，未曾直接接触",
@@ -250,7 +250,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         equippedSkills: [],
       },
 
-      "石崎真纱": {
+      石崎真纱: {
         displayName: "石崎真纱",
         identity: "行动小组总负责人",
         relationshipTag: "最高直属上司",
@@ -262,7 +262,6 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         equipment: { accessory: null },
         equippedSkills: [],
       },
-
     },
     inventory: {
       items: {},
@@ -295,7 +294,9 @@ function isAllowedPath(path: string): boolean {
     path.startsWith("inventory.items.") ||
     path.startsWith("inventory.battleItems.") ||
     path.startsWith("player.learnedSkills.") ||
-    (path.startsWith("characters.") && (path.endsWith(".equipment.accessory") || path.endsWith(".equippedSkills")))
+    (path.startsWith("characters.") &&
+      (path.endsWith(".equipment.accessory") ||
+        path.endsWith(".equippedSkills")))
   );
 }
 
@@ -453,7 +454,10 @@ export function validateVariablePathPatch(
   }
 
   if (patch.path.startsWith("player.learnedSkills.")) {
-    if (!Array.isArray(patch.value) || !patch.value.every((v: unknown) => typeof v === "string")) {
+    if (
+      !Array.isArray(patch.value) ||
+      !patch.value.every((v: unknown) => typeof v === "string")
+    ) {
       throw createVariableError(
         "VARIABLE_SCHEMA_INVALID",
         `Learned skills value must be a string array: ${patch.path}`,
@@ -463,7 +467,10 @@ export function validateVariablePathPatch(
   }
 
   if (patch.path.endsWith(".equippedSkills")) {
-    if (!Array.isArray(patch.value) || !patch.value.every((v: unknown) => typeof v === "string")) {
+    if (
+      !Array.isArray(patch.value) ||
+      !patch.value.every((v: unknown) => typeof v === "string")
+    ) {
       throw createVariableError(
         "VARIABLE_SCHEMA_INVALID",
         `Equipped skills value must be a string array: ${patch.path}`,

@@ -32,6 +32,7 @@ export const useBattleStore = defineStore("battle", {
   state: () => ({
     pendingBattle: null as PendingBattleSnapshot | null,
     activeBattle: null as BattleSnapshot | null,
+    onItemConsumed: null as ((itemId: string) => void) | null,
   }),
   actions: {
     stagePendingEncounter(input: StagePendingEncounterInput) {
@@ -185,6 +186,12 @@ export const useBattleStore = defineStore("battle", {
       }
 
       this.activeBattle = resolveSelectedBattleAction(this.activeBattle);
+
+      // Handle item consumption
+      if (this.activeBattle.consumedItemId && this.onItemConsumed) {
+        this.onItemConsumed(this.activeBattle.consumedItemId);
+        this.activeBattle.consumedItemId = null;
+      }
     },
     resolveEnemyTurn() {
       if (this.activeBattle === null) {

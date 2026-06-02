@@ -386,6 +386,21 @@ export class DbWorkerClient {
     }
   }
 
+  public async renameSaveSlot(input: { id: string; label: string }): Promise<{ renamedId: string }> {
+    const response = await this.dispatch({
+      type: "rename_save_slot",
+      payload: input,
+    });
+
+    if (response.type !== "rename_save_slot_result") {
+      throw new Error(
+        `Unexpected response type for renameSaveSlot: ${response.type}`,
+      );
+    }
+
+    return response.payload;
+  }
+
   public async replaceFullSaveData(
     data: FullSaveExportV2["data"],
   ): Promise<void> {

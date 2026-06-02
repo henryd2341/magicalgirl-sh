@@ -637,6 +637,7 @@ export function resolveSelectedBattleAction(
           ? "ENEMY_TURN"
           : "PLAYER_COMMAND",
     battleLog: appendBattleLogs(normalizedSnapshot, [actionLog, ...resultLog]),
+    consumedItemId: resolution.consumedItemId ?? null,
   };
 
   if (battleResult != null) {
@@ -983,6 +984,15 @@ export function resolveSelectedBattleActionToResolution(
         // Skill not found, not a revive target
       }
     }
+    // Allow downed targets for revive items
+    if (target.isDown && definition.resolutionKind === "item" && snapshot.selectedContentId != null) {
+      try {
+        const maybeReviveItem = getItem(snapshot.selectedContentId);
+        isReviveTarget = maybeReviveItem.revivePercent != null;
+      } catch {
+        // Item not found, not a revive target
+      }
+    }
 
     if (!isReviveTarget) {
       return {
@@ -1264,10 +1274,9 @@ export function resolveSelectedBattleActionToResolution(
     };
   }
 
-  // ── Item resolution (content-driven) ──
+    // ── Item resolution (content-driven) ──
 
   if (definition.resolutionKind === "item") {
-    // Backward compat: if no contentId, use old hardcoded placeholder
     if (snapshot.selectedContentId == null) {
       const outcome: BattleActionOutcome = {
         type: "hit",
@@ -1308,27 +1317,150 @@ export function resolveSelectedBattleActionToResolution(
       };
     }
 
+    const target = snapshot.participants.find(
+      (p) => p.id === snapshot.selectedTargetId,
+    );
+    if (target == null) {
+      return {
+        ok: false,
+        validationError: "target_not_found",
+        actorId,
+        actionId: definition.id,
+        contentId,
+        intendedTargetId: snapshot.selectedTargetId,
+        outcomes: [],
+        verboseLog: [],
+        summaryLog: [],
+      };
+    }
+
     const outcomes: BattleActionOutcome[] = [];
 
-    if (itemContent.healHp != null) {
+    // Revive
+    if (itemContent.revivePercent != null) {
+      if (target.isDown) {
+        const reviveAmount = Math.round(target.hp.max * itemContent.revivePercent / 100);
+        outcomes.push({
+          type: "hit" as const,
+          tags: [],
+          actorId,
+          primaryTargetId: target.id,
+          finalTargetId: target.id,
+          hpDelta: reviveAmount,
+        });
+      }
+    }
+
+    // Heal HP (skip if target is down unless revived above)
+    if (itemContent.healHp != null && !target.isDown) {
       outcomes.push({
-        type: "hit",
+        type: "hit" as const,
         tags: [],
         actorId,
-        primaryTargetId: snapshot.selectedTargetId,
-        finalTargetId: snapshot.selectedTargetId,
+        primaryTargetId: target.id,
+        finalTargetId: target.id,
         hpDelta: itemContent.healHp,
       });
     }
-    if (itemContent.healMp != null) {
+
+    // Heal MP
+    if (itemContent.healMp != null && !target.isDown) {
       outcomes.push({
-        type: "hit",
+        type: "hit" as const,
         tags: [],
         actorId,
-        primaryTargetId: snapshot.selectedTargetId,
-        finalTargetId: snapshot.selectedTargetId,
+        primaryTargetId: target.id,
+        finalTargetId: target.id,
         mpDelta: itemContent.healMp,
       });
+    }
+
+    // Remove status effects
+    if (itemContent.removeStatus != null && itemContent.removeStatus.length > 0 && !target.isDown) {
+      outcomes.push({
+        type: "hit" as const,
+        tags: [],
+        actorId,
+        primaryTargetId: target.id,
+        finalTargetId: target.id,
+        removedStatusEffectIds: itemContent.removeStatus,
+      });
+    }
+
+    // Fixed damage (skip attack/defense/hit formulas, retain affinity)
+    if (itemContent.damageFixed != null) {
+      if (itemContent.element != null) {
+        const elementMap: Record<string, number> = {
+          Physical: 1, Fire: 4, Ice: 8, Electric: 16, Wind: 32, Earth: 64,
+        };
+        const skillElement = elementMap[itemContent.element] ?? 0;
+        const affinityProfile = target.affinities ?? {
+          weak: 0, resist: 0, nullify: 0, reflect: 0, absorb: 0,
+        };
+        const targetPassives = collectPassives(target.passiveEffects);
+        const mergedAffinities = applyPassiveAffinities(targetPassives, affinityProfile);
+        const affinityOutcome = resolveAffinityOutcomeType(mergedAffinities, skillElement);
+
+        if (affinityOutcome.outcomeType != null) {
+          outcomes.push({
+            type: affinityOutcome.outcomeType as "block" | "reflect" | "absorb",
+            tags: [],
+            actorId,
+            primaryTargetId: target.id,
+            finalTargetId: target.id,
+            preventedBy: affinityOutcome.preventedBy,
+          });
+        } else {
+          const params = getFormulaParams();
+          const affinityMult = resolveAffinityMultiplier(
+            mergedAffinities, skillElement, params.affinity,
+          );
+          const finalDamage = Math.round(itemContent.damageFixed * affinityMult);
+          outcomes.push({
+            type: "hit" as const,
+            tags: [],
+            actorId,
+            primaryTargetId: target.id,
+            finalTargetId: target.id,
+            hpDelta: -finalDamage,
+          });
+        }
+      } else {
+        // No element: pure fixed damage (bypass affinity)
+        outcomes.push({
+          type: "hit" as const,
+          tags: [],
+          actorId,
+          primaryTargetId: target.id,
+          finalTargetId: target.id,
+          hpDelta: -itemContent.damageFixed,
+        });
+      }
+    }
+
+    // Status effects (buff/debuff)
+    if (itemContent.statusEffects != null && itemContent.statusEffects.length > 0 && !target.isDown) {
+      const appliedEffects: AppliedStatusEffectPayload[] = [];
+      const effectMap = getStatusEffectMap();
+
+      for (const se of itemContent.statusEffects) {
+        if (Math.random() * 100 < se.chance) {
+          const effectContent = effectMap.get(se.effectId);
+          const duration = effectContent?.duration ?? 3;
+          appliedEffects.push({ effectId: se.effectId, duration });
+        }
+      }
+
+      if (appliedEffects.length > 0) {
+        outcomes.push({
+          type: "hit" as const,
+          tags: [],
+          actorId,
+          primaryTargetId: target.id,
+          finalTargetId: target.id,
+          appliedStatusEffects: appliedEffects,
+        });
+      }
     }
 
     return {
@@ -1336,6 +1468,7 @@ export function resolveSelectedBattleActionToResolution(
       actionId: definition.id,
       contentId,
       intendedTargetId: snapshot.selectedTargetId,
+      consumedItemId: contentId,
       verboseLog: [
         `${actorId} used ${itemContent.name} on ${snapshot.selectedTargetId}.`,
       ],
@@ -1343,7 +1476,7 @@ export function resolveSelectedBattleActionToResolution(
     };
   }
 
-  // ── Attack resolution (content-driven) ──
+// ── Attack resolution (content-driven) ──
 
   if (definition.resolutionKind !== "attack") {
     return {

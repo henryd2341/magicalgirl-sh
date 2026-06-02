@@ -36,3 +36,5 @@
 {"id":"freeze","name":"冻结","type":"ailment","duration":1,"stackable":false}
 {"id":"paralyze","name":"麻痹","type":"ailment","duration":3,"statModifiers":{"attack":-1},"stackable":false}
 {"id":"guard","name":"防御","type":"buff","duration":1,"stackable":false}
+{"id":"intelligence_up","name":"智力上升","type":"buff","duration":3,"statModifiers":{"intelligence":1},"stackable":true}
+{"id":"intelligence_down","name":"智力下降","type":"debuff","duration":3,"statModifiers":{"intelligence":-1},"stackable":true}

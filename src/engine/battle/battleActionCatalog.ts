@@ -1,10 +1,10 @@
+import { getAllSkills, getAllItems } from "@/content/contentRegistry";
 import type {
   BattleActionDefinition,
   BattleActionId,
   BattleActionMenuNode,
 } from "@/types/battle";
-import { getAllSkills } from "@/content/contentRegistry";
-import type { ResolvedSkillContent } from "@/types/content";
+import type { ResolvedSkillContent, ItemContent } from "@/types/content";
 
 const BATTLE_ACTION_DEFINITIONS: Record<
   BattleActionId,
@@ -55,7 +55,7 @@ const BATTLE_ACTION_DEFINITIONS: Record<
     label: "Item",
     description: "使用道具。",
     selectionMode: "selective",
-    allowedSides: ["player"],
+    allowedSides: ["player", "enemy"],
     resolutionKind: "item",
   },
 };
@@ -67,45 +67,52 @@ export function getBattleActionDefinition(
 }
 
 const SKILL_CATEGORY_LABELS: Record<string, string> = {
-  "物理·剑系": "物理·剑系",
-  "物理·弓系": "物理·弓系",
-  "物理·枪系": "物理·枪系",
-  "火系魔法": "火系魔法",
-  "冰系魔法": "冰系魔法",
-  "风系魔法": "风系魔法",
-  "雷系魔法": "雷系魔法",
-  "土系魔法": "土系魔法",
-  "光系魔法": "光系魔法",
-  "暗系魔法": "暗系魔法",
-  "回复魔法": "回复魔法",
-  "辅助技能": "辅助技能",
-  "异常技能": "异常技能",
-  "护盾技能": "护盾技能",
-  "万能魔法": "万能魔法",
-  "专属技能": "专属技能",
+  physical: "物理技能",
+  gun: "飞具技能",
+  fire: "火系技能",
+  ice: "冰系技能",
+  wind: "风系技能",
+  electric: "雷系技能",
+  earth: "土系技能",
+  light: "光系技能",
+  dark: "暗系技能",
+  heal: "回复技能",
+  support: "辅助技能",
+  ailment: "异常技能",
+  almighty: "万能技能",
 };
 
 function classifySkill(skill: ResolvedSkillContent): string | null {
-  const id = parseInt(skill.id, 10);
-  if (isNaN(id)) return null;
-  if (id >= 1 && id <= 18) return "物理·剑系";
-  if (id >= 19 && id <= 28) return "物理·弓系";
-  if (id >= 29 && id <= 36) return "物理·枪系";
-  if (id >= 37 && id <= 43) return "火系魔法";
-  if (id >= 44 && id <= 50) return "冰系魔法";
-  if (id >= 51 && id <= 57) return "风系魔法";
-  if (id >= 58 && id <= 64) return "雷系魔法";
-  if (id >= 65 && id <= 71) return "土系魔法";
-  if (id >= 72 && id <= 78) return "光系魔法";
-  if (id >= 79 && id <= 85) return "暗系魔法";
-  if (id >= 86 && id <= 91) return "回复魔法";
-  if (id >= 92 && id <= 105) return "辅助技能";
-  if (id >= 106 && id <= 112) return "异常技能";
-  if (id >= 113 && id <= 132) return "护盾技能";
-  if (id >= 181 && id <= 186) return "万能魔法";
-  if (id >= 165 && id <= 187) return "专属技能";
-  if (id >= 186 && id <= 189) return "辅助技能";
-  if (id >= 190 && id <= 191) return "异常技能";
+  const element = skill.element;
+  const category = skill.category;
+  switch (element) {
+    case 0:
+      return category;
+    case 1 << 0:
+      return "physical";
+    case 1 << 1:
+      return "gun";
+    case 1 << 2:
+      return "fire";
+    case 1 << 3:
+      return "ice";
+    case 1 << 4:
+      return "wind";
+    case 1 << 5:
+      return "electric";
+    case 1 << 6:
+      return "earth";
+    case 1 << 7:
+      return "light";
+    case 1 << 8:
+      return "dark";
+    case 1 << 9:
+      return "almighty";
+    case 1 << 10:
+      return "heal";
+    case 1 << 11:
+      return "ailment";
+  }
   return null;
 }
 
@@ -145,13 +152,78 @@ function buildSkillMenuGroups(
   return nodes;
 }
 
+// ── Item menu groups ──
+
+const ITEM_GROUP_LABELS: Record<string, string> = {
+  heal: "回复",
+  revive: "复活",
+  cure: "异常回复",
+  buff: "强化",
+  debuff: "弱化",
+  damage: "伤害",
+};
+
+function classifyItem(item: ItemContent): string | null {
+  if (item.healHp != null || item.healMp != null) return "heal";
+  if (item.revivePercent != null) return "revive";
+  if (item.removeStatus != null && item.removeStatus.length > 0) return "cure";
+  if (item.statusEffects != null && item.statusEffects.length > 0) {
+    const firstEffect = item.statusEffects[0]!.effectId;
+    if (firstEffect.includes("down")) return "debuff";
+    return "buff";
+  }
+  if (item.damageFixed != null) return "damage";
+  return null;
+}
+
+function buildItemMenuNodes(
+  battleItems: Record<string, number>,
+): BattleActionMenuNode[] {
+  const allItems = getAllItems();
+  const groups = new Map<string, { item: ItemContent; count: number }[]>();
+
+  for (const [itemId, count] of Object.entries(battleItems)) {
+    if (count <= 0) continue;
+    const item = allItems.get(itemId);
+    if (item == null) continue;
+    if (item.type !== "consumable" || !item.usableInBattle) continue;
+    const group = classifyItem(item);
+    if (group == null) continue;
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group)!.push({ item, count });
+  }
+
+  if (groups.size === 0) return [];
+
+  const nodes: BattleActionMenuNode[] = [];
+  for (const [groupName, groupItems] of groups) {
+    nodes.push({
+      id: `item-group-${groupName}`,
+      kind: "group",
+      label: ITEM_GROUP_LABELS[groupName] ?? groupName,
+      description: `打开${ITEM_GROUP_LABELS[groupName] ?? groupName}道具列表。`,
+      children: groupItems.map(({ item, count }) => ({
+        id: `item-action-${item.id}`,
+        kind: "action",
+        actionId: "basic-item" as BattleActionId,
+        contentId: item.id,
+        label: `${item.name} ×${count}`,
+        description: item.description,
+      })),
+    });
+  }
+  return nodes;
+}
+
 export function createDefaultBattleCommandMenuTree(
   availableSkillIds?: Set<string>,
+  battleItems?: Record<string, number>,
 ): BattleActionMenuNode[] {
   const skills = getAllSkills();
   const skillGroups = buildSkillMenuGroups(skills, availableSkillIds);
+  const itemNodes = battleItems != null ? buildItemMenuNodes(battleItems) : null;
 
-  return [
+  const menu: BattleActionMenuNode[] = [
     {
       id: "attack-action",
       kind: "action",
@@ -167,21 +239,19 @@ export function createDefaultBattleCommandMenuTree(
       label: "Guard",
       description: "进入防御姿态，减少即将受到的伤害。",
     },
-    {
+  ];
+
+  if (itemNodes != null && itemNodes.length > 0) {
+    menu.push({
       id: "item-group",
       kind: "group",
       label: "Item",
       description: "打开道具列表。",
-      children: [
-        {
-          id: "basic-item-action",
-          kind: "action",
-          actionId: "basic-item",
-          label: "Basic Item",
-          description: "使用一个默认的单体道具占位动作。",
-        },
-      ],
-    },
+      children: itemNodes,
+    });
+  }
+
+  menu.push(
     {
       id: "pass-action",
       kind: "action",
@@ -196,7 +266,9 @@ export function createDefaultBattleCommandMenuTree(
       label: "Swap",
       description: "将任意上场成员换下，并可选地换上后备成员。",
     },
-  ];
+  );
+
+  return menu;
 }
 
 export function findBattleActionMenuNodeById(

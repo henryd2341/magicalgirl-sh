@@ -138,14 +138,11 @@ const itemContentSchema = z.object({
   healMp: z.number().int().min(0).optional(),
   usableInBattle: z.boolean().optional(),
   revivePercent: z.number().int().min(0).optional(),
-  cureStatus: z.array(z.string()).optional(),
+  removeStatus: z.array(z.string()).optional(),
   damageFixed: z.number().int().min(0).optional(),
-  tempModifiers: z
-    .object({
-      stats: accessoryModifiersSchema,
-      duration: z.number().int().min(1),
-    })
-    .optional(),
+  element: z.string().min(1).optional(),
+  statusEffects: z.array(statusEffectPayloadSchema).optional(),
+  targetType: z.enum(["single_enemy", "all_enemies", "single_ally", "all_allies", "self"]).optional(),
   modifiers: accessoryModifiersSchema.optional(),
   accessoryEffects: z
     .array(
@@ -495,6 +492,10 @@ export function getAllSkillIds(): string[] {
 
 export function getAllItemIds(): string[] {
   return Array.from(loadItems().keys());
+}
+
+export function getAllItems(): Map<string, ItemContent> {
+  return loadItems();
 }
 
 export function getBattleConsumableIds(): string[] {

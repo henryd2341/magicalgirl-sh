@@ -138,12 +138,11 @@ export interface ItemContent {
   healMp?: number;
   usableInBattle?: boolean;
   revivePercent?: number;
-  cureStatus?: string[];
+  removeStatus?: string[];
   damageFixed?: number;
-  tempModifiers?: {
-    stats: AccessoryModifiers;
-    duration: number;
-  };
+  element?: string;
+  statusEffects?: StatusEffectPayload[];
+  targetType?: SkillTargetType;
   // accessory
   modifiers?: AccessoryModifiers;
   accessoryEffects?: ItemAccessoryEffect[];

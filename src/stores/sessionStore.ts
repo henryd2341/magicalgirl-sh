@@ -57,6 +57,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { getCharacter } from "@/content/contentRegistry";
 import { getAllCharacterIds } from "@/content/contentRegistry";
+import { getAllItems } from "@/content/contentRegistry";
 import { VariableEngine } from "@/engine/variableEngine";
 import type { CharacterContent, SkillTreeNode } from "@/types/content";
 import { createDefaultBattleCommandMenuTree } from "@/engine/battle/battleActionCatalog";
@@ -570,9 +571,69 @@ export const useSessionStore = defineStore("session", () => {
       } catch {
         // If variable state unavailable, fall back to learned set
       }
-      battleStore.activeBattle.actionMenu = createDefaultBattleCommandMenuTree(availableIds);
-    }
 
+      // Build battle items map from variable state inventory
+      let battleItems: Record<string, number> | undefined;
+      try {
+        const vsItems = await variableRepository.getCurrent();
+        const inventory = vsItems?.root.inventory;
+        if (inventory?.items) {
+          const items = getAllItems();
+          const battleMap = {} as Record<string, number>;
+          for (const [itemId, count] of Object.entries(inventory.items)) {
+            const item = items.get(itemId);
+            if (item?.type === 'consumable' && item.usableInBattle && count > 0) {
+              battleMap[itemId] = count;
+            }
+          }
+          battleItems = battleMap;
+        }
+      } catch {
+        // Variable state unavailable, no battle items
+      }
+
+      // Set up item consumption handler
+      battleStore.onItemConsumed = async (itemId: string) => {
+        try {
+          const vs = await variableRepository.getCurrent();
+          if (!vs) return;
+          const currentItems = (vs?.root.inventory.items ?? {}) as Record<string, number>;
+          const cur = currentItems[itemId] ?? 0;
+          const nc = Math.max(0, cur - 1);
+          const up = { ...currentItems };
+          if (nc <= 0) delete up[itemId]; else up[itemId] = nc;
+          const cb = (vs?.root.inventory.battleItems ?? {}) as Record<string, number>;
+          const ub = { ...cb };
+          if (nc <= 0) delete ub[itemId]; else ub[itemId] = nc;
+          const itemConsumeCallId = "item-consume-" + Date.now().toString(36);
+          const pr = variableEngine.applyPatchSet({
+            current: vs,
+            envelope: {
+              request_id: "item-consume-" + itemId,
+              context_version: vs.version,
+              state_hash: vs.stateHash,
+              tool_call_id: itemConsumeCallId,
+              patches: [
+                { path: "inventory.items", value: up },
+                { path: "inventory.battleItems", value: ub },
+              ],
+            },
+          });
+          await variableRepository.saveCurrent(pr.next);
+          if (battleStore.activeBattle) {
+            battleStore.activeBattle.actionMenu = createDefaultBattleCommandMenuTree(
+              availableIds,
+              ub,
+            );
+          }
+        } catch {
+          // skip
+        }
+      };
+
+      // Rebuild menu with battle items
+      battleStore.activeBattle.actionMenu = createDefaultBattleCommandMenuTree(availableIds, battleItems);
+    }
     gameEngineFacade.enterCombat();
     snapshot.value = gameEngineFacade.getSessionSnapshot();
     await markCombatCheckpoint({
