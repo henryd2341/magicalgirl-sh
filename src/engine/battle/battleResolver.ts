@@ -912,18 +912,60 @@ export function resolveSelectedBattleActionToResolution(
 
   // Guard
   if (definition.resolutionKind === "guard") {
-    const outcome: BattleActionOutcome = {
+    // Route through skill pipeline, default to skill "130" (防御)
+    const contentId = snapshot.selectedContentId ?? "130";
+    let guardSkill: ReturnType<typeof getSkill>;
+    try {
+      guardSkill = getSkill(contentId);
+    } catch {
+      return {
+        ok: false,
+        validationError: "action_not_found",
+        actorId,
+        actionId: definition.id,
+        contentId,
+        intendedTargetId: snapshot.selectedTargetId,
+        outcomes: [],
+        verboseLog: [],
+        summaryLog: [],
+      };
+    }
+
+    const guardActor = snapshot.participants.find((p) => p.id === actorId);
+
+    if (guardActor != null && guardActor.mp.current < guardSkill.mpCost) {
+      return {
+        ok: false,
+        validationError: "insufficient_mp",
+        actorId,
+        actionId: definition.id,
+        contentId,
+        intendedTargetId: snapshot.selectedTargetId,
+        outcomes: [],
+        verboseLog: [],
+        summaryLog: [],
+      };
+    }
+
+    const guardOutcome: BattleActionOutcome = {
       type: "hit",
       tags: [],
       actorId,
       primaryTargetId: actorId,
       finalTargetId: actorId,
-      appliedStatusEffects: [{ effectId: GUARD_EFFECT_ID, duration: GUARD_EFFECT_DURATION }],
     };
 
+    if (guardSkill.statusEffects != null && guardSkill.statusEffects.length > 0) {
+      guardOutcome.appliedStatusEffects = guardSkill.statusEffects.map((se) => ({
+        effectId: se.effectId,
+        duration: getStatusEffectMap().get(se.effectId)?.duration ?? GUARD_EFFECT_DURATION,
+      }));
+    }
+
     return {
-      ...createPressTurnResolutionForOutcomes(snapshot, [outcome]),
+      ...createPressTurnResolutionForOutcomes(snapshot, [guardOutcome]),
       actionId: definition.id,
+      contentId,
       intendedTargetId: snapshot.selectedTargetId,
       verboseLog: [`${actorId} guarded.`],
       summaryLog: ["Guard used"],

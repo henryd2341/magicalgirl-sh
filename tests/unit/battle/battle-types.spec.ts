@@ -195,35 +195,32 @@ describe("battle types", () => {
     expect(findNode("pass-action")).toEqual(expect.objectContaining({ kind: "action", actionId: "pass" }));
     expect(findNode("swap-action")).toEqual(expect.objectContaining({ kind: "action", actionId: "swap" }));
 
-    const skillGroups = commandTree.filter((n) => n.kind === "group" && n.id.startsWith("skill-group-"));
-    expect(skillGroups.length).toBeGreaterThanOrEqual(1);
-    for (const sg of skillGroups) {
-      expect(sg.children?.length).toBeGreaterThan(0);
-      expect(sg.children?.every((c) => c.kind === "action" && c.actionId === "basic-skill")).toBe(true);
+    const skillGroup = findNode("skill-group");
+    expect(skillGroup).toEqual(expect.objectContaining({ kind: "group" }));
+    expect(skillGroup?.children?.length).toBeGreaterThanOrEqual(1);
+    for (const sa of skillGroup?.children ?? []) {
+      expect(sa.kind).toBe("action");
+      expect(sa.actionId).toBe("basic-skill");
+      expect(sa.contentId).toBeTruthy();
     }
   });
 
-  it("creates skill and item group nodes with leaf action children", () => {
+  it("creates flat skill action nodes with content references", () => {
     const commandTree = createDefaultBattleCommandMenuTree();
 
-    const skillGroup = commandTree.find((node) => node.id.startsWith("skill-group-"));
-
-    expect(skillGroup).toEqual(
-      expect.objectContaining({
-        kind: "group",
-        children: expect.any(Array),
-      }),
-    );
-
+    const skillGroup = commandTree.find((node) => node.id === "skill-group");
+    expect(skillGroup?.kind).toBe("group");
     expect(skillGroup?.children?.length).toBeGreaterThan(0);
 
-    expect(skillGroup?.children).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          kind: "action",
-          actionId: "basic-skill",
-        }),
-      ]),
+    const firstChild = skillGroup?.children?.[0];
+    expect(firstChild).toEqual(
+      expect.objectContaining({
+        kind: "action",
+        actionId: "basic-skill",
+        contentId: expect.any(String),
+        label: expect.any(String),
+        description: expect.any(String),
+      }),
     );
   });
 
@@ -281,17 +278,20 @@ describe("battle types", () => {
 
   it("keeps target selection rules on executable leaf action definitions instead of group menu nodes", () => {
     const commandTree = createDefaultBattleCommandMenuTree();
-    const skillGroup = commandTree.find((node) => node.id.startsWith("skill-group-"));
-
+    const skillGroup = commandTree.find((node) => node.id === "skill-group");
     expect(skillGroup).toBeDefined();
-    expect(skillGroup).toEqual(
-      expect.not.objectContaining({
-        actionId: expect.anything(),
-        allowedSides: expect.anything(),
-        selectionMode: expect.anything(),
-        resolutionKind: expect.anything(),
-      }),
-    );
+    // The group node itself has no selection rules
+    expect(skillGroup).not.toHaveProperty("actionId");
+    expect(skillGroup).not.toHaveProperty("allowedSides");
+    expect(skillGroup).not.toHaveProperty("selectionMode");
+    expect(skillGroup).not.toHaveProperty("resolutionKind");
+
+    // Children are leaf actions with actionId, no selection rules
+    const child = skillGroup?.children?.[0];
+    expect(child?.kind).toBe("action");
+    expect(child).not.toHaveProperty("selectionMode");
+    expect(child).not.toHaveProperty("allowedSides");
+    expect(child).not.toHaveProperty("resolutionKind");
   });
 
   it("models battle resolutions as snapshots of validation, outcomes, and press-turn settlement", () => {

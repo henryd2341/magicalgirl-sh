@@ -270,9 +270,24 @@ describe("battleStore", () => {
     const store = startTestBattle();
     const pressTurnBefore = store.activeBattle?.pressTurn;
 
-    store.selectMenuNode("skill-group-physical");
+    // Add a synthetic group node to test group navigation
+    store.activeBattle!.actionMenu = [...store.activeBattle!.actionMenu!, {
+      id: "test-group",
+      kind: "group" as const,
+      label: "测试组",
+      description: "用于测试的分组。",
+      children: [{
+        id: "test-action",
+        kind: "action" as const,
+        actionId: "attack",
+        label: "测试行动",
+        description: "测试。",
+      }],
+    }];
 
-    expect(store.activeBattle?.currentMenuNodeId).toBe("skill-group-physical");
+    store.selectMenuNode("test-group");
+
+    expect(store.activeBattle?.currentMenuNodeId).toBe("test-group");
     expect(store.activeBattle?.selectedActionId).toBeNull();
     expect(store.activeBattle?.pressTurn).toEqual(pressTurnBefore);
   });

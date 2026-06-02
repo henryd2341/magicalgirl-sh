@@ -239,9 +239,9 @@ export const useSessionStore = defineStore("session", () => {
     return "ok";
   }
 
-  // ── Skill slot management (max 8, innate "1" and "130" excluded) ──
+  // ── Skill slot management (max 8, innate "0" (attack) and "130" (guard) excluded) ──
 
-  const INNATE_SKILL_IDS = new Set(["1", "130"]);
+  const INNATE_SKILL_IDS = new Set(["0", "130"]);
 
   async function equipSkill(
     characterId: string,
@@ -558,8 +558,8 @@ export const useSessionStore = defineStore("session", () => {
         availableIds = charSkills ?? undefined;
       }
 
-      // Further filter to equipped skills only (innate 1 and 130 always included)
-      const INNATE_IDS = new Set(["1", "130"]);
+      // Further filter to equipped skills only (innate 1 always included)
+      const INNATE_IDS = new Set(["1"]);
       try {
         const varState = await variableRepository.getCurrent();
         const equipped = varState?.root.characters[firstPlayer.characterId]?.equippedSkills ?? [];

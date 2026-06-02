@@ -254,17 +254,11 @@ describe("MainGameView battle overlay entrypoint", () => {
 
     await waitForActiveBattleOverlay();
 
-    await fireEvent.click(screen.getByRole("button", { name: "物理技能" }));
+    await fireEvent.click(screen.getByRole("button", { name: "Skill" }));
 
-    expect(battleStore.activeBattle?.currentMenuNodeId).toBe("skill-group-physical");
-    expect(battleStore.activeBattle?.selectedActionId).toBeNull();
-    const skillButtons = screen.getAllByRole("button").filter(
-      (btn) => btn.getAttribute("aria-pressed") !== null,
-    );
-    expect(skillButtons.length).toBeGreaterThan(0);
-    expect(
-      screen.getByRole("button", { name: "返回根菜单" }),
-    ).toBeInTheDocument();
+    expect(battleStore.activeBattle?.currentMenuNodeId).toBe("skill-group");
+    expect(screen.getByRole("button", { name: "斩击" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "返回根菜单" })).toBeInTheDocument();
 
     await fireEvent.click(screen.getByRole("button", { name: "返回根菜单" }));
 
@@ -379,7 +373,7 @@ describe("MainGameView battle overlay entrypoint", () => {
     await waitForActiveBattleOverlay();
 
     const attackButton = screen.getByRole("button", { name: "Attack" });
-    const skillButton = screen.getByRole("button", { name: "物理技能" });
+    const skillButton = screen.getByRole("button", { name: "Skill" });
 
     expect(attackButton).toHaveAttribute("aria-pressed", "false");
     expect(skillButton).toHaveAttribute("aria-pressed", "false");
@@ -528,7 +522,7 @@ describe("MainGameView battle overlay entrypoint", () => {
       within(commandRegion).getByRole("button", { name: "Attack" }),
     ).toBeDisabled();
     expect(
-      within(commandRegion).getByRole("button", { name: "物理技能" }),
+      within(commandRegion).getByRole("button", { name: "Skill" }),
     ).toBeDisabled();
 
     await fireEvent.click(

@@ -1,10 +1,10 @@
-import { getAllSkills, getAllItems } from "@/content/contentRegistry";
+import { getAllItems, getAllSkills } from "@/content/contentRegistry";
 import type {
   BattleActionDefinition,
   BattleActionId,
   BattleActionMenuNode,
 } from "@/types/battle";
-import type { ResolvedSkillContent, ItemContent } from "@/types/content";
+import type { ItemContent, ResolvedSkillContent } from "@/types/content";
 
 const BATTLE_ACTION_DEFINITIONS: Record<
   BattleActionId,
@@ -66,90 +66,36 @@ export function getBattleActionDefinition(
   return BATTLE_ACTION_DEFINITIONS[actionId];
 }
 
-const SKILL_CATEGORY_LABELS: Record<string, string> = {
-  physical: "物理技能",
-  gun: "飞具技能",
-  fire: "火系技能",
-  ice: "冰系技能",
-  wind: "风系技能",
-  electric: "雷系技能",
-  earth: "土系技能",
-  light: "光系技能",
-  dark: "暗系技能",
-  heal: "回复技能",
-  support: "辅助技能",
-  ailment: "异常技能",
-  almighty: "万能技能",
-};
-
-function classifySkill(skill: ResolvedSkillContent): string | null {
-  const element = skill.element;
-  const category = skill.category;
-  switch (element) {
-    case 0:
-      return category;
-    case 1 << 0:
-      return "physical";
-    case 1 << 1:
-      return "gun";
-    case 1 << 2:
-      return "fire";
-    case 1 << 3:
-      return "ice";
-    case 1 << 4:
-      return "wind";
-    case 1 << 5:
-      return "electric";
-    case 1 << 6:
-      return "earth";
-    case 1 << 7:
-      return "light";
-    case 1 << 8:
-      return "dark";
-    case 1 << 9:
-      return "almighty";
-    case 1 << 10:
-      return "heal";
-    case 1 << 11:
-      return "ailment";
-  }
-  return null;
-}
-
-function buildSkillMenuGroups(
+function buildSkillActionNodes(
   skills: Map<string, ResolvedSkillContent>,
   availableSkillIds?: Set<string>,
 ): BattleActionMenuNode[] {
-  const groups = new Map<string, ResolvedSkillContent[]>();
-
+  const children: BattleActionMenuNode[] = [];
   for (const skill of skills.values()) {
     if (skill.category === "passive") continue;
     if (availableSkillIds && !availableSkillIds.has(skill.id)) continue;
-    const group = classifySkill(skill);
-    if (group == null) continue;
-    if (!groups.has(group)) groups.set(group, []);
-    groups.get(group)!.push(skill);
-  }
-
-  const nodes: BattleActionMenuNode[] = [];
-  for (const [groupName, groupSkills] of groups) {
-    nodes.push({
-      id: `skill-group-${groupName}`,
-      kind: "group",
-      label: SKILL_CATEGORY_LABELS[groupName] ?? groupName,
-      description: `打开${groupName}列表。`,
-      children: groupSkills.map((skill) => ({
-        id: `skill-action-${skill.id}`,
-        kind: "action",
-        actionId: "basic-skill",
-        contentId: skill.id,
-        label: skill.name,
-        description: skill.description,
-      })),
+    if (skill.id === "0" || skill.id === "130") continue;
+    children.push({
+      id: `skill-action-${skill.id}`,
+      kind: "action",
+      actionId: "basic-skill",
+      contentId: skill.id,
+      label: skill.name,
+      description: skill.description,
     });
   }
 
-  return nodes;
+  if (children.length === 0) return [];
+
+  return [
+    {
+      id: "skill-group",
+      kind: "group",
+      label: "Skill",
+      description: "打开技能列表。",
+      children,
+    },
+  ];
 }
 
 // ── Item menu groups ──
@@ -220,8 +166,9 @@ export function createDefaultBattleCommandMenuTree(
   battleItems?: Record<string, number>,
 ): BattleActionMenuNode[] {
   const skills = getAllSkills();
-  const skillGroups = buildSkillMenuGroups(skills, availableSkillIds);
-  const itemNodes = battleItems != null ? buildItemMenuNodes(battleItems) : null;
+  const skillGroup = buildSkillActionNodes(skills, availableSkillIds);
+  const itemNodes =
+    battleItems != null ? buildItemMenuNodes(battleItems) : null;
 
   const menu: BattleActionMenuNode[] = [
     {
@@ -231,7 +178,7 @@ export function createDefaultBattleCommandMenuTree(
       label: "Attack",
       description: "使用基础攻击对单体敌人造成伤害。",
     },
-    ...skillGroups,
+    ...skillGroup,
     {
       id: "guard-action",
       kind: "action",
