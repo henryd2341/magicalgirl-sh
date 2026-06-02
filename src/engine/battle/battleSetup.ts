@@ -20,6 +20,7 @@ import {
 import {
   createPressTurnStateForSide,
 } from "@/engine/battle/pressTurn";
+import { resolvePassiveEffects } from "@/engine/battle/passiveEffectEngine";
 
 /**
  * Build a BattleParticipant from content data for an enemy.
@@ -100,6 +101,7 @@ export function createPlayerBattleParticipant(
   allocatedPoints: AllocatedPoints,
   characterId?: string,
   accessoryModifiers?: Partial<Pick<BattleParticipant, "attack" | "defense" | "agility" | "intelligence">>,
+  skillIds?: string[],
 ): BattleParticipant {
   const growth = getGrowth(growthId);
   const params = getFormulaParams();
@@ -120,6 +122,20 @@ export function createPlayerBattleParticipant(
     params.hitRate,
     params.critRate,
   );
+
+  // Resolve passive effects from skill IDs
+  const passiveEffects = resolvePassiveEffects(skillIds ?? []);
+  let combatStats = derived;
+
+  // Apply crit_boost passive to combatStats.critRate
+  for (const pe of passiveEffects) {
+    if (pe.hook === "on_damage_calc" && pe.type === "crit_boost") {
+      combatStats = {
+        ...combatStats,
+        critRate: combatStats.critRate + pe.value,
+      };
+    }
+  }
 
   return {
     id,
@@ -149,7 +165,9 @@ export function createPlayerBattleParticipant(
       reflect: 0,
       absorb: 0,
     },
-    combatStats: derived,
+    combatStats,
+    skillIds,
+    passiveEffects: passiveEffects.length > 0 ? passiveEffects : undefined,
     canAct: true,
   };
 }
@@ -195,6 +213,8 @@ export function createBattleSnapshotFromPendingBattle(
       level: participant.level ?? 1,
       isActive: participant.isActive ?? true,
       statusEffects: participant.statusEffects ?? [],
+      passiveEffects: participant.passiveEffects
+        ?? (participant.skillIds != null ? resolvePassiveEffects(participant.skillIds) : undefined),
       affinities: participant.affinities ?? {
         weak: 0,
         resist: 0,
@@ -275,4 +295,3 @@ export function createBattleSnapshotFromPendingBattle(
     battleLog: [],
   };
 }
-

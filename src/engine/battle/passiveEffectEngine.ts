@@ -2,6 +2,8 @@ import type { PassiveEffectDef, PassiveHook } from "@/types/content";
 import type { BattleAffinityProfile } from "@/types/battle";
 import { BATTLE_ELEMENTS, type BattleElement } from "@/types/battle";
 
+import { getSkill } from "@/content/contentRegistry";
+
 // ── Context types per hook ──
 
 export interface DamageCalcContext {
@@ -71,6 +73,28 @@ export function collectPassives(
   passives: PassiveEffectDef[] | undefined,
 ): PassiveEffectDef[] {
   return passives ?? [];
+}
+
+/**
+ * Resolve passive effect definitions from a list of skill IDs.
+ * Looks up each skill in the content registry and collects its passiveEffects.
+ * Skills not found or without passive effects are silently skipped.
+ */
+export function resolvePassiveEffects(
+  skillIds: string[],
+): PassiveEffectDef[] {
+  const effects: PassiveEffectDef[] = [];
+  for (const skillId of skillIds) {
+    try {
+      const skill = getSkill(skillId);
+      if (skill.passiveEffects != null && skill.passiveEffects.length > 0) {
+        effects.push(...skill.passiveEffects);
+      }
+    } catch {
+      // Skill not in registry, skip
+    }
+  }
+  return effects;
 }
 
 /**

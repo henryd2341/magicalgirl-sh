@@ -192,6 +192,7 @@ export interface BattleParticipant {
   canAct?: boolean;
   passiveEffects?: import("@/types/content").PassiveEffectDef[];
   endureUsed?: boolean;
+  skillIds?: string[];
 }
 
 export interface BattleResult {

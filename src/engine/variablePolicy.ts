@@ -88,7 +88,10 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
           unspentPoints: 0,
         },
         flags: {},
+        equipment: { accessory: null },
+        equippedSkills: [],
       },
+
       "榊原琉音": {
         displayName: "榊原琉音",
         identity: "柚木女子学院初二 / 现役魔法少女",
@@ -114,7 +117,10 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
           unspentPoints: 0,
         },
         flags: {},
+        equipment: { accessory: null },
+        equippedSkills: [],
       },
+
       "榊原千夏": {
         displayName: "榊原千夏",
         identity: "柚木女子学院初二 / 现役魔法少女",
@@ -140,7 +146,10 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
           unspentPoints: 0,
         },
         flags: {},
+        equipment: { accessory: null },
+        equippedSkills: [],
       },
+
       "国津燕": {
         displayName: "国津燕",
         identity: "柚木女子学院高三 / 学生会长",
@@ -166,7 +175,10 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
           unspentPoints: 0,
         },
         flags: {},
+        equipment: { accessory: null },
+        equippedSkills: [],
       },
+
       "盐田堇子": {
         displayName: "盐田堇子",
         identity: "柚木女子学院高一",
@@ -192,7 +204,10 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
           unspentPoints: 0,
         },
         flags: {},
+        equipment: { accessory: null },
+        equippedSkills: [],
       },
+
       "永江铃奈": {
         displayName: "永江铃奈",
         identity: "柚木女子学院高一",
@@ -218,7 +233,10 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
           unspentPoints: 0,
         },
         flags: {},
+        equipment: { accessory: null },
+        equippedSkills: [],
       },
+
       "青井霞": {
         displayName: "青井霞",
         identity: "初代魔法少女（退役）",
@@ -228,7 +246,10 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         currentState: "正在世界各地旅行",
         combat: null,
         flags: {},
+        equipment: { accessory: null },
+        equippedSkills: [],
       },
+
       "石崎真纱": {
         displayName: "石崎真纱",
         identity: "行动小组总负责人",
@@ -238,7 +259,10 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         currentState: "在总部处理文件",
         combat: null,
         flags: {},
+        equipment: { accessory: null },
+        equippedSkills: [],
       },
+
     },
     inventory: {
       items: {},
@@ -269,7 +293,9 @@ function isAllowedPath(path: string): boolean {
     path.startsWith("player.flags.") ||
     path.startsWith("player.relationships.") ||
     path.startsWith("inventory.items.") ||
-    path.startsWith("inventory.battleItems.")
+    path.startsWith("inventory.battleItems.") ||
+    path.startsWith("player.learnedSkills.") ||
+    (path.startsWith("characters.") && (path.endsWith(".equipment.accessory") || path.endsWith(".equippedSkills")))
   );
 }
 
@@ -421,6 +447,42 @@ export function validateVariablePathPatch(
       throw createVariableError(
         "VARIABLE_SCHEMA_INVALID",
         `Relationship value must be an integer: ${patch.path}`,
+      );
+    }
+    return;
+  }
+
+  if (patch.path.startsWith("player.learnedSkills.")) {
+    if (!Array.isArray(patch.value) || !patch.value.every((v: unknown) => typeof v === "string")) {
+      throw createVariableError(
+        "VARIABLE_SCHEMA_INVALID",
+        `Learned skills value must be a string array: ${patch.path}`,
+      );
+    }
+    return;
+  }
+
+  if (patch.path.endsWith(".equippedSkills")) {
+    if (!Array.isArray(patch.value) || !patch.value.every((v: unknown) => typeof v === "string")) {
+      throw createVariableError(
+        "VARIABLE_SCHEMA_INVALID",
+        `Equipped skills value must be a string array: ${patch.path}`,
+      );
+    }
+    if (patch.value.length > 8) {
+      throw createVariableError(
+        "VARIABLE_POLICY_VIOLATION",
+        `Equipped skills cannot exceed 8: ${patch.path}`,
+      );
+    }
+    return;
+  }
+
+  if (patch.path.endsWith(".equipment.accessory")) {
+    if (patch.value !== null && typeof patch.value !== "string") {
+      throw createVariableError(
+        "VARIABLE_SCHEMA_INVALID",
+        `Accessory value must be a string or null: ${patch.path}`,
       );
     }
     return;

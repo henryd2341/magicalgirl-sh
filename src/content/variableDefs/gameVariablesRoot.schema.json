@@ -662,6 +662,30 @@
           ],
           "x-aiContext": true
         }
+        ,
+        "equipment": {
+          "type": "object",
+          "title": "装备",
+          "additionalProperties": false,
+          "x-aiAccess": "hidden",
+          "x-aiContext": false,
+          "properties": {
+            "accessory": {
+              "type": ["string", "null"],
+              "default": null
+            }
+          }
+        },
+        "equippedSkills": {
+          "type": "array",
+          "title": "装备技能",
+          "description": "已装备用于战斗的技能ID列表，最多8个。",
+          "items": { "type": "string", "minLength": 1 },
+          "maxItems": 8,
+          "uniqueItems": true,
+          "x-aiAccess": "hidden",
+          "x-aiContext": false
+        }
       }
     },
     "globalInventory": {

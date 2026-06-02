@@ -335,7 +335,10 @@ function buildAttackOutcomes(
     const affinityProfile = target.affinities ?? {
       weak: 0, resist: 0, nullify: 0, reflect: 0, absorb: 0,
     };
-    const affinityOutcome = resolveAffinityOutcomeType(affinityProfile, skillElement);
+    // Merge passive affinity modifiers (nullify/resist)
+    const targetPassives = collectPassives(target.passiveEffects);
+    const mergedAffinities = applyPassiveAffinities(targetPassives, affinityProfile);
+    const affinityOutcome = resolveAffinityOutcomeType(mergedAffinities, skillElement);
 
     if (affinityOutcome.outcomeType != null) {
       outcomes.push({
@@ -349,9 +352,9 @@ function buildAttackOutcomes(
       break;
     }
 
-    // Affinity multiplier
+    // Affinity multiplier (using merged affinities for passive resist)
     const affinityMult = resolveAffinityMultiplier(
-      affinityProfile,
+      mergedAffinities,
       skillElement,
       params.affinity,
     );
@@ -416,7 +419,7 @@ function buildAttackOutcomes(
 
     // Determine tags
     const tags: BattleActionResolution["outcomes"][0]["tags"] = [];
-    const affinityResult = resolveAffinityResult(affinityProfile, skillElement);
+    const affinityResult = resolveAffinityResult(mergedAffinities, skillElement);
 
     if (affinityResult === "weak") tags.push("weak");
     if (isCrit) tags.push("critical");
@@ -811,6 +814,48 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
 
 // ── Detailed action resolution ──
 
+/**
+ * Resolve target participants based on the skill's targetType.
+ * For single-target types, returns the selected target.
+ * For multi-target types, returns all matching non-down participants.
+ * For self-target, returns the actor.
+ */
+function resolveTargets(
+  snapshot: BattleSnapshot,
+  actor: BattleParticipant,
+  targetType: import("@/types/content").SkillTargetType,
+): BattleParticipant[] {
+  switch (targetType) {
+    case "single_enemy": {
+      const singleEnemy = snapshot.participants.find(
+        (p) => p.id === snapshot.selectedTargetId && p.side === "enemy" && !p.isDown,
+      );
+      return singleEnemy != null ? [singleEnemy] : [];
+    }
+    case "single_ally": {
+      const singleAlly = snapshot.participants.find(
+        (p) => p.id === snapshot.selectedTargetId && p.side === "player" && !p.isDown,
+      );
+      return singleAlly != null ? [singleAlly] : [];
+    }
+    case "all_enemies": {
+      return snapshot.participants.filter(
+        (p) => p.side === "enemy" && p.isActive && !p.isDown,
+      );
+    }
+    case "all_allies": {
+      return snapshot.participants.filter(
+        (p) => p.side === "player" && p.isActive && !p.isDown,
+      );
+    }
+    case "self": {
+      return [actor];
+    }
+    default:
+      return [];
+  }
+}
+
 export function resolveSelectedBattleActionToResolution(
   snapshot: BattleSnapshot,
 ): BattleActionResolution {
@@ -928,16 +973,29 @@ export function resolveSelectedBattleActionToResolution(
   }
 
   if (!definition.allowedSides.includes(target.side) || target.isDown) {
-    return {
-      ok: false,
-      validationError: "target_not_allowed",
-      actorId,
-      actionId: definition.id,
-      intendedTargetId: snapshot.selectedTargetId,
-      outcomes: [],
-      verboseLog: [],
-      summaryLog: [],
-    };
+    // Allow downed targets for revive skills
+    let isReviveTarget = false;
+    if (target.isDown && definition.resolutionKind === "skill" && snapshot.selectedContentId != null) {
+      try {
+        const maybeReviveSkill = getSkill(snapshot.selectedContentId);
+        isReviveTarget = maybeReviveSkill.revives === true;
+      } catch {
+        // Skill not found, not a revive target
+      }
+    }
+
+    if (!isReviveTarget) {
+      return {
+        ok: false,
+        validationError: "target_not_allowed",
+        actorId,
+        actionId: definition.id,
+        intendedTargetId: snapshot.selectedTargetId,
+        outcomes: [],
+        verboseLog: [],
+        summaryLog: [],
+      };
+    }
   }
 
   const actor = snapshot.participants.find((p) => p.id === actorId);
@@ -1025,30 +1083,53 @@ export function resolveSelectedBattleActionToResolution(
 
     // Heal skills
     if (skillContent.category === "heal") {
-      const healOutcome: BattleActionOutcome = {
-        type: "hit",
-        tags: [],
-        actorId,
-        primaryTargetId: snapshot.selectedTargetId,
-        finalTargetId: snapshot.selectedTargetId,
-        hpDelta: skillContent.power,
-      };
-      const mpOutcome: BattleActionOutcome = {
-        type: "hit",
-        tags: [],
-        actorId,
-        primaryTargetId: actorId,
-        finalTargetId: actorId,
-        mpDelta: -skillContent.mpCost,
-      };
+      const outcomes: BattleActionOutcome[] = [];
+      const targets = skillContent.revives
+        // For revive skills, look up the selected target directly (may be down)
+        ? (snapshot.participants.filter((p) => p.id === snapshot.selectedTargetId))
+        : resolveTargets(snapshot, actor ?? { id: actorId } as BattleParticipant, skillContent.targetType);
+
+      for (const healTarget of targets) {
+        // Calculate heal amount
+        const healAmount = skillContent.healPercent != null
+          ? Math.round(healTarget.hp.max * skillContent.healPercent / 100)
+          : skillContent.power;
+
+        // Revive: if target is down and skill has revives, revive them
+        let reviveHp = 0;
+        if (skillContent.revives && healTarget.isDown) {
+          reviveHp = healAmount;
+        }
+
+        outcomes.push({
+          type: "hit" as const,
+          tags: [],
+          actorId,
+          primaryTargetId: healTarget.id,
+          finalTargetId: healTarget.id,
+          hpDelta: reviveHp > 0 ? reviveHp : healAmount,
+        });
+      }
+
+      // MP cost applied once
+      if (skillContent.mpCost > 0) {
+        outcomes.push({
+          type: "hit" as const,
+          tags: [],
+          actorId,
+          primaryTargetId: actorId,
+          finalTargetId: actorId,
+          mpDelta: -skillContent.mpCost,
+        });
+      }
 
       return {
-        ...createPressTurnResolutionForOutcomes(snapshot, [healOutcome, mpOutcome]),
+        ...createPressTurnResolutionForOutcomes(snapshot, outcomes),
         actionId: definition.id,
         contentId,
         intendedTargetId: snapshot.selectedTargetId,
         verboseLog: [
-          `${actorId} used ${skillContent.name} on ${snapshot.selectedTargetId}.`,
+          `${actorId} used ${skillContent.name}.`,
         ],
         summaryLog: [`${skillContent.name} used`],
       };
@@ -1057,12 +1138,26 @@ export function resolveSelectedBattleActionToResolution(
     // Support skills (status effect application)
     if (skillContent.category === "support") {
       const outcomes: BattleActionOutcome[] = [];
+
+      // Resolve targets for multi-target support skills
+      const supportTargets = resolveTargets(
+        snapshot,
+        actor ?? { id: actorId } as BattleParticipant,
+        skillContent.targetType,
+      );
+
+      // Build status effects to apply
       const appliedEffects: AppliedStatusEffectPayload[] = [];
       const effectMap = getStatusEffectMap();
 
       if (skillContent.statusEffects != null) {
         for (const se of skillContent.statusEffects) {
-          if (Math.random() * 100 < se.chance) {
+          // Apply status_boost passives to base chance
+          const actorPassives = collectPassives(actor?.passiveEffects);
+          const chanceCtx = applyPassivesAtHook(actorPassives, "on_status_chance", {
+            chance: se.chance,
+          }) as { chance: number };
+          if (Math.random() * 100 < chanceCtx.chance) {
             const effectContent = effectMap.get(se.effectId);
             const duration = effectContent?.duration ?? 3;
             appliedEffects.push({ effectId: se.effectId, duration });
@@ -1070,26 +1165,31 @@ export function resolveSelectedBattleActionToResolution(
         }
       }
 
+      // Apply effects to each target
       if (appliedEffects.length > 0) {
-        outcomes.push({
-          type: "hit",
-          tags: [],
-          actorId,
-          primaryTargetId: snapshot.selectedTargetId,
-          finalTargetId: snapshot.selectedTargetId,
-          appliedStatusEffects: appliedEffects,
-        });
+        for (const supportTarget of supportTargets) {
+          outcomes.push({
+            type: "hit" as const,
+            tags: [],
+            actorId,
+            primaryTargetId: supportTarget.id,
+            finalTargetId: supportTarget.id,
+            appliedStatusEffects: appliedEffects,
+          });
+        }
       }
 
-      const mpOutcome: BattleActionOutcome = {
-        type: "hit",
-        tags: [],
-        actorId,
-        primaryTargetId: actorId,
-        finalTargetId: actorId,
-        mpDelta: -skillContent.mpCost,
-      };
-      outcomes.push(mpOutcome);
+      // MP cost applied once
+      if (skillContent.mpCost > 0) {
+        outcomes.push({
+          type: "hit" as const,
+          tags: [],
+          actorId,
+          primaryTargetId: actorId,
+          finalTargetId: actorId,
+          mpDelta: -skillContent.mpCost,
+        });
+      }
 
       return {
         ...createPressTurnResolutionForOutcomes(snapshot, outcomes),
@@ -1097,7 +1197,7 @@ export function resolveSelectedBattleActionToResolution(
         contentId,
         intendedTargetId: snapshot.selectedTargetId,
         verboseLog: [
-          `${actorId} used ${skillContent.name} on ${snapshot.selectedTargetId}.`,
+          `${actorId} used ${skillContent.name}.`,
         ],
         summaryLog: [`${skillContent.name} used`],
       };
@@ -1118,25 +1218,32 @@ export function resolveSelectedBattleActionToResolution(
       };
     }
 
-    const outcomes = buildAttackOutcomes({
-      actorId,
-      actor,
-      targetId: snapshot.selectedTargetId,
-      target,
-      skillPower: skillContent.power,
-      skillElement: skillContent.element,
-      skillAccuracy: skillContent.accuracy,
-      statDriver: skillContent.statDriver,
-      skillCritRate: skillContent.critRate,
-      hitCount: skillContent.hitCount,
-      hitCountMax: skillContent.hitCountMax,
-      skillCategory: skillContent.category,
-    });
+    // Resolve targets for multi-target offensive skills
+    const offensiveTargets = resolveTargets(snapshot, actor, skillContent.targetType);
+    const outcomes: BattleActionOutcome[] = [];
 
-    // MP cost outcome
+    for (const offenseTarget of offensiveTargets) {
+      const targetOutcomes = buildAttackOutcomes({
+        actorId,
+        actor,
+        targetId: offenseTarget.id,
+        target: offenseTarget,
+        skillPower: skillContent.power,
+        skillElement: skillContent.element,
+        skillAccuracy: skillContent.accuracy,
+        statDriver: skillContent.statDriver,
+        skillCritRate: skillContent.critRate,
+        hitCount: skillContent.hitCount,
+        hitCountMax: skillContent.hitCountMax,
+        skillCategory: skillContent.category,
+      });
+      outcomes.push(...targetOutcomes);
+    }
+
+    // MP cost outcome (applied once, not per target)
     if (skillContent.mpCost > 0) {
       outcomes.push({
-        type: "hit",
+        type: "hit" as const,
         tags: [],
         actorId,
         primaryTargetId: actorId,
@@ -1151,7 +1258,7 @@ export function resolveSelectedBattleActionToResolution(
       contentId,
       intendedTargetId: snapshot.selectedTargetId,
       verboseLog: [
-        `${actorId} used ${skillContent.name} on ${snapshot.selectedTargetId}.`,
+        `${actorId} used ${skillContent.name}.`,
       ],
       summaryLog: [`${skillContent.name} used`],
     };
@@ -1251,7 +1358,7 @@ export function resolveSelectedBattleActionToResolution(
   }
 
   // Route "attack" through the skill pipeline with default contentId
-  const contentId = snapshot.selectedContentId ?? "attack";
+  const contentId = snapshot.selectedContentId ?? "0";
   let skillContent: ReturnType<typeof getSkill>;
   try {
     skillContent = getSkill(contentId);

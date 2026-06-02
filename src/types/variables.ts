@@ -97,6 +97,8 @@ export interface GameVariablesRoot {
       } | null;
       inParty?: boolean;
       flags?: Record<string, boolean>;
+      equipment?: { accessory: string | null };
+      equippedSkills?: string[];
     }
   >;
   inventory: {

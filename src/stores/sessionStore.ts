@@ -56,6 +56,8 @@ import type { CheckpointSnapshotRecord } from "@/types/recovery";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { getCharacter } from "@/content/contentRegistry";
+import { getAllCharacterIds } from "@/content/contentRegistry";
+import { VariableEngine } from "@/engine/variableEngine";
 import type { CharacterContent, SkillTreeNode } from "@/types/content";
 import { createDefaultBattleCommandMenuTree } from "@/engine/battle/battleActionCatalog";
 
@@ -92,6 +94,7 @@ export const useSessionStore = defineStore("session", () => {
     variableChangeLogRepository,
   });
   let toolExecutor = new ToolExecutor(gameEngineFacade);
+  const variableEngine = new VariableEngine();
   const snapshot = ref(gameEngineFacade.getSessionSnapshot());
   const isStoryTurnRunning = ref(false);
 
@@ -101,12 +104,25 @@ export const useSessionStore = defineStore("session", () => {
   async function loadLearnedSkills() {
     try {
       const varState = await variableRepository.getCurrent();
-      if (!varState?.root.player.learnedSkills) return;
+      const stored = varState?.root.player.learnedSkills ?? {};
       const map = new Map<string, Set<string>>();
-      for (const [charId, skillIds] of Object.entries(
-        varState.root.player.learnedSkills,
-      )) {
+      for (const [charId, skillIds] of Object.entries(stored)) {
         map.set(charId, new Set(skillIds));
+      }
+
+      // Always merge innateSkills from character definitions
+      for (const charId of getAllCharacterIds()) {
+        let charContent;
+        try { charContent = getCharacter(charId); } catch { continue; }
+        const charSet = map.get(charId) ?? new Set<string>();
+        let changed = false;
+        for (const innateId of charContent.innateSkills) {
+          if (!charSet.has(innateId)) {
+            charSet.add(innateId);
+            changed = true;
+          }
+        }
+        if (changed) map.set(charId, charSet);
       }
       learnedSkills.value = map;
     } catch {
@@ -195,13 +211,13 @@ export const useSessionStore = defineStore("session", () => {
     const updatedLearnedForChar = [...currentLearnedForChar, skillId];
 
     // Deduct money and persist learned skills atomically
-    await toolExecutor.execute({
-      tool_name: "update_variables" as const,
-      request_id: `skill-learn-${characterId}-${skillId}`,
-      context_version: varState.version,
-      state_hash: varState.stateHash,
-      tool_call_id: skillCallId,
-      input: {
+    const result = variableEngine.applyPatchSet({
+      current: varState,
+      envelope: {
+        request_id: `skill-learn-${characterId}-${skillId}`,
+        context_version: varState.version,
+        state_hash: varState.stateHash,
+        tool_call_id: skillCallId,
         patches: [
           { path: "player.money", value: newMoney },
           {
@@ -211,6 +227,7 @@ export const useSessionStore = defineStore("session", () => {
         ],
       },
     });
+    await variableRepository.saveCurrent(result.next);
 
     // Add to learned skills
     const updated = new Set(learned);
@@ -218,6 +235,97 @@ export const useSessionStore = defineStore("session", () => {
     learnedSkills.value = new Map(learnedSkills.value).set(characterId, updated);
     snapshot.value = gameEngineFacade.getSessionSnapshot();
 
+    return "ok";
+  }
+
+  // ── Skill slot management (max 8, innate "1" and "130" excluded) ──
+
+  const INNATE_SKILL_IDS = new Set(["1", "130"]);
+
+  async function equipSkill(
+    characterId: string,
+    skillId: string,
+  ): Promise<"ok" | "not_learned" | "innate_skill" | "slots_full" | "already_equipped"> {
+    const learned = learnedSkills.value.get(characterId);
+    if (!learned || !learned.has(skillId)) return "not_learned";
+    if (INNATE_SKILL_IDS.has(skillId)) return "innate_skill";
+
+    const varState = await variableRepository.getCurrent();
+    if (!varState) return "not_learned";
+
+    const charState = varState.root.characters[characterId];
+    const current = charState?.equippedSkills ?? [];
+
+    if (current.includes(skillId)) return "already_equipped";
+    if (current.length >= 8) return "slots_full";
+
+    const updated = [...current, skillId];
+    const callId = `equip-skill-${Date.now().toString(36)}`;
+    const result = variableEngine.applyPatchSet({
+      current: varState,
+      envelope: {
+        request_id: `equip-skill-${characterId}`,
+        context_version: varState.version,
+        state_hash: varState.stateHash,
+        tool_call_id: callId,
+        patches: [
+          { path: `characters.${characterId}.equippedSkills`, value: updated },
+        ],
+      },
+    });
+    await variableRepository.saveCurrent(result.next);
+    return "ok";
+  }
+
+  async function unequipSkill(
+    characterId: string,
+    skillId: string,
+  ): Promise<"ok" | "not_equipped"> {
+    const varState = await variableRepository.getCurrent();
+    if (!varState) return "not_equipped";
+
+    const charState = varState.root.characters[characterId];
+    const current = charState?.equippedSkills ?? [];
+    if (!current.includes(skillId)) return "not_equipped";
+
+    const updated = current.filter((id) => id !== skillId);
+    const callId = `unequip-skill-${Date.now().toString(36)}`;
+    const result = variableEngine.applyPatchSet({
+      current: varState,
+      envelope: {
+        request_id: `unequip-skill-${characterId}`,
+        context_version: varState.version,
+        state_hash: varState.stateHash,
+        tool_call_id: callId,
+        patches: [
+          { path: `characters.${characterId}.equippedSkills`, value: updated },
+        ],
+      },
+    });
+    await variableRepository.saveCurrent(result.next);
+    return "ok";
+  }
+
+  async function equipAccessory(
+    characterId: string,
+    itemId: string | null,
+  ): Promise<"ok"> {
+    const varState = await variableRepository.getCurrent();
+    if (!varState) return "ok";
+    const callId = `equip-accessory-${Date.now().toString(36)}`;
+    const result = variableEngine.applyPatchSet({
+      current: varState,
+      envelope: {
+        request_id: `equip-accessory-${characterId}`,
+        context_version: varState.version,
+        state_hash: varState.stateHash,
+        tool_call_id: callId,
+        patches: [
+          { path: `characters.${characterId}.equipment.accessory`, value: itemId },
+        ],
+      },
+    });
+    await variableRepository.saveCurrent(result.next);
     return "ok";
   }
 
@@ -447,6 +555,20 @@ export const useSessionStore = defineStore("session", () => {
         availableIds = innate;
       } catch {
         availableIds = charSkills ?? undefined;
+      }
+
+      // Further filter to equipped skills only (innate 1 and 130 always included)
+      const INNATE_IDS = new Set(["1", "130"]);
+      try {
+        const varState = await variableRepository.getCurrent();
+        const equipped = varState?.root.characters[firstPlayer.characterId]?.equippedSkills ?? [];
+        const filtered = new Set<string>(INNATE_IDS);
+        for (const sid of equipped) {
+          if (availableIds?.has(sid)) filtered.add(sid);
+        }
+        availableIds = filtered;
+      } catch {
+        // If variable state unavailable, fall back to learned set
       }
       battleStore.activeBattle.actionMenu = createDefaultBattleCommandMenuTree(availableIds);
     }
@@ -803,6 +925,9 @@ export const useSessionStore = defineStore("session", () => {
     isSkillLearned,
     getLearnableSkills,
     learnSkill,
+    equipSkill,
+    unequipSkill,
+    equipAccessory,
     configurePersistence,
     beginAiRequest,
     executeUpdateVariables,

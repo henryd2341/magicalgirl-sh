@@ -825,9 +825,10 @@ describe("battleResolver", () => {
     expect(resolution.contentId).toBe("2");
 
     // Skill 2 (斩击) costs 4 MP
+    // Skill 2 (横扫) costs 5 MP
     const mpOutcome = resolution.outcomes.find((o) => o.mpDelta != null);
     expect(mpOutcome).toBeDefined();
-    expect(mpOutcome!.mpDelta).toBe(-4);
+    expect(mpOutcome!.mpDelta).toBe(-5);
   });
 
   it("returns validation error for skill contentId not found", () => {

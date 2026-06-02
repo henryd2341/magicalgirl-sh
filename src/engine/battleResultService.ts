@@ -6,6 +6,10 @@ import type { BattleSnapshot, BattleSummarySet } from "@/types/battle";
 import type { ChatMessage } from "@/types/chat";
 import { getEnemy } from "@/content/contentRegistry";
 import { calculateExpGained } from "@/engine/battle/formulaEngine";
+import {
+  collectPassives,
+  applyPassivesAtHook,
+} from "@/engine/battle/passiveEffectEngine";
 
 export interface BattleSummaryMessageWriter {
   createBattleSummaryMessages(
@@ -20,6 +24,7 @@ export interface BattleResultServiceDependencies {
 
 export interface BattleRewards {
   expGained: number;
+  characterExp: Map<string, number>;
   moneyGained: number;
   enemyIds: string[];
 }
@@ -95,14 +100,14 @@ export class BattleResultService {
     requireResolvedBattle(snapshot);
 
     if (snapshot.battleResult?.outcome !== "victory") {
-      return { expGained: 0, moneyGained: 0, enemyIds: [] };
+      return { expGained: 0, characterExp: new Map(), moneyGained: 0, enemyIds: [] };
     }
 
     const playerLevel = snapshot.participants
       .filter((p) => p.side === "player")
       .reduce((max, p) => Math.max(max, p.level ?? 1), 1);
 
-    let expGained = 0;
+    let totalExpGained = 0;
     let moneyGained = 0;
     const enemyIds: string[] = [];
 
@@ -111,7 +116,7 @@ export class BattleResultService {
       enemyIds.push(participant.id);
       try {
         const enemyDef = getEnemy(participant.id);
-        expGained += calculateExpGained(
+        totalExpGained += calculateExpGained(
           enemyDef.expReward,
           enemyDef.baseLevel,
           playerLevel,
@@ -122,7 +127,36 @@ export class BattleResultService {
       }
     }
 
-    return { expGained, moneyGained, enemyIds };
+    // Distribute EXP to each surviving player character, applying exp_boost passives
+    const survivingPlayers = snapshot.participants.filter(
+      (p) => p.side === "player" && !p.isDown,
+    );
+    const characterExp = new Map<string, number>();
+
+    if (survivingPlayers.length > 0) {
+      const baseExpPerPlayer = Math.floor(totalExpGained / survivingPlayers.length);
+      let remainder = totalExpGained - baseExpPerPlayer * survivingPlayers.length;
+
+      for (const player of survivingPlayers) {
+        let exp = baseExpPerPlayer + (remainder > 0 ? 1 : 0);
+        if (remainder > 0) remainder -= 1;
+
+        // Apply exp_boost passives
+        const passives = collectPassives(player.passiveEffects);
+        const ctx = applyPassivesAtHook(passives, "on_exp_calc", { exp }) as { exp: number };
+        exp = ctx.exp;
+
+        characterExp.set(player.id, exp);
+      }
+    }
+
+    // expGained is total for backward compatibility
+    let expGained = 0;
+    for (const exp of characterExp.values()) {
+      expGained += exp;
+    }
+
+    return { expGained, characterExp, moneyGained, enemyIds };
   }
 
     public async commitResolvedBattle(
