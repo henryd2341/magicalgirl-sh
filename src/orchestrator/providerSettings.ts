@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 
-import { AiSdkProviderClient } from "@/orchestrator/aiSdkProviderClient";
 import type { GameEngineFacade } from "@/engine/gameEngineFacade";
+import { AiSdkProviderClient } from "@/orchestrator/aiSdkProviderClient";
 import {
   FakeStreamingProviderClient,
   type ProviderClient,
@@ -24,7 +24,9 @@ export interface ProviderProfile {
   temperature: number;
   maxOutputTokens: number;
   streamingEnabled: boolean;
-  reasoningEffort?: "low" | "medium" | "high";
+  reasoningEffort?: "none" | "low" | "medium" | "high" | "xhigh" | "max";
+  thinkingEnabled?: boolean;
+  showReasoning?: boolean;
   builtIn: boolean;
   updatedAt: string;
 }
@@ -38,7 +40,16 @@ export interface ProviderProfileInput {
   temperature: number;
   maxOutputTokens: number;
   streamingEnabled: boolean;
-  reasoningEffort?: "low" | "medium" | "high";
+  reasoningEffort?:
+    | "none"
+    | "low"
+    | "medium"
+    | "high"
+    | "xhigh"
+    | "max"
+    | undefined;
+  thinkingEnabled?: boolean;
+  showReasoning?: boolean;
 }
 
 export interface ProviderSettingsState {
@@ -73,7 +84,11 @@ export interface ProviderSettingsRepository {
   clearApiKey(profileId: string): Promise<void>;
   resetToDefault(): Promise<ProviderSettingsState>;
   setSummaryProfile(profileId: string | null): Promise<void>;
-  updateSummaryConfig(patch: { summaryEnabled?: boolean; summaryTokenThreshold?: number; summaryOldRatio?: number }): Promise<void>;
+  updateSummaryConfig(patch: {
+    summaryEnabled?: boolean;
+    summaryTokenThreshold?: number;
+    summaryOldRatio?: number;
+  }): Promise<void>;
 }
 
 export interface ProviderSettingsRepositoryOptions {
@@ -127,6 +142,8 @@ function normalizeProfile(
     maxOutputTokens: normalizeNumber(profile.maxOutputTokens, 1024),
     streamingEnabled: profile.streamingEnabled,
     reasoningEffort: profile.reasoningEffort,
+    thinkingEnabled: profile.thinkingEnabled,
+    showReasoning: profile.showReasoning,
     builtIn: profile.builtIn,
     updatedAt,
   };
@@ -251,10 +268,14 @@ function findProfileOrThrow(
   state: ProviderSettingsState,
   profileId: string,
 ): ProviderProfile {
-  const profile = state.profiles.find((candidate) => candidate.id === profileId);
+  const profile = state.profiles.find(
+    (candidate) => candidate.id === profileId,
+  );
 
   if (!profile) {
-    throw new Error(`[PROVIDER_PROFILE_NOT_FOUND] Unknown profile: ${profileId}.`);
+    throw new Error(
+      `[PROVIDER_PROFILE_NOT_FOUND] Unknown profile: ${profileId}.`,
+    );
   }
 
   return profile;
@@ -299,9 +320,7 @@ function migrateV1Config(
   };
 }
 
-export class InMemoryProviderSettingsRepository
-  implements ProviderSettingsRepository
-{
+export class InMemoryProviderSettingsRepository implements ProviderSettingsRepository {
   private state: ProviderSettingsState | null = null;
 
   private readonly now: () => string;
@@ -412,22 +431,23 @@ export class InMemoryProviderSettingsRepository
     this.state = { ...state, summaryProfileId: profileId };
   }
 
-  public async updateSummaryConfig(
-    patch: { summaryEnabled?: boolean; summaryTokenThreshold?: number; summaryOldRatio?: number },
-  ): Promise<void> {
+  public async updateSummaryConfig(patch: {
+    summaryEnabled?: boolean;
+    summaryTokenThreshold?: number;
+    summaryOldRatio?: number;
+  }): Promise<void> {
     const state = await this.getState();
     this.state = {
       ...state,
       summaryEnabled: patch.summaryEnabled ?? state.summaryEnabled,
-      summaryTokenThreshold: patch.summaryTokenThreshold ?? state.summaryTokenThreshold,
+      summaryTokenThreshold:
+        patch.summaryTokenThreshold ?? state.summaryTokenThreshold,
       summaryOldRatio: patch.summaryOldRatio ?? state.summaryOldRatio,
     };
   }
 }
 
-export class LocalStorageProviderSettingsRepository
-  extends InMemoryProviderSettingsRepository
-{
+export class LocalStorageProviderSettingsRepository extends InMemoryProviderSettingsRepository {
   private readonly nowForStorage: () => string;
 
   private readonly idFactoryForStorage: () => string;
@@ -460,11 +480,12 @@ export class LocalStorageProviderSettingsRepository
     return createDefaultProviderSettingsState(this.nowForStorage());
   }
 
-  public override async saveState(
-    state: ProviderSettingsState,
-  ): Promise<void> {
+  public override async saveState(state: ProviderSettingsState): Promise<void> {
     const normalized = normalizeState(state, this.nowForStorage());
-    globalThis.localStorage?.setItem(STORAGE_KEY_V2, JSON.stringify(normalized));
+    globalThis.localStorage?.setItem(
+      STORAGE_KEY_V2,
+      JSON.stringify(normalized),
+    );
   }
 
   public override async getActiveProfile(): Promise<ProviderProfile> {
@@ -544,7 +565,9 @@ export class LocalStorageProviderSettingsRepository
     return deepClone(state);
   }
 
-  public override async setSummaryProfile(profileId: string | null): Promise<void> {
+  public override async setSummaryProfile(
+    profileId: string | null,
+  ): Promise<void> {
     const state = await this.getState();
     if (profileId !== null) {
       findProfileOrThrow(state, profileId);
@@ -552,14 +575,17 @@ export class LocalStorageProviderSettingsRepository
     await this.saveState({ ...state, summaryProfileId: profileId });
   }
 
-  public override async updateSummaryConfig(
-    patch: { summaryEnabled?: boolean; summaryTokenThreshold?: number; summaryOldRatio?: number },
-  ): Promise<void> {
+  public override async updateSummaryConfig(patch: {
+    summaryEnabled?: boolean;
+    summaryTokenThreshold?: number;
+    summaryOldRatio?: number;
+  }): Promise<void> {
     const state = await this.getState();
     await this.saveState({
       ...state,
       summaryEnabled: patch.summaryEnabled ?? state.summaryEnabled,
-      summaryTokenThreshold: patch.summaryTokenThreshold ?? state.summaryTokenThreshold,
+      summaryTokenThreshold:
+        patch.summaryTokenThreshold ?? state.summaryTokenThreshold,
       summaryOldRatio: patch.summaryOldRatio ?? state.summaryOldRatio,
     });
   }
@@ -573,11 +599,9 @@ export async function createConfiguredSummaryProviderClient(
   if (state.summaryProfileId) {
     const profile = state.profiles.find((p) => p.id === state.summaryProfileId);
     if (profile) {
-      return createConfiguredProviderClient(
-        {
-          getActiveProfile: async () => profile,
-        } as ProviderSettingsRepository,
-      );
+      return createConfiguredProviderClient({
+        getActiveProfile: async () => profile,
+      } as ProviderSettingsRepository);
     }
   }
 
@@ -616,7 +640,15 @@ export async function createConfiguredProviderClient(
       maxOutputTokens: profile.maxOutputTokens,
       streamingEnabled: profile.streamingEnabled,
       reasoningEffort: profile.reasoningEffort,
-      harnessDeps: harnessDeps ?? { dispatchCommand: (async () => { throw new Error("[PROVIDER_NO_HARNESS_DEPS] harnessDeps not provided."); }) as unknown as GameEngineFacade["dispatchCommand"] },
+      thinkingEnabled: profile.thinkingEnabled,
+      showReasoning: profile.showReasoning,
+      harnessDeps: harnessDeps ?? {
+        dispatchCommand: (async () => {
+          throw new Error(
+            "[PROVIDER_NO_HARNESS_DEPS] harnessDeps not provided.",
+          );
+        }) as unknown as GameEngineFacade["dispatchCommand"],
+      },
     }),
     providerInfo: toPromptViewerProviderInfo(profile),
   };

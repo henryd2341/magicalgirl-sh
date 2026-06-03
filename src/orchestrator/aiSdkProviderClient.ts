@@ -20,7 +20,9 @@ export interface AiSdkProviderClientConfig {
   temperature?: number;
   maxOutputTokens?: number;
   streamingEnabled?: boolean;
-  reasoningEffort?: "low" | "medium" | "high";
+  reasoningEffort?: "none" | "low" | "medium" | "high" | "xhigh" | "max";
+  thinkingEnabled?: boolean;
+  showReasoning?: boolean;
   harnessDeps: HarnessToolExecutorDeps;
 }
 
@@ -66,6 +68,19 @@ export class AiSdkProviderClient implements ProviderClient {
       },
     );
 
+    const eff = this.config.reasoningEffort;
+    const thinkingType =
+      this.config.thinkingEnabled !== undefined
+        ? this.config.thinkingEnabled
+          ? "enabled"
+          : "disabled"
+        : eff === "none"
+          ? "disabled"
+          : undefined;
+
+    const hasThinking = thinkingType !== undefined;
+    const hasEffort = eff !== undefined && eff !== "none";
+
     const modelOptions = {
       model: provider(this.config.model),
       messages: toModelMessages(request),
@@ -73,11 +88,14 @@ export class AiSdkProviderClient implements ProviderClient {
       stopWhen: stepCountIs(5),
       temperature: this.config.temperature,
       maxOutputTokens: this.config.maxOutputTokens,
-      ...(this.config.reasoningEffort
+      ...(hasEffort || hasThinking
         ? {
             providerOptions: {
               [this.config.providerName]: {
-                reasoningEffort: this.config.reasoningEffort,
+                ...(hasEffort ? ({ reasoningEffort: eff } as const) : {}),
+                ...(hasThinking
+                  ? ({ thinking: { type: thinkingType } } as const)
+                  : {}),
               },
             },
           }
@@ -99,10 +117,7 @@ export class AiSdkProviderClient implements ProviderClient {
               tool_call_id: tc.toolCallId,
               ok: !("error" in (tr ?? {})),
               output: tr && "output" in tr ? tr.output : undefined,
-              error:
-                tr && "error" in tr
-                  ? String(tr.error)
-                  : undefined,
+              error: tr && "error" in tr ? String(tr.error) : undefined,
             });
           }
         },
@@ -138,10 +153,7 @@ export class AiSdkProviderClient implements ProviderClient {
             tool_call_id: tc.toolCallId,
             ok: !("error" in (tr ?? {})),
             output: tr && "output" in tr ? tr.output : undefined,
-            error:
-              tr && "error" in tr
-                ? String(tr.error)
-                : undefined,
+            error: tr && "error" in tr ? String(tr.error) : undefined,
           });
         }
       },
@@ -167,7 +179,11 @@ export class AiSdkProviderClient implements ProviderClient {
         await callbacks.onTextChunk(streamPart.text);
       }
 
-      if (streamPart.type === "reasoning" && streamPart.text !== undefined) {
+      if (
+        streamPart.type === "reasoning" &&
+        streamPart.text !== undefined &&
+        this.config.showReasoning !== false
+      ) {
         await callbacks.onReasoningChunk?.(streamPart.text);
       }
 

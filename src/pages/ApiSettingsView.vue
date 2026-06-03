@@ -29,7 +29,16 @@ const form = reactive({
   temperature: 0.7,
   maxOutputTokens: 1024,
   streamingEnabled: true,
-  reasoningEffort: "medium" as "low" | "medium" | "high" | undefined,
+  reasoningEffort: "medium" as
+    | "none"
+    | "low"
+    | "medium"
+    | "high"
+    | "xhigh"
+    | "max"
+    | undefined,
+  thinkingEnabled: true,
+  showReasoning: true,
   builtIn: true,
 });
 
@@ -51,6 +60,8 @@ function applyProfile(profile: ProviderProfile): void {
   form.maxOutputTokens = profile.maxOutputTokens;
   form.streamingEnabled = profile.streamingEnabled;
   form.reasoningEffort = profile.reasoningEffort;
+  form.thinkingEnabled = profile.thinkingEnabled ?? true;
+  form.showReasoning = profile.showReasoning ?? true;
   form.builtIn = profile.builtIn;
 }
 
@@ -88,6 +99,8 @@ async function addProfile(): Promise<void> {
     maxOutputTokens: 1024,
     streamingEnabled: true,
     reasoningEffort: "medium",
+    thinkingEnabled: true,
+    showReasoning: true,
   });
   await repository.setActiveProfile(profile.id);
   statusMessage.value = "Profile 已创建。";
@@ -110,6 +123,8 @@ async function saveCurrentProfile(): Promise<void> {
     maxOutputTokens: Number(form.maxOutputTokens),
     streamingEnabled: form.streamingEnabled,
     reasoningEffort: form.reasoningEffort,
+    thinkingEnabled: form.thinkingEnabled,
+    showReasoning: form.showReasoning,
   });
   statusMessage.value = "API Provider 设置已保存。";
   await refreshState();
@@ -144,6 +159,8 @@ function buildCurrentProfile(): ProviderProfile {
     maxOutputTokens: Number(form.maxOutputTokens),
     streamingEnabled: form.streamingEnabled,
     reasoningEffort: form.reasoningEffort,
+    thinkingEnabled: form.thinkingEnabled,
+    showReasoning: form.showReasoning,
     builtIn: form.builtIn,
     updatedAt: activeProfile.value?.updatedAt ?? new Date().toISOString(),
   };
@@ -194,18 +211,26 @@ async function saveSummaryProfile(): Promise<void> {
 }
 
 async function saveSummaryThreshold(): Promise<void> {
-  await repository.updateSummaryConfig({ summaryTokenThreshold: summaryForm.tokenThreshold });
+  await repository.updateSummaryConfig({
+    summaryTokenThreshold: summaryForm.tokenThreshold,
+  });
 }
 
 async function saveSummaryRatio(): Promise<void> {
-  await repository.updateSummaryConfig({ summaryOldRatio: summaryForm.oldRatio });
+  await repository.updateSummaryConfig({
+    summaryOldRatio: summaryForm.oldRatio,
+  });
 }
 
 onMounted(refreshState);
 </script>
 
 <template>
-  <main id="api-settings-view" class="settings-view scrapbook-panel" role="main">
+  <main
+    id="api-settings-view"
+    class="settings-view scrapbook-panel"
+    role="main"
+  >
     <section class="settings-view__panel">
       <p class="eyebrow eyebrow--blue">Provider Profiles</p>
       <h1 class="section-heading--playful">API Provider 设置</h1>
@@ -310,7 +335,10 @@ onMounted(refreshState);
               :disabled="isBuiltInProfile"
             />
           </label>
-          <label class="chat-input-box__label" for="api-profile-max-output-tokens">
+          <label
+            class="chat-input-box__label"
+            for="api-profile-max-output-tokens"
+          >
             Max output tokens
             <input
               id="api-profile-max-output-tokens"
@@ -345,10 +373,33 @@ onMounted(refreshState);
               class="settings-view__text-input"
               :disabled="isBuiltInProfile"
             >
+              <option value="none">none (关闭)</option>
               <option value="low">low</option>
               <option value="medium">medium</option>
               <option value="high">high</option>
             </select>
+          </label>
+          <label
+            v-if="form.kind === 'openai-compatible'"
+            class="chat-input-box__label settings-view__checkbox-label"
+          >
+            <input
+              v-model="form.thinkingEnabled"
+              type="checkbox"
+              :disabled="isBuiltInProfile"
+            />
+            深度思考 (Thinking)
+          </label>
+          <label
+            v-if="form.kind === 'openai-compatible'"
+            class="chat-input-box__label settings-view__checkbox-label"
+          >
+            <input
+              v-model="form.showReasoning"
+              type="checkbox"
+              :disabled="isBuiltInProfile"
+            />
+            显示思维链
           </label>
         </div>
 
@@ -374,7 +425,11 @@ onMounted(refreshState);
         <p v-if="statusMessage" role="status">{{ statusMessage }}</p>
 
         <div class="settings-view__actions">
-          <button id="api-settings-save-profile" class="primary-cta" type="submit">
+          <button
+            id="api-settings-save-profile"
+            class="primary-cta"
+            type="submit"
+          >
             保存 API 设置
           </button>
           <button
@@ -448,11 +503,13 @@ onMounted(refreshState);
         </div>
 
         <div class="settings-view__field">
-          <label for="summary-token-threshold">Token Threshold: {{ summaryForm.tokenThreshold }}</label>
+          <label for="summary-token-threshold">
+            Token Threshold: {{ summaryForm.tokenThreshold }}
+          </label>
           <input
             id="summary-token-threshold"
             v-model.number="summaryForm.tokenThreshold"
-            type="range"
+            type="number"
             min="1000"
             max="1000000"
             step="500"
@@ -462,7 +519,9 @@ onMounted(refreshState);
         </div>
 
         <div class="settings-view__field">
-          <label for="summary-old-ratio">Old Ratio: {{ Math.round(summaryForm.oldRatio * 100) }}%</label>
+          <label for="summary-old-ratio">
+            Old Ratio: {{ Math.round(summaryForm.oldRatio * 100) }}%
+          </label>
           <input
             id="summary-old-ratio"
             v-model.number="summaryForm.oldRatio"

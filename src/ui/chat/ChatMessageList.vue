@@ -13,6 +13,9 @@ function toggleReasoning(messageId: string): void {
 }
 
 function isReasoningExpanded(messageId: string): boolean {
+  // Auto-expand during streaming, otherwise respect user toggle
+  const message = props.messages.find((m) => m.id === messageId);
+  if (message?.provisional && message.reasoning) return true;
   return expandedReasoning.value[messageId] ?? false;
 }
 
@@ -77,6 +80,10 @@ function getRoleLabel(message: ChatMessage): string {
         <div
           v-if="message.role === 'assistant' && message.reasoning"
           class="chat-message-card__reasoning-fold"
+          :class="{
+            'chat-message-card__reasoning-fold--expanded': isReasoningExpanded(message.id),
+            'chat-message-card__reasoning-fold--streaming': message.provisional,
+          }"
         >
           <button
             class="chat-message-card__reasoning-toggle"
@@ -84,15 +91,17 @@ function getRoleLabel(message: ChatMessage): string {
             :aria-expanded="isReasoningExpanded(message.id)"
             @click="toggleReasoning(message.id)"
           >
+            <span class="chat-message-card__reasoning-arrow">
+              {{ isReasoningExpanded(message.id) ? '▼' : '▶' }}
+            </span>
             <span class="chat-message-card__reasoning-label">思考过程</span>
             <span class="chat-message-card__reasoning-count">{{ reasoningCharCount(message) }} 字</span>
+            <span v-if="message.provisional" class="chat-message-card__reasoning-live">● 生成中</span>
           </button>
-          <p
+          <pre
             v-if="isReasoningExpanded(message.id)"
             class="chat-message-card__reasoning-content"
-          >
-            {{ message.reasoning }}
-          </p>
+          >{{ message.reasoning }}</pre>
         </div>
         <div class="chat-message-card__meta">
           <span class="stat-chip">{{ getRoleLabel(message) }}</span>
