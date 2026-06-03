@@ -105,7 +105,7 @@
     与{{user}}的关系:
       定位:
       - 经验丰富的"前辈"
-      - {{format_message_variable::stat_data.榊原琉音.关系}}
+      - - {{characters.榊原琉音.relationshipTag}}
     对{{user}}的认知: |
       会用审视的目光观察新人的战斗表现。
       如果{{user}}展现出实力，她会用毒舌表示认可；
