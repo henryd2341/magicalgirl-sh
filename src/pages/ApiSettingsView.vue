@@ -76,6 +76,7 @@ async function refreshState(): Promise<void> {
     applyProfile(nextActiveProfile);
   }
   loadSummaryConfig(state.value);
+  loadToolApiConfig(state.value);
 }
 
 async function returnToGame(): Promise<void> {
@@ -184,6 +185,26 @@ async function fetchModels(): Promise<void> {
 
 function chooseModel(modelId: string): void {
   form.model = modelId;
+}
+
+// ---- Tool API Settings ----
+
+const toolApiForm = reactive({
+  updateVariablesProfileId: null as string | null,
+});
+
+function loadToolApiConfig(settings: ProviderSettingsState): void {
+  toolApiForm.updateVariablesProfileId =
+    settings.toolProfileIds["update_variables"] ?? null;
+}
+
+async function saveToolApiProfile(toolName: string): Promise<void> {
+  await repository.setToolProfile(
+    toolName,
+    toolApiForm.updateVariablesProfileId,
+  );
+  statusMessage.value = `工具 ${toolName} API Profile 已保存。`;
+  await refreshState();
 }
 
 // ---- Summary Settings ----
@@ -468,6 +489,35 @@ onMounted(refreshState);
           </button>
         </div>
       </form>
+
+      <!-- Tool API Profile Settings -->
+      <section class="settings-view__summary">
+        <h2>工具 API Profile</h2>
+        <p class="settings-view__hint">
+          为特定工具指定独立的 API Profile，利用不同模型的优势互补。
+          当前仅 <code>update_variables</code> 支持独立 API。
+        </p>
+
+        <div class="settings-view__field">
+          <label for="tool-api-update-variables">
+            update_variables（变量更新）
+          </label>
+          <select
+            id="tool-api-update-variables"
+            v-model="toolApiForm.updateVariablesProfileId"
+            @change="saveToolApiProfile('update_variables')"
+          >
+            <option :value="null">使用主 Profile</option>
+            <option
+              v-for="profile in state.profiles.filter((p) => p.kind !== 'fake')"
+              :key="profile.id"
+              :value="profile.id"
+            >
+              {{ profile.name }} ({{ profile.model }})
+            </option>
+          </select>
+        </div>
+      </section>
 
       <!-- Summary Settings -->
       <section class="settings-view__summary">

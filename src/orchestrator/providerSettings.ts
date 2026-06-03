@@ -2,6 +2,7 @@
 
 import type { GameEngineFacade } from "@/engine/gameEngineFacade";
 import { AiSdkProviderClient } from "@/orchestrator/aiSdkProviderClient";
+import type { HarnessToolExecutorDeps } from "@/orchestrator/harnessTools";
 import {
   FakeStreamingProviderClient,
   type ProviderClient,
@@ -59,6 +60,7 @@ export interface ProviderSettingsState {
   summaryEnabled: boolean;
   summaryTokenThreshold: number;
   summaryOldRatio: number;
+  toolProfileIds: Record<string, string>;
 }
 
 export interface PromptViewerProviderInfo {
@@ -89,6 +91,8 @@ export interface ProviderSettingsRepository {
     summaryTokenThreshold?: number;
     summaryOldRatio?: number;
   }): Promise<void>;
+  getToolProfile(toolName: string): Promise<ProviderProfile | null>;
+  setToolProfile(toolName: string, profileId: string | null): Promise<void>;
 }
 
 export interface ProviderSettingsRepositoryOptions {
@@ -175,6 +179,7 @@ function normalizeState(
     summaryEnabled: state.summaryEnabled ?? true,
     summaryTokenThreshold: state.summaryTokenThreshold ?? 4000,
     summaryOldRatio: state.summaryOldRatio ?? 0.5,
+    toolProfileIds: state.toolProfileIds ?? {},
   };
 }
 
@@ -206,6 +211,7 @@ export function createDefaultProviderSettingsState(
     summaryEnabled: true,
     summaryTokenThreshold: 4000,
     summaryOldRatio: 0.5,
+    toolProfileIds: {},
   };
 }
 
@@ -317,6 +323,7 @@ function migrateV1Config(
     summaryEnabled: true,
     summaryTokenThreshold: 4000,
     summaryOldRatio: 0.5,
+    toolProfileIds: {},
   };
 }
 
@@ -395,6 +402,13 @@ export class InMemoryProviderSettingsRepository implements ProviderSettingsRepos
     const profiles = state.profiles.filter(
       (candidate) => candidate.id !== profileId,
     );
+    // Remove dangling toolProfileIds entries pointing to the deleted profile
+    const toolProfileIds: Record<string, string> = {};
+    for (const [toolName, mappedId] of Object.entries(state.toolProfileIds)) {
+      if (mappedId !== profileId) {
+        toolProfileIds[toolName] = mappedId;
+      }
+    }
     this.state = {
       ...state,
       activeProfileId:
@@ -402,6 +416,7 @@ export class InMemoryProviderSettingsRepository implements ProviderSettingsRepos
           ? BUILTIN_FAKE_PROFILE_ID
           : state.activeProfileId,
       profiles,
+      toolProfileIds,
     };
   }
 
@@ -444,6 +459,41 @@ export class InMemoryProviderSettingsRepository implements ProviderSettingsRepos
         patch.summaryTokenThreshold ?? state.summaryTokenThreshold,
       summaryOldRatio: patch.summaryOldRatio ?? state.summaryOldRatio,
     };
+  }
+
+  public async getToolProfile(
+    toolName: string,
+  ): Promise<ProviderProfile | null> {
+    const state = await this.getState();
+    const profileId = state.toolProfileIds[toolName];
+    if (!profileId) return null;
+
+    const profile = state.profiles.find((p) => p.id === profileId);
+    if (!profile) return null; // gracefully handle deleted profiles
+
+    return deepClone(profile);
+  }
+
+  public async setToolProfile(
+    toolName: string,
+    profileId: string | null,
+  ): Promise<void> {
+    const state = await this.getState();
+    if (profileId !== null) {
+      findProfileOrThrow(state, profileId);
+    }
+    if (profileId === null) {
+      const { [toolName]: _removed, ...rest } = state.toolProfileIds;
+      this.state = { ...state, toolProfileIds: rest };
+    } else {
+      this.state = {
+        ...state,
+        toolProfileIds: {
+          ...state.toolProfileIds,
+          [toolName]: profileId,
+        },
+      };
+    }
   }
 }
 
@@ -538,15 +588,23 @@ export class LocalStorageProviderSettingsRepository extends InMemoryProviderSett
       );
     }
 
+    const profiles = state.profiles.filter(
+      (candidate) => candidate.id !== profileId,
+    );
+    const toolProfileIds: Record<string, string> = {};
+    for (const [toolName, mappedId] of Object.entries(state.toolProfileIds)) {
+      if (mappedId !== profileId) {
+        toolProfileIds[toolName] = mappedId;
+      }
+    }
     await this.saveState({
       ...state,
       activeProfileId:
         state.activeProfileId === profileId
           ? BUILTIN_FAKE_PROFILE_ID
           : state.activeProfileId,
-      profiles: state.profiles.filter(
-        (candidate) => candidate.id !== profileId,
-      ),
+      profiles,
+      toolProfileIds,
     });
   }
 
@@ -589,6 +647,23 @@ export class LocalStorageProviderSettingsRepository extends InMemoryProviderSett
       summaryOldRatio: patch.summaryOldRatio ?? state.summaryOldRatio,
     });
   }
+
+  public override async setToolProfile(
+    toolName: string,
+    profileId: string | null,
+  ): Promise<void> {
+    const state = await this.getState();
+    if (profileId !== null) {
+      findProfileOrThrow(state, profileId);
+    }
+    const nextToolProfileIds: Record<string, string> = profileId === null
+      ? (() => {
+          const { [toolName]: _removed, ...rest } = state.toolProfileIds;
+          return rest;
+        })()
+      : { ...state.toolProfileIds, [toolName]: profileId };
+    await this.saveState({ ...state, toolProfileIds: nextToolProfileIds });
+  }
 }
 
 export async function createConfiguredSummaryProviderClient(
@@ -611,9 +686,7 @@ export async function createConfiguredSummaryProviderClient(
 
 export async function createConfiguredProviderClient(
   repository: ProviderSettingsRepository = getProviderSettingsRepository(),
-  harnessDeps?: {
-    dispatchCommand: GameEngineFacade["dispatchCommand"];
-  },
+  harnessDeps?: Partial<HarnessToolExecutorDeps>,
 ): Promise<ConfiguredProviderClient> {
   const profile = await repository.getActiveProfile();
 
@@ -642,13 +715,13 @@ export async function createConfiguredProviderClient(
       reasoningEffort: profile.reasoningEffort,
       thinkingEnabled: profile.thinkingEnabled,
       showReasoning: profile.showReasoning,
-      harnessDeps: harnessDeps ?? {
+      harnessDeps: (harnessDeps ?? {
         dispatchCommand: (async () => {
           throw new Error(
             "[PROVIDER_NO_HARNESS_DEPS] harnessDeps not provided.",
           );
-        }) as unknown as GameEngineFacade["dispatchCommand"],
-      },
+        }) as GameEngineFacade["dispatchCommand"],
+      }) as HarnessToolExecutorDeps,
     }),
     providerInfo: toPromptViewerProviderInfo(profile),
   };

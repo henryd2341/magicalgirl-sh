@@ -100,7 +100,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         inParty: false,
         currentState: "正常上课中",
         combat: {
-          level: 1,
+          level: 50,
           exp: 0,
           hp: { current: 20, max: 20 },
           mp: { current: 10, max: 10 },
@@ -129,7 +129,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         inParty: false,
         currentState: "正常上课中",
         combat: {
-          level: 1,
+          level: 50,
           exp: 0,
           hp: { current: 20, max: 20 },
           mp: { current: 10, max: 10 },

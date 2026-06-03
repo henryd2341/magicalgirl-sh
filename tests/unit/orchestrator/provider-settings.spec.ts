@@ -37,6 +37,7 @@ describe("provider settings profiles", () => {
         summaryEnabled: true,
         summaryTokenThreshold: 4000,
         summaryOldRatio: 0.5,
+        toolProfileIds: {},
       });
   });
 

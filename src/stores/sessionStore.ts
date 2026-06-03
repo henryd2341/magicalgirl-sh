@@ -15,6 +15,7 @@ import { getPromptPresetRepository } from "@/orchestrator/promptPreset";
 import { createConfiguredProviderClient } from "@/orchestrator/providerSettings";
 import { getProviderSettingsRepository } from "@/orchestrator/providerSettings";
 import { createConfiguredSummaryProviderClient } from "@/orchestrator/providerSettings";
+import { serializeVariableStateToYaml } from "@/orchestrator/contextSerializer";
 import {
   RecoveryService,
   type RollbackResult,
@@ -701,7 +702,39 @@ export const useSessionStore = defineStore("session", () => {
     const chatRuntime = chatStore.getActiveChatRuntime();
     const configuredProvider = await createConfiguredProviderClient(
       undefined,
-      { dispatchCommand: gameEngineFacade.dispatchCommand.bind(gameEngineFacade) },
+      {
+        dispatchCommand: gameEngineFacade.dispatchCommand.bind(gameEngineFacade),
+        getToolProfile: async (toolName: string) => {
+          const repo = getProviderSettingsRepository();
+          return repo.getToolProfile(toolName);
+        },
+        getVariableSnapshot: async () => {
+          const state = await variableRepository.getCurrent();
+          if (!state?.root) return "";
+          return serializeVariableStateToYaml(
+            state.root,
+            lastPreviousValues.value.size > 0
+              ? lastPreviousValues.value
+              : undefined,
+          );
+        },
+        getLastMessages: async () => {
+          const messages = await chatRuntime.repository.list();
+          const finalized = messages.filter(
+            (m) => m.finalized && m.ai_visible,
+          );
+          const lastUser = finalized
+            .filter((m) => m.role === "user")
+            .slice(-1)[0];
+          const lastAssistant = finalized
+            .filter((m) => m.role === "assistant")
+            .slice(-1)[0];
+          return {
+            user: lastUser?.content ?? "",
+            assistant: lastAssistant?.content ?? "",
+          };
+        },
+      },
     );
     const repositories = getDbRecoveryRepositories();
     const battleStore = useBattleStore();
