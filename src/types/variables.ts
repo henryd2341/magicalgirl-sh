@@ -140,7 +140,10 @@ export interface VariableChangeLogRecord {
   createdAt: string;
 }
 
+export type PreviousValueMap = Map<string, unknown>;
+
 export interface VariablePatchResult {
   next: VariableValueRecord;
   nextHash: string;
+  previousValues: PreviousValueMap;
 }

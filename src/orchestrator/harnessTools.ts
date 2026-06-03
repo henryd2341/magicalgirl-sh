@@ -74,6 +74,7 @@ export function createHarnessToolsWithExecute(
           output: {
             next: result.next,
             nextHash: result.nextHash,
+            previousValues: result.previousValues,
           },
         };
       },
@@ -270,6 +271,7 @@ export function createHarnessToolExecutors(
           output: {
             next: result.next,
             nextHash: result.nextHash,
+            previousValues: result.previousValues,
           },
         };
       },

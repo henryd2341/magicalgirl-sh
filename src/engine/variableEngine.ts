@@ -6,6 +6,7 @@ import {
 import { deepClone } from "@/utils/deepClone";
 import type {
   GameVariablesRoot,
+  PreviousValueMap,
   VariablePatchEnvelope,
   VariablePatchResult,
   VariableValueRecord,
@@ -56,6 +57,21 @@ function computeStateHash(root: GameVariablesRoot, version: number): string {
   return `state-${hash.toString(16)}`;
 }
 
+function getValueAtPath(
+  root: GameVariablesRoot,
+  path: string,
+): unknown {
+  const segments = path.split(".");
+  let current: unknown = root;
+  for (const segment of segments) {
+    if (current === null || current === undefined || typeof current !== "object") {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
+}
+
 function setValueAtPath(
   root: GameVariablesRoot,
   path: string,
@@ -99,8 +115,13 @@ export class VariableEngine {
     }
 
     const nextRoot = deepClone(input.current.root);
+    const previousValues: PreviousValueMap = new Map();
     for (const patch of input.envelope.patches) {
       validateVariablePathPatch(nextRoot, patch);
+      const oldValue = getValueAtPath(input.current.root, patch.path);
+      if (typeof oldValue === "number") {
+        previousValues.set(patch.path, oldValue);
+      }
       setValueAtPath(nextRoot, patch.path, patch.value);
     }
 
@@ -119,6 +140,7 @@ export class VariableEngine {
     return {
       next,
       nextHash,
+      previousValues,
     };
   }
 }

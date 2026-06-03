@@ -56,6 +56,7 @@ import type { BattleParticipant } from "@/types/battle";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import type { PreviousValueMap } from "@/types/variables";
 import { getCharacter } from "@/content/contentRegistry";
 import { getAllCharacterIds } from "@/content/contentRegistry";
 import { getAllItems } from "@/content/contentRegistry";
@@ -99,6 +100,7 @@ export const useSessionStore = defineStore("session", () => {
   const variableEngine = new VariableEngine();
   const snapshot = ref(gameEngineFacade.getSessionSnapshot());
   const isStoryTurnRunning = ref(false);
+  const lastPreviousValues = ref<PreviousValueMap>(new Map());
 
   // ── Skill tree state ──
   const learnedSkills = ref<Map<string, Set<string>>>(new Map());
@@ -387,6 +389,7 @@ export const useSessionStore = defineStore("session", () => {
 
     toolExecutor = new ToolExecutor(gameEngineFacade);
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    lastPreviousValues.value = new Map();
   }
 
   async function persistRuntimeSnapshot() {
@@ -515,6 +518,10 @@ export const useSessionStore = defineStore("session", () => {
   ): Promise<UpdateVariablesToolResult> {
     const result = await toolExecutor.execute(envelope);
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+
+    if (result.ok) {
+      lastPreviousValues.value = result.output.previousValues;
+    }
 
     return result;
   }
@@ -725,6 +732,9 @@ export const useSessionStore = defineStore("session", () => {
           worldInfoRepository,
           promptPresetRepository: getPromptPresetRepository(),
           skillMetadata: skillStore.enabledMetadata,
+          previousValues: lastPreviousValues.value.size > 0
+            ? lastPreviousValues.value
+            : undefined,
           requestId: options.requestId,
           now: new Date().toISOString(),
         });
@@ -977,6 +987,7 @@ export const useSessionStore = defineStore("session", () => {
     }
 
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    lastPreviousValues.value = new Map();
     await persistRuntimeSnapshot();
 
     return result;

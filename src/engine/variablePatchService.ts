@@ -62,6 +62,7 @@ export class VariablePatchService {
       committed: true,
       next: result.next,
       nextHash: result.nextHash,
+      previousValues: result.previousValues,
     };
   }
 

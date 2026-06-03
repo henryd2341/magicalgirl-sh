@@ -1,8 +1,12 @@
 import { VariableEngine } from "@/engine/variableEngine";
 import { syncPlayerGenderWorldInfoActivation } from "@/content/worldInfoActivation";
 import { applyContextBudget } from "@/orchestrator/contextBudget";
-import { serializeVariableSnapshot } from "@/orchestrator/contextSerializer";
+import { serializeVariableStateToYaml } from "@/orchestrator/contextSerializer";
 import { renderMustacheTemplate } from "@/orchestrator/mustacheTemplate";
+import {
+  getWritablePaths,
+  getReadOnlyPaths,
+} from "@/orchestrator/schemaReader";
 import type {
   BuiltProviderRequest,
   ContextBudget,
@@ -12,6 +16,7 @@ import type {
   ProviderToolDefinition,
 } from "@/orchestrator/harnessContextTypes";
 import type { SkillMetadata } from "@/orchestrator/skillRegistry";
+import type { PreviousValueMap } from "@/types/variables";
 import type { ChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
 import type { VariableRepository } from "@/persistence/repositories/variableRepository";
 import type {
@@ -34,6 +39,7 @@ export interface BuildHarnessRequestInput {
   budget?: ContextBudget;
   mustacheVariables?: Record<string, string | number | boolean | null>;
   skillMetadata?: SkillMetadata[];
+  previousValues?: PreviousValueMap;
 }
 
 interface SelectedWorldInfo {
@@ -146,31 +152,8 @@ function renderWorldInfo(entries: WorldInfoEntry[]): string {
 
 function createToolDefinitions(): ProviderToolDefinition[] {
 function describeVariablePaths(): string {
-  const writable = [
-    "player.money",
-    "player.profile.name (string)",
-    "player.profile.gender (male|female)",
-    "player.profile.age (integer)",
-    "player.flags.* (boolean)",
-    "player.relationships.<character_id> (integer 0-100)",
-    "world.time.displayText (string)",
-    "world.time.timeSlot (string)",
-    "world.time.dayIndex (integer)",
-    "world.location.id (string)",
-    "world.location.name (string)",
-    "world.location.description (string)",
-    "world.flags.* (boolean)",
-    "inventory.items.<item_id> (quantity)",
-    "inventory.battleItems.<item_id> (quantity)",
-  ].join("\n  ");
-
-  const readOnly = [
-    "combat.level",
-    "combat.hp",
-    "combat.mp",
-    "combat.exp",
-    "characters.* (NPC info)",
-  ].join("\n  ");
+  const writable = getWritablePaths().join("\n  ");
+  const readOnly = getReadOnlyPaths().join("\n  ");
 
   return ["=== Path Visibility ===", "Writable paths (you may update via update_variables):", "  " + writable, "", "Read-only (visible in snapshot, do NOT update):", "  " + readOnly, "", "Hidden: system.*, stateHash, schemaVersion are never shown."].join("\n");
 }
@@ -353,7 +336,7 @@ export async function buildHarnessRequest(
       id: "state",
       kind: "state",
       title: "Game State Snapshot",
-      content: serializeVariableSnapshot(variableState),
+      content: serializeVariableStateToYaml(variableState.root, input.previousValues),
       source: "variableRepository",
     }),
     segment({

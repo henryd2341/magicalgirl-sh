@@ -1,25 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "./game_state_v1.json",
-  "title": "游戏核心状态变量树V1",
+
   "description": "游戏核心状态变量树。Schema 负责结构、类型和值域校验；AI 权限通过 x-aiAccess / x-aiWritableBy / x-aiContext 扩展字段声明，实际执行仍由本地 Game Engine 校验。",
   "type": "object",
   "additionalProperties": false,
   "x-schemaVersion": "1.0.0",
   "x-aiAccess": "read_only",
   "x-aiContext": true,
-  "required": [
-    "schemaVersion",
-    "world",
-    "player",
-    "characters",
-    "inventory"
-  ],
+  "required": ["schemaVersion", "world", "player", "characters", "inventory"],
   "properties": {
     "schemaVersion": {
       "type": "string",
       "const": "4.0.0",
-      "title": "Schema版本",
       "description": "用于存档迁移和兼容性判断。",
       "x-aiAccess": "hidden",
       "x-aiContext": false
@@ -70,7 +63,6 @@
     },
     "flagMap": {
       "type": "object",
-      "title": "剧情标记集合",
       "description": "键为稳定剧情标记ID，值为布尔状态。",
       "propertyNames": {
         "$ref": "#/$defs/id"
@@ -81,44 +73,35 @@
     },
     "gameTime": {
       "type": "object",
-      "title": "游戏内时间",
       "description": "结构化游戏内时间。面向AI展示时可由 Serializer 转成人类可读文本。",
       "additionalProperties": false,
       "x-aiAccess": "read_write",
-      "x-aiWritableBy": [
-        "update_world_state",
-        "advance_time"
-      ],
+      "x-aiWritableBy": ["update_world_state", "advance_time"],
       "x-aiContext": true,
-      "required": [
-        "displayText"
-      ],
+      "required": ["displayText"],
       "properties": {
         "displayText": {
           "type": "string",
           "minLength": 1,
           "maxLength": 120,
-          "title": "时间显示文本",
+
           "description": "例如：9月15日 周二 上午。若暂不实现结构化日历，可先只维护该字段。"
         },
         "dayIndex": {
           "type": "integer",
           "minimum": 1,
-          "title": "游戏经过天数",
           "description": "可选。用于系统事件、任务期限和时间推进。"
         },
         "timeSlot": {
           "type": "string",
           "minLength": 1,
           "maxLength": 40,
-          "title": "时间段",
           "description": "可选。由于当前设定未定义枚举，此处不强制枚举。"
         }
       }
     },
     "worldState": {
       "type": "object",
-      "title": "世界状态",
       "description": "世界相关状态，包括当前时间、地点、活跃事务和全局剧情标记。",
       "additionalProperties": false,
       "x-aiAccess": "read_write",
@@ -129,51 +112,35 @@
         "advance_time"
       ],
       "x-aiContext": true,
-      "required": [
-        "time",
-        "location",
-        "affairs",
-        "flags"
-      ],
+      "required": ["time", "location", "affairs", "flags"],
       "properties": {
         "time": {
           "$ref": "#/$defs/gameTime"
         },
         "location": {
           "type": "object",
-          "title": "当前地点",
           "description": "主角当前所在场景。",
           "additionalProperties": false,
           "x-aiAccess": "read_write",
-          "x-aiWritableBy": [
-            "update_world_state",
-            "move_location"
-          ],
+          "x-aiWritableBy": ["update_world_state", "move_location"],
           "x-aiContext": true,
-          "required": [
-            "id",
-            "name"
-          ],
+          "required": ["id", "name"],
           "properties": {
             "id": {
-              "$ref": "#/$defs/id",
-              "title": "地点ID"
+              "$ref": "#/$defs/id"
             },
             "name": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 120,
-              "title": "地点显示名"
+              "maxLength": 120
             },
             "description": {
-              "$ref": "#/$defs/mediumText",
-              "title": "地点简述"
+              "$ref": "#/$defs/mediumText"
             }
           }
         },
         "affairs": {
           "type": "object",
-          "title": "近期事务",
           "description": "活跃中的任务或事件线。键为事务ID。",
           "propertyNames": {
             "$ref": "#/$defs/id"
@@ -182,62 +149,45 @@
             "$ref": "#/$defs/affair"
           },
           "x-aiAccess": "read_write",
-          "x-aiWritableBy": [
-            "update_affairs"
-          ],
+          "x-aiWritableBy": ["update_affairs"],
           "x-aiContext": true
         },
         "flags": {
           "$ref": "#/$defs/flagMap",
-          "title": "世界剧情标记",
           "description": "全局剧情标记，用于分支控制。",
           "x-aiAccess": "read_write",
-          "x-aiWritableBy": [
-            "update_flags"
-          ],
+          "x-aiWritableBy": ["update_flags"],
           "x-aiContext": true
         }
       }
     },
     "affair": {
       "type": "object",
-      "title": "事务",
       "additionalProperties": false,
-      "required": [
-        "title",
-        "description",
-        "status"
-      ],
+      "required": ["title", "description", "status"],
       "properties": {
         "title": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 120,
-          "title": "事务标题"
+          "maxLength": 120
         },
         "description": {
-          "$ref": "#/$defs/longText",
-          "title": "事务描述"
+          "$ref": "#/$defs/longText"
         },
         "status": {
           "type": "string",
-          "enum": [
-            "进行中",
-            "已完成",
-            "失败"
-          ],
-          "title": "事务状态"
+          "enum": ["进行中", "已完成", "失败"]
         },
         "stage": {
           "type": "string",
           "minLength": 0,
           "maxLength": 120,
-          "title": "当前阶段",
+
           "description": "可选，用于表达任务流程中的阶段。"
         },
         "relatedCharacterIds": {
           "type": "array",
-          "title": "相关角色ID",
+
           "items": {
             "$ref": "#/$defs/id"
           },
@@ -245,70 +195,52 @@
           "default": []
         },
         "relatedLocationId": {
-          "$ref": "#/$defs/id",
-          "title": "相关地点ID"
+          "$ref": "#/$defs/id"
         }
       }
     },
     "profile": {
       "type": "object",
-      "title": "基础信息",
       "description": "外貌与身份信息。通常由玩家开局设定或剧情工具修改。",
       "additionalProperties": false,
-      "x-aiAccess": "read_write",
-      "x-aiWritableBy": [
-        "update_profile"
-      ],
-      "x-aiContext": true,
-      "required": [
-        "name",
-        "age",
-        "gender"
-      ],
+      "x-aiAccess": "read_only",
+      "x-aiWritableBy": ["update_profile"],
+      "x-aiContext": false,
+      "required": ["name", "age", "gender"],
       "properties": {
         "name": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 40,
-          "title": "姓名"
+          "maxLength": 40
         },
         "age": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 999,
-          "title": "年龄"
+          "maximum": 999
         },
         "gender": {
           "type": "string",
-          "enum": [
-            "男",
-            "女"
-          ],
-          "title": "性别"
+          "enum": ["男", "女"]
         },
         "bodyType": {
           "type": "string",
           "minLength": 0,
-          "maxLength": 120,
-          "title": "体型"
+          "maxLength": 120
         },
         "hairStyle": {
           "type": "string",
           "minLength": 0,
-          "maxLength": 120,
-          "title": "发型"
+          "maxLength": 120
         },
         "eyeColor": {
           "type": "string",
           "minLength": 0,
-          "maxLength": 120,
-          "title": "瞳色"
+          "maxLength": 120
         }
       }
     },
     "combatStats": {
       "type": "object",
-      "title": "战斗数据",
       "description": "战斗相关数值。该对象可用于主角，也可用于具备战斗能力的NPC。AI只读，实际变更由战斗、道具、休息等本地引擎命令提交。",
       "additionalProperties": false,
       "x-aiAccess": "read_only",
@@ -330,143 +262,112 @@
         "level": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 999,
-          "title": "等级"
+          "maximum": 999
         },
         "exp": {
           "type": "integer",
-          "minimum": 0,
-          "title": "经验"
+          "minimum": 0
         },
         "hp": {
           "type": "object",
-          "title": "HP",
+
           "additionalProperties": false,
-          "required": [
-            "current",
-            "max"
-          ],
+          "required": ["current", "max"],
           "properties": {
             "current": {
               "type": "integer",
-              "minimum": 0,
-              "title": "当前HP"
+              "minimum": 0
             },
             "max": {
               "type": "integer",
-              "minimum": 1,
-              "title": "最大HP"
+              "minimum": 1
             }
           }
         },
         "mp": {
           "type": "object",
-          "title": "MP",
+
           "additionalProperties": false,
-          "required": [
-            "current",
-            "max"
-          ],
+          "required": ["current", "max"],
           "properties": {
             "current": {
               "type": "integer",
-              "minimum": 0,
-              "title": "当前MP"
+              "minimum": 0
             },
             "max": {
               "type": "integer",
-              "minimum": 0,
-              "title": "最大MP"
+              "minimum": 0
             }
           }
         },
         "attack": {
           "type": "integer",
-          "minimum": 0,
-          "title": "攻击"
+          "minimum": 0
         },
         "defense": {
           "type": "integer",
-          "minimum": 0,
-          "title": "防御"
+          "minimum": 0
         },
         "agility": {
           "type": "integer",
-          "minimum": 0,
-          "title": "敏捷"
+          "minimum": 0
         },
         "intelligence": {
           "type": "integer",
-          "minimum": 0,
-          "title": "智力"
+          "minimum": 0
         },
         "allocatedPoints": {
           "type": "object",
-          "title": "已分配自由点数",
+          "x-aiContext": false,
           "description": "玩家手动分配的自由点数，决定攻击/防御/敏捷/智力超出基础的数值。",
           "additionalProperties": false,
-          "required": [
-            "attack",
-            "defense",
-            "agility",
-            "intelligence"
-          ],
+          "required": ["attack", "defense", "agility", "intelligence"],
           "properties": {
             "attack": {
               "type": "integer",
-              "minimum": 0,
-              "title": "攻击加点"
+              "minimum": 0
             },
             "defense": {
               "type": "integer",
-              "minimum": 0,
-              "title": "防御加点"
+              "minimum": 0
             },
             "agility": {
               "type": "integer",
-              "minimum": 0,
-              "title": "敏捷加点"
+              "minimum": 0
             },
             "intelligence": {
               "type": "integer",
-              "minimum": 0,
-              "title": "智力加点"
+              "minimum": 0
             }
           }
         },
         "unspentPoints": {
           "type": "integer",
           "minimum": 0,
-          "title": "未分配自由点数",
+          "x-aiContext": false,
           "description": "升级获得但尚未分配的自由点数。"
         }
       }
     },
     "accessoryEquipment": {
       "type": "object",
-      "title": "饰品装备",
+
       "description": "装备系统缩减为饰品。值为物品ID，null 表示未装备。物品是否存在、是否属于饰品、是否在全局物品池中，由引擎业务规则校验。",
       "additionalProperties": false,
       "x-aiAccess": "read_only",
       "x-aiWritableBy": [],
       "x-aiContext": true,
-      "required": [
-        "accessory"
-      ],
+      "required": ["accessory"],
       "properties": {
         "accessory": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$",
-          "title": "饰品"
+          "type": ["string", "null"],
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$"
         }
       }
     },
     "playerState": {
       "type": "object",
-      "title": "主角状态",
+
       "description": "玩家操控角色的核心状态。",
       "additionalProperties": false,
       "x-aiAccess": "read_only",
@@ -490,7 +391,7 @@
         "money": {
           "type": "integer",
           "minimum": 0,
-          "title": "金钱",
+
           "description": "持有金币数量。",
           "x-aiAccess": "read_write",
           "x-aiWritableBy": [],
@@ -501,7 +402,7 @@
         },
         "relationships": {
           "type": "object",
-          "title": "人际关系",
+
           "description": "对关键角色的好感度。键为角色ID，值为0-100。",
           "propertyNames": {
             "$ref": "#/$defs/id"
@@ -512,24 +413,20 @@
             "maximum": 100
           },
           "x-aiAccess": "read_write",
-          "x-aiWritableBy": [
-            "update_relationships"
-          ],
+          "x-aiWritableBy": ["update_relationships"],
           "x-aiContext": true
         },
         "flags": {
           "$ref": "#/$defs/flagMap",
-          "title": "主角剧情标记",
+
           "description": "玩家个人剧情标记。",
           "x-aiAccess": "read_write",
-          "x-aiWritableBy": [
-            "update_flags"
-          ],
+          "x-aiWritableBy": ["update_flags"],
           "x-aiContext": true
         },
         "learnedSkills": {
           "type": "object",
-          "title": "已学技能",
+
           "description": "各角色已学会的技能ID列表。键为角色ID，值为技能ID数组。",
           "propertyNames": {
             "$ref": "#/$defs/id"
@@ -546,7 +443,7 @@
     },
     "characterStateMap": {
       "type": "object",
-      "title": "角色状态表",
+
       "description": "主要非玩家角色的动态状态。键为稳定角色ID，不使用角色显示名。",
       "propertyNames": {
         "$ref": "#/$defs/id"
@@ -564,7 +461,7 @@
     },
     "characterState": {
       "type": "object",
-      "title": "角色状态",
+
       "description": "NPC 的动态状态。部分NPC拥有 combat 字段，可参与战斗；不需要战斗数据的NPC可将 combat 设为 null 或省略。",
       "additionalProperties": false,
       "required": [
@@ -578,62 +475,47 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 80,
-          "title": "显示名",
+
           "x-aiAccess": "read_write",
-          "x-aiWritableBy": [
-            "update_character_state"
-          ],
+          "x-aiWritableBy": ["update_character_state"],
           "x-aiContext": true
         },
         "identity": {
           "type": "string",
           "minLength": 0,
           "maxLength": 300,
-          "title": "身份",
+
           "description": "当前身份描述，如：柚木女子学院高一学生 / 行动小组现役成员。",
           "x-aiAccess": "read_write",
-          "x-aiWritableBy": [
-            "update_character_state"
-          ],
+          "x-aiWritableBy": ["update_character_state"],
           "x-aiContext": true
         },
         "relationshipTag": {
           "type": "string",
           "minLength": 0,
           "maxLength": 120,
-          "title": "关系标签",
+
           "description": "与主角的关系描述，如：同班同学、前辈、观察对象。",
           "x-aiAccess": "read_write",
-          "x-aiWritableBy": [
-            "update_character_state"
-          ],
+          "x-aiWritableBy": ["update_character_state"],
           "x-aiContext": true
         },
         "awakeningStatus": {
           "type": "string",
-          "enum": [
-            "未知",
-            "预备役",
-            "现役",
-            "退役"
-          ],
-          "title": "觉醒状态",
+          "enum": ["未知", "预备役", "现役", "退役"],
+
           "x-aiAccess": "read_write",
-          "x-aiWritableBy": [
-            "update_character_state"
-          ],
+          "x-aiWritableBy": ["update_character_state"],
           "x-aiContext": true
         },
         "currentState": {
           "type": "string",
           "minLength": 0,
           "maxLength": 300,
-          "title": "当前状态",
+
           "description": "特殊状态或位置，如：旅行中、在学生会室。",
           "x-aiAccess": "read_write",
-          "x-aiWritableBy": [
-            "update_character_state"
-          ],
+          "x-aiWritableBy": ["update_character_state"],
           "x-aiContext": true
         },
         "combat": {
@@ -645,7 +527,7 @@
               "type": "null"
             }
           ],
-          "title": "战斗数据",
+
           "description": "具备战斗能力的角色可拥有战斗数据；普通NPC可为 null 或省略。",
           "x-aiAccess": "read_only",
           "x-aiWritableBy": [],
@@ -653,19 +535,15 @@
         },
         "flags": {
           "$ref": "#/$defs/flagMap",
-          "title": "角色剧情标记",
+
           "description": "该角色个人剧情标记。",
           "x-aiAccess": "read_write",
-          "x-aiWritableBy": [
-            "update_flags",
-            "update_character_state"
-          ],
+          "x-aiWritableBy": ["update_flags", "update_character_state"],
           "x-aiContext": true
-        }
-        ,
+        },
         "equipment": {
           "type": "object",
-          "title": "装备",
+
           "additionalProperties": false,
           "x-aiAccess": "hidden",
           "x-aiContext": false,
@@ -678,7 +556,7 @@
         },
         "equippedSkills": {
           "type": "array",
-          "title": "装备技能",
+
           "description": "已装备用于战斗的技能ID列表，最多8个。",
           "items": { "type": "string", "minLength": 1 },
           "maxItems": 8,
@@ -690,20 +568,17 @@
     },
     "globalInventory": {
       "type": "object",
-      "title": "全局共享物品池",
+
       "description": "队伍共享的全局物品池。物品定义、名称、描述、效果应来自 item_def；状态树只保存数量和战斗可用分组。",
       "additionalProperties": false,
       "x-aiAccess": "read_only",
       "x-aiWritableBy": [],
       "x-aiContext": true,
-      "required": [
-        "items",
-        "battleItems"
-      ],
+      "required": ["items", "battleItems"],
       "properties": {
         "items": {
           "type": "object",
-          "title": "共享物品池",
+
           "description": "键为物品ID，值为该物品在全局池中的数量。数量必须大于等于1；归零时应删除该键。",
           "propertyNames": {
             "$ref": "#/$defs/id"
@@ -718,7 +593,7 @@
         },
         "battleItems": {
           "type": "object",
-          "title": "战斗用道具池",
+
           "description": "战斗中可使用的道具及可用数量。它是全局 items 的受控视图或子集；数量不得超过 items 中对应物品数量，该跨字段规则由引擎校验。",
           "propertyNames": {
             "$ref": "#/$defs/id"
