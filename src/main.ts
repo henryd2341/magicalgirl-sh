@@ -4,6 +4,7 @@ import { initializePersistentChatRuntime } from "./persistence/persistenceBootst
 import { router } from "./router";
 import { pinia } from "./stores";
 import { skillRegistry } from "./orchestrator/skillRegistry";
+import { useSkillStore } from "./stores/skillStore";
 import "./styles/index.css";
 
 const builtinSkillModules = import.meta.glob<string>(
@@ -20,7 +21,9 @@ async function bootstrapApp() {
     // The app can still run with in-memory stores when persistence is blocked.
   }
 
-  createApp(App).use(pinia).use(router).mount("#app");
+  const app = createApp(App).use(pinia).use(router);
+  useSkillStore().loadSkills();
+  app.mount("#app");
 }
 
 void bootstrapApp();

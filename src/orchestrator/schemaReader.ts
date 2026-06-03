@@ -35,33 +35,6 @@ function resolveRef(ref: string): SchemaNode | null {
   return node as SchemaNode;
 }
 
-function findAnnotationFromNode(
-  node: SchemaNode,
-  visited: Set<unknown> = new Set(),
-): { access: string; contextVisible: boolean } {
-  if (visited.has(node)) return { access: "read_only", contextVisible: true };
-  visited.add(node);
-
-  const access = node["x-aiAccess"];
-  const context = node["x-aiContext"];
-
-  if (node.$ref) {
-    const resolved = resolveRef(node.$ref);
-    if (resolved) {
-      const refAnnotation = findAnnotationFromNode(resolved, visited);
-      return {
-        access: access ?? refAnnotation.access,
-        contextVisible: context ?? refAnnotation.contextVisible,
-      };
-    }
-  }
-
-  return {
-    access: access ?? "read_only",
-    contextVisible: context !== false,
-  };
-}
-
 function findBestBranch(nodes: SchemaNode[]): SchemaNode | null {
   for (const node of nodes) {
     if (node.$ref) return node;
@@ -129,7 +102,7 @@ function walkSchema(
         ? (childNode["x-aiContext"] as boolean)
         : contextVisible;
 
-      if (childNode.properties || childNode.additionalProperties || childNode.$ref || childNode.oneOf || childNode.anyOf) {
+      if (childNode.properties || childNode.$ref || childNode.oneOf || childNode.anyOf) {
         if (childNode.$ref) {
           const resolved = resolveRef(childNode.$ref);
           if (resolved) {
@@ -249,6 +222,15 @@ export function isContextVisible(path: string): boolean {
   return true;
 }
 
+function isContainerPath(path: string, allPaths: string[]): boolean {
+  const prefix = `${path}.`;
+  return allPaths.some((p) => p !== path && p.startsWith(prefix));
+}
+
+function filterLeafPaths(paths: string[]): string[] {
+  return paths.filter((p) => !isContainerPath(p, paths)).sort();
+}
+
 export function getWritablePaths(): string[] {
   buildCache();
   const paths: string[] = [];
@@ -257,7 +239,7 @@ export function getWritablePaths(): string[] {
       paths.push(path);
     }
   }
-  return paths.sort();
+  return filterLeafPaths(paths);
 }
 
 export function getReadOnlyPaths(): string[] {
@@ -268,5 +250,5 @@ export function getReadOnlyPaths(): string[] {
       paths.push(path);
     }
   }
-  return paths.sort();
+  return filterLeafPaths(paths);
 }

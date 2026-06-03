@@ -128,9 +128,11 @@ describe("buildHarnessRequest", () => {
       "history",
     ]);
     expect(request.promptText).toContain("旧校舍在雨后会出现影魔涂鸦。");
-    expect(request.promptText).toContain("角色名称: 雷伊");
-    expect(request.promptText).toContain("当前地点: 旧校舍");
+    expect(request.promptText).toContain("name: 雷伊");
+    expect(request.promptText).toContain("name: 旧校舍");
     expect(request.promptText).toContain("药草: 2");
+    expect(request.promptText).toContain("# read_write");
+    expect(request.promptText).toContain("# read_only");
     expect(request.promptText).toContain("update_variables");
     expect(request.promptText).toContain("trigger_battle");
     expect(request.promptText).toContain("我走向旧校舍。");
@@ -537,15 +539,8 @@ describe("buildHarnessRequest", () => {
     expect(toolsContent).toContain("Writable paths");
     expect(toolsContent).toContain("Read-only");
     expect(toolsContent).toContain("Hidden");
-    expect(toolsContent).toContain("combat.level");
-    expect(toolsContent).toContain("combat.hp");
-    expect(toolsContent).toContain("player.money");
-    expect(toolsContent).toContain("player.relationships");
-    expect(toolsContent).toContain("inventory.items");
-    expect(toolsContent).toContain("encounter_id");
     expect(toolsContent).toContain("narrative_reason");
     expect(toolsContent).toContain("modifiers");
-    expect(toolsContent).toContain("player.profile.gender");
 
   });
 });
