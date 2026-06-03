@@ -26,7 +26,11 @@ function resolveRef(ref: string): SchemaNode | null {
   const segments = ref.slice(2).split("/");
   let node: unknown = schema;
   for (const seg of segments) {
-    if (node && typeof node === "object" && seg in (node as Record<string, unknown>)) {
+    if (
+      node &&
+      typeof node === "object" &&
+      seg in (node as Record<string, unknown>)
+    ) {
       node = (node as Record<string, unknown>)[seg];
     } else {
       return null;
@@ -61,9 +65,10 @@ function walkSchema(
   }
 
   const access = node["x-aiAccess"] ?? parentAccess;
-  const contextVisible = node["x-aiContext"] !== undefined
-    ? node["x-aiContext"] as boolean
-    : parentContext;
+  const contextVisible =
+    node["x-aiContext"] !== undefined
+      ? (node["x-aiContext"] as boolean)
+      : parentContext;
 
   // Cache annotations for explicitly-annotated object nodes so that
   // isContextVisible() can find them at the object level.
@@ -77,7 +82,12 @@ function walkSchema(
     });
   }
 
-  if (node.$ref && !node.properties && !node.additionalProperties && !node.oneOf) {
+  if (
+    node.$ref &&
+    !node.properties &&
+    !node.additionalProperties &&
+    !node.oneOf
+  ) {
     const resolved = resolveRef(node.$ref);
     if (resolved) {
       walkSchema(resolved, currentPath, access, contextVisible, visited);
@@ -98,11 +108,17 @@ function walkSchema(
     for (const [key, childNode] of Object.entries(node.properties)) {
       const childPath = currentPath ? `${currentPath}.${key}` : key;
       const childAccess = childNode["x-aiAccess"] ?? access;
-      const childContext = childNode["x-aiContext"] !== undefined
-        ? (childNode["x-aiContext"] as boolean)
-        : contextVisible;
+      const childContext =
+        childNode["x-aiContext"] !== undefined
+          ? (childNode["x-aiContext"] as boolean)
+          : contextVisible;
 
-      if (childNode.properties || childNode.$ref || childNode.oneOf || childNode.anyOf) {
+      if (
+        childNode.properties ||
+        childNode.$ref ||
+        childNode.oneOf ||
+        childNode.anyOf
+      ) {
         if (childNode.$ref) {
           const resolved = resolveRef(childNode.$ref);
           if (resolved) {
@@ -128,12 +144,21 @@ function walkSchema(
     }
   }
 
-  if (node.additionalProperties && typeof node.additionalProperties === "object") {
+  if (
+    node.additionalProperties &&
+    typeof node.additionalProperties === "object"
+  ) {
     const apNode = node.additionalProperties as SchemaNode;
     if (apNode.$ref) {
       const resolved = resolveRef(apNode.$ref);
       if (resolved) {
-        walkSchema(resolved, `${currentPath}.*`, access, contextVisible, visited);
+        walkSchema(
+          resolved,
+          `${currentPath}.*`,
+          access,
+          contextVisible,
+          visited,
+        );
       }
     } else {
       // Primitive-type additionalProperties (e.g., Record<string, number>)
@@ -151,10 +176,7 @@ function buildCache(): void {
   walkSchema(root, "", "read_only", true, new Map());
 }
 
-function matchWildcardPath(
-  runtimePath: string,
-  cachedKey: string,
-): boolean {
+function matchWildcardPath(runtimePath: string, cachedKey: string): boolean {
   const runtimeSegments = runtimePath.split(".");
   const cachedSegments = cachedKey.split(".");
 
@@ -168,9 +190,7 @@ function matchWildcardPath(
   return true;
 }
 
-function lookupAnnotation(
-  path: string,
-): PathAnnotation | undefined {
+function lookupAnnotation(path: string): PathAnnotation | undefined {
   buildCache();
 
   const exact = annotationCache.get(path);
@@ -185,7 +205,9 @@ function lookupAnnotation(
   return undefined;
 }
 
-export function getAccessAtPath(path: string): "read_only" | "read_write" | "hidden" {
+export function getAccessAtPath(
+  path: string,
+): "read_only" | "read_write" | "hidden" {
   const found = lookupAnnotation(path);
   if (found) return found.access;
 
@@ -197,7 +219,7 @@ export function getAccessAtPath(path: string): "read_only" | "read_write" | "hid
     if (wildcard) return wildcard.access;
   }
 
-  return "read_only";
+  return "read_write";
 }
 
 export function isContextVisible(path: string): boolean {

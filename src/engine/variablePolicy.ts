@@ -102,12 +102,12 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         combat: {
           level: 50,
           exp: 0,
-          hp: { current: 20, max: 20 },
-          mp: { current: 10, max: 10 },
-          attack: 5,
-          defense: 5,
-          agility: 5,
-          intelligence: 5,
+          hp: { current: 520, max: 300 },
+          mp: { current: 410, max: 100 },
+          attack: 55,
+          defense: 30,
+          agility: 25,
+          intelligence: 55,
           allocatedPoints: {
             attack: 0,
             defense: 0,
@@ -131,12 +131,12 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         combat: {
           level: 50,
           exp: 0,
-          hp: { current: 20, max: 20 },
-          mp: { current: 10, max: 10 },
-          attack: 5,
-          defense: 5,
-          agility: 5,
-          intelligence: 5,
+          hp: { current: 520, max: 20 },
+          mp: { current: 410, max: 10 },
+          attack: 55,
+          defense: 25,
+          agility: 30,
+          intelligence: 55,
           allocatedPoints: {
             attack: 0,
             defense: 0,
@@ -283,9 +283,6 @@ function isAllowedPath(path: string): boolean {
       "world.location.id",
       "world.location.name",
       "world.location.description",
-      "player.profile.name",
-      "player.profile.age",
-      "player.profile.gender",
       "player.money",
     ].includes(path) ||
     path.startsWith("world.flags.") ||

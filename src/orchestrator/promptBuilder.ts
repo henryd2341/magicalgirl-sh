@@ -1,12 +1,12 @@
-import { VariableEngine } from "@/engine/variableEngine";
 import { syncPlayerGenderWorldInfoActivation } from "@/content/worldInfoActivation";
+import { VariableEngine } from "@/engine/variableEngine";
 import { applyContextBudget } from "@/orchestrator/contextBudget";
 import { serializeVariableStateToYaml } from "@/orchestrator/contextSerializer";
 import { renderMustacheTemplate } from "@/orchestrator/mustacheTemplate";
-import {
-  getWritablePaths,
-  getReadOnlyPaths,
-} from "@/orchestrator/schemaReader";
+// import {
+//   getWritablePaths,
+//   getReadOnlyPaths,
+// } from "@/orchestrator/schemaReader";
 import type {
   BuiltProviderRequest,
   ContextBudget,
@@ -16,7 +16,6 @@ import type {
   ProviderToolDefinition,
 } from "@/orchestrator/harnessContextTypes";
 import type { SkillMetadata } from "@/orchestrator/skillRegistry";
-import type { PreviousValueMap } from "@/types/variables";
 import type { ChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
 import type { VariableRepository } from "@/persistence/repositories/variableRepository";
 import type {
@@ -25,7 +24,7 @@ import type {
   WorldInfoSearchResult,
 } from "@/persistence/repositories/worldInfoRepository";
 import type { ChatMessage } from "@/types/chat";
-import type { VariableValueRecord } from "@/types/variables";
+import type { PreviousValueMap, VariableValueRecord } from "@/types/variables";
 
 export interface BuildHarnessRequestInput {
   chatRepository: ChatHistoryRepository;
@@ -60,7 +59,9 @@ function estimateTokens(content: string): number {
   return Math.max(1, Math.ceil(content.length / 4));
 }
 
-function segment(input: Omit<PromptSegment, "tokenEstimate" | "included">): PromptSegment {
+function segment(
+  input: Omit<PromptSegment, "tokenEstimate" | "included">,
+): PromptSegment {
   return {
     ...input,
     tokenEstimate: estimateTokens(input.content),
@@ -90,9 +91,7 @@ function sortMessagesByCreatedAt(messages: ChatMessage[]): ChatMessage[] {
   );
 }
 
-function selectHistory(
-  messages: ChatMessage[],
-): ChatMessage[] {
+function selectHistory(messages: ChatMessage[]): ChatMessage[] {
   return sortMessagesByCreatedAt(
     messages.filter(
       (message) =>
@@ -101,9 +100,7 @@ function selectHistory(
   );
 }
 
-function selectConversationSummaries(
-  messages: ChatMessage[],
-): ChatMessage[] {
+function selectConversationSummaries(messages: ChatMessage[]): ChatMessage[] {
   return sortMessagesByCreatedAt(
     messages.filter(
       (message) => message.kind === "context_summary" && message.finalized,
@@ -140,23 +137,28 @@ function applyWorldInfoBudget(
   };
 }
 
-function renderWorldInfo(entries: WorldInfoEntry[]): string {
+function getWorldInfo(entries: WorldInfoEntry[]): string {
   if (entries.length === 0) {
     return "无命中的 world_info。";
   }
 
-  return entries
-    .map((entry) => `[${entry.id}]\n${entry.content}`)
-    .join("\n\n");
+  return entries.map((entry) => `[${entry.id}]\n${entry.content}`).join("\n\n");
 }
 
 function createToolDefinitions(): ProviderToolDefinition[] {
-function describeVariablePaths(): string {
-  const writable = getWritablePaths().join("\n  ");
-  const readOnly = getReadOnlyPaths().join("\n  ");
+  function describeVariablePaths(): string {
+    // const writable = getWritablePaths().join("\n  ");
+    // const readOnly = getReadOnlyPaths().join("\n  ");
 
-  return ["=== Path Visibility ===", "Writable paths (you may update via update_variables):", "  " + writable, "", "Read-only (visible in snapshot, do NOT update):", "  " + readOnly, "", "Hidden: system.*, stateHash, schemaVersion are never shown."].join("\n");
-}
+    return [
+      "=== Path Visibility ===",
+      "Writable paths (you may update via update_variables):",
+      "e.g. `world.time.displayText`, `player.money`, `characters.*`, ect,.",
+      "Read-only (visible in snapshot, do NOT update):",
+      "e.g. `player.equipment.accessory`, ",
+      "Hidden: system.*, stateHash, schemaVersion are never shown.",
+    ].join("\n");
+  }
 
   const pathGuide = describeVariablePaths();
 
@@ -168,13 +170,13 @@ function describeVariablePaths(): string {
         "The update is validated against JSON Schema and path whitelists. Invalid patches are rejected atomically.",
         "",
         "Fields:",
-        "  patches (array) - [{ \"path\": string, \"value\": any }]",
-        "    path: dot-separated path into the variable tree, e.g. \"player.flags.helped_cat\"",
+        '  patches (array) - [{ "path": string, "value": any }]',
+        '    path: dot-separated path into the variable tree, e.g. "player.flags.helped_cat"',
         "    value: new value for that path (type must match)",
         "",
         pathGuide,
         "",
-        "Example: { \"patches\": [{ \"path\": \"player.money\", \"value\": 200 }, { \"path\": \"player.flags.helped_cat\", \"value\": true }] }",
+        'Example: { "patches": [{ "path": "player.money", "value": 200 }, { "path": "player.flags.helped_cat", "value": true }] }',
       ].join("\n"),
     },
     {
@@ -183,15 +185,15 @@ function describeVariablePaths(): string {
         "Initiate a combat encounter. Places the game into pending battle state.",
         "",
         "Fields:",
-        "  encounter_id (string) - Unique identifier for this encounter, e.g. \"encounter_rooftop_shade\"",
-        "  enemies (array) - [{ \"enemy_id\": string, \"count\": integer >=1 }]",
+        '  encounter_id (string) - Unique identifier for this encounter, e.g. "encounter_rooftop_shade"',
+        '  enemies (array) - [{ "enemy_id": string, "count": integer >=1 }]',
         "    enemy_id: enemy type identifier",
         "    count: how many of this type",
-        "  modifiers (string[], optional) - Battle conditions, e.g. [\"ambush\", \"midnight\", \"first_battle\"]",
+        '  modifiers (string[], optional) - Battle conditions, e.g. ["ambush", "midnight", "first_battle"]',
         "  narrative_reason (string) - Why this battle is happening in the story",
         "",
         "Example:",
-        "  { \"encounter_id\": \"encounter_classroom_shade\", \"enemies\": [{ \"enemy_id\": \"shade_student\", \"count\": 1 }], \"modifiers\": [\"first_battle\"], \"narrative_reason\": \"一只暗影生物从虫洞出现，袭击了教室\" }",
+        '  { "encounter_id": "encounter_classroom_shade", "enemies": [{ "enemy_id": "shade_student", "count": 1 }], "modifiers": ["first_battle"], "narrative_reason": "一只暗影生物从虫洞出现，袭击了教室" }',
       ].join("\n"),
     },
     {
@@ -206,7 +208,6 @@ function describeVariablePaths(): string {
     },
   ];
 }
-
 
 function renderSkillsMetadata(metadata: SkillMetadata[]): string {
   if (metadata.length === 0) {
@@ -225,12 +226,8 @@ function renderSkillsMetadata(metadata: SkillMetadata[]): string {
 }
 
 function renderToolDefinitions(tools: ProviderToolDefinition[]): string {
-  const sections = tools.map(
-    (tool) =>
-      [
-        `tool: ${tool.name}`,
-        `description: ${tool.description}`,
-      ].join("\n"),
+  const sections = tools.map((tool) =>
+    [`tool: ${tool.name}`, `description: ${tool.description}`].join("\n"),
   );
 
   return sections.join("\n\n");
@@ -302,6 +299,16 @@ export async function buildHarnessRequest(
     variableState,
     input.mustacheVariables,
   ).text;
+  const renderedConstantWorldInfo = renderMustacheTemplate(
+    getWorldInfo(selectedWorldInfo.constantEntries),
+    variableState,
+    input.mustacheVariables,
+  ).text;
+  const renderedMatchedWorldInfo = renderMustacheTemplate(
+    getWorldInfo(selectedWorldInfo.matchedEntries),
+    variableState,
+    input.mustacheVariables,
+  ).text;
 
   const segments: PromptSegment[] = [
     segment({
@@ -322,21 +329,24 @@ export async function buildHarnessRequest(
       id: "constant_world_info",
       kind: "world_info",
       title: "Constant World Info",
-      content: renderWorldInfo(selectedWorldInfo.constantEntries),
+      content: renderedConstantWorldInfo,
       source: "worldInfoRepository",
     }),
     segment({
       id: "matched_world_info",
       kind: "world_info",
       title: "Matched World Info",
-      content: renderWorldInfo(selectedWorldInfo.matchedEntries),
+      content: renderedMatchedWorldInfo,
       source: "worldInfoRepository",
     }),
     segment({
       id: "state",
       kind: "state",
       title: "Game State Snapshot",
-      content: serializeVariableStateToYaml(variableState.root, input.previousValues),
+      content: serializeVariableStateToYaml(
+        variableState.root,
+        input.previousValues,
+      ),
       source: "variableRepository",
     }),
     segment({
@@ -361,37 +371,39 @@ export async function buildHarnessRequest(
     const summaryContent = renderConversationSummary(summaryMessages);
     if (summaryContent) {
       const historyIndex = segments.findIndex((s) => s.id === "history");
-      segments.splice(historyIndex, 0, segment({
-        id: "conversation_summary",
-        kind: "summary",
-        title: "Conversation Summary",
-        content: summaryContent,
-        source: "chatHistoryRepository",
-      }));
+      segments.splice(
+        historyIndex,
+        0,
+        segment({
+          id: "conversation_summary",
+          kind: "summary",
+          title: "Conversation Summary",
+          content: summaryContent,
+          source: "chatHistoryRepository",
+        }),
+      );
     }
   }
 
   const budgeted = applyContextBudget({
     segments,
     budget,
-    worldInfoPriorities: new Map(
+    worldInfoPriorities: new Map([
       [
-        [
-          "constant_world_info",
-          Math.max(
-            0,
-            ...selectedWorldInfo.constantEntries.map((entry) => entry.priority),
-          ),
-        ],
-        [
-          "matched_world_info",
-          Math.max(
-            0,
-            ...selectedWorldInfo.matchedEntries.map((entry) => entry.priority),
-          ),
-        ],
+        "constant_world_info",
+        Math.max(
+          0,
+          ...selectedWorldInfo.constantEntries.map((entry) => entry.priority),
+        ),
       ],
-    ),
+      [
+        "matched_world_info",
+        Math.max(
+          0,
+          ...selectedWorldInfo.matchedEntries.map((entry) => entry.priority),
+        ),
+      ],
+    ]),
   });
 
   return {

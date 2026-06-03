@@ -84,7 +84,6 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 120,
-
           "description": "例如：9月15日 周二 上午。若暂不实现结构化日历，可先只维护该字段。"
         },
         "dayIndex": {
@@ -201,11 +200,11 @@
     },
     "profile": {
       "type": "object",
-      "description": "外貌与身份信息。通常由玩家开局设定或剧情工具修改。",
+      "description": "外貌与身份信息。通常由玩家开局设定，不允许修改。",
       "additionalProperties": false,
-      "x-aiAccess": "read_write",
+      "x-aiAccess": "read_only",
       "x-aiWritableBy": ["update_profile"],
-      "x-aiContext": true,
+      "x-aiContext": false,
       "required": ["name", "age", "gender"],
       "properties": {
         "name": {
@@ -262,7 +261,7 @@
         "level": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 999
+          "maximum": 99
         },
         "exp": {
           "type": "integer",
@@ -402,8 +401,7 @@
         },
         "relationships": {
           "type": "object",
-
-          "description": "对关键角色的好感度。键为角色ID，值为0-100。",
+          "description": "关键角色的好感度。键为角色ID，值为0-100。",
           "propertyNames": {
             "$ref": "#/$defs/id"
           },
@@ -418,7 +416,6 @@
         },
         "flags": {
           "$ref": "#/$defs/flagMap",
-
           "description": "玩家个人剧情标记。",
           "x-aiAccess": "read_write",
           "x-aiWritableBy": ["update_flags"],
@@ -426,7 +423,6 @@
         },
         "learnedSkills": {
           "type": "object",
-
           "description": "各角色已学会的技能ID列表。键为角色ID，值为技能ID数组。",
           "propertyNames": {
             "$ref": "#/$defs/id"
@@ -437,13 +433,12 @@
             "uniqueItems": true
           },
           "x-aiAccess": "read_only",
-          "x-aiContext": true
+          "x-aiContext": false
         }
       }
     },
     "characterStateMap": {
       "type": "object",
-
       "description": "主要非玩家角色的动态状态。键为稳定角色ID，不使用角色显示名。",
       "propertyNames": {
         "$ref": "#/$defs/id"
@@ -531,7 +526,7 @@
           "description": "具备战斗能力的角色可拥有战斗数据；普通NPC可为 null 或省略。",
           "x-aiAccess": "read_only",
           "x-aiWritableBy": [],
-          "x-aiContext": true
+          "x-aiContext": false
         },
         "flags": {
           "$ref": "#/$defs/flagMap",
