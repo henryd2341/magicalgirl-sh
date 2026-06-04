@@ -100,7 +100,8 @@ export function createSessionManager(): SessionManager {
     enterCombatPending() {
       if (
         snapshot.sessionState !== "IDLE" &&
-        snapshot.sessionState !== "GENERATING"
+        snapshot.sessionState !== "GENERATING" &&
+        snapshot.sessionState !== "POST_COMBAT_READY"
       ) {
         throw createInvalidTransitionError(
           `Cannot enter COMBAT_PENDING from ${snapshot.sessionState}.`,

@@ -947,8 +947,6 @@ export const useSessionStore = defineStore("session", () => {
         battleStore.restoreBattleSnapshot(input),
       idFactory: {
         eventId: () => createRecoveryId("event"),
-        recoveryMessageId: () =>
-          createRecoveryId("msg-combat-refresh-recovery"),
       },
     });
 

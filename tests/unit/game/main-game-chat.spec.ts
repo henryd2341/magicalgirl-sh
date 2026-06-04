@@ -238,9 +238,11 @@ describe("MainGameView chat persistence wiring", () => {
       expect(recoveredBattleStore.pendingBattle).toBeNull();
       expect(recoveredBattleStore.activeBattle).toBeNull();
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      // After rollback, the recovery message is shown via alert() not DOM text.
+      // PostCombatPanel (continue story button) should NOT appear.
       expect(
-        screen.getByText("检测到战斗中刷新，已回滚到战斗前安全状态。"),
-      ).toBeInTheDocument();
+        screen.queryByText("检测到战斗中刷新，已回滚到战斗前安全状态。"),
+      ).not.toBeInTheDocument();
     });
   });
 

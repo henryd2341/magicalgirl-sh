@@ -15,7 +15,6 @@ import {
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 import { describe, expect, it } from "vitest";
 
-const RECOVERY_MESSAGE = "检测到战斗中刷新，已回滚到战斗前安全状态。";
 
 function createPlayerParty(): BattleParticipant[] {
   return [
@@ -90,7 +89,6 @@ function createServiceFixture() {
     },
     idFactory: {
       eventId: () => "event-refresh-recovery",
-      recoveryMessageId: () => "msg-refresh-recovery",
     },
     now: () => "2026-05-25T00:00:05.000Z",
   });
@@ -194,14 +192,7 @@ describe("CombatRefreshRecoveryService", () => {
     });
     expect((await chatRepository.list()).map((message) => message.id)).toEqual([
       "msg-before-combat",
-      "msg-refresh-recovery",
     ]);
-    expect(await chatRepository.getById("msg-refresh-recovery")).toMatchObject({
-      role: "system",
-      content: RECOVERY_MESSAGE,
-      user_visible: true,
-      ai_visible: false,
-    });
     expect(await eventLogRepository.list()).toContainEqual(
       expect.objectContaining({
         id: "event-refresh-recovery",
@@ -311,7 +302,6 @@ describe("CombatRefreshRecoveryService", () => {
     });
     expect((await chatRepository.list()).map((message) => message.id)).toEqual([
       "msg-current-chat",
-      "msg-refresh-recovery",
     ]);
   });
 });

@@ -194,181 +194,180 @@ onMounted(async () => {
       </nav>
 
       <template v-if="activeTab === 'prompt'">
-      <form class="settings-view__form" @submit.prevent="savePromptPreset">
-        <label class="chat-input-box__label" for="prompt-system-prompt">
-          System Prompt
-        </label>
-        <textarea
-          id="prompt-system-prompt"
-          v-model="form.systemPrompt"
-          class="settings-view__textarea"
-          rows="12"
-        />
-
-        <div class="settings-view__budget-grid">
-          <label class="chat-input-box__label" for="prompt-max-total-tokens">
-            最大总 token
-            <input
-              id="prompt-max-total-tokens"
-              v-model.number="form.maxTotalTokens"
-              class="settings-view__number-input"
-              type="number"
-              min="1"
-            />
+        <form class="settings-view__form" @submit.prevent="savePromptPreset">
+          <label class="chat-input-box__label" for="prompt-system-prompt">
+            System Prompt
           </label>
-          <label
-            class="chat-input-box__label settings-view__checkbox-label"
-            for="prompt-prerender-mustache-variables"
-          >
-            <input
-              id="prompt-prerender-mustache-variables"
-              v-model="form.previewMustacheVariables"
-              type="checkbox"
-            />
-            预渲染 Mustache Var
-          </label>
-        </div>
+          <textarea
+            id="prompt-system-prompt"
+            v-model="form.systemPrompt"
+            class="settings-view__textarea"
+            rows="12"
+          />
 
-        <section class="settings-view__mustache" aria-label="Mustache 变量说明">
-          <p>可用变量：</p>
-          <code v-text="'{{user}}'" />
-          <code v-text="'{{world.location.name}}'" />
-          <code v-text="'{{user|default=鹿目真昼}}'" />
-          <code v-text="'{{user ?? 鹿目真昼}}'" />
-        </section>
-
-        <section
-          v-if="form.previewMustacheVariables"
-          class="settings-view__mustache-preview"
-          aria-label="Mustache 预渲染结果"
-        >
-          <pre class="settings-view__pre">{{ mustachePreview.text }}</pre>
-          <ul class="settings-view__resolution-list">
-            <li
-              v-for="resolution in mustachePreview.resolutions"
-              :key="resolution.token"
-            >
-              <code>{{ resolution.token }}</code>
-              <span>{{ resolution.resolvedPath }}</span>
-              <span>{{ resolution.status }}</span>
-              <strong>{{ resolution.value ?? "null" }}</strong>
-            </li>
-          </ul>
-        </section>
-
-        <section class="settings-view__world-info" aria-label="world_info 条目">
-          <h2 class="settings-view__subheading">world_info 条目</h2>
-          <p v-if="worldInfoRows.length === 0" class="settings-view__empty">
-            当前没有可编辑的 world_info 条目。
-          </p>
-          <article
-            v-for="(entry, index) in worldInfoRows"
-            :key="entry.id"
-            class="settings-view__world-info-item"
-          >
-            <header class="settings-view__world-info-header">
-              <strong>{{ entry.id }}</strong>
-              <span>priority: {{ entry.priority }}</span>
-            </header>
-            <label
-              class="chat-input-box__label settings-view__checkbox-label"
-              :for="`world-info-${index}-constant`"
-            >
+          <div class="settings-view__budget-grid">
+            <label class="chat-input-box__label" for="prompt-max-total-tokens">
+              最大总 token
               <input
-                :id="`world-info-${index}-constant`"
-                v-model="entry.isConstant"
-                type="checkbox"
+                id="prompt-max-total-tokens"
+                v-model.number="form.maxTotalTokens"
+                class="settings-view__number-input"
+                type="number"
+                min="1"
               />
-              {{ entry.id }} 常驻
             </label>
             <label
               class="chat-input-box__label settings-view__checkbox-label"
-              :for="`world-info-${index}-enabled`"
+              for="prompt-prerender-mustache-variables"
             >
               <input
-                :id="`world-info-${index}-enabled`"
-                v-model="entry.enabled"
+                id="prompt-prerender-mustache-variables"
+                v-model="form.previewMustacheVariables"
                 type="checkbox"
               />
-              {{ entry.id }} 启用
+              预渲染 Mustache Var
             </label>
-            <label
-              class="chat-input-box__label"
-              :for="`world-info-${index}-keywords`"
+          </div>
+
+          <section class="settings-view__mustache" aria-label="Mustache 变量说明">
+            <p>可用变量：</p>
+            <code v-text="'{{user}}'" />
+            <code v-text="'{{world.location.name}}'" />
+            <code v-text="'{{user|default=鹿目真昼}}'" />
+            <code v-text="'{{user ?? 鹿目真昼}}'" />
+          </section>
+
+          <section
+            v-if="form.previewMustacheVariables"
+            class="settings-view__mustache-preview"
+            aria-label="Mustache 预渲染结果"
+          >
+            <pre class="settings-view__pre">{{ mustachePreview.text }}</pre>
+            <ul class="settings-view__resolution-list">
+              <li
+                v-for="resolution in mustachePreview.resolutions"
+                :key="resolution.token"
+              >
+                <code>{{ resolution.token }}</code>
+                <span>{{ resolution.resolvedPath }}</span>
+                <span>{{ resolution.status }}</span>
+                <strong>{{ resolution.value ?? "null" }}</strong>
+              </li>
+            </ul>
+          </section>
+
+          <section class="settings-view__world-info" aria-label="world_info 条目">
+            <h2 class="settings-view__subheading">world_info 条目</h2>
+            <p v-if="worldInfoRows.length === 0" class="settings-view__empty">
+              当前没有可编辑的 world_info 条目。
+            </p>
+            <article
+              v-for="(entry, index) in worldInfoRows"
+              :key="entry.id"
+              class="settings-view__world-info-item"
             >
-              {{ entry.id }} 关键词
-              <input
-                :id="`world-info-${index}-keywords`"
-                v-model="entry.keywordsText"
-                class="settings-view__text-input"
-                type="text"
-              />
-            </label>
-            <div class="settings-view__world-info-actions">
-              <button
-                class="secondary-cta"
-                type="button"
-                :disabled="index === 0"
-                @click="moveWorldInfoEntry(index, -1)"
+              <header class="settings-view__world-info-header">
+                <strong>{{ entry.id }}</strong>
+                <span>priority: {{ entry.priority }}</span>
+              </header>
+              <label
+                class="chat-input-box__label settings-view__checkbox-label"
+                :for="`world-info-${index}-constant`"
               >
-                上移
-              </button>
-              <button
-                class="secondary-cta"
-                type="button"
-                :disabled="index === worldInfoRows.length - 1"
-                @click="moveWorldInfoEntry(index, 1)"
+                <input
+                  :id="`world-info-${index}-constant`"
+                  v-model="entry.isConstant"
+                  type="checkbox"
+                />
+                {{ entry.id }} 常驻
+              </label>
+              <label
+                class="chat-input-box__label settings-view__checkbox-label"
+                :for="`world-info-${index}-enabled`"
               >
-                下移
-              </button>
-              <button
-                class="secondary-cta"
-                type="button"
-                @click="toggleWorldInfoContent(entry)"
+                <input
+                  :id="`world-info-${index}-enabled`"
+                  v-model="entry.enabled"
+                  type="checkbox"
+                />
+                {{ entry.id }} 启用
+              </label>
+              <label
+                class="chat-input-box__label"
+                :for="`world-info-${index}-keywords`"
               >
-                {{ entry.expanded ? "隐藏正文" : "查看正文" }}
-              </button>
-            </div>
-            <pre v-if="entry.expanded" class="settings-view__pre">{{
-              entry.content
-            }}</pre>
-          </article>
-        </section>
+                {{ entry.id }} 关键词
+                <input
+                  :id="`world-info-${index}-keywords`"
+                  v-model="entry.keywordsText"
+                  class="settings-view__text-input"
+                  type="text"
+                />
+              </label>
+              <div class="settings-view__world-info-actions">
+                <button
+                  class="secondary-cta"
+                  type="button"
+                  :disabled="index === 0"
+                  @click="moveWorldInfoEntry(index, -1)"
+                >
+                  上移
+                </button>
+                <button
+                  class="secondary-cta"
+                  type="button"
+                  :disabled="index === worldInfoRows.length - 1"
+                  @click="moveWorldInfoEntry(index, 1)"
+                >
+                  下移
+                </button>
+                <button
+                  class="secondary-cta"
+                  type="button"
+                  @click="toggleWorldInfoContent(entry)"
+                >
+                  {{ entry.expanded ? "隐藏正文" : "查看正文" }}
+                </button>
+              </div>
+              <pre v-if="entry.expanded" class="settings-view__pre">{{
+                entry.content
+              }}</pre>
+            </article>
+          </section>
 
-        <p v-if="statusMessage" role="status">{{ statusMessage }}</p>
+          <p v-if="statusMessage" role="status">{{ statusMessage }}</p>
 
+          <div class="settings-view__actions">
+            <button
+              id="settings-save-prompt-preset"
+              class="primary-cta"
+              type="submit"
+            >
+              保存 Prompt 设置
+            </button>
+            <button
+              id="settings-reset-prompt-preset"
+              class="secondary-cta"
+              type="button"
+              @click="resetPromptPreset"
+            >
+              恢复默认
+            </button>
+          </div>
+        </form>
         <div class="settings-view__actions">
           <button
-            id="settings-save-prompt-preset"
-            class="primary-cta"
-            type="submit"
-          >
-            保存 Prompt 设置
-          </button>
-          <button
-            id="settings-reset-prompt-preset"
+            id="settings-return-game"
             class="secondary-cta"
             type="button"
-            @click="resetPromptPreset"
+            @click="returnToGame"
           >
-            恢复默认
+            返回主游戏
           </button>
         </div>
-      </form>
-      <div class="settings-view__actions">
-        <button
-          id="settings-return-game"
-          class="secondary-cta"
-          type="button"
-          @click="returnToGame"
-        >
-          返回主游戏
-        </button>
-      </div>
       </template>
 
       <SkillSettingsPanel v-if="activeTab === 'skills'" />
-
     </section>
   </main>
 </template>

@@ -6,7 +6,6 @@ import type { CheckpointRepository } from "@/persistence/repositories/checkpoint
 import type { EventLogRepository } from "@/persistence/repositories/eventLogRepository";
 import type { VariableRepository } from "@/persistence/repositories/variableRepository";
 import type { BattleSnapshot, PendingBattleSnapshot } from "@/types/battle";
-import type { ChatMessage } from "@/types/chat";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 
 const RECOVERY_REASON = "combat_refresh_safe_rollback";
@@ -22,7 +21,6 @@ export interface CombatRefreshRecoveryResult {
 
 export interface CombatRefreshRecoveryIdFactory {
   eventId: () => string;
-  recoveryMessageId: () => string;
 }
 
 export interface CombatRefreshRecoveryDependencies {
@@ -99,7 +97,6 @@ export class CombatRefreshRecoveryService {
       dependencies.idFactory ??
       ({
         eventId: () => defaultId("event"),
-        recoveryMessageId: () => defaultId("msg-combat-refresh-recovery"),
       } satisfies CombatRefreshRecoveryIdFactory);
     this.now = dependencies.now ?? (() => new Date().toISOString());
   }
@@ -147,12 +144,12 @@ export class CombatRefreshRecoveryService {
     }
 
     await this.chatRepository.replaceAll(idleCheckpoint.chatMessages);
-    this.restoreSessionSnapshot(idleCheckpoint.sessionSnapshot);
+    this.resetSessionToIdle();
     this.restoreBattleSnapshot({
       pendingBattle: idleCheckpoint.pendingBattle,
       activeBattle: idleCheckpoint.activeBattle,
     });
-    await this.appendRecoveryMessage();
+    window.alert(RECOVERY_MESSAGE);
     await this.appendRollbackEvent({
       combatCheckpoint,
       rollbackCheckpoint: idleCheckpoint,
@@ -169,31 +166,13 @@ export class CombatRefreshRecoveryService {
       pendingBattle: undefined,
       activeBattle: undefined,
     });
-    await this.appendRecoveryMessage();
+    window.alert(RECOVERY_MESSAGE);
     await this.appendRollbackEvent({
       combatCheckpoint,
       rollbackCheckpoint: null,
       mode: "safe_reset",
     });
     await this.markCombatCheckpointResolved(combatCheckpoint, "safe_reset");
-  }
-
-  private async appendRecoveryMessage(): Promise<void> {
-    const createdAt = this.now();
-    const message: ChatMessage = {
-      id: this.idFactory.recoveryMessageId(),
-      role: "system",
-      kind: "normal",
-      content: RECOVERY_MESSAGE,
-      user_visible: true,
-      ai_visible: false,
-      provisional: false,
-      finalized: true,
-      failed: false,
-      created_at: createdAt,
-    };
-
-    await this.chatRepository.save(message);
   }
 
   private async appendRollbackEvent(input: {
@@ -207,8 +186,7 @@ export class CombatRefreshRecoveryService {
       createdAt: this.now(),
       source: "combat_refresh_recovery_service",
       payload: {
-        checkpointId:
-          input.rollbackCheckpoint?.id ?? input.combatCheckpoint.id,
+        checkpointId: input.rollbackCheckpoint?.id ?? input.combatCheckpoint.id,
         kind: input.rollbackCheckpoint?.kind ?? input.combatCheckpoint.kind,
         combatCheckpointId: input.combatCheckpoint.id,
         reason: RECOVERY_REASON,
