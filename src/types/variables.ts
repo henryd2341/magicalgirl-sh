@@ -118,6 +118,7 @@ export interface VariablePatchEnvelope {
   state_hash: string;
   tool_call_id: string;
   patches: VariablePathPatch[];
+  bypassAllowlist?: true;
 }
 
 export interface VariableValueRecord {

@@ -38,6 +38,7 @@ async function writeNewGameVariables(
       context_version: 1,
       state_hash: current.stateHash,
       tool_call_id: "new-game-setup-initial-profile",
+      bypassAllowlist: true,
       patches,
     },
   });

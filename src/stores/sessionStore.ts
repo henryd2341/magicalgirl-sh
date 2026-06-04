@@ -223,6 +223,7 @@ export const useSessionStore = defineStore("session", () => {
         context_version: varState.version,
         state_hash: varState.stateHash,
         tool_call_id: skillCallId,
+        bypassAllowlist: true,
         patches: [
           { path: "player.money", value: newMoney },
           {
@@ -273,6 +274,7 @@ export const useSessionStore = defineStore("session", () => {
         context_version: varState.version,
         state_hash: varState.stateHash,
         tool_call_id: callId,
+        bypassAllowlist: true,
         patches: [
           { path: `characters.${characterId}.equippedSkills`, value: updated },
         ],
@@ -302,6 +304,7 @@ export const useSessionStore = defineStore("session", () => {
         context_version: varState.version,
         state_hash: varState.stateHash,
         tool_call_id: callId,
+        bypassAllowlist: true,
         patches: [
           { path: `characters.${characterId}.equippedSkills`, value: updated },
         ],
@@ -325,6 +328,7 @@ export const useSessionStore = defineStore("session", () => {
         context_version: varState.version,
         state_hash: varState.stateHash,
         tool_call_id: callId,
+        bypassAllowlist: true,
         patches: [
           { path: `characters.${characterId}.equipment.accessory`, value: itemId },
         ],
@@ -622,6 +626,7 @@ export const useSessionStore = defineStore("session", () => {
               context_version: vs.version,
               state_hash: vs.stateHash,
               tool_call_id: itemConsumeCallId,
+              bypassAllowlist: true,
               patches: [
                 { path: "inventory.items", value: up },
                 { path: "inventory.battleItems", value: ub },

@@ -117,7 +117,9 @@ export class VariableEngine {
     const nextRoot = deepClone(input.current.root);
     const previousValues: PreviousValueMap = new Map();
     for (const patch of input.envelope.patches) {
-      validateVariablePathPatch(nextRoot, patch);
+      if (!input.envelope.bypassAllowlist) {
+        validateVariablePathPatch(nextRoot, patch);
+      }
       const oldValue = getValueAtPath(input.current.root, patch.path);
       if (typeof oldValue === "number") {
         previousValues.set(patch.path, oldValue);
