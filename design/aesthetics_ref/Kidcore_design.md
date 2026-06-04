@@ -18,7 +18,7 @@ density that rewards exploration. The philosophy is joyful maximalism --
 every pixel should feel like it was decorated by a kid with unlimited
 markers, stickers, and glitter glue.
 
-------------------------------------------------------------------------
+---
 
 ## Visual Characteristics
 
@@ -74,7 +74,7 @@ markers, stickers, and glitter glue.
 - **Layered discovery**: Dense compositions should reward exploration,
   with decorative details that reveal themselves on closer inspection
 
-------------------------------------------------------------------------
+---
 
 ## Color Palette
 
@@ -150,7 +150,7 @@ rainbow of secondary and accent hues at maximum saturation.
 }
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Typography
 
@@ -191,7 +191,7 @@ but personality matters more.
 ### Font Pairing Suggestions
 
 | Heading        | Body         | Vibe                                                                         |
-| -------------- | ------------ | ---------------------------------------------------------------------------- |
+| -------------- | ------------ | ------- |
 | Bubblegum Sans | Patrick Hand | Toy packaging meets notebook scribbles; playful and readable                 |
 | Fredoka (700)  | Gaegu        | Chunky rounded headers with casual handwritten body; arts-and-crafts         |
 | Bungee         | Patrick Hand | Bold block-letter impact paired with friendly handwriting; cereal box energy |
@@ -255,7 +255,7 @@ a:hover {
 }
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Layout Principles
 
@@ -314,7 +314,7 @@ a:hover {
   should be large (minimum 48px tap targets) which naturally aligns with
   the chunky, oversized aesthetic
 
-------------------------------------------------------------------------
+---
 
 ## CSS / Design Techniques {#css--design-techniques}
 
@@ -719,7 +719,7 @@ the palette.
 }
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Design Do's and Don'ts
 

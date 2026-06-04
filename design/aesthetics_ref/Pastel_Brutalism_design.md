@@ -11,7 +11,7 @@ hard-offset box shadows sit atop backgrounds of lavender, mint, baby
 pink, and buttercream, creating a visual tension that is both playful
 and architecturally rigorous.
 
-------------------------------------------------------------------------
+---
 
 ## Overview
 
@@ -56,7 +56,7 @@ let individual UI elements breathe within their stark frames. The
 overall impression is of a design that takes its structure seriously but
 does not take itself too seriously.
 
-------------------------------------------------------------------------
+---
 
 ## Visual Characteristics
 
@@ -122,7 +122,7 @@ does not take itself too seriously.
 - **Deliberate imperfection** -- slight asymmetries, bold mismatches in
   element sizing, and raw edges are features, not flaws
 
-------------------------------------------------------------------------
+---
 
 ## Color Palette
 
@@ -136,7 +136,7 @@ regions or component types, creating a patchwork quilt effect held
 together by the consistent black framework.
 
   | Swatch   | Hex                                               | Role / Usage                                                               |
-  | -------- | ------------------------------------------------- | -------------------------------------------------------------------------- |
+  | -------- | ------------------------------------------------- | ----- |
   | !#FFD6E0 | `#FFD6E0`{.language-plaintext .highlighter-rouge} | Baby Pink -- primary accent cards, hero backgrounds, CTA sections          |
   | !#C5B4E3 | `#C5B4E3`{.language-plaintext .highlighter-rouge} | Soft Lavender -- secondary cards, featured content blocks, tag backgrounds |
   | !#B8E8D0 | `#B8E8D0`{.language-plaintext .highlighter-rouge} | Mint Cream -- success states, positive indicators, alternate section fills |
@@ -190,7 +190,7 @@ together by the consistent black framework.
 }
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Typography
 
@@ -289,7 +289,7 @@ body {
 :::
 ::::
 
-------------------------------------------------------------------------
+---
 
 ## Layout Principles
 
@@ -324,7 +324,7 @@ body {
   shadows create an illusion of depth, but actual z-index stacking is
   avoided in favor of flat, honest placement
 
-------------------------------------------------------------------------
+---
 
 ## CSS / Design Techniques {#css--design-techniques}
 
@@ -712,7 +712,7 @@ body {
 :::
 ::::
 
-------------------------------------------------------------------------
+---
 
 ## Design Do's and Don'ts
 

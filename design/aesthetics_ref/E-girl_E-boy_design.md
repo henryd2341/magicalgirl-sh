@@ -16,7 +16,7 @@ design, it translates to playful asymmetry, anime-inspired illustration,
 bold pink and black contrasts, sticker-like UI elements, and an
 unapologetic embrace of cute-meets-edgy maximalism.
 
-------------------------------------------------------------------------
+---
 
 ## Visual Characteristics
 
@@ -78,7 +78,7 @@ unapologetic embrace of cute-meets-edgy maximalism.
   readable against busy backgrounds through careful contrast and
   backdrop treatments
 
-------------------------------------------------------------------------
+---
 
 ## Color Palette
 
@@ -156,7 +156,7 @@ aesthetic.
 :::
 ::::
 
-------------------------------------------------------------------------
+---
 
 ## Typography
 
@@ -274,7 +274,7 @@ body {
 }
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Layout Principles
 
@@ -334,7 +334,7 @@ body {
 - Typography scales down but retains the rounded, bubbly character --
   never switch to a corporate sans-serif
 
-------------------------------------------------------------------------
+---
 
 ## CSS / Design Techniques {#css--design-techniques}
 
@@ -734,7 +734,7 @@ A testimonial component styled as a chat message with emoji reactions.
 }
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Design Do's and Don'ts
 
