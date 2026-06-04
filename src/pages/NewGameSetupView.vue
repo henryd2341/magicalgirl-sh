@@ -93,9 +93,9 @@ async function cancelNewGame() {
       <p class="eyebrow eyebrow--blue">New Game Setup</p>
       <h1 class="section-heading--playful">新游戏初始化</h1>
       <form class="new-game-setup-view__form">
-        <label class="chat-input-box__label" for="new-game-player-name"
-          >角色姓名</label
-        >
+        <label class="chat-input-box__label" for="new-game-player-name">
+          角色姓名
+        </label>
         <input
           id="new-game-player-name"
           v-model="playerName"

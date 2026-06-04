@@ -283,6 +283,8 @@ function isAllowedPath(path: string): boolean {
       "world.location.id",
       "world.location.name",
       "world.location.description",
+      "player.name",
+      "player.gender",
       "player.money",
     ].includes(path) ||
     path.startsWith("world.flags.") ||
