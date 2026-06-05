@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="250" height="250">
+  <defs>
+    <!-- 发光滤镜 -->
+    <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <!-- 产生边缘颜色的模糊层 -->
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur1" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur2" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="24" result="blur3" />
+      <!-- 合并光晕和原图 -->
+      <feMerge>
+        <feMergeNode in="blur3" />
+        <feMergeNode in="blur2" />
+        <feMergeNode in="blur1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- 徽章组：整体应用发光滤镜，中心位置相较于上一版有所偏移以适应更大的 ViewBox -->
+  <g filter="url(#neon-glow)" transform="translate(20, 20)">
+    <!-- 徽章主体：暗色填充，亮蓝色外缘 -->
+    <path
+      d="M 60 22 
+             L 71.75 45.82 
+             L 98.04 49.64 
+             L 79.02 68.18 
+             L 83.51 94.36 
+             L 60 82 
+             L 36.49 94.36 
+             L 40.98 68.18 
+             L 21.96 49.64 
+             L 48.25 45.82 Z"
+      fill="#0f172a"
+      stroke="#00f0ff"
+      stroke-width="8"
+      stroke-linejoin="round" />
+    <!-- 内部细节线 -->
+    <path
+      d="M 60 22 
+             L 71.75 45.82 
+             L 98.04 49.64 
+             L 79.02 68.18 
+             L 83.51 94.36 
+             L 60 82 
+             L 36.49 94.36 
+             L 40.98 68.18 
+             L 21.96 49.64 
+             L 48.25 45.82 Z"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="1.5"
+      stroke-linejoin="round"
+      opacity="0.8" />
+    <!-- 发光核心 -->
+    <circle cx="60" cy="62" r="5" fill="#ffffff" />
+    <circle cx="60" cy="62" r="8" fill="#00f0ff" opacity="0.6" />
+  </g>
+</svg>

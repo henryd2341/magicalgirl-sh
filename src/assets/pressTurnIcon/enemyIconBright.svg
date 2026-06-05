@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="250" height="250">
+  <defs>
+    <!-- 发光滤镜 -->
+    <filter id="neon-glow-red" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur1" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur2" />
+      <feGaussianBlur in="SourceGraphic" stdDeviation="24" result="blur3" />
+      <feMerge>
+        <feMergeNode in="blur3" />
+        <feMergeNode in="blur2" />
+        <feMergeNode in="blur1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#neon-glow-red)" transform="translate(20, 20)">
+    <!-- 徽章主体：极暗红填充，高亮霓虹红外缘 -->
+    <path
+      d="M 60 22 
+             L 71.75 45.82 
+             L 98.04 49.64 
+             L 79.02 68.18 
+             L 83.51 94.36 
+             L 60 82 
+             L 36.49 94.36 
+             L 40.98 68.18 
+             L 21.96 49.64 
+             L 48.25 45.82 Z"
+      fill="#1a0505"
+      stroke="#ff1a1a"
+      stroke-width="8"
+      stroke-linejoin="round" />
+    <!-- 内部细节线 -->
+    <path
+      d="M 60 22 
+             L 71.75 45.82 
+             L 98.04 49.64 
+             L 79.02 68.18 
+             L 83.51 94.36 
+             L 60 82 
+             L 36.49 94.36 
+             L 40.98 68.18 
+             L 21.96 49.64 
+             L 48.25 45.82 Z"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="1.5"
+      stroke-linejoin="round"
+      opacity="0.8" />
+    <!-- 发光核心 -->
+    <circle cx="60" cy="62" r="5" fill="#ffffff" />
+    <circle cx="60" cy="62" r="8" fill="#ff1a1a" opacity="0.6" />
+  </g>
+</svg>

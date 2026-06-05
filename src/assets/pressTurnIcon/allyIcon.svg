@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="250" height="250">
+  <!-- 徽章主体：暗色填充，蓝色粗圆角外缘 -->
+  <path d="M 60 22 
+           L 71.75 45.82 
+           L 98.04 49.64 
+           L 79.02 68.18 
+           L 83.51 94.36 
+           L 60 82 
+           L 36.49 94.36 
+           L 40.98 68.18 
+           L 21.96 49.64 
+           L 48.25 45.82 Z" 
+        fill="#1e293b" 
+        stroke="#3b82f6" 
+        stroke-width="12" 
+        stroke-linejoin="round"/>
+  <!-- 内部细节：亮蓝色勾边，增强层次感 -->
+  <path d="M 60 22 
+           L 71.75 45.82 
+           L 98.04 49.64 
+           L 79.02 68.18 
+           L 83.51 94.36 
+           L 60 82 
+           L 36.49 94.36 
+           L 40.98 68.18 
+           L 21.96 49.64 
+           L 48.25 45.82 Z" 
+        fill="none" 
+        stroke="#93c5fd" 
+        stroke-width="2" 
+        stroke-linejoin="round"/>
+  <!-- 中心装饰：小星星/能量核心 -->
+  <circle cx="60" cy="62" r="6" fill="#60a5fa" />
+</svg>
