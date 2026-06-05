@@ -1,45 +1,511 @@
 // ============================================================
-// E-girl / E-boy Theme — Default
+// E-girl / E-boy Theme — Default (data-theme="e-girl" or no attr)
 // Reference: design/aesthetics_ref/E-girl_E-boy_design.md
-// Dark pink+black maximalist, anime/sticker/chain motifs
+// Dark pink+black maximalist, anime/sticker/chain motifs,
+// rounded bubbly typography, glow effects.
 // ============================================================
 
 :root[data-theme="e-girl"],
 :root {
-  // --- colors ---
-  --mg-bg: #1a1a1a;
-  --mg-bg-card: #2d2d2d;
+  // ==========================================================
+  // COLOR PALETTE (15 core colors from reference)
+  // ==========================================================
+
+  // Primary pinks
+  --mg-pink-blush: #ff6b9d;
+  --mg-pink-magenta: #ff2d78;
+  --mg-pink-cream: #ffe4ed;
+
+  // Darks
+  --mg-dark-black: #1a1a1a;
+  --mg-dark-charcoal: #2d2d2d;
+  --mg-dark-plum: #3d1f56;
+
+  // Purples & lilacs
+  --mg-purple-lavender: #c9a0dc;
+  --mg-purple-lilac: #b24bf3;
+
+  // Cool tones
+  --mg-cool-blue: #7ec8e3;
+  --mg-cool-eboy-blue: #546de5;
+
+  // Neutrals
+  --mg-neutral-silver: #c0c0c0;
+  --mg-neutral-white: #f5f0f6;
+  --mg-neutral-gray: #e8e0eb;
+
+  // Utility
+  --mg-util-red: #ff4757;
+  --mg-util-green: #7bed9f;
+
+  // ==========================================================
+  // FUNCTIONAL TOKENS (semantic role mapping)
+  // ==========================================================
+
+  // Backgrounds
+  --mg-bg: var(--mg-dark-black);
+  --mg-bg-card: var(--mg-dark-charcoal);
   --mg-bg-overlay: rgba(26, 26, 26, 0.92);
-  --mg-text: #f5f0f6;
-  --mg-text-secondary: #c9a0dc;
+  --mg-bg-input: var(--mg-dark-black);
+  --mg-bg-hover: rgba(255, 107, 157, 0.08);
+  --mg-ink-outline: #180d1f;
+
+  // Text
+  --mg-text: var(--mg-neutral-white);
+  --mg-text-secondary: var(--mg-purple-lavender);
   --mg-text-muted: #888;
-  --mg-accent: #ff6b9d;
-  --mg-accent-strong: #ff2d78;
+  --mg-text-on-accent: #fff;
+
+  // Accent
+  --mg-accent: var(--mg-pink-blush);
+  --mg-accent-strong: var(--mg-pink-magenta);
+  --mg-accent-subtle: rgba(255, 107, 157, 0.15);
   --mg-accent-glow: rgba(255, 107, 157, 0.4);
-  --mg-border: #c0c0c0;
+
+  // Borders
+  --mg-border: var(--mg-neutral-silver);
   --mg-border-light: rgba(255, 107, 157, 0.2);
-  --mg-shadow: #1a1a1a;
-  --mg-success: #7bed9f;
+  --mg-border-strong: var(--mg-pink-magenta);
+
+  // Semantic
+  --mg-success: var(--mg-util-green);
   --mg-warning: #ffd600;
-  --mg-error: #ff4757;
+  --mg-error: var(--mg-util-red);
+  --mg-info: var(--mg-cool-blue);
 
-  // --- typography ---
-  --mg-font-heading: "Fredoka", sans-serif;
-  --mg-font-body: "Quicksand", sans-serif;
-  --mg-font-mono: monospace;
-  --mg-font-handwritten: "Patrick Hand", cursive;
-
-  // --- effects ---
-  --mg-shadow-style: 0 0 10px rgba(255, 107, 157, 0.4), 0 0 30px rgba(255, 107, 157, 0.15);
-  --mg-glow-pink: 0 0 10px rgba(255, 107, 157, 0.4), 0 0 30px rgba(255, 107, 157, 0.15);
-  --mg-glow-lilac: 0 0 10px rgba(178, 75, 243, 0.4), 0 0 30px rgba(178, 75, 243, 0.15);
-  --mg-border-width: 2px;
-  --mg-radius: 16px;
-  --mg-radius-sm: 8px;
-  --mg-radius-lg: 24px;
-
-  // --- surface fills ---
+  // Surfaces
   --mg-surface-pink: rgba(255, 107, 157, 0.08);
   --mg-surface-lavender: rgba(201, 160, 220, 0.12);
-  --mg-surface-dark: #2d2d2d;
+  --mg-surface-plum: rgba(61, 31, 86, 0.25);
+  --mg-surface-hover: rgba(255, 107, 157, 0.15);
+
+  // Message role backgrounds
+  --mg-message-assistant: linear-gradient(180deg, rgba(61, 31, 86, 0.96), rgba(27, 11, 35, 0.98));
+  --mg-message-assistant-border: rgba(178, 75, 243, 0.38);
+  --mg-message-user: linear-gradient(180deg, rgba(82, 28, 73, 0.96), rgba(37, 12, 34, 0.98));
+  --mg-message-user-border: rgba(255, 107, 157, 0.42);
+  --mg-message-system: linear-gradient(180deg, rgba(28, 45, 57, 0.96), rgba(14, 23, 31, 0.98));
+  --mg-message-system-border: rgba(126, 200, 227, 0.36);
+  --mg-message-failed: linear-gradient(180deg, rgba(74, 39, 22, 0.96), rgba(43, 21, 15, 0.98));
+  --mg-message-failed-border: rgba(255, 217, 61, 0.56);
+
+  // Input backgrounds
+  --mg-input-bg: linear-gradient(180deg, rgba(26, 12, 31, 0.98), rgba(18, 8, 20, 1));
+  --mg-input-border: rgba(255, 107, 157, 0.36);
+
+  // ==========================================================
+  // TYPOGRAPHY
+  // ==========================================================
+
+  --mg-font-heading: "Fredoka", "Comfortaa", sans-serif;
+  --mg-font-body: "Quicksand", "Baloo 2", sans-serif;
+  --mg-font-mono: "Courier New", monospace;
+  --mg-font-handwritten: "Patrick Hand", cursive;
+
+  // Font weights
+  --mg-font-weight-heading: 700;
+  --mg-font-weight-body: 400;
+  --mg-font-weight-strong: 600;
+
+  // Font sizes
+  --mg-font-xs: 0.7rem;
+  --mg-font-sm: 0.8rem;
+  --mg-font-md: 0.9rem;
+  --mg-font-base: 1rem;
+  --mg-font-lg: 1.2rem;
+  --mg-font-xl: 1.5rem;
+  --mg-font-display: clamp(2.5rem, 7vw, 5rem);
+  --mg-font-hero: clamp(3rem, 10vw, 6rem);
+
+  // Line height
+  --mg-leading-tight: 1.1;
+  --mg-leading-normal: 1.5;
+  --mg-leading-relaxed: 1.7;
+
+  // Letter spacing
+  --mg-tracking-tight: 0;
+  --mg-tracking-normal: 0;
+  --mg-tracking-wide: 0.04em;
+  --mg-tracking-eyebrow: 0.08em;
+
+  // ==========================================================
+  // GLOW EFFECTS (signature E-girl/E-boy feature)
+  // ==========================================================
+
+  --mg-glow-pink: 0 0 10px rgba(255, 107, 157, 0.4), 0 0 30px rgba(255, 107, 157, 0.15);
+  --mg-glow-lilac: 0 0 10px rgba(178, 75, 243, 0.4), 0 0 30px rgba(178, 75, 243, 0.15);
+  --mg-glow-blue: 0 0 10px rgba(126, 200, 227, 0.4), 0 0 30px rgba(126, 200, 227, 0.15);
+  --mg-glow-strong: 0 0 14px rgba(255, 45, 120, 0.5), 0 0 40px rgba(255, 45, 120, 0.2);
+
+  // Text outline (display headings)
+  --mg-text-outline: -2px -2px 0 var(--mg-pink-magenta),
+    2px -2px 0 var(--mg-pink-magenta),
+    -2px 2px 0 var(--mg-pink-magenta),
+    2px 2px 0 var(--mg-pink-magenta);
+
+  // ==========================================================
+  // SHADOWS
+  // ==========================================================
+
+  --mg-shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --mg-shadow-elevated: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --mg-shadow-sticker: 8px 8px 0 rgba(24, 13, 31, 0.86);
+  --mg-shadow-style: var(--mg-glow-pink);
+
+  // ==========================================================
+  // BORDERS & RADIUS
+  // ==========================================================
+
+  --mg-border-width: 2px;
+  --mg-border-width-thick: 3px;
+
+  --mg-radius-xs: 4px;
+  --mg-radius-sm: 8px;
+  --mg-radius: 16px;
+  --mg-radius-lg: 20px;
+  --mg-radius-xl: 24px;
+  --mg-radius-2xl: 32px;
+  --mg-radius-pill: 999px;
+  --mg-radius-circle: 50%;
+
+  // ==========================================================
+  // SPACING
+  // ==========================================================
+
+  --mg-space-xs: 4px;
+  --mg-space-sm: 8px;
+  --mg-space-3: 12px;
+  --mg-space-md: 16px;
+  --mg-space-5: 20px;
+  --mg-space-lg: 24px;
+  --mg-space-xl: 32px;
+  --mg-space-2xl: 48px;
+  --mg-space-3xl: 64px;
+  --mg-max-width: 1280px;
+
+  // ==========================================================
+  // TRANSITIONS
+  // ==========================================================
+
+  --mg-transition-fast: 150ms ease;
+  --mg-transition-base: 250ms ease;
+  --mg-transition-slow: 400ms ease;
+  --mg-transition-bounce: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  // ==========================================================
+  // Z-INDEX LAYERS
+  // ==========================================================
+
+  --mg-z-background: 0;
+  --mg-z-content: 10;
+  --mg-z-overlay: 100;
+  --mg-z-modal: 200;
+  --mg-z-tooltip: 300;
+  --mg-z-devtools: 400;
 }
+
+// ============================================================
+// E-GIRL / E-BOY UTILITY CLASSES (theme-specific patterns)
+// ============================================================
+
+// -- Glow accent helper --
+.mg-glow-pink { box-shadow: var(--mg-glow-pink); }
+.mg-glow-lilac { box-shadow: var(--mg-glow-lilac); }
+.mg-glow-hover:hover { box-shadow: var(--mg-glow-pink); }
+
+// -- Checkerboard pattern --
+.mg-checkerboard {
+  background-color: var(--mg-dark-charcoal);
+  background-image:
+    linear-gradient(45deg, rgba(255, 107, 157, 0.08) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 107, 157, 0.08) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 107, 157, 0.08) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 107, 157, 0.08) 75%);
+  background-size: 30px 30px;
+  background-position: 0 0, 0 15px, 15px -15px, -15px 0;
+}
+
+// -- Sticker badge --
+.mg-sticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mg-font-heading);
+  font-weight: 600;
+  font-size: var(--mg-font-xs);
+  padding: 4px 12px;
+  border-radius: var(--mg-radius-pill);
+  border: var(--mg-border-width) solid var(--mg-accent);
+  transform: rotate(-2deg);
+  transition: transform var(--mg-transition-base);
+  &:hover { transform: rotate(0deg) scale(1.05); }
+  &--pink { background: var(--mg-pink-cream); color: var(--mg-pink-magenta); border-color: var(--mg-pink-magenta); }
+  &--purple { background: rgba(178, 75, 243, 0.15); color: var(--mg-purple-lilac); border-color: var(--mg-purple-lilac); }
+  &--dark { background: var(--mg-dark-black); color: var(--mg-pink-blush); border-color: var(--mg-pink-blush); }
+}
+
+// -- Chain-link divider --
+.mg-chain-divider {
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--mg-neutral-silver) 0px,
+    var(--mg-neutral-silver) 10px,
+    transparent 10px,
+    transparent 14px,
+    var(--mg-neutral-silver) 14px,
+    var(--mg-neutral-silver) 18px,
+    transparent 18px,
+    transparent 22px
+  );
+  border-radius: 2px;
+  opacity: 0.4;
+  margin: var(--mg-space-md) 0;
+}
+
+// -- Panel (replaces old .scrapbook-panel) --
+.mg-panel {
+  background: var(--mg-bg-card);
+  border: var(--mg-border-width) solid var(--mg-border-light);
+  border-radius: var(--mg-radius);
+  padding: var(--mg-space-lg);
+  box-shadow: var(--mg-shadow-card);
+}
+
+// -- Display text (outlined heading for E-girl signature look) --
+.mg-display-text {
+  font-family: var(--mg-font-heading);
+  font-weight: var(--mg-font-weight-heading);
+  color: var(--mg-pink-cream);
+  text-shadow: var(--mg-text-outline);
+  line-height: var(--mg-leading-tight);
+}
+
+// -- Glitch hover effect --
+.mg-glitch-hover:hover {
+  animation: mg-glitch 0.3s ease-in-out 3;
+}
+
+// -- Scrollbar (thin, theme-colored) --
+.mg-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--mg-accent) transparent;
+  &::-webkit-scrollbar { width: 5px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: var(--mg-accent); border-radius: 3px; }
+}
+
+// -- Button base (shared across themes) --
+.mg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 28px;
+  border: var(--mg-border-width) solid var(--mg-accent);
+  border-radius: var(--mg-radius-pill);
+  font-family: var(--mg-font-heading);
+  font-size: var(--mg-font-base);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--mg-transition-bounce);
+  color: var(--mg-text);
+  background: var(--mg-bg-card);
+
+  i { width: 16px; text-align: center; }
+
+  &:hover {
+    transform: scale(1.03);
+    box-shadow: var(--mg-glow-pink);
+  }
+  &:active { transform: scale(0.97); box-shadow: none; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  // Variants
+  &--primary {
+    background: var(--mg-accent);
+    border-color: var(--mg-accent-strong);
+    color: var(--mg-text-on-accent);
+    &:hover {
+      background: var(--mg-accent-strong);
+      box-shadow: var(--mg-glow-pink);
+    }
+  }
+  &--ghost {
+    background: transparent;
+    border-color: var(--mg-border-light);
+    color: var(--mg-text-secondary);
+    &:hover {
+      border-color: var(--mg-accent);
+      color: var(--mg-accent);
+      background: var(--mg-surface-pink);
+    }
+  }
+  &--outline {
+    background: transparent;
+    &:hover { background: var(--mg-surface-pink); }
+  }
+  &--sm { padding: 6px 14px; font-size: var(--mg-font-sm); }
+  &--lg { padding: 16px 36px; font-size: 1.1rem; }
+}
+
+// -- Small card --
+.mg-card {
+  background: var(--mg-surface-pink);
+  border: var(--mg-border-width) solid var(--mg-border-light);
+  border-radius: var(--mg-radius-sm);
+  padding: var(--mg-space-sm) var(--mg-space-md);
+  &--sm { padding: var(--mg-space-xs) var(--mg-space-sm); }
+  &--char { overflow-y: hidden; }
+  &__placeholder {
+    font-size: var(--mg-font-sm);
+    color: var(--mg-text-muted);
+    text-align: center;
+    margin: 0;
+    i { margin-right: 4px; }
+  }
+  &__hint {
+    font-size: var(--mg-font-xs);
+    color: var(--mg-text-muted);
+    text-align: center;
+    margin: 4px 0 0;
+  }
+}
+
+// -- Modal system --
+.mg-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--mg-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mg-bg-overlay);
+  backdrop-filter: blur(4px);
+  animation: mg-fade-in 200ms ease;
+}
+.mg-modal-card {
+  position: relative;
+  background: var(--mg-bg-card);
+  border: var(--mg-border-width) solid var(--mg-border);
+  border-radius: var(--mg-radius);
+  box-shadow: var(--mg-shadow-elevated);
+  max-height: 85vh;
+  width: 90vw;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  animation: mg-modal-in 250ms var(--mg-transition-bounce);
+  &--wide { max-width: 720px; }
+}
+.mg-modal__close {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 32px; height: 32px;
+  border-radius: var(--mg-radius-circle);
+  border: none;
+  background: transparent;
+  color: var(--mg-text-secondary);
+  font-size: var(--mg-font-base);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  transition: all var(--mg-transition-fast);
+  &:hover { color: var(--mg-accent); background: var(--mg-surface-pink); }
+}
+.mg-modal__title {
+  font-family: var(--mg-font-heading);
+  font-size: var(--mg-font-lg);
+  font-weight: var(--mg-font-weight-heading);
+  color: var(--mg-text);
+  padding: var(--mg-space-lg) var(--mg-space-lg) 0;
+  margin: 0;
+}
+.mg-modal__body {
+  padding: var(--mg-space-lg);
+  overflow-y: auto;
+  flex: 1;
+}
+
+// -- Toggle switch --
+.mg-toggle {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: var(--mg-space-sm);
+  cursor: pointer; font-size: 0.88rem; color: var(--mg-text);
+  input { display: none; }
+  &--disabled { opacity: 0.4; cursor: not-allowed; }
+  &__slider {
+    position: relative; width: 40px; height: 22px; flex-shrink: 0;
+    background: var(--mg-border-light);
+    border: var(--mg-border-width) solid var(--mg-border);
+    border-radius: 11px;
+    transition: all var(--mg-transition-fast);
+    &::after {
+      content: ""; position: absolute; top: 2px; left: 2px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--mg-text-secondary);
+      transition: all var(--mg-transition-fast);
+    }
+  }
+  input:checked + &__slider {
+    background: var(--mg-accent);
+    border-color: var(--mg-accent-strong);
+    &::after { left: 20px; background: #fff; }
+  }
+  &__label { user-select: none; }
+}
+
+// -- System settings section --
+.mg-sys-section {
+  margin-bottom: var(--mg-space-lg);
+  h3 { font-size: var(--mg-font-base); margin: 0 0 var(--mg-space-sm); color: var(--mg-text); }
+  &__hint { font-size: 0.78rem; color: var(--mg-text-muted); margin: 0 0 var(--mg-space-sm); line-height: 1.5; }
+  &__todo {
+    font-size: 0.85rem; color: var(--mg-text-muted); font-style: italic; margin-top: var(--mg-space-md);
+    i { margin-right: 6px; }
+  }
+}
+
+// -- Theme option buttons --
+.mg-theme-options { display: flex; flex-direction: column; gap: var(--mg-space-sm); }
+.mg-theme-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px;
+  border: var(--mg-border-width) solid var(--mg-border-light);
+  border-radius: var(--mg-radius-sm);
+  background: var(--mg-surface-pink);
+  color: var(--mg-text);
+  font-size: var(--mg-font-md);
+  cursor: pointer;
+  transition: all var(--mg-transition-fast);
+  &:hover { border-color: var(--mg-accent); }
+  &--active { border-color: var(--mg-accent); background: var(--mg-accent); color: var(--mg-text-on-accent); }
+}
+
+// -- Input field --
+.mg-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: var(--mg-border-width) solid var(--mg-border);
+  border-radius: var(--mg-radius-sm);
+  background: var(--mg-bg-input);
+  color: var(--mg-text);
+  font-family: var(--mg-font-body);
+  font-size: var(--mg-font-md);
+  outline: none;
+  transition: border-color var(--mg-transition-fast);
+  &:focus { border-color: var(--mg-accent); box-shadow: 0 0 0 2px rgba(255, 107, 157, 0.15); }
+  &::placeholder { color: var(--mg-text-muted); }
+  &--textarea { resize: vertical; min-height: 60px; }
+}
+
+// -- Keyframes --
+@keyframes mg-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mg-modal-in { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes mg-glitch { 0% { transform: translate(0); } 10% { transform: translate(-1px, 1px); } 20% { transform: translate(1px, -1px); } 30% { transform: translate(-1px, -1px); } 40% { transform: translate(1px, 1px); } 50% { transform: translate(0); } 100% { transform: translate(0); } }
+@keyframes mg-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes mg-pulse-glow { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }

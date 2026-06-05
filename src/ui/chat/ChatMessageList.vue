@@ -55,12 +55,12 @@ function getRoleLabel(message: ChatMessage): string {
 <template>
   <section
     id="chat-message-list"
-    class="chat-message-list scrapbook-panel"
+    class="chat-message-list mg-panel"
     aria-label="消息列表"
   >
     <header class="chat-message-list__header">
       <p class="hero-kicker-band">Story Feed</p>
-      <h2 class="section-heading--playful">剧情讯号流</h2>
+      <h2 class="section-heading--playful">剧情讯号流 <span aria-hidden="true">(>_<)</span></h2>
     </header>
 
     <ol class="chat-message-list__items">
@@ -104,9 +104,9 @@ function getRoleLabel(message: ChatMessage): string {
           >{{ message.reasoning }}</pre>
         </div>
         <div class="chat-message-card__meta">
-          <span class="stat-chip">{{ getRoleLabel(message) }}</span>
+          <span class="mg-sticker mg-sticker--pink">{{ getRoleLabel(message) }}</span>
           <span
-            class="status-pill"
+            class="mg-sticker mg-sticker--dark"
             :data-tone="message.failed ? 'warning' : 'info'"
           >
             {{ getStatusLabel(message) }}

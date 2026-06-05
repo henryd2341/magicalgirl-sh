@@ -1,44 +1,258 @@
 // ============================================================
 // Kidcore Theme
 // Reference: design/aesthetics_ref/Kidcore_design.md
-// Hyper-saturated primary rainbow, toy-like chunky shapes
+// Hyper-saturated primary rainbow, toy-box maximalism,
+// chunky rounded shapes, thick outlines, sticker shadows.
 // ============================================================
 
 :root[data-theme="kidcore"] {
-  // --- colors ---
-  --mg-bg: #fffef5;
+  // ==========================================================
+  // RAW COLOR PALETTE (16 from reference, mapped to mg- vars)
+  // ==========================================================
+
+  // Primary accents
+  --mg-pink-blush: #FF2D2D;       // Crayon Red
+  --mg-pink-magenta: #D50000;     // Candy Apple
+  --mg-pink-cream: #F8BBD0;       // Cotton Candy
+
+  // Darks → Kidcore neutrals
+  --mg-dark-black: #1A1A2E;       // Chalkboard Black
+  --mg-dark-charcoal: #2a2a3e;    // slightly lighter charcoal
+  --mg-dark-plum: #e8d5f5;        // light purple (not dark!)
+
+  // Purples
+  --mg-purple-lavender: #AA00FF;  // Grape Purple
+  --mg-purple-lilac: #AA00FF;     // Grape Purple
+
+  // Cool tones
+  --mg-cool-blue: #2979FF;        // True Blue
+  --mg-cool-eboy-blue: #304FFE;   // Royal Blue
+
+  // Neutrals
+  --mg-neutral-silver: #c0c0c0;
+  --mg-neutral-white: #FFFEF5;    // Cloud White
+  --mg-neutral-gray: #e8e0eb;
+
+  // Utility
+  --mg-util-red: #FF2D2D;         // Crayon Red
+  --mg-util-green: #00C853;       // Grass Green
+
+  // Extra Kidcore colors (not in E-girl palette, used as aliases)
+  --mg-kid-yellow: #FFD600;       // Sunshine Yellow
+  --mg-kid-orange: #FF6D00;       // Tangerine Orange
+  --mg-kid-lime: #C6FF00;         // Lemon Lime
+  --mg-kid-cyan: #00E5FF;         // Robin Egg Blue
+  --mg-kid-rainbow: linear-gradient(
+    90deg, #FF0000, #FF8800, #FFD600, #00C853, #2979FF, #AA00FF, #8B00FF
+  );
+
+  // ==========================================================
+  // FUNCTIONAL TOKENS
+  // ==========================================================
+
+  // Backgrounds
+  --mg-bg: var(--mg-neutral-white);
   --mg-bg-card: #ffffff;
   --mg-bg-overlay: rgba(26, 26, 46, 0.7);
-  --mg-text: #1a1a2e;
+  --mg-bg-input: #faf5ff;                       // light purple-tinted white
+  --mg-bg-hover: rgba(255, 45, 45, 0.06);
+  --mg-ink-outline: var(--mg-dark-black);       // #1A1A2E
+
+  // Text
+  --mg-text: var(--mg-dark-black);
   --mg-text-secondary: #333;
   --mg-text-muted: #666;
-  --mg-accent: #ff2d2d;
-  --mg-accent-strong: #d50000;
-  --mg-accent-glow: rgba(255, 45, 45, 0.3);
-  --mg-border: #1a1a2e;
-  --mg-border-light: rgba(26, 26, 46, 0.2);
-  --mg-shadow: #ff6ec7;
-  --mg-success: #00c853;
-  --mg-warning: #ffd600;
-  --mg-error: #d50000;
+  --mg-text-on-accent: #ffffff;
 
-  // --- typography ---
+  // Accent
+  --mg-accent: var(--mg-pink-blush);            // #FF2D2D
+  --mg-accent-strong: var(--mg-pink-magenta);   // #D50000
+  --mg-accent-subtle: rgba(255, 45, 45, 0.12);
+  --mg-accent-glow: rgba(255, 45, 45, 0.3);
+
+  // Borders
+  --mg-border: var(--mg-dark-black);            // #1A1A2E
+  --mg-border-light: rgba(26, 26, 46, 0.2);
+  --mg-border-strong: var(--mg-pink-magenta);   // #D50000
+
+  // Semantic
+  --mg-success: var(--mg-util-green);           // #00C853
+  --mg-warning: #FFD600;
+  --mg-error: var(--mg-util-red);               // #D50000
+  --mg-info: #00E5FF;                           // Robin Egg Blue
+
+  // Surfaces
+  --mg-surface-pink: #F8BBD0;                   // Cotton Candy
+  --mg-surface-lavender: #e8c5e8;
+  --mg-surface-plum: #e8d5f5;                   // light purple
+  --mg-surface-hover: rgba(255, 45, 45, 0.1);
+
+  // ==========================================================
+  // MESSAGE ROLE BACKGROUNDS
+  // ==========================================================
+
+  --mg-message-assistant: linear-gradient(180deg, #e8d5f5, #f0e6f8);
+  --mg-message-assistant-border: #9c27b0;
+  --mg-message-user: linear-gradient(180deg, #ffccd5, #ffe0e5);
+  --mg-message-user-border: #ff2d2d;
+  --mg-message-system: linear-gradient(180deg, #bbdefb, #e3f2fd);
+  --mg-message-system-border: #2196f3;
+  --mg-message-failed: linear-gradient(180deg, #ffe0b2, #fff3e0);
+  --mg-message-failed-border: #ff9800;
+
+  // Input backgrounds
+  --mg-input-bg: #fffef5;
+  --mg-input-border: #FF6EC7;                   // Bubblegum Pink
+
+  // ==========================================================
+  // TYPOGRAPHY
+  // ==========================================================
+
   --mg-font-heading: "Bubblegum Sans", "Fredoka", cursive;
   --mg-font-body: "Patrick Hand", "Comic Sans MS", cursive;
   --mg-font-mono: monospace;
   --mg-font-handwritten: "Patrick Hand", cursive;
+  --mg-font-weight-heading: 700;
+  --mg-font-weight-body: 400;
+  --mg-font-weight-strong: 600;
 
-  // --- effects ---
+  // ==========================================================
+  // EFFECTS (chunky shadows replace glows)
+  // ==========================================================
+
+  --mg-shadow: #FF6EC7;                         // Bubblegum Pink shadow
   --mg-shadow-style: 5px 5px 0 var(--mg-shadow);
+  --mg-shadow-card: 4px 4px 0 var(--mg-shadow);
+  --mg-shadow-elevated: 6px 6px 0 var(--mg-shadow);
+  --mg-shadow-sticker: 3px 3px 0 var(--mg-dark-black);
+
   --mg-glow-pink: none;
   --mg-glow-lilac: none;
+  --mg-glow-blue: none;
+  --mg-glow-strong: none;
+
+  // Text outline (yellow shadow for headings per reference)
+  --mg-text-outline: 3px 3px 0 var(--mg-warning);
+
+  // Borders & radius
   --mg-border-width: 3px;
+  --mg-border-width-thick: 3px;
   --mg-radius: 20px;
   --mg-radius-sm: 12px;
   --mg-radius-lg: 30px;
 
-  // --- surface fills ---
-  --mg-surface-pink: #f8bbd0;
-  --mg-surface-lavender: #e8c5e8;
-  --mg-surface-dark: #1a1a2e;
+  // Surface dark alias (used by some components)
+  --mg-surface-dark: #1A1A2E;
+}
+
+// ============================================================
+// KIDCORE UTILITY CLASS OVERRIDES
+// Override E-girl base classes with Kidcore toy-box styling.
+// Higher specificity via [data-theme="kidcore"] prefix.
+// ============================================================
+
+[data-theme="kidcore"] {
+  // -- Checkerboard: yellow squares + light base --
+  .mg-checkerboard {
+    background-color: var(--mg-neutral-white);
+    background-image:
+      linear-gradient(45deg, rgba(255, 214, 0, 0.18) 25%, transparent 25%),
+      linear-gradient(-45deg, rgba(255, 214, 0, 0.18) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, rgba(255, 214, 0, 0.18) 75%),
+      linear-gradient(-45deg, transparent 75%, rgba(255, 214, 0, 0.18) 75%);
+    background-size: 40px 40px;
+    background-position: 0 0, 0 20px, 20px -20px, -20px 0;
+  }
+
+  // -- Rainbow divider replacing chain-link --
+  .mg-chain-divider {
+    height: 6px;
+    background: var(--mg-kid-rainbow);
+    border-radius: 3px;
+    opacity: 1;
+    margin: var(--mg-space-md) 0;
+  }
+
+  // -- Panel: 3px black outline for coloring-book feel --
+  .mg-panel {
+    border: var(--mg-border-width) solid var(--mg-border);
+    border-radius: var(--mg-radius);
+  }
+
+  // -- Card: chunky shadow + bolder border --
+  .mg-card {
+    background: #ffffff;
+    border: var(--mg-border-width) solid var(--mg-border);
+    border-radius: var(--mg-radius);
+    box-shadow: var(--mg-shadow-card);
+    transition: transform var(--mg-transition-fast), box-shadow var(--mg-transition-fast);
+    &:hover {
+      transform: translateY(-2px) rotate(-0.5deg);
+      box-shadow: var(--mg-shadow-elevated);
+    }
+    &__placeholder { color: var(--mg-text-secondary); }
+  }
+
+  // -- Sticker: no rotation, bold borders, saturated colors --
+  .mg-sticker {
+    border-width: var(--mg-border-width);
+    transform: none;
+    box-shadow: 2px 2px 0 var(--mg-border);
+    &:hover { transform: scale(1.06); }
+    &--pink { background: var(--mg-pink-blush); color: #fff; border-color: var(--mg-pink-magenta); }
+    &--purple { background: var(--mg-purple-lavender); color: #fff; border-color: var(--mg-dark-black); }
+    &--dark { background: var(--mg-dark-black); color: var(--mg-kid-yellow); border-color: var(--mg-dark-black); }
+  }
+
+  // -- Buttons: blockier, shadow hover instead of glow --
+  .mg-btn {
+    border-radius: var(--mg-radius);
+    border-width: var(--mg-border-width);
+    box-shadow: 3px 3px 0 var(--mg-border);
+    &:hover {
+      transform: translate(-1px, -2px);
+      box-shadow: 5px 5px 0 var(--mg-border);
+    }
+    &:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--mg-border); }
+    &--primary {
+      background: var(--mg-accent);
+      border-color: var(--mg-border);
+      color: var(--mg-text-on-accent);
+      &:hover { background: var(--mg-accent-strong); }
+    }
+    &--ghost {
+      background: #ffffff;
+      border-color: var(--mg-border);
+      color: var(--mg-text);
+      &:hover { background: var(--mg-kid-yellow); color: var(--mg-dark-black); }
+    }
+  }
+
+  // -- Input: bolder border, yellow focus ring --
+  .mg-input {
+    border-width: var(--mg-border-width);
+    &:focus {
+      border-color: var(--mg-accent);
+      box-shadow: 0 0 0 3px rgba(255, 214, 0, 0.3);
+    }
+  }
+
+  // -- Display text: black + yellow shadow per Kidcore reference --
+  .mg-display-text {
+    color: var(--mg-dark-black);
+  }
+
+  // -- Glow → shadow hover for interactive cards/buttons --
+  .mg-glow-pink, .mg-glow-lilac {
+    box-shadow: var(--mg-shadow-card);
+  }
+  .mg-glow-hover:hover {
+    box-shadow: var(--mg-shadow-elevated);
+    transform: translateY(-2px);
+  }
+
+  // -- Modal card: thicker outline --
+  .mg-modal-card {
+    border-width: var(--mg-border-width);
+  }
 }

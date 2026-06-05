@@ -25,7 +25,7 @@ function submitDraft(): void {
 <template>
   <section
     id="chat-input-box"
-    class="chat-input-box scrapbook-panel"
+    class="chat-input-box mg-panel"
     aria-label="输入框区域"
   >
     <header class="chat-input-box__header">
@@ -48,7 +48,7 @@ function submitDraft(): void {
         <button
           id="chat-submit-signal"
           type="submit"
-          class="primary-cta"
+          class="mg-btn mg-btn--primary mg-glow-pink"
           :disabled="props.disabled"
         >
           发送讯号

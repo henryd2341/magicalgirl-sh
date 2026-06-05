@@ -72,11 +72,11 @@ function navigateTo(routeName: string) {
       <div class="mg-splash__logo-wrap">
         <img class="mg-splash__logo" src="/logo.png" alt="MagicalGirl SH" />
       </div>
-      <!-- No subtitles -->
-      <!-- <p class="mg-splash__subtitle">
-        一套为 AI 驱动 JRPG 叙事而生的高保真前端骨架，将 E-girl / E-boy
-        的粉黑对撞、Kidcore 的玩具箱密度与 RPG UI 的仪式感揉进同一块发光贴纸板。
-      </p> -->
+      <div class="mg-splash__kaomoji" aria-hidden="true">
+        <span>★</span><span>(>_<)</span><span>♡</span>
+        <span>✧</span><span>(^_^)</span><span>♡</span>
+        <span>☆</span><span>(/_\ )</span><span>♡</span>
+      </div>
     </section>
 
     <!-- ── Menu Buttons ── -->
@@ -85,20 +85,20 @@ function navigateTo(routeName: string) {
         <i class="fas fa-play"></i>
         开始新游戏
       </button>
-      <button class="mg-btn mg-btn--secondary" @click="showSaveManage = true">
+      <button class="mg-btn mg-btn--ghost" @click="showSaveManage = true">
         <i class="fas fa-folder-open"></i>
         载入存档
       </button>
-      <button class="mg-btn mg-btn--secondary" @click="showSettings = true">
+      <button class="mg-btn mg-btn--ghost" @click="showSettings = true">
         <i class="fas fa-sliders-h"></i>
         提示词设置
       </button>
-      <button class="mg-btn mg-btn--secondary" @click="showApiSettings = true">
+      <button class="mg-btn mg-btn--ghost" @click="showApiSettings = true">
         <i class="fas fa-plug"></i>
         API 设置
       </button>
       <button
-        class="mg-btn mg-btn--secondary"
+        class="mg-btn mg-btn--ghost"
         @click="showSystemSettings = true"
       >
         <i class="fas fa-cog"></i>
@@ -178,7 +178,7 @@ function navigateTo(routeName: string) {
         <div class="mg-modal__body">
           <!-- TODO: 等待实现的功能 — 系统设置面板（主题、字号、音量调整） -->
           <div class="mg-system-settings">
-            <div class="mg-system-settings__section">
+            <div class="mg-sys-section">
               <h3>主题切换</h3>
               <div class="mg-theme-options">
                 <button
@@ -201,13 +201,13 @@ function navigateTo(routeName: string) {
                 </button>
               </div>
             </div>
-            <p class="mg-system-settings__todo">
+            <p class="mg-sys-section__todo">
               <i class="fas fa-info-circle"></i>
               // TODO: 等待实现的功能 — 字号调整、音量控制
             </p>
-            <div class="mg-system-settings__section">
+            <div class="mg-sys-section">
               <h3><i class="fas fa-bolt"></i> 性能设置</h3>
-              <p class="mg-system-settings__hint">PixiJS WebGL 背景特效对首次加载影响较大，可在低性能设备上关闭。</p>
+              <p class="mg-sys-section__hint">PixiJS WebGL 背景特效对首次加载影响较大，可在低性能设备上关闭。</p>
               <label class="mg-toggle">
                 <input type="checkbox" :checked="pixiEnabled" @change="togglePixi(($event.target as HTMLInputElement).checked)" />
                 <span class="mg-toggle__slider"></span>
@@ -228,7 +228,7 @@ function navigateTo(routeName: string) {
 
 <style lang="scss" scoped>
 // ============================================================
-// SplashScreen — MagicalGirl Shell
+// SplashScreen — LAYOUT ONLY (shared classes in _e-girl.scss)
 // ============================================================
 
 .mg-splash {
@@ -238,352 +238,41 @@ function navigateTo(routeName: string) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--mg-space-2xl, 48px) var(--mg-space-lg, 24px);
+  padding: var(--mg-space-2xl) var(--mg-space-lg);
   text-align: center;
   z-index: 1;
 }
 
-// ── Fullscreen toggle ──
 .mg-splash__fullscreen-btn {
   position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: var(--mg-z-overlay, 100);
-  width: 40px;
-  height: 40px;
-  border: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
-  border-radius: var(--mg-radius-sm, 8px);
-  background: var(--mg-bg-card, #2d2d2d);
-  color: var(--mg-text-secondary, #c9a0dc);
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: 16px; right: 16px;
+  z-index: var(--mg-z-overlay);
+  width: 40px; height: 40px;
+  border: var(--mg-border-width) solid var(--mg-border);
+  border-radius: var(--mg-radius-sm);
+  background: var(--mg-bg-card);
+  color: var(--mg-text-secondary);
+  font-size: var(--mg-font-base);
+  display: flex; align-items: center; justify-content: center;
   cursor: pointer;
-  transition: all var(--mg-transition-fast, 150ms ease);
-
-  &:hover {
-    color: var(--mg-accent, #ff6b9d);
-    border-color: var(--mg-accent, #ff6b9d);
-    box-shadow: var(--mg-glow-pink);
-  }
+  transition: all var(--mg-transition-fast);
+  &:hover { color: var(--mg-accent); border-color: var(--mg-accent); box-shadow: var(--mg-glow-pink); }
 }
 
-// ── Hero ──
-.mg-splash__hero {
-  margin-bottom: var(--mg-space-xl, 32px);
-}
+.mg-splash__hero      { margin-bottom: var(--mg-space-xl); }
+.mg-splash__logo-wrap { display: flex; justify-content: center; align-items: center; margin-bottom: var(--mg-space-md); }
+.mg-splash__logo      { max-width: 280px; width: 60vw; height: auto; filter: drop-shadow(0 0 12px rgba(255, 107, 157, 0.35)); }
+.mg-splash__eyebrow   { font-family: var(--mg-font-mono); font-size: var(--mg-font-sm); text-transform: uppercase; letter-spacing: var(--mg-tracking-eyebrow); color: var(--mg-text-secondary); margin-bottom: var(--mg-space-md); }
+.mg-splash__title     { font-family: var(--mg-font-heading); font-size: var(--mg-font-display); font-weight: var(--mg-font-weight-heading); color: var(--mg-accent); text-shadow: var(--mg-text-outline); margin: 0 0 var(--mg-space-md); line-height: var(--mg-leading-tight); }
+.mg-splash__subtitle  { max-width: 560px; margin: 0 auto; font-size: var(--mg-font-base); line-height: var(--mg-leading-relaxed); color: var(--mg-text-secondary); }
+.mg-splash__kaomoji   { display: flex; gap: var(--mg-space-md); align-items: center; justify-content: center; margin-top: var(--mg-space-md); font-size: var(--mg-font-sm); color: var(--mg-text-muted); opacity: 0.6; flex-wrap: wrap; user-select: none; }
+.mg-splash__version   { margin-top: var(--mg-space-xl); font-size: 0.75rem; color: var(--mg-text-muted); }
 
-.mg-splash__logo-wrap {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: var(--mg-space-md, 16px);
-}
-
-.mg-splash__logo {
-  max-width: 280px;
-  width: 60vw;
-  height: auto;
-  filter: drop-shadow(0 0 12px rgba(255, 107, 157, 0.35));
-}
-
-.mg-splash__eyebrow {
-  font-family: var(--mg-font-mono, monospace);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--mg-text-secondary, #c9a0dc);
-  margin-bottom: var(--mg-space-md, 16px);
-}
-
-.mg-splash__title {
-  font-family: var(--mg-font-heading, "Fredoka", sans-serif);
-  font-size: clamp(2.5rem, 8vw, 5rem);
-  font-weight: 700;
-  color: var(--mg-accent, #ff6b9d);
-  text-shadow: var(--mg-glow-pink);
-  margin: 0 0 var(--mg-space-md, 16px);
-  line-height: 1.1;
-}
-
-.mg-splash__subtitle {
-  max-width: 560px;
-  margin: 0 auto;
-  font-size: 1rem;
-  line-height: 1.7;
-  color: var(--mg-text-secondary, #c9a0dc);
-}
-
-// ── Menu ──
 .mg-splash__menu {
-  display: flex;
-  flex-direction: column;
-  gap: var(--mg-space-sm, 8px);
-  width: 100%;
-  max-width: 320px;
-}
-
-// ── Buttons ──
-.mg-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 14px 28px;
-  border: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
-  border-radius: var(--mg-radius-pill, 999px);
-  font-family: var(--mg-font-heading, "Fredoka", sans-serif);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all
-    var(--mg-transition-bounce, 300ms cubic-bezier(0.34, 1.56, 0.64, 1));
-  color: var(--mg-text, #f5f0f6);
-  background: var(--mg-bg-card, #2d2d2d);
-
-  i {
-    font-size: 0.95rem;
-    width: 18px;
-    text-align: center;
-  }
-
-  &:hover {
-    transform: scale(1.03);
-    border-color: var(--mg-accent, #ff6b9d);
-  }
-
-  &:active {
-    transform: scale(0.97);
-  }
-
-  &--primary {
-    background: var(--mg-accent, #ff6b9d);
-    border-color: var(--mg-accent-strong, #ff2d78);
-    color: #fff;
-    font-size: 1.05rem;
-    padding: 16px 32px;
-
-    &:hover {
-      box-shadow: var(--mg-glow-pink);
-      background: var(--mg-accent-strong, #ff2d78);
-    }
-  }
-
-  &--secondary {
-    &:hover {
-      color: var(--mg-accent, #ff6b9d);
-      box-shadow: var(--mg-glow-pink);
-    }
-  }
-}
-
-// ── Version ──
-.mg-splash__version {
-  margin-top: var(--mg-space-xl, 32px);
-  font-size: 0.75rem;
-  color: var(--mg-text-muted, #888);
-}
-
-// ── Modal styles (inline, will be extracted to _modal.scss in Step 12) ──
-.mg-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--mg-z-modal, 200);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--mg-bg-overlay, rgba(26, 26, 26, 0.94));
-  animation: mg-fade-in 200ms ease;
-}
-
-.mg-modal-card {
-  position: relative;
-  background: var(--mg-bg-card, #2d2d2d);
-  border: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
-  border-radius: var(--mg-radius, 16px);
-  box-shadow: var(--mg-shadow-style);
-  max-height: 85vh;
-  width: 90vw;
-  max-width: 520px;
-  display: flex;
-  flex-direction: column;
-  animation: mg-scale-in 250ms
-    var(--mg-transition-bounce, cubic-bezier(0.34, 1.56, 0.64, 1));
-
-  &--wide {
-    max-width: 720px;
-  }
-}
-
-.mg-modal__close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: var(--mg-text-secondary, #c9a0dc);
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--mg-transition-fast, 150ms ease);
-  z-index: 1;
-
-  &:hover {
-    color: var(--mg-accent, #ff6b9d);
-    background: var(--mg-surface-pink);
-  }
-}
-
-.mg-modal__title {
-  font-family: var(--mg-font-heading, "Fredoka", sans-serif);
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--mg-text, #f5f0f6);
-  padding: 20px 24px 0;
-  margin: 0;
-}
-
-.mg-modal__body {
-  padding: 20px 24px 24px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-// ── System Settings ──
-.mg-system-settings {
-  &__section {
-    margin-bottom: var(--mg-space-lg, 24px);
-
-    h3 {
-      font-size: 1rem;
-      margin-bottom: var(--mg-space-sm, 8px);
-      color: var(--mg-text, #f5f0f6);
-    }
-  }
-
-  &__todo {
-    font-size: 0.85rem;
-    color: var(--mg-text-muted, #888);
-    font-style: italic;
-    margin-top: var(--mg-space-md, 16px);
-
-    i {
-      margin-right: 6px;
-    }
-  }
-}
-
-.mg-theme-options {
-  display: flex;
-  flex-direction: column;
-  gap: var(--mg-space-sm, 8px);
-}
-
-.mg-theme-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  border: var(--mg-border-width, 2px) solid
-    var(--mg-border-light, rgba(255, 107, 157, 0.2));
-  border-radius: var(--mg-radius-sm, 8px);
-  background: var(--mg-surface-pink);
-  color: var(--mg-text, #f5f0f6);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all var(--mg-transition-fast, 150ms ease);
-
-  &:hover {
-    border-color: var(--mg-accent, #ff6b9d);
-  }
-
-  &--active {
-    border-color: var(--mg-accent, #ff6b9d);
-    background: var(--mg-accent, #ff6b9d);
-    color: #fff;
-  }
-}
-
-// ── Animations ──
-@keyframes mg-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes mg-scale-in {
-  from {
-    transform: scale(0.9);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-// ── Toggle switch ──
-.mg-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: var(--mg-space-sm, 8px);
-  cursor: pointer;
-  font-size: 0.88rem;
-  color: var(--mg-text, #f5f0f6);
-
-  input { display: none; }
-
-  &--disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  &__slider {
-    position: relative;
-    width: 40px;
-    height: 22px;
-    background: var(--mg-border-light, rgba(255, 107, 157, 0.2));
-    border: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
-    border-radius: 11px;
-    transition: all var(--mg-transition-fast, 150ms ease);
-    flex-shrink: 0;
-
-    &::after {
-      content: "";
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: var(--mg-text-secondary, #c9a0dc);
-      transition: all var(--mg-transition-fast, 150ms ease);
-    }
-  }
-
-  input:checked + &__slider {
-    background: var(--mg-accent, #ff6b9d);
-    border-color: var(--mg-accent-strong, #ff2d78);
-    &::after { left: 20px; background: #fff; }
-  }
-
-  &__label { user-select: none; }
-}
-
-.mg-system-settings__hint {
-  font-size: 0.78rem;
-  color: var(--mg-text-muted, #888);
-  margin: 0 0 var(--mg-space-sm, 8px);
-  line-height: 1.5;
+  display: flex; flex-direction: column;
+  gap: var(--mg-space-sm);
+  width: 100%; max-width: 320px;
+  // Slightly bump primary button in menu
+  .mg-btn--primary { padding: 16px 32px; font-size: 1.05rem; }
 }
 </style>

@@ -168,6 +168,7 @@ onMounted(async () => {
             </p>
           </div>
           <nav class="mg-game__left-actions">
+            <div class="mg-chain-divider" aria-hidden="true"></div>
             <button class="mg-btn mg-btn--sm mg-btn--ghost">
               <i class="fas fa-users"></i> 队伍编组
             </button>
@@ -184,7 +185,7 @@ onMounted(async () => {
       <!-- Center Chat Area -->
       <section class="mg-game__chat">
         <!-- Save reminder banner -->
-        <div v-if="showSaveReminder" class="mg-game__reminder">
+        <div v-if="showSaveReminder" class="mg-game__reminder mg-checkerboard">
           <span
             ><i class="fas fa-exclamation-triangle"></i>
             提醒：请定期导出存档以避免数据丢失</span
@@ -327,7 +328,7 @@ onMounted(async () => {
         <h2 class="mg-modal__title">系统设置</h2>
         <div class="mg-modal__body">
           <div class="mg-system-settings">
-            <div class="mg-system-settings__section">
+            <div class="mg-sys-section">
               <h3>主题切换</h3>
               <div class="mg-theme-options">
                 <button
@@ -350,9 +351,9 @@ onMounted(async () => {
                 </button>
               </div>
             </div>
-            <div class="mg-system-settings__section">
+            <div class="mg-sys-section">
               <h3><i class="fas fa-bolt"></i> 性能设置</h3>
-              <p class="mg-system-settings__hint">
+              <p class="mg-sys-section__hint">
                 PixiJS WebGL 背景特效对首次加载影响较大，可在低性能设备上关闭。
               </p>
               <label class="mg-toggle">
@@ -382,7 +383,7 @@ onMounted(async () => {
                 <span class="mg-toggle__label">背景模糊动效</span>
               </label>
             </div>
-            <p class="mg-system-settings__todo">
+            <p class="mg-sys-section__todo">
               <i class="fas fa-info-circle"></i>
               // TODO: 等待实现的功能 — 字号调整、音量控制
             </p>
@@ -395,436 +396,30 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 // ============================================================
-// MainGameView — 3×3 Grid Layout
+// MainGameView — LAYOUT ONLY (shared classes in _e-girl.scss)
 // ============================================================
 
-.mg-game {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-  background: var(--mg-bg, #1a1a1a);
-}
+.mg-game          { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--mg-bg); }
+.mg-game__center  { display: flex; flex: 1; overflow: hidden; }
 
-// ── Center row ──
-.mg-game__center {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
+// Panels
+.mg-game__left    { position: relative; width: 240px; min-width: 0; background: var(--mg-bg-card); border-right: var(--mg-border-width) solid var(--mg-border); transition: width var(--mg-transition-base); flex-shrink: 0; &--closed { width: 36px; } }
+.mg-game__left-content  { padding: var(--mg-space-md); display: flex; flex-direction: column; gap: var(--mg-space-sm); }
+.mg-game__left-actions  { display: flex; flex-direction: column; gap: 6px; margin-top: var(--mg-space-sm); }
+.mg-game__right   { position: relative; width: 220px; min-width: 0; background: var(--mg-bg-card); border-left: var(--mg-border-width) solid var(--mg-border); transition: width var(--mg-transition-base); flex-shrink: 0; &--closed { width: 36px; } }
+.mg-game__right-content { padding: var(--mg-space-md); display: flex; flex-direction: column; gap: var(--mg-space-sm); }
 
-// ── Left panel ──
-.mg-game__left {
-  position: relative;
-  width: 240px;
-  min-width: 0;
-  background: var(--mg-bg-card, #2d2d2d);
-  border-right: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
-  transition: width var(--mg-transition-base, 250ms ease);
-  flex-shrink: 0;
+// Panel toggles
+.mg-panel-toggle  { position: absolute; top: 8px; right: 4px; width: 28px; height: 28px; border: var(--mg-border-width) solid var(--mg-border); border-radius: 50%; background: var(--mg-bg-card); color: var(--mg-text-secondary); font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 2; transition: all var(--mg-transition-fast); &:hover { color: var(--mg-accent); border-color: var(--mg-accent); box-shadow: var(--mg-glow-pink); } &--right { right: auto; left: 4px; } }
 
-  &--closed {
-    width: 36px;
-  }
-}
+// Chat area
+.mg-game__chat    { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.mg-game__messages { flex: 1; overflow-y: auto; padding: var(--mg-space-md); min-height: 0; }
 
-.mg-game__left-content {
-  padding: var(--mg-space-md, 16px);
-  display: flex;
-  flex-direction: column;
-  gap: var(--mg-space-sm, 8px);
-}
+// Reminder banner
+.mg-game__reminder { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: var(--mg-surface-pink); border-bottom: var(--mg-border-width) solid var(--mg-accent); font-size: 0.85rem; color: var(--mg-accent-strong); button { background: none; border: none; color: inherit; cursor: pointer; font-size: 0.85rem; } }
 
-.mg-game__left-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: var(--mg-space-sm, 8px);
-}
-
-// ── Right panel ──
-.mg-game__right {
-  position: relative;
-  width: 220px;
-  min-width: 0;
-  background: var(--mg-bg-card, #2d2d2d);
-  border-left: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
-  transition: width var(--mg-transition-base, 250ms ease);
-  flex-shrink: 0;
-
-  &--closed {
-    width: 36px;
-  }
-}
-
-.mg-game__right-content {
-  padding: var(--mg-space-md, 16px);
-  display: flex;
-  flex-direction: column;
-  gap: var(--mg-space-sm, 8px);
-}
-
-// ── Panel toggle buttons ──
-.mg-panel-toggle {
-  position: absolute;
-  top: 8px;
-  right: 4px;
-  width: 28px;
-  height: 28px;
-  border: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
-  border-radius: 50%;
-  background: var(--mg-bg-card, #2d2d2d);
-  color: var(--mg-text-secondary, #c9a0dc);
-  font-size: 0.7rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-  transition: all var(--mg-transition-fast, 150ms ease);
-
-  &:hover {
-    color: var(--mg-accent, #ff6b9d);
-    border-color: var(--mg-accent, #ff6b9d);
-  }
-
-  &--right {
-    right: auto;
-    left: 4px;
-  }
-}
-
-// ── Center chat area ──
-.mg-game__chat {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-width: 0;
-}
-
-.mg-game__messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--mg-space-md, 16px);
-  min-height: 0;
-}
-
-// ── Save reminder ──
-.mg-game__reminder {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 16px;
-  background: var(--mg-surface-pink);
-  border-bottom: var(--mg-border-width, 2px) solid var(--mg-accent, #ff6b9d);
-  font-size: 0.85rem;
-  color: var(--mg-accent-strong, #ff2d78);
-
-  button {
-    background: none;
-    border: none;
-    color: inherit;
-    cursor: pointer;
-    font-size: 0.85rem;
-  }
-}
-
-// ── Bottom dev bar ──
-.mg-game__bottom {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  background: var(--mg-bg-card, #2d2d2d);
-  border-top: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
-
-.mg-game__dev-toggle {
-  position: fixed;
-  bottom: 12px;
-  right: 12px;
-  width: 28px;
-  height: 28px;
-  border: 1px solid transparent;
-  border-radius: var(--mg-radius-sm, 8px);
-  background: transparent;
-  color: transparent;
-  font-size: 0.7rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--mg-z-devtools, 400);
-  transition: all var(--mg-transition-base, 250ms ease);
-  opacity: 0.15;
-
-  &:hover {
-    opacity: 1;
-    color: var(--mg-accent, #ff6b9d);
-    border-color: var(--mg-accent, #ff6b9d);
-    background: var(--mg-bg-card, #2d2d2d);
-  }
-}
-
-// ── Shared mini-buttons & cards ──
-.mg-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
-  border-radius: var(--mg-radius-pill, 999px);
-  font-family: var(--mg-font-body, "Quicksand", sans-serif);
-  font-size: 0.85rem;
-  color: var(--mg-text, #f5f0f6);
-  background: var(--mg-bg-card, #2d2d2d);
-  cursor: pointer;
-  transition: all
-    var(--mg-transition-bounce, 300ms cubic-bezier(0.34, 1.56, 0.64, 1));
-  white-space: nowrap;
-
-  i {
-    font-size: 0.8rem;
-  }
-
-  &:hover {
-    transform: scale(1.03);
-    border-color: var(--mg-accent, #ff6b9d);
-  }
-  &:active {
-    transform: scale(0.97);
-  }
-
-  &--sm {
-    padding: 5px 12px;
-    font-size: 0.78rem;
-  }
-
-  &--ghost {
-    background: transparent;
-    border-color: var(--mg-border-light, rgba(255, 107, 157, 0.2));
-    color: var(--mg-text-secondary, #c9a0dc);
-    justify-content: flex-start;
-    &:hover {
-      color: var(--mg-accent, #ff6b9d);
-    }
-  }
-}
-
-.mg-card {
-  background: var(--mg-surface-pink);
-  border: var(--mg-border-width, 2px) solid
-    var(--mg-border-light, rgba(255, 107, 157, 0.2));
-  border-radius: var(--mg-radius-sm, 8px);
-  padding: var(--mg-space-sm, 8px) var(--mg-space-md, 16px);
-
-  &--sm {
-    padding: var(--mg-space-sm, 8px) var(--mg-space-sm, 8px);
-  }
-
-  &--char {
-    overflow-y: hidden;
-  }
-
-  &__placeholder {
-    font-size: 0.8rem;
-    color: var(--mg-text-muted, #888);
-    text-align: center;
-    margin: 0;
-    i {
-      margin-right: 4px;
-    }
-  }
-
-  &__hint {
-    font-size: 0.7rem;
-    color: var(--mg-text-muted, #888);
-    text-align: center;
-    margin: 4px 0 0;
-  }
-}
-
-// ── Modal styles (mirrors SplashScreen until extracted) ──
-.mg-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--mg-z-modal, 200);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--mg-bg-overlay, rgba(26, 26, 26, 0.94));
-  animation: mg-fade-in 200ms ease;
-}
-
-.mg-modal-card {
-  position: relative;
-  background: var(--mg-bg-card, #2d2d2d);
-  border: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
-  border-radius: var(--mg-radius, 16px);
-  box-shadow: var(--mg-shadow-style);
-  max-height: 85vh;
-  width: 90vw;
-  max-width: 520px;
-  display: flex;
-  flex-direction: column;
-
-  &--wide {
-    max-width: 720px;
-  }
-}
-
-.mg-modal__close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: var(--mg-text-secondary, #c9a0dc);
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
-
-  &:hover {
-    color: var(--mg-accent, #ff6b9d);
-    background: var(--mg-surface-pink);
-  }
-}
-
-.mg-modal__title {
-  font-family: var(--mg-font-heading, "Fredoka", sans-serif);
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--mg-text, #f5f0f6);
-  padding: 20px 24px 0;
-  margin: 0;
-}
-
-.mg-modal__body {
-  padding: 20px 24px 24px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-@keyframes mg-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-// ── System settings & toggle (shared with SplashScreen) ──
-.mg-system-settings {
-  &__section {
-    margin-bottom: var(--mg-space-lg, 24px);
-    h3 {
-      font-size: 1rem;
-      margin: 0 0 var(--mg-space-sm, 8px);
-      color: var(--mg-text, #f5f0f6);
-    }
-  }
-  &__todo {
-    font-size: 0.85rem;
-    color: var(--mg-text-muted, #888);
-    font-style: italic;
-    margin-top: var(--mg-space-md, 16px);
-    i {
-      margin-right: 6px;
-    }
-  }
-  &__hint {
-    font-size: 0.78rem;
-    color: var(--mg-text-muted, #888);
-    margin: 0 0 var(--mg-space-sm, 8px);
-    line-height: 1.5;
-  }
-}
-
-.mg-theme-options {
-  display: flex;
-  flex-direction: column;
-  gap: var(--mg-space-sm, 8px);
-}
-
-.mg-theme-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  border: var(--mg-border-width, 2px) solid
-    var(--mg-border-light, rgba(255, 107, 157, 0.2));
-  border-radius: var(--mg-radius-sm, 8px);
-  background: var(--mg-surface-pink);
-  color: var(--mg-text, #f5f0f6);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all var(--mg-transition-fast, 150ms ease);
-  &:hover {
-    border-color: var(--mg-accent, #ff6b9d);
-  }
-  &--active {
-    border-color: var(--mg-accent, #ff6b9d);
-    background: var(--mg-accent, #ff6b9d);
-    color: #fff;
-  }
-}
-
-.mg-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: var(--mg-space-sm, 8px);
-  cursor: pointer;
-  font-size: 0.88rem;
-  color: var(--mg-text, #f5f0f6);
-  input {
-    display: none;
-  }
-  &--disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-  &__slider {
-    position: relative;
-    width: 40px;
-    height: 22px;
-    background: var(--mg-border-light, rgba(255, 107, 157, 0.2));
-    border: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
-    border-radius: 11px;
-    flex-shrink: 0;
-    transition: all var(--mg-transition-fast, 150ms ease);
-    &::after {
-      content: "";
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: var(--mg-text-secondary, #c9a0dc);
-      transition: all var(--mg-transition-fast, 150ms ease);
-    }
-  }
-  input:checked + &__slider {
-    background: var(--mg-accent, #ff6b9d);
-    border-color: var(--mg-accent-strong, #ff2d78);
-    &::after {
-      left: 20px;
-      background: #fff;
-    }
-  }
-  &__label {
-    user-select: none;
-  }
-}
+// Bottom dev bar & toggle
+.mg-game__bottom  { display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: var(--mg-bg-card); border-top: var(--mg-border-width) solid var(--mg-border); flex-shrink: 0; flex-wrap: wrap; }
+.mg-game__dev-toggle { position: fixed; bottom: 12px; right: 12px; width: 28px; height: 28px; border: 1px solid transparent; border-radius: var(--mg-radius-sm); background: transparent; color: transparent; font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: var(--mg-z-devtools); transition: all var(--mg-transition-base); opacity: 0.15; &:hover { opacity: 1; color: var(--mg-accent); border-color: var(--mg-accent); background: var(--mg-bg-card); } }
 </style>

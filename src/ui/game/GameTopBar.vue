@@ -27,30 +27,37 @@ function returnToTitle() {
         <i class="fas fa-backpack"></i>
         <span>背包</span>
       </button>
+      <span class="mg-topbar__sep" aria-hidden="true">♡</span>
       <button class="mg-topbar__btn" title="商店" type="button">
         <i class="fas fa-store"></i>
         <span>商店</span>
       </button>
+      <span class="mg-topbar__sep" aria-hidden="true">♡</span>
       <button class="mg-topbar__btn" title="训练场" type="button">
         <i class="fas fa-dumbbell"></i>
         <span>训练场</span>
       </button>
+      <span class="mg-topbar__sep mg-topbar__sep--divider" aria-hidden="true"></span>
       <button class="mg-topbar__btn" title="存档/读档" type="button" @click="$emit('openSaveManage')">
         <i class="fas fa-save"></i>
         <span>存档</span>
       </button>
+      <span class="mg-topbar__sep" aria-hidden="true">♡</span>
       <button class="mg-topbar__btn" title="提示词设置 (Prompt Builder)" type="button" @click="$emit('openPromptSettings')">
         <i class="fas fa-book-open"></i>
         <span>提示词</span>
       </button>
+      <span class="mg-topbar__sep" aria-hidden="true">♡</span>
       <button class="mg-topbar__btn" title="API 设置" type="button" @click="$emit('openApiSettings')">
         <i class="fas fa-plug"></i>
         <span>API</span>
       </button>
+      <span class="mg-topbar__sep" aria-hidden="true">♡</span>
       <button class="mg-topbar__btn" title="系统设置" type="button" @click="$emit('openSystemSettings')">
         <i class="fas fa-cog"></i>
         <span>系统</span>
       </button>
+      <span class="mg-topbar__sep mg-topbar__sep--divider" aria-hidden="true"></span>
       <button class="mg-topbar__btn" title="返回标题页" type="button" @click="returnToTitle">
         <i class="fas fa-home"></i>
         <span>标题</span>
@@ -104,5 +111,24 @@ function returnToTitle() {
   }
 
   i { font-size: 0.85rem; }
+}
+
+.mg-topbar__sep {
+  color: var(--mg-accent);
+  font-size: 0.5rem;
+  opacity: 0.4;
+  user-select: none;
+  display: flex;
+  align-items: center;
+
+  &--divider {
+    width: 4px;
+    font-size: 0;
+    opacity: 0.25;
+    background: var(--mg-border-light);
+    border-radius: 2px;
+    margin: 0 4px;
+    align-self: stretch;
+  }
 }
 </style>

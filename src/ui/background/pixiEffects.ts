@@ -19,9 +19,10 @@ interface Particle {
   size: number;
   alpha: number;
   color: number;
+  shape: "circle" | "heart" | "star";
 }
 
-const PARTICLE_COUNT = 25;
+const PARTICLE_COUNT = 35;
 
 /** Maximum internal pixel budget: ~921K pixels (1280×720). */
 const MAX_PIXEL_BUDGET = 1280 * 720;
@@ -125,6 +126,7 @@ export class PixiEffects {
         size: 1.5 + Math.random() * 2.5,
         alpha: 0.08 + Math.random() * 0.15,
         color: Math.random() > 0.7 ? 0xb24bf3 : 0xff6b9d,
+        shape: Math.random() > 0.6 ? "heart" : (Math.random() > 0.5 ? "star" : "circle"),
       });
     }
   }
@@ -153,7 +155,25 @@ export class PixiEffects {
       if (p.x > this.internalWidth + 10) p.x = -10;
       if (p.x < -10) p.x = this.internalWidth + 10;
 
-      g.circle(p.x, p.y, p.size).fill({ color: p.color, alpha: p.alpha });
+      if (p.shape === "heart") {
+        const s = p.size * 2;
+        g.moveTo(p.x, p.y + s);
+        g.bezierCurveTo(
+          p.x - s * 1.5, p.y - s * 0.3,
+          p.x - s, p.y - s * 1.5,
+          p.x, p.y - s * 0.4,
+        );
+        g.bezierCurveTo(
+          p.x + s, p.y - s * 1.5,
+          p.x + s * 1.5, p.y - s * 0.3,
+          p.x, p.y + s,
+        );
+        g.fill({ color: p.color, alpha: p.alpha });
+      } else if (p.shape === "star") {
+        g.star(p.x, p.y, 5, p.size, p.size * 0.4).fill({ color: p.color, alpha: p.alpha });
+      } else {
+        g.circle(p.x, p.y, p.size).fill({ color: p.color, alpha: p.alpha });
+      }
     }
   }
 
