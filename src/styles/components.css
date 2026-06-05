@@ -27,12 +27,11 @@
   overflow: hidden;
   border: 3px solid var(--surface-border-strong);
   border-radius: var(--radius-xl);
-  background: var(--bg-panel);
+  background: rgba(40, 18, 48, 0.94);
   color: var(--text-primary);
   box-shadow:
     var(--shadow-sticker),
     inset 0 0 0 1px rgba(255, 245, 251, 0.04);
-  backdrop-filter: blur(18px);
 }
 
 .scrapbook-panel::before {
@@ -447,6 +446,7 @@
   font-weight: 700;
   box-shadow: 5px 5px 0 rgba(24, 13, 31, 0.8);
   animation: stickerBounce 3s ease-in-out infinite;
+  will-change: transform;
 }
 
 .stat-chip-list {

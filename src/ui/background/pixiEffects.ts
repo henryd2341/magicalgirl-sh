@@ -1,6 +1,7 @@
 // ============================================================
 // PixiJS Background Effects — Lightweight WebGL particles + glow
 // Uses persistent Graphics to avoid GC pressure.
+// Internal resolution capped to limit GPU fill-rate on wide screens.
 // ============================================================
 import { Application, Graphics, BlurFilter } from "pixi.js";
 
@@ -22,35 +23,51 @@ interface Particle {
 
 const PARTICLE_COUNT = 25;
 
+/** Maximum internal pixel budget: ~921K pixels (1280×720). */
+const MAX_PIXEL_BUDGET = 1280 * 720;
+
+/** Blur radius — reduced from 80; still reads as a soft glow. */
+const GLOW_BLUR = 35;
+
 export class PixiEffects {
   private app!: Application;
   private particleGfx!: Graphics;
   private glowGfx!: Graphics;
   private particles: Particle[] = [];
-  private width = 0;
-  private height = 0;
+  private cssWidth = 0;
+  private cssHeight = 0;
+  private internalWidth = 0;
+  private internalHeight = 0;
   private running = false;
+  private frameSkip = 0;
 
   async init(options: PixiEffectsOptions) {
-    this.width = options.container.clientWidth;
-    this.height = options.container.clientHeight;
+    this.cssWidth = options.container.clientWidth;
+    this.cssHeight = options.container.clientHeight;
+    this.computeInternalSize();
 
     this.app = new Application();
     await this.app.init({
-      width: this.width,
-      height: this.height,
+      width: this.internalWidth,
+      height: this.internalHeight,
       backgroundAlpha: 0,
       antialias: false,
       resolution: 1,
       autoDensity: false,
     });
 
-    options.container.appendChild(this.app.canvas);
+    // Let CSS scale the canvas to fill the container (bilinear, free on GPU).
+    const canvas = this.app.canvas as HTMLCanvasElement;
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.style.imageRendering = "auto";
+
+    options.container.appendChild(canvas);
 
     // Glow — single Graphics + blur, never recreated
     this.glowGfx = new Graphics();
     const blur = new BlurFilter();
-    blur.blur = 80;
+    blur.strength = GLOW_BLUR;
     this.glowGfx.filters = [blur];
     this.drawGlow();
     this.app.stage.addChild(this.glowGfx);
@@ -63,31 +80,46 @@ export class PixiEffects {
     this.running = true;
     this.app.ticker.add(() => this.update());
 
-    // Resize
+    // Resize handler — recalculate internal resolution and redraw glow
     const observer = new ResizeObserver(() => {
-      this.width = options.container.clientWidth;
-      this.height = options.container.clientHeight;
-      this.app.renderer.resize(this.width, this.height);
+      this.cssWidth = options.container.clientWidth;
+      this.cssHeight = options.container.clientHeight;
+      this.computeInternalSize();
+      this.app.renderer.resize(this.internalWidth, this.internalHeight);
       this.drawGlow();
     });
     observer.observe(options.container);
   }
 
+  /** Cap internal resolution so GPU fill-rate stays bounded. */
+  private computeInternalSize() {
+    const cssArea = this.cssWidth * this.cssHeight;
+    if (cssArea <= MAX_PIXEL_BUDGET) {
+      this.internalWidth = this.cssWidth;
+      this.internalHeight = this.cssHeight;
+      return;
+    }
+    const scale = Math.sqrt(MAX_PIXEL_BUDGET / cssArea);
+    this.internalWidth = Math.round(this.cssWidth * scale);
+    this.internalHeight = Math.round(this.cssHeight * scale);
+  }
+
   private drawGlow() {
     const g = this.glowGfx;
     g.clear();
-    g.circle(this.width / 2, this.height * 0.35, Math.max(this.width, this.height) * 0.4)
-      .fill({ color: 0xff6b9d, alpha: 0.03 });
-    g.circle(this.width * 0.3, this.height * 0.55, Math.max(this.width, this.height) * 0.25)
-      .fill({ color: 0xb24bf3, alpha: 0.02 });
+    const w = this.internalWidth;
+    const h = this.internalHeight;
+    const maxDim = Math.max(w, h);
+    g.circle(w / 2, h * 0.35, maxDim * 0.4).fill({ color: 0xff6b9d, alpha: 0.03 });
+    g.circle(w * 0.3, h * 0.55, maxDim * 0.25).fill({ color: 0xb24bf3, alpha: 0.02 });
   }
 
   private initParticles() {
     this.particles = [];
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       this.particles.push({
-        x: Math.random() * this.width,
-        y: Math.random() * this.height,
+        x: Math.random() * this.internalWidth,
+        y: Math.random() * this.internalHeight,
         vx: (Math.random() - 0.5) * 0.3,
         vy: -0.15 - Math.random() * 0.4,
         size: 1.5 + Math.random() * 2.5,
@@ -100,7 +132,11 @@ export class PixiEffects {
   private update() {
     if (!this.running) return;
 
-    // Glow pulse (just alpha modulation, no geometry recreation)
+    // Throttle to ~30 fps — halved fill-rate & blur cost.
+    this.frameSkip = (this.frameSkip + 1) % 2;
+    if (this.frameSkip !== 0) return;
+
+    // Glow pulse (alpha modulation only, no geometry changes)
     this.glowGfx.alpha = 0.6 + Math.sin(Date.now() * 0.0003) * 0.15;
 
     // Redraw particles in place
@@ -110,9 +146,12 @@ export class PixiEffects {
     for (const p of this.particles) {
       p.x += p.vx;
       p.y += p.vy;
-      if (p.y > this.height + 10) { p.y = -10; p.x = Math.random() * this.width; }
-      if (p.x > this.width + 10) p.x = -10;
-      if (p.x < -10) p.x = this.width + 10;
+      if (p.y > this.internalHeight + 10) {
+        p.y = -10;
+        p.x = Math.random() * this.internalWidth;
+      }
+      if (p.x > this.internalWidth + 10) p.x = -10;
+      if (p.x < -10) p.x = this.internalWidth + 10;
 
       g.circle(p.x, p.y, p.size).fill({ color: p.color, alpha: p.alpha });
     }

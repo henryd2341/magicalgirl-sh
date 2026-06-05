@@ -465,8 +465,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--mg-bg-overlay, rgba(26, 26, 26, 0.92));
-  backdrop-filter: blur(4px);
+  background: var(--mg-bg-overlay, rgba(26, 26, 26, 0.94));
   animation: mg-fade-in 200ms ease;
 }
 
