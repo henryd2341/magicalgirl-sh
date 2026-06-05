@@ -1,0 +1,44 @@
+// ============================================================
+// Kidcore Theme
+// Reference: design/aesthetics_ref/Kidcore_design.md
+// Hyper-saturated primary rainbow, toy-like chunky shapes
+// ============================================================
+
+:root[data-theme="kidcore"] {
+  // --- colors ---
+  --mg-bg: #fffef5;
+  --mg-bg-card: #ffffff;
+  --mg-bg-overlay: rgba(26, 26, 46, 0.7);
+  --mg-text: #1a1a2e;
+  --mg-text-secondary: #333;
+  --mg-text-muted: #666;
+  --mg-accent: #ff2d2d;
+  --mg-accent-strong: #d50000;
+  --mg-accent-glow: rgba(255, 45, 45, 0.3);
+  --mg-border: #1a1a2e;
+  --mg-border-light: rgba(26, 26, 46, 0.2);
+  --mg-shadow: #ff6ec7;
+  --mg-success: #00c853;
+  --mg-warning: #ffd600;
+  --mg-error: #d50000;
+
+  // --- typography ---
+  --mg-font-heading: "Bubblegum Sans", "Fredoka", cursive;
+  --mg-font-body: "Patrick Hand", "Comic Sans MS", cursive;
+  --mg-font-mono: monospace;
+  --mg-font-handwritten: "Patrick Hand", cursive;
+
+  // --- effects ---
+  --mg-shadow-style: 5px 5px 0 var(--mg-shadow);
+  --mg-glow-pink: none;
+  --mg-glow-lilac: none;
+  --mg-border-width: 3px;
+  --mg-radius: 20px;
+  --mg-radius-sm: 12px;
+  --mg-radius-lg: 30px;
+
+  // --- surface fills ---
+  --mg-surface-pink: #f8bbd0;
+  --mg-surface-lavender: #e8c5e8;
+  --mg-surface-dark: #1a1a2e;
+}

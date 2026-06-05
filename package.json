@@ -14,9 +14,11 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.48",
+    "@fortawesome/fontawesome-free": "^7.2.0",
     "@sqliteai/sqlite-wasm": "3.50.4-sync.1.0.16-vector.0.9.95-memory.0.9.0",
     "@tailwindcss/vite": "^4.3.0",
     "ai": "^6.0.191",
+    "markdown-it": "^14.2.0",
     "pinia": "^2.1.7",
     "pixi.js": "^8.18.1",
     "sass": "^1.100.0",

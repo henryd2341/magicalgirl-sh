@@ -1,0 +1,9 @@
+// ============================================================
+// Theme Engine — imports all three theme files
+// Reads `data-theme` attribute on <html> to apply tokens.
+// Default: E-girl/E-boy (applied on :root without attribute).
+// ============================================================
+
+@use "e-girl";
+@use "kidcore";
+@use "pastel-brutalism";

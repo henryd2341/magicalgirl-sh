@@ -1,0 +1,76 @@
+// ============================================================
+// MagicalGirl Shell — SCSS Base Reset
+// Ported from base.css; old CSS kept as fallback.
+// ============================================================
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+  font-family: var(--mg-font-body, "Quicksand", sans-serif);
+  color: var(--mg-text, #f5f0f6);
+  background: var(--mg-bg, #1a1a1a);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  height: 100%;
+  overflow: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--mg-font-heading, "Fredoka", sans-serif);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--mg-text, #f5f0f6);
+}
+
+a {
+  color: var(--mg-accent, #ff6b9d);
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+// ---------- scrollbar styling ----------
+.mg-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--mg-accent, #ff6b9d) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--mg-accent, #ff6b9d);
+    border-radius: 3px;
+  }
+}
+
+// ---------- visually hidden (screen reader only) ----------
+.mg-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

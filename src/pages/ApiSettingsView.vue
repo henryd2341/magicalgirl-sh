@@ -14,6 +14,9 @@ import {
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 
+defineProps<{ embedded?: boolean }>();
+const emit = defineEmits<{ close: [] }>();
+
 const router = useRouter();
 const repository = getProviderSettingsRepository();
 const state = ref<ProviderSettingsState>(createDefaultProviderSettingsState());
@@ -79,9 +82,7 @@ async function refreshState(): Promise<void> {
   loadToolApiConfig(state.value);
 }
 
-async function returnToGame(): Promise<void> {
-  await router.push({ name: "game" });
-}
+const returnToGame = () => emit("close");
 
 async function selectProfile(profileId: string): Promise<void> {
   await repository.setActiveProfile(profileId);

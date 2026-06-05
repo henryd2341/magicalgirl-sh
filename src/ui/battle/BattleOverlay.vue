@@ -5,9 +5,9 @@ import {
 } from "@/engine/battle/battleActionCatalog";
 import { useBattleStore } from "@/stores/battleStore";
 import { useSessionStore } from "@/stores/sessionStore";
-import avatarHeroine from "@/assets/avatars/heroine_1_transformed.png";
-import spriteOne from "@/assets/sprites/1.png";
-import spriteTwo from "@/assets/sprites/2.png";
+import avatarHeroine from "@/assets/avatars/transformed/女user.png";
+import spriteOne from "@/assets/sprites/bat1.png";
+import spriteTwo from "@/assets/sprites/bear1.png";
 import type {
   BattleActionId,
   BattleActionMenuNode,

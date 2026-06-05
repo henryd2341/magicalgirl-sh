@@ -1,0 +1,45 @@
+// ============================================================
+// E-girl / E-boy Theme — Default
+// Reference: design/aesthetics_ref/E-girl_E-boy_design.md
+// Dark pink+black maximalist, anime/sticker/chain motifs
+// ============================================================
+
+:root[data-theme="e-girl"],
+:root {
+  // --- colors ---
+  --mg-bg: #1a1a1a;
+  --mg-bg-card: #2d2d2d;
+  --mg-bg-overlay: rgba(26, 26, 26, 0.92);
+  --mg-text: #f5f0f6;
+  --mg-text-secondary: #c9a0dc;
+  --mg-text-muted: #888;
+  --mg-accent: #ff6b9d;
+  --mg-accent-strong: #ff2d78;
+  --mg-accent-glow: rgba(255, 107, 157, 0.4);
+  --mg-border: #c0c0c0;
+  --mg-border-light: rgba(255, 107, 157, 0.2);
+  --mg-shadow: #1a1a1a;
+  --mg-success: #7bed9f;
+  --mg-warning: #ffd600;
+  --mg-error: #ff4757;
+
+  // --- typography ---
+  --mg-font-heading: "Fredoka", sans-serif;
+  --mg-font-body: "Quicksand", sans-serif;
+  --mg-font-mono: monospace;
+  --mg-font-handwritten: "Patrick Hand", cursive;
+
+  // --- effects ---
+  --mg-shadow-style: 0 0 10px rgba(255, 107, 157, 0.4), 0 0 30px rgba(255, 107, 157, 0.15);
+  --mg-glow-pink: 0 0 10px rgba(255, 107, 157, 0.4), 0 0 30px rgba(255, 107, 157, 0.15);
+  --mg-glow-lilac: 0 0 10px rgba(178, 75, 243, 0.4), 0 0 30px rgba(178, 75, 243, 0.15);
+  --mg-border-width: 2px;
+  --mg-radius: 16px;
+  --mg-radius-sm: 8px;
+  --mg-radius-lg: 24px;
+
+  // --- surface fills ---
+  --mg-surface-pink: rgba(255, 107, 157, 0.08);
+  --mg-surface-lavender: rgba(201, 160, 220, 0.12);
+  --mg-surface-dark: #2d2d2d;
+}

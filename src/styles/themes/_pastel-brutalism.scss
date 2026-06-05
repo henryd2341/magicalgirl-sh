@@ -1,0 +1,44 @@
+// ============================================================
+// Pastel Brutalism Theme
+// Reference: design/aesthetics_ref/Pastel_Brutalism_design.md
+// Soft pastels + thick black borders + hard zero-blur shadows
+// ============================================================
+
+:root[data-theme="pastel-brutalism"] {
+  // --- colors ---
+  --mg-bg: #f0f0f0;
+  --mg-bg-card: #ffffff;
+  --mg-bg-overlay: rgba(240, 240, 240, 0.95);
+  --mg-text: #1a1a1a;
+  --mg-text-secondary: #2b2b2b;
+  --mg-text-muted: #6b6b6b;
+  --mg-accent: #ff6b9d;
+  --mg-accent-strong: #1a1a1a;
+  --mg-accent-glow: none;
+  --mg-border: #1a1a1a;
+  --mg-border-light: #d0d0d0;
+  --mg-shadow: #1a1a1a;
+  --mg-success: #b8e8d0;
+  --mg-warning: #fff1c1;
+  --mg-error: #f5c6c6;
+
+  // --- typography ---
+  --mg-font-heading: "Space Grotesk", sans-serif;
+  --mg-font-body: "Inter", sans-serif;
+  --mg-font-mono: "Space Mono", monospace;
+  --mg-font-handwritten: "Patrick Hand", cursive;
+
+  // --- effects ---
+  --mg-shadow-style: 6px 6px 0 var(--mg-shadow);
+  --mg-glow-pink: none;
+  --mg-glow-lilac: none;
+  --mg-border-width: 3px;
+  --mg-radius: 0px;
+  --mg-radius-sm: 0px;
+  --mg-radius-lg: 6px;
+
+  // --- surface fills ---
+  --mg-surface-pink: #ffd6e0;
+  --mg-surface-lavender: #c5b4e3;
+  --mg-surface-dark: #1a1a1a;
+}
