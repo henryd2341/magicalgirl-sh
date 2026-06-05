@@ -88,23 +88,23 @@ palette is deliberately gendered in its references but fluid in
 application -- the same colors appear across the full spectrum of the
 aesthetic.
 
-| Color Name            | Hex                                               | Role / Usage                                               |
-| --------------------- | ------------------------------------------------- | ---------------------------------------------------------- |
-| **Blush Pink**        | `#FF6B9D`{.language-plaintext .highlighter-rouge} | Primary accent, buttons, highlights, drawn-on heart stamps |
-| **Hot Magenta**       | `#FF2D78`{.language-plaintext .highlighter-rouge} | Bold CTA elements, hover states, active links              |
-| **E-girl Black**      | `#1A1A1A`{.language-plaintext .highlighter-rouge} | Primary background, text color, dark panels                |
-| **Soft Charcoal**     | `#2D2D2D`{.language-plaintext .highlighter-rouge} | Card backgrounds, secondary dark surfaces                  |
-| **Baby Lavender**     | `#C9A0DC`{.language-plaintext .highlighter-rouge} | Secondary accent, tags, soft highlight areas               |
-| **Neon Lilac**        | `#B24BF3`{.language-plaintext .highlighter-rouge} | Tertiary accent, gradients, decorative glow                |
-| **Pastel Blue**       | `#7EC8E3`{.language-plaintext .highlighter-rouge} | Cool accent, link text, info elements                      |
-| **Chain Silver**      | `#C0C0C0`{.language-plaintext .highlighter-rouge} | Metallic accents, borders, hardware motifs                 |
-| **Bleached White**    | `#F5F0F6`{.language-plaintext .highlighter-rouge} | Light backgrounds, text on dark, card surfaces             |
-| **Checkerboard Gray** | `#E8E0EB`{.language-plaintext .highlighter-rouge} | Pattern backgrounds, alternating grid cells                |
-| **Blush Cream**       | `#FFE4ED`{.language-plaintext .highlighter-rouge} | Soft backgrounds, highlight panels, blush areas            |
-| **Warning Red**       | `#FF4757`{.language-plaintext .highlighter-rouge} | Error states, destructive actions, heart break motifs      |
-| **Acid Green**        | `#7BED9F`{.language-plaintext .highlighter-rouge} | Success states, gaming references, accent pops             |
-| **E-boy Blue**        | `#546DE5`{.language-plaintext .highlighter-rouge} | Alternative primary accent, e-boy variant palette          |
-| **Deep Plum**         | `#3D1F56`{.language-plaintext .highlighter-rouge} | Dark accent background, gradient endpoints                 |
+| Color Name            | Hex       | Role / Usage                                               |
+| --------------------- | --------- | ---------------------------------------------------------- |
+| **Blush Pink**        | `#FF6B9D` | Primary accent, buttons, highlights, drawn-on heart stamps |
+| **Hot Magenta**       | `#FF2D78` | Bold CTA elements, hover states, active links              |
+| **E-girl Black**      | `#1A1A1A` | Primary background, text color, dark panels                |
+| **Soft Charcoal**     | `#2D2D2D` | Card backgrounds, secondary dark surfaces                  |
+| **Baby Lavender**     | `#C9A0DC` | Secondary accent, tags, soft highlight areas               |
+| **Neon Lilac**        | `#B24BF3` | Tertiary accent, gradients, decorative glow                |
+| **Pastel Blue**       | `#7EC8E3` | Cool accent, link text, info elements                      |
+| **Chain Silver**      | `#C0C0C0` | Metallic accents, borders, hardware motifs                 |
+| **Bleached White**    | `#F5F0F6` | Light backgrounds, text on dark, card surfaces             |
+| **Checkerboard Gray** | `#E8E0EB` | Pattern backgrounds, alternating grid cells                |
+| **Blush Cream**       | `#FFE4ED` | Soft backgrounds, highlight panels, blush areas            |
+| **Warning Red**       | `#FF4757` | Error states, destructive actions, heart break motifs      |
+| **Acid Green**        | `#7BED9F` | Success states, gaming references, accent pops             |
+| **E-boy Blue**        | `#546DE5` | Alternative primary accent, e-boy variant palette          |
+| **Deep Plum**         | `#3D1F56` | Dark accent background, gradient endpoints                 |
 
 ### CSS Custom Properties
 
