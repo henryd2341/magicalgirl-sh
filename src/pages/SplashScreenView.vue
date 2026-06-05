@@ -35,6 +35,20 @@ function setTheme(theme: string) {
   document.documentElement.dataset.theme = theme;
 }
 
+// ── PixiJS performance settings ──
+const pixiEnabled = ref(window.localStorage.getItem("mg-pixi-enabled") !== "false");
+const pixiBlur = ref(window.localStorage.getItem("mg-pixi-blur") !== "false");
+function togglePixi(val: boolean) {
+  pixiEnabled.value = val;
+  window.localStorage.setItem("mg-pixi-enabled", String(val));
+  window.dispatchEvent(new CustomEvent("mg-pixi-toggle", { detail: val }));
+}
+function togglePixiBlurFn(val: boolean) {
+  pixiBlur.value = val;
+  window.localStorage.setItem("mg-pixi-blur", String(val));
+  window.dispatchEvent(new CustomEvent("mg-pixi-blur-toggle", { detail: val }));
+}
+
 // ── Navigation ──
 function navigateTo(routeName: string) {
   router.push({ name: routeName });
@@ -191,6 +205,20 @@ function navigateTo(routeName: string) {
               <i class="fas fa-info-circle"></i>
               // TODO: 等待实现的功能 — 字号调整、音量控制
             </p>
+            <div class="mg-system-settings__section">
+              <h3><i class="fas fa-bolt"></i> 性能设置</h3>
+              <p class="mg-system-settings__hint">PixiJS WebGL 背景特效对首次加载影响较大，可在低性能设备上关闭。</p>
+              <label class="mg-toggle">
+                <input type="checkbox" :checked="pixiEnabled" @change="togglePixi(($event.target as HTMLInputElement).checked)" />
+                <span class="mg-toggle__slider"></span>
+                <span class="mg-toggle__label">PixiJS 背景特效</span>
+              </label>
+              <label class="mg-toggle" :class="{ 'mg-toggle--disabled': !pixiEnabled }">
+                <input type="checkbox" :checked="pixiBlur" :disabled="!pixiEnabled" @change="togglePixiBlurFn(($event.target as HTMLInputElement).checked)" />
+                <span class="mg-toggle__slider"></span>
+                <span class="mg-toggle__label">背景模糊动效</span>
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -501,5 +529,61 @@ function navigateTo(routeName: string) {
     transform: scale(1);
     opacity: 1;
   }
+}
+
+// ── Toggle switch ──
+.mg-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: var(--mg-space-sm, 8px);
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--mg-text, #f5f0f6);
+
+  input { display: none; }
+
+  &--disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &__slider {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    background: var(--mg-border-light, rgba(255, 107, 157, 0.2));
+    border: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
+    border-radius: 11px;
+    transition: all var(--mg-transition-fast, 150ms ease);
+    flex-shrink: 0;
+
+    &::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--mg-text-secondary, #c9a0dc);
+      transition: all var(--mg-transition-fast, 150ms ease);
+    }
+  }
+
+  input:checked + &__slider {
+    background: var(--mg-accent, #ff6b9d);
+    border-color: var(--mg-accent-strong, #ff2d78);
+    &::after { left: 20px; background: #fff; }
+  }
+
+  &__label { user-select: none; }
+}
+
+.mg-system-settings__hint {
+  font-size: 0.78rem;
+  color: var(--mg-text-muted, #888);
+  margin: 0 0 var(--mg-space-sm, 8px);
+  line-height: 1.5;
 }
 </style>

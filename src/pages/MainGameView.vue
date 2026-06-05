@@ -34,14 +34,50 @@ const bottomBarOpen = ref(false);
 const showSettings = ref(false);
 const showApiSettings = ref(false);
 const showSaveManage = ref(false);
+const showSystemSettings = ref(false);
+
+// ── Theme & PixiJS settings (read from localStorage, kept reactive for template) ──
+const activeTheme = ref(window.localStorage.getItem("mg-theme") || "e-girl");
+const pixiEnabled = ref(
+  window.localStorage.getItem("mg-pixi-enabled") !== "false",
+);
+const pixiBlurEnabled = ref(
+  window.localStorage.getItem("mg-pixi-blur") !== "false",
+);
+
+function setTheme(id: string) {
+  activeTheme.value = id;
+  window.localStorage.setItem("mg-theme", id);
+  document.documentElement.dataset.theme = id;
+}
+
+function setPixiEnabled(val: boolean) {
+  pixiEnabled.value = val;
+  window.localStorage.setItem("mg-pixi-enabled", String(val));
+  if (!val) pixiBlurEnabled.value = false;
+  window.dispatchEvent(
+    new window.CustomEvent("mg-pixi-toggle", { detail: val }),
+  );
+}
+
+function setPixiBlur(val: boolean) {
+  pixiBlurEnabled.value = val;
+  window.localStorage.setItem("mg-pixi-blur", String(val));
+  window.dispatchEvent(
+    new window.CustomEvent("mg-pixi-blur-toggle", { detail: val }),
+  );
+}
 
 // ── Save reminder banner ──
 const showSaveReminder = ref(false);
 
 // ── Battle / post-combat visibility ──
 const shouldShowBattleOverlay = computed(() => {
-  const isPending = snapshot.value.sessionState === "COMBAT_PENDING" && pendingBattle.value !== null;
-  const isActive = snapshot.value.sessionState === "IN_COMBAT" && activeBattle.value !== null;
+  const isPending =
+    snapshot.value.sessionState === "COMBAT_PENDING" &&
+    pendingBattle.value !== null;
+  const isActive =
+    snapshot.value.sessionState === "IN_COMBAT" && activeBattle.value !== null;
   return isPending || isActive;
 });
 
@@ -88,30 +124,48 @@ onMounted(async () => {
   <main id="main-game-view" class="mg-game" role="main">
     <!-- ═══ Top Bar ═══ -->
     <GameTopBar
-      @open-settings="showSettings = true"
+      @open-prompt-settings="showSettings = true"
       @open-api-settings="showApiSettings = true"
       @open-save-manage="showSaveManage = true"
+      @open-system-settings="showSystemSettings = true"
     />
 
     <!-- ═══ Center Row (3 columns) ═══ -->
     <div class="mg-game__center">
       <!-- Left Panel -->
-      <aside class="mg-game__left mg-scroll" :class="{ 'mg-game__left--closed': !leftPanelOpen }">
-        <button class="mg-panel-toggle" @click="leftPanelOpen = !leftPanelOpen" :title="leftPanelOpen ? '收起面板' : '展开面板'">
-          <i :class="leftPanelOpen ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i>
+      <aside
+        class="mg-game__left mg-scroll"
+        :class="{ 'mg-game__left--closed': !leftPanelOpen }"
+      >
+        <button
+          class="mg-panel-toggle"
+          @click="leftPanelOpen = !leftPanelOpen"
+          :title="leftPanelOpen ? '收起面板' : '展开面板'"
+        >
+          <i
+            :class="
+              leftPanelOpen ? 'fas fa-chevron-left' : 'fas fa-chevron-right'
+            "
+          ></i>
         </button>
         <div v-if="leftPanelOpen" class="mg-game__left-content">
           <!-- TODO: 等待实现的功能 — 场景缩略图（提取自世界变量） -->
           <div class="mg-card mg-card--sm">
-            <p class="mg-card__placeholder"><i class="fas fa-image"></i> 场景缩略图</p>
+            <p class="mg-card__placeholder">
+              <i class="fas fa-image"></i> 场景缩略图
+            </p>
           </div>
           <!-- TODO: 等待实现的功能 — 世界信息展示 -->
           <div class="mg-card mg-card--sm">
-            <p class="mg-card__placeholder"><i class="fas fa-globe"></i> 世界信息</p>
+            <p class="mg-card__placeholder">
+              <i class="fas fa-globe"></i> 世界信息
+            </p>
           </div>
           <!-- TODO: 等待实现的功能 — BGM播放器 -->
           <div class="mg-card mg-card--sm">
-            <p class="mg-card__placeholder"><i class="fas fa-music"></i> // TODO: 等待实现的功能 — BGM播放器</p>
+            <p class="mg-card__placeholder">
+              <i class="fas fa-music"></i> // TODO: 等待实现的功能 — BGM播放器
+            </p>
           </div>
           <nav class="mg-game__left-actions">
             <button class="mg-btn mg-btn--sm mg-btn--ghost">
@@ -131,8 +185,13 @@ onMounted(async () => {
       <section class="mg-game__chat">
         <!-- Save reminder banner -->
         <div v-if="showSaveReminder" class="mg-game__reminder">
-          <span><i class="fas fa-exclamation-triangle"></i> 提醒：请定期导出存档以避免数据丢失</span>
-          <button @click="showSaveReminder = false"><i class="fas fa-times"></i></button>
+          <span
+            ><i class="fas fa-exclamation-triangle"></i>
+            提醒：请定期导出存档以避免数据丢失</span
+          >
+          <button @click="showSaveReminder = false">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
         <GameStatusBanner />
         <div class="mg-game__messages">
@@ -143,14 +202,27 @@ onMounted(async () => {
       </section>
 
       <!-- Right Panel -->
-      <aside class="mg-game__right mg-scroll" :class="{ 'mg-game__right--closed': !rightPanelOpen }">
-        <button class="mg-panel-toggle mg-panel-toggle--right" @click="rightPanelOpen = !rightPanelOpen" :title="rightPanelOpen ? '收起面板' : '展开面板'">
-          <i :class="rightPanelOpen ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
+      <aside
+        class="mg-game__right mg-scroll"
+        :class="{ 'mg-game__right--closed': !rightPanelOpen }"
+      >
+        <button
+          class="mg-panel-toggle mg-panel-toggle--right"
+          @click="rightPanelOpen = !rightPanelOpen"
+          :title="rightPanelOpen ? '收起面板' : '展开面板'"
+        >
+          <i
+            :class="
+              rightPanelOpen ? 'fas fa-chevron-right' : 'fas fa-chevron-left'
+            "
+          ></i>
         </button>
         <div v-if="rightPanelOpen" class="mg-game__right-content">
           <!-- TODO: 等待实现的功能 — 角色信息卡片（实时变量） -->
           <div class="mg-card mg-card--sm mg-card--char">
-            <p class="mg-card__placeholder"><i class="fas fa-user-circle"></i> 角色卡片</p>
+            <p class="mg-card__placeholder">
+              <i class="fas fa-user-circle"></i> 角色卡片
+            </p>
             <p class="mg-card__hint">可视化角色相关变量</p>
           </div>
         </div>
@@ -159,7 +231,10 @@ onMounted(async () => {
 
     <!-- ═══ Bottom Bar (dev tools, hidden by default) ═══ -->
     <footer v-if="bottomBarOpen" class="mg-game__bottom">
-      <button class="mg-btn mg-btn--sm mg-btn--ghost" @click="launchDebugBattleForTestingOnly">
+      <button
+        class="mg-btn mg-btn--sm mg-btn--ghost"
+        @click="launchDebugBattleForTestingOnly"
+      >
         <i class="fas fa-flask"></i> 测试：启动预置战斗
       </button>
       <button class="mg-btn mg-btn--sm mg-btn--ghost">
@@ -191,9 +266,15 @@ onMounted(async () => {
     <PromptViewerDrawer />
 
     <!-- ═══ In-Game Modals ═══ -->
-    <div v-if="showSettings" class="mg-modal-overlay" @click.self="showSettings = false">
+    <div
+      v-if="showSettings"
+      class="mg-modal-overlay"
+      @click.self="showSettings = false"
+    >
       <div class="mg-modal-card mg-modal-card--wide">
-        <button class="mg-modal__close" @click="showSettings = false"><i class="fas fa-times"></i></button>
+        <button class="mg-modal__close" @click="showSettings = false">
+          <i class="fas fa-times"></i>
+        </button>
         <h2 class="mg-modal__title">提示词设置</h2>
         <div class="mg-modal__body mg-scroll">
           <SettingsView :embedded="true" @close="showSettings = false" />
@@ -201,9 +282,15 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div v-if="showApiSettings" class="mg-modal-overlay" @click.self="showApiSettings = false">
+    <div
+      v-if="showApiSettings"
+      class="mg-modal-overlay"
+      @click.self="showApiSettings = false"
+    >
       <div class="mg-modal-card mg-modal-card--wide">
-        <button class="mg-modal__close" @click="showApiSettings = false"><i class="fas fa-times"></i></button>
+        <button class="mg-modal__close" @click="showApiSettings = false">
+          <i class="fas fa-times"></i>
+        </button>
         <h2 class="mg-modal__title">API 设置</h2>
         <div class="mg-modal__body mg-scroll">
           <ApiSettingsView :embedded="true" @close="showApiSettings = false" />
@@ -211,12 +298,95 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div v-if="showSaveManage" class="mg-modal-overlay" @click.self="showSaveManage = false">
+    <div
+      v-if="showSaveManage"
+      class="mg-modal-overlay"
+      @click.self="showSaveManage = false"
+    >
       <div class="mg-modal-card mg-modal-card--wide">
-        <button class="mg-modal__close" @click="showSaveManage = false"><i class="fas fa-times"></i></button>
+        <button class="mg-modal__close" @click="showSaveManage = false">
+          <i class="fas fa-times"></i>
+        </button>
         <h2 class="mg-modal__title">存档管理</h2>
         <div class="mg-modal__body mg-scroll">
           <SaveExportView :embedded="true" @close="showSaveManage = false" />
+        </div>
+      </div>
+    </div>
+
+    <!-- System Settings Modal -->
+    <div
+      v-if="showSystemSettings"
+      class="mg-modal-overlay"
+      @click.self="showSystemSettings = false"
+    >
+      <div class="mg-modal-card">
+        <button class="mg-modal__close" @click="showSystemSettings = false">
+          <i class="fas fa-times"></i>
+        </button>
+        <h2 class="mg-modal__title">系统设置</h2>
+        <div class="mg-modal__body">
+          <div class="mg-system-settings">
+            <div class="mg-system-settings__section">
+              <h3>主题切换</h3>
+              <div class="mg-theme-options">
+                <button
+                  v-for="theme in [
+                    { id: 'e-girl', label: 'E-girl / E-boy', icon: 'fa-heart' },
+                    { id: 'kidcore', label: 'Kidcore', icon: 'fa-star' },
+                    {
+                      id: 'pastel-brutalism',
+                      label: 'Pastel Brutalism',
+                      icon: 'fa-square',
+                    },
+                  ]"
+                  :key="theme.id"
+                  class="mg-theme-btn"
+                  :class="{ 'mg-theme-btn--active': activeTheme === theme.id }"
+                  @click="setTheme(theme.id)"
+                >
+                  <i :class="`fas ${theme.icon}`"></i>
+                  {{ theme.label }}
+                </button>
+              </div>
+            </div>
+            <div class="mg-system-settings__section">
+              <h3><i class="fas fa-bolt"></i> 性能设置</h3>
+              <p class="mg-system-settings__hint">
+                PixiJS WebGL 背景特效对首次加载影响较大，可在低性能设备上关闭。
+              </p>
+              <label class="mg-toggle">
+                <input
+                  type="checkbox"
+                  :checked="pixiEnabled"
+                  @change="
+                    setPixiEnabled(($event.target as HTMLInputElement).checked)
+                  "
+                />
+                <span class="mg-toggle__slider"></span>
+                <span class="mg-toggle__label">PixiJS 背景特效</span>
+              </label>
+              <label
+                class="mg-toggle"
+                :class="{ 'mg-toggle--disabled': !pixiEnabled }"
+              >
+                <input
+                  type="checkbox"
+                  :checked="pixiBlurEnabled"
+                  :disabled="!pixiEnabled"
+                  @change="
+                    setPixiBlur(($event.target as HTMLInputElement).checked)
+                  "
+                />
+                <span class="mg-toggle__slider"></span>
+                <span class="mg-toggle__label">背景模糊动效</span>
+              </label>
+            </div>
+            <p class="mg-system-settings__todo">
+              <i class="fas fa-info-circle"></i>
+              // TODO: 等待实现的功能 — 字号调整、音量控制
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -412,41 +582,61 @@ onMounted(async () => {
   color: var(--mg-text, #f5f0f6);
   background: var(--mg-bg-card, #2d2d2d);
   cursor: pointer;
-  transition: all var(--mg-transition-bounce, 300ms cubic-bezier(0.34, 1.56, 0.64, 1));
+  transition: all
+    var(--mg-transition-bounce, 300ms cubic-bezier(0.34, 1.56, 0.64, 1));
   white-space: nowrap;
 
-  i { font-size: 0.8rem; }
+  i {
+    font-size: 0.8rem;
+  }
 
-  &:hover { transform: scale(1.03); border-color: var(--mg-accent, #ff6b9d); }
-  &:active { transform: scale(0.97); }
+  &:hover {
+    transform: scale(1.03);
+    border-color: var(--mg-accent, #ff6b9d);
+  }
+  &:active {
+    transform: scale(0.97);
+  }
 
-  &--sm { padding: 5px 12px; font-size: 0.78rem; }
+  &--sm {
+    padding: 5px 12px;
+    font-size: 0.78rem;
+  }
 
   &--ghost {
     background: transparent;
     border-color: var(--mg-border-light, rgba(255, 107, 157, 0.2));
     color: var(--mg-text-secondary, #c9a0dc);
     justify-content: flex-start;
-    &:hover { color: var(--mg-accent, #ff6b9d); }
+    &:hover {
+      color: var(--mg-accent, #ff6b9d);
+    }
   }
 }
 
 .mg-card {
   background: var(--mg-surface-pink);
-  border: var(--mg-border-width, 2px) solid var(--mg-border-light, rgba(255, 107, 157, 0.2));
+  border: var(--mg-border-width, 2px) solid
+    var(--mg-border-light, rgba(255, 107, 157, 0.2));
   border-radius: var(--mg-radius-sm, 8px);
   padding: var(--mg-space-sm, 8px) var(--mg-space-md, 16px);
 
-  &--sm { padding: var(--mg-space-sm, 8px) var(--mg-space-sm, 8px); }
+  &--sm {
+    padding: var(--mg-space-sm, 8px) var(--mg-space-sm, 8px);
+  }
 
-  &--char { overflow-y: hidden; }
+  &--char {
+    overflow-y: hidden;
+  }
 
   &__placeholder {
     font-size: 0.8rem;
     color: var(--mg-text-muted, #888);
     text-align: center;
     margin: 0;
-    i { margin-right: 4px; }
+    i {
+      margin-right: 4px;
+    }
   }
 
   &__hint {
@@ -481,7 +671,9 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
 
-  &--wide { max-width: 720px; }
+  &--wide {
+    max-width: 720px;
+  }
 }
 
 .mg-modal__close {
@@ -523,7 +715,116 @@ onMounted(async () => {
 }
 
 @keyframes mg-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+// ── System settings & toggle (shared with SplashScreen) ──
+.mg-system-settings {
+  &__section {
+    margin-bottom: var(--mg-space-lg, 24px);
+    h3 {
+      font-size: 1rem;
+      margin: 0 0 var(--mg-space-sm, 8px);
+      color: var(--mg-text, #f5f0f6);
+    }
+  }
+  &__todo {
+    font-size: 0.85rem;
+    color: var(--mg-text-muted, #888);
+    font-style: italic;
+    margin-top: var(--mg-space-md, 16px);
+    i {
+      margin-right: 6px;
+    }
+  }
+  &__hint {
+    font-size: 0.78rem;
+    color: var(--mg-text-muted, #888);
+    margin: 0 0 var(--mg-space-sm, 8px);
+    line-height: 1.5;
+  }
+}
+
+.mg-theme-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mg-space-sm, 8px);
+}
+
+.mg-theme-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border: var(--mg-border-width, 2px) solid
+    var(--mg-border-light, rgba(255, 107, 157, 0.2));
+  border-radius: var(--mg-radius-sm, 8px);
+  background: var(--mg-surface-pink);
+  color: var(--mg-text, #f5f0f6);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all var(--mg-transition-fast, 150ms ease);
+  &:hover {
+    border-color: var(--mg-accent, #ff6b9d);
+  }
+  &--active {
+    border-color: var(--mg-accent, #ff6b9d);
+    background: var(--mg-accent, #ff6b9d);
+    color: #fff;
+  }
+}
+
+.mg-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: var(--mg-space-sm, 8px);
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--mg-text, #f5f0f6);
+  input {
+    display: none;
+  }
+  &--disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  &__slider {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    background: var(--mg-border-light, rgba(255, 107, 157, 0.2));
+    border: var(--mg-border-width, 2px) solid var(--mg-border, #c0c0c0);
+    border-radius: 11px;
+    flex-shrink: 0;
+    transition: all var(--mg-transition-fast, 150ms ease);
+    &::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--mg-text-secondary, #c9a0dc);
+      transition: all var(--mg-transition-fast, 150ms ease);
+    }
+  }
+  input:checked + &__slider {
+    background: var(--mg-accent, #ff6b9d);
+    border-color: var(--mg-accent-strong, #ff2d78);
+    &::after {
+      left: 20px;
+      background: #fff;
+    }
+  }
+  &__label {
+    user-select: none;
+  }
 }
 </style>

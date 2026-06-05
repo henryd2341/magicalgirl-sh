@@ -2,9 +2,10 @@
 import { useRouter } from "vue-router";
 
 defineEmits<{
-  openSettings: [];
+  openPromptSettings: [];
   openApiSettings: [];
   openSaveManage: [];
+  openSystemSettings: [];
 }>();
 
 const router = useRouter();
@@ -38,11 +39,19 @@ function returnToTitle() {
         <i class="fas fa-save"></i>
         <span>存档</span>
       </button>
-      <button class="mg-topbar__btn" title="系统设置" type="button" @click="$emit('openSettings')">
-        <i class="fas fa-sliders-h"></i>
-        <span>设置</span>
+      <button class="mg-topbar__btn" title="提示词设置 (Prompt Builder)" type="button" @click="$emit('openPromptSettings')">
+        <i class="fas fa-book-open"></i>
+        <span>提示词</span>
       </button>
-      <button class="mg-topbar__btn" title="返回标题" type="button" @click="returnToTitle">
+      <button class="mg-topbar__btn" title="API 设置" type="button" @click="$emit('openApiSettings')">
+        <i class="fas fa-plug"></i>
+        <span>API</span>
+      </button>
+      <button class="mg-topbar__btn" title="系统设置" type="button" @click="$emit('openSystemSettings')">
+        <i class="fas fa-cog"></i>
+        <span>系统</span>
+      </button>
+      <button class="mg-topbar__btn" title="返回标题页" type="button" @click="returnToTitle">
         <i class="fas fa-home"></i>
         <span>标题</span>
       </button>
