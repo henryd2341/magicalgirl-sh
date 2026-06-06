@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import { useThemeDeco } from "@/composables/useThemeDeco";
 import ApiSettingsView from "./ApiSettingsView.vue";
 import SaveExportView from "./SaveExportView.vue";
 import SettingsView from "./SettingsView.vue";
+
+const { deco } = useThemeDeco();
 
 const router = useRouter();
 
@@ -41,12 +44,12 @@ const pixiBlur = ref(window.localStorage.getItem("mg-pixi-blur") !== "false");
 function togglePixi(val: boolean) {
   pixiEnabled.value = val;
   window.localStorage.setItem("mg-pixi-enabled", String(val));
-  window.dispatchEvent(new CustomEvent("mg-pixi-toggle", { detail: val }));
+  window.dispatchEvent(new window.CustomEvent("mg-pixi-toggle", { detail: val }));
 }
 function togglePixiBlurFn(val: boolean) {
   pixiBlur.value = val;
   window.localStorage.setItem("mg-pixi-blur", String(val));
-  window.dispatchEvent(new CustomEvent("mg-pixi-blur-toggle", { detail: val }));
+  window.dispatchEvent(new window.CustomEvent("mg-pixi-blur-toggle", { detail: val }));
 }
 
 // ── Navigation ──
@@ -72,10 +75,8 @@ function navigateTo(routeName: string) {
       <div class="mg-splash__logo-wrap">
         <img class="mg-splash__logo" src="/logo.png" alt="MagicalGirl SH" />
       </div>
-      <div class="mg-splash__kaomoji" aria-hidden="true">
-        <span>★</span><span>(>_<)</span><span>♡</span>
-        <span>✧</span><span>(^_^)</span><span>♡</span>
-        <span>☆</span><span>(/_\ )</span><span>♡</span>
+      <div v-if="deco.splashKaomoji.length" class="mg-splash__kaomoji" aria-hidden="true">
+        <span v-for="(d, i) in deco.splashKaomoji" :key="i">{{ d }}</span>
       </div>
     </section>
 
@@ -85,20 +86,20 @@ function navigateTo(routeName: string) {
         <i class="fas fa-play"></i>
         开始新游戏
       </button>
-      <button class="mg-btn mg-btn--ghost" @click="showSaveManage = true">
+      <button class="mg-btn mg-btn--ghost mg-btn--blue" @click="showSaveManage = true">
         <i class="fas fa-folder-open"></i>
         载入存档
       </button>
-      <button class="mg-btn mg-btn--ghost" @click="showSettings = true">
+      <button class="mg-btn mg-btn--ghost mg-btn--green" @click="showSettings = true">
         <i class="fas fa-sliders-h"></i>
         提示词设置
       </button>
-      <button class="mg-btn mg-btn--ghost" @click="showApiSettings = true">
+      <button class="mg-btn mg-btn--ghost mg-btn--yellow" @click="showApiSettings = true">
         <i class="fas fa-plug"></i>
         API 设置
       </button>
       <button
-        class="mg-btn mg-btn--ghost"
+        class="mg-btn mg-btn--ghost mg-btn--pink"
         @click="showSystemSettings = true"
       >
         <i class="fas fa-cog"></i>
@@ -261,7 +262,7 @@ function navigateTo(routeName: string) {
 
 .mg-splash__hero      { margin-bottom: var(--mg-space-xl); }
 .mg-splash__logo-wrap { display: flex; justify-content: center; align-items: center; margin-bottom: var(--mg-space-md); }
-.mg-splash__logo      { max-width: 280px; width: 60vw; height: auto; filter: drop-shadow(0 0 12px rgba(255, 107, 157, 0.35)); }
+.mg-splash__logo      { max-width: 300px; width: 60vw; height: auto; filter: drop-shadow(0 0 12px rgba(255, 107, 157, 0.35)); }
 .mg-splash__eyebrow   { font-family: var(--mg-font-mono); font-size: var(--mg-font-sm); text-transform: uppercase; letter-spacing: var(--mg-tracking-eyebrow); color: var(--mg-text-secondary); margin-bottom: var(--mg-space-md); }
 .mg-splash__title     { font-family: var(--mg-font-heading); font-size: var(--mg-font-display); font-weight: var(--mg-font-weight-heading); color: var(--mg-accent); text-shadow: var(--mg-text-outline); margin: 0 0 var(--mg-space-md); line-height: var(--mg-leading-tight); }
 .mg-splash__subtitle  { max-width: 560px; margin: 0 auto; font-size: var(--mg-font-base); line-height: var(--mg-leading-relaxed); color: var(--mg-text-secondary); }

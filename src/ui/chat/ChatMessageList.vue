@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { ChatMessage } from "@/types/chat";
 import { ref } from "vue";
+import { useThemeDeco } from "@/composables/useThemeDeco";
+const { deco } = useThemeDeco();
 
 const props = defineProps<{
   messages: ChatMessage[];
@@ -60,7 +62,7 @@ function getRoleLabel(message: ChatMessage): string {
   >
     <header class="chat-message-list__header">
       <p class="hero-kicker-band">Story Feed</p>
-      <h2 class="section-heading--playful">剧情讯号流 <span aria-hidden="true">(>_<)</span></h2>
+      <h2 class="section-heading--playful">剧情讯号流<span v-if="deco.chatKaomoji" aria-hidden="true"> {{ deco.chatKaomoji }}</span></h2>
     </header>
 
     <ol class="chat-message-list__items">

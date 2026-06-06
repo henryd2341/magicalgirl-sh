@@ -7,6 +7,9 @@
 :root[data-theme="pastel-brutalism"] {
   // --- colors ---
   --mg-bg: #f0f0f0;
+  --mg-bg-pattern: linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+  --mg-bg-pattern-size: 24px 24px, 24px 24px;
   --mg-bg-card: #ffffff;
   --mg-bg-overlay: rgba(240, 240, 240, 0.95);
   --mg-text: #1a1a1a;

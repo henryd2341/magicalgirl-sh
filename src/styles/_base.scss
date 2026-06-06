@@ -18,6 +18,8 @@ body {
   font-family: var(--mg-font-body, "Quicksand", sans-serif);
   color: var(--mg-text, #f5f0f6);
   background: var(--mg-bg, #1a1a1a);
+  background-image: var(--mg-bg-pattern, none);
+  background-size: var(--mg-bg-pattern-size, auto);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -25,6 +27,15 @@ body {
 #app {
   height: 100%;
   overflow: hidden;
+}
+
+// Full-viewport shell — carries theme background pattern
+.mg-app-shell-frame {
+  min-height: 100dvh;
+  overflow: hidden;
+  background-color: var(--mg-bg, #1a1a1a);
+  background-image: var(--mg-bg-pattern, none);
+  background-size: var(--mg-bg-pattern-size, auto);
 }
 
 h1, h2, h3, h4, h5, h6 {

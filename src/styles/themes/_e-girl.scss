@@ -44,6 +44,8 @@
 
   // Backgrounds
   --mg-bg: var(--mg-dark-black);
+  --mg-bg-pattern: none;
+  --mg-bg-pattern-size: auto;
   --mg-bg-card: var(--mg-dark-charcoal);
   --mg-bg-overlay: rgba(26, 26, 26, 0.92);
   --mg-bg-input: var(--mg-dark-black);
@@ -349,6 +351,13 @@
   }
   &--sm { padding: 6px 14px; font-size: var(--mg-font-sm); }
   &--lg { padding: 16px 36px; font-size: 1.1rem; }
+
+  // Color modifiers for ghost/outline buttons (consumed only by Kidcore/PB overrides)
+  &--blue   { --_mg-btn-tint: var(--mg-cool-blue); }
+  &--green  { --_mg-btn-tint: var(--mg-util-green); }
+  &--yellow { --_mg-btn-tint: var(--mg-warning); }
+  &--orange { --_mg-btn-tint: #ff6d00; }
+  &--pink   { --_mg-btn-tint: var(--mg-pink-blush); }
 }
 
 // -- Small card --

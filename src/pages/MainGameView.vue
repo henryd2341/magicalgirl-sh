@@ -169,13 +169,13 @@ onMounted(async () => {
           </div>
           <nav class="mg-game__left-actions">
             <div class="mg-chain-divider" aria-hidden="true"></div>
-            <button class="mg-btn mg-btn--sm mg-btn--ghost">
+            <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--blue">
               <i class="fas fa-users"></i> 队伍编组
             </button>
-            <button class="mg-btn mg-btn--sm mg-btn--ghost">
+            <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--green">
               <i class="fas fa-book"></i> 技能学习
             </button>
-            <button class="mg-btn mg-btn--sm mg-btn--ghost">
+            <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--yellow">
               <i class="fas fa-scroll"></i> Credits
             </button>
           </nav>

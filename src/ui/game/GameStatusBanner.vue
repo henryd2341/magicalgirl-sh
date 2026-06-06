@@ -5,13 +5,18 @@
     aria-label="游戏状态提示"
   >
     <div class="mg-status__inner">
-      <span class="mg-status__emoji" aria-hidden="true">(>_<)</span>
+      <span v-if="deco.statusEmoji" class="mg-status__emoji" aria-hidden="true">{{ deco.statusEmoji }}</span>
       <span class="mg-status__text mg-display-text">当前状态：IDLE</span>
       <span class="mg-status__sub">等待玩家输入...</span>
       <div class="mg-status__pulse" aria-hidden="true"></div>
     </div>
   </section>
 </template>
+
+<script setup lang="ts">
+import { useThemeDeco } from "@/composables/useThemeDeco";
+const { deco } = useThemeDeco();
+</script>
 
 <style lang="scss" scoped>
 .mg-status__inner {
