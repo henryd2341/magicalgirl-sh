@@ -495,7 +495,7 @@
 }
 
 .feature-card {
-  border: 2px solid rgba(255, 107, 157, 0.32);
+  border: 2px solid var(--mg-border-light);
   background: linear-gradient(
     180deg,
     rgba(61, 31, 86, 0.92) 0%,
@@ -817,7 +817,7 @@
 }
 
 .battle-status-panel__enemy {
-  border-color: rgba(255, 107, 157, 0.46);
+  border-color: var(--mg-border-light);
 }
 
 .battle-status-panel__turn {

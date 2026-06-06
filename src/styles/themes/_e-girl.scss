@@ -144,6 +144,10 @@
     2px -2px 0 var(--mg-pink-magenta),
     -2px 2px 0 var(--mg-pink-magenta),
     2px 2px 0 var(--mg-pink-magenta);
+  --mg-text-outline-strong: -3px -3px 0 var(--mg-pink-magenta),
+    3px -3px 0 var(--mg-pink-magenta),
+    -3px 3px 0 var(--mg-pink-magenta),
+    3px 3px 0 var(--mg-pink-magenta);
 
   // ==========================================================
   // SHADOWS
@@ -277,10 +281,41 @@
 // -- Display text (outlined heading for E-girl signature look) --
 .mg-display-text {
   font-family: var(--mg-font-heading);
+  font-size: var(--mg-font-display);
   font-weight: var(--mg-font-weight-heading);
   color: var(--mg-pink-cream);
   text-shadow: var(--mg-text-outline);
   line-height: var(--mg-leading-tight);
+}
+
+// -- Handwritten accent text (Patrick Hand, rotated) --
+.mg-handwritten {
+  font-family: var(--mg-font-handwritten);
+  font-size: 1.1rem;
+  transform: rotate(-2deg);
+  display: inline-block;
+}
+
+// -- Sticker-pill label (uppercase, monospace-style tracking) --
+.mg-label {
+  display: inline-block;
+  font-family: var(--mg-font-heading);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 4px 12px;
+  border: var(--mg-border-width) solid var(--mg-accent);
+  border-radius: var(--mg-radius-pill);
+  background: var(--mg-surface-pink);
+  color: var(--mg-accent-strong);
+}
+
+// -- Inline kaomoji / decorative text --
+.mg-kaomoji {
+  color: var(--mg-pink-blush);
+  font-family: var(--mg-font-body);
+  user-select: none;
 }
 
 // -- Glitch hover effect --
@@ -319,7 +354,7 @@
   i { width: 16px; text-align: center; }
 
   &:hover {
-    transform: scale(1.03);
+    transform: scale(1.05);
     box-shadow: var(--mg-glow-pink);
   }
   &:active { transform: scale(0.97); box-shadow: none; }
@@ -362,11 +397,38 @@
 
 // -- Small card --
 .mg-card {
+  position: relative;
   background: var(--mg-surface-pink);
-  border: var(--mg-border-width) solid var(--mg-border-light);
-  border-radius: var(--mg-radius-sm);
-  padding: var(--mg-space-sm) var(--mg-space-md);
-  &--sm { padding: var(--mg-space-xs) var(--mg-space-sm); }
+  border: var(--mg-border-width-thick, 3px) solid var(--mg-accent);
+  border-radius: var(--mg-radius);
+  padding: var(--mg-space-md);
+  transform: rotate(-0.5deg);
+  transition: transform var(--mg-transition-base), box-shadow var(--mg-transition-base);
+
+  &:hover {
+    transform: rotate(0deg) translateY(-2px);
+    box-shadow: var(--mg-glow-pink);
+  }
+
+  // Heart sticker (::after)
+  &::after {
+    content: "♥";
+    position: absolute;
+    top: -8px;
+    right: -6px;
+    font-size: 1rem;
+    color: var(--mg-pink-blush);
+    filter: drop-shadow(0 0 3px var(--mg-accent-glow));
+    opacity: 0.7;
+    transform: rotate(8deg);
+    pointer-events: none;
+  }
+
+  &--sm {
+    padding: var(--mg-space-xs) var(--mg-space-sm);
+    transform: rotate(-0.3deg);
+    &::after { font-size: 0.7rem; top: -6px; right: -4px; }
+  }
   &--char { overflow-y: hidden; }
   &__placeholder {
     font-size: var(--mg-font-sm);

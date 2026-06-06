@@ -143,6 +143,8 @@
   --mg-radius: 20px;
   --mg-radius-sm: 12px;
   --mg-radius-lg: 30px;
+  --mg-radius-pill: 999px;
+  --mg-radius-circle: 50%;
 
   // Surface dark alias (used by some components)
   --mg-surface-dark: #1A1A2E;
@@ -159,10 +161,10 @@
   .mg-checkerboard {
     background-color: var(--mg-neutral-white);
     background-image:
-      linear-gradient(45deg, rgba(255, 214, 0, 0.18) 25%, transparent 25%),
-      linear-gradient(-45deg, rgba(255, 214, 0, 0.18) 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, rgba(255, 214, 0, 0.18) 75%),
-      linear-gradient(-45deg, transparent 75%, rgba(255, 214, 0, 0.18) 75%);
+      linear-gradient(45deg, var(--mg-kid-yellow) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--mg-kid-yellow) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--mg-kid-yellow) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--mg-kid-yellow) 75%);
     background-size: 40px 40px;
     background-position: 0 0, 0 20px, 20px -20px, -20px 0;
   }
@@ -184,7 +186,7 @@
 
   // -- Card: chunky shadow + bolder border --
   .mg-card {
-    background: #ffffff;
+    background: var(--mg-neutral-white);
     border: var(--mg-border-width) solid var(--mg-border);
     border-radius: var(--mg-radius);
     box-shadow: var(--mg-shadow-card);
@@ -199,9 +201,9 @@
   // -- Sticker: no rotation, bold borders, saturated colors --
   .mg-sticker {
     border-width: var(--mg-border-width);
-    transform: none;
+    transform: rotate(-1.5deg);
     box-shadow: 2px 2px 0 var(--mg-border);
-    &:hover { transform: scale(1.06); }
+    &:hover { transform: rotate(1.5deg) scale(1.06); }
     &--pink { background: var(--mg-pink-blush); color: #fff; border-color: var(--mg-pink-magenta); }
     &--purple { background: var(--mg-purple-lavender); color: #fff; border-color: var(--mg-dark-black); }
     &--dark { background: var(--mg-dark-black); color: var(--mg-kid-yellow); border-color: var(--mg-dark-black); }
@@ -209,12 +211,12 @@
 
   // -- Buttons: blockier, shadow hover instead of glow --
   .mg-btn {
-    border-radius: var(--mg-radius);
+    border-radius: var(--mg-radius-pill);
     border-width: var(--mg-border-width);
-    box-shadow: 3px 3px 0 var(--mg-border);
+    box-shadow: 4px 4px 0 var(--mg-border);
     &:hover {
       transform: translate(-1px, -2px);
-      box-shadow: 5px 5px 0 var(--mg-border);
+      box-shadow: 6px 6px 0 var(--mg-border);
     }
     &:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--mg-border); }
     &--primary {
@@ -224,7 +226,7 @@
       &:hover { background: var(--mg-accent-strong); }
     }
     &--ghost {
-      background: #ffffff;
+      background: var(--mg-neutral-white);
       border-color: var(--mg-border);
       color: var(--mg-text);
       &:hover { background: var(--mg-kid-yellow); color: var(--mg-dark-black); }

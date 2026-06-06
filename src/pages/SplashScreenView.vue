@@ -262,7 +262,7 @@ function navigateTo(routeName: string) {
 
 .mg-splash__hero      { margin-bottom: var(--mg-space-xl); }
 .mg-splash__logo-wrap { display: flex; justify-content: center; align-items: center; margin-bottom: var(--mg-space-md); }
-.mg-splash__logo      { max-width: 300px; width: 60vw; height: auto; filter: drop-shadow(0 0 12px rgba(255, 107, 157, 0.35)); }
+.mg-splash__logo      { max-width: 300px; width: 60vw; height: auto; filter: drop-shadow(0 0 12px var(--mg-accent-glow)); }
 .mg-splash__eyebrow   { font-family: var(--mg-font-mono); font-size: var(--mg-font-sm); text-transform: uppercase; letter-spacing: var(--mg-tracking-eyebrow); color: var(--mg-text-secondary); margin-bottom: var(--mg-space-md); }
 .mg-splash__title     { font-family: var(--mg-font-heading); font-size: var(--mg-font-display); font-weight: var(--mg-font-weight-heading); color: var(--mg-accent); text-shadow: var(--mg-text-outline); margin: 0 0 var(--mg-space-md); line-height: var(--mg-leading-tight); }
 .mg-splash__subtitle  { max-width: 560px; margin: 0 auto; font-size: var(--mg-font-base); line-height: var(--mg-leading-relaxed); color: var(--mg-text-secondary); }

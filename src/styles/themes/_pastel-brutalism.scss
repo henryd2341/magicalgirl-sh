@@ -10,30 +10,31 @@
   // RAW COLOR PALETTE (mapped from E-girl vars to PB palette)
   // ==========================================================
 
-  --mg-pink-blush: #ff6b9d;       // accent pink (shared)
-  --mg-pink-magenta: #1a1a1a;     // black
-  --mg-pink-cream: #ffd6e0;       // Baby Pink
-  --mg-dark-black: #1a1a1a;       // Near Black
-  --mg-dark-charcoal: #2b2b2b;    // Charcoal
-  --mg-dark-plum: #c5b4e3;        // Soft Lavender (light!)
-  --mg-purple-lavender: #c5b4e3;  // Soft Lavender
-  --mg-purple-lilac: #c5b4e3;     // Soft Lavender
-  --mg-cool-blue: #b6d8f2;        // Powder Blue
-  --mg-cool-eboy-blue: #b6d8f2;   // Powder Blue
-  --mg-neutral-silver: #d0d0d0;   // Silver
-  --mg-neutral-white: #ffffff;    // Pure White
-  --mg-neutral-gray: #d0d0d0;     // Silver
-  --mg-util-red: #f5c6c6;         // Blush
-  --mg-util-green: #b8e8d0;       // Mint Cream
+  --mg-pink-blush: #ff6b9d; // accent pink (shared)
+  --mg-pink-magenta: #1a1a1a; // black
+  --mg-pink-cream: #ffd6e0; // Baby Pink
+  --mg-dark-black: #1a1a1a; // Near Black
+  --mg-dark-charcoal: #2b2b2b; // Charcoal
+  --mg-dark-plum: #c5b4e3; // Soft Lavender (light!)
+  --mg-purple-lavender: #c5b4e3; // Soft Lavender
+  --mg-purple-lilac: #c5b4e3; // Soft Lavender
+  --mg-cool-blue: #b6d8f2; // Powder Blue
+  --mg-cool-eboy-blue: #b6d8f2; // Powder Blue
+  --mg-neutral-silver: #d0d0d0; // Silver
+  --mg-neutral-white: #ffffff; // Pure White
+  --mg-neutral-gray: #d0d0d0; // Silver
+  --mg-util-red: #f5c6c6; // Blush
+  --mg-util-green: #b8e8d0; // Mint Cream
 
   // ==========================================================
   // FUNCTIONAL TOKENS
   // ==========================================================
 
   // Backgrounds
-  --mg-bg: #f0f0f0;                             // Concrete canvas
-  --mg-bg-pattern: linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+  --mg-bg: #f0f0f0; // Concrete canvas
+  --mg-bg-pattern:
+    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
   --mg-bg-pattern-size: 24px 24px, 24px 24px;
   --mg-bg-card: #ffffff;
   --mg-bg-overlay: rgba(240, 240, 240, 0.95);
@@ -48,7 +49,7 @@
   --mg-text-on-accent: #ffffff;
 
   // Accent
-  --mg-accent: #ff6b9d;
+  --mg-accent: #1a1a1a;
   --mg-accent-strong: #1a1a1a;
   --mg-accent-subtle: rgba(0, 0, 0, 0.05);
   --mg-accent-glow: none;
@@ -59,15 +60,18 @@
   --mg-border-strong: #1a1a1a;
 
   // Semantic
-  --mg-success: #b8e8d0;                        // Mint Cream
-  --mg-warning: #fff1c1;                        // Buttercream
-  --mg-error: #f5c6c6;                          // Blush
-  --mg-info: #b6d8f2;                           // Powder Blue
+  --mg-success: #b8e8d0; // Mint Cream
+  --mg-warning: #fff1c1; // Buttercream
+  --mg-error: #f5c6c6; // Blush
+  --mg-info: #b6d8f2; // Powder Blue
 
   // Surfaces
-  --mg-surface-pink: #ffd6e0;                   // Baby Pink
-  --mg-surface-lavender: #c5b4e3;               // Soft Lavender
-  --mg-surface-plum: #c5b4e3;                   // Soft Lavender
+  --mg-surface-pink: #ffd6e0; // Baby Pink
+  --mg-surface-lavender: #c5b4e3; // Soft Lavender
+  --mg-surface-plum: #c5b4e3; // Soft Lavender
+  --mg-surface-peach: #ffcba4; // Peach Sorbet
+  --mg-surface-orchid: #e8c5e8; // Orchid Mist
+  --mg-surface-lime: #d4f0b4; // Lime Sorbet
   --mg-surface-hover: rgba(0, 0, 0, 0.06);
   --mg-surface-dark: #1a1a1a;
 
@@ -95,7 +99,7 @@
   --mg-font-heading: "Space Grotesk", sans-serif;
   --mg-font-body: "Inter", sans-serif;
   --mg-font-mono: "Space Mono", monospace;
-  --mg-font-handwritten: "Patrick Hand", cursive;
+  --mg-font-handwritten: "Space Mono", monospace;
   --mg-font-weight-heading: 700;
   --mg-font-weight-body: 400;
   --mg-font-weight-strong: 600;
@@ -157,13 +161,24 @@
     background: var(--mg-surface-pink);
     border: var(--mg-border-width) solid var(--mg-border);
     border-radius: var(--mg-radius-sm);
-    box-shadow: var(--mg-shadow-card);
-    transition: box-shadow 0.12s ease, transform 0.12s ease;
+    padding: 28px;
+    box-shadow: 6px 6px 0 var(--mg-shadow);
+    transition:
+      box-shadow 0.12s ease,
+      transform 0.12s ease;
+    &::after {
+      content: none;
+    }
     &:hover {
       box-shadow: 2px 2px 0 var(--mg-shadow);
       transform: translate(2px, 2px);
     }
-    &__placeholder { color: var(--mg-text-secondary); }
+    &__placeholder {
+      color: var(--mg-text-secondary);
+    }
+    &--sm {
+      padding: 16px 20px;
+    }
   }
 
   // -- Sticker: square, monospace label, no rotation --
@@ -180,9 +195,21 @@
       background: var(--mg-border);
       color: #fff;
     }
-    &--pink  { background: var(--mg-surface-pink); color: var(--mg-text); border-color: var(--mg-border); }
-    &--purple { background: var(--mg-surface-lavender); color: var(--mg-text); border-color: var(--mg-border); }
-    &--dark  { background: var(--mg-dark-black); color: #fff; border-color: var(--mg-dark-black); }
+    &--pink {
+      background: var(--mg-surface-pink);
+      color: var(--mg-text);
+      border-color: var(--mg-border);
+    }
+    &--purple {
+      background: var(--mg-surface-lavender);
+      color: var(--mg-text);
+      border-color: var(--mg-border);
+    }
+    &--dark {
+      background: var(--mg-dark-black);
+      color: #fff;
+      border-color: var(--mg-dark-black);
+    }
   }
 
   // -- Buttons: uppercase, shadow-displacement on hover/active --
@@ -193,7 +220,9 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     box-shadow: 4px 4px 0 var(--mg-border);
-    transition: box-shadow 0.12s ease, transform 0.12s ease;
+    transition:
+      box-shadow 0.12s ease,
+      transform 0.12s ease;
     &:hover {
       box-shadow: 2px 2px 0 var(--mg-border);
       transform: translate(2px, 2px);
@@ -203,22 +232,51 @@
       transform: translate(4px, 4px);
     }
     &--primary {
-      background: var(--mg-accent);
+      background: var(--mg-pink-blush);
       border-color: var(--mg-border);
       color: #fff;
-      &:hover { background: var(--mg-accent); }
+      &:hover {
+        background: var(--mg-dark-black);
+      }
     }
     &--ghost {
       background: #ffffff;
       border-color: var(--mg-border);
       color: var(--mg-text);
-      &:hover { background: var(--mg-surface-lavender); color: var(--mg-text); }
+      &:hover {
+        background: var(--mg-surface-lavender);
+        color: var(--mg-text);
+      }
 
       // Color variants via tint variable from base
-      &.mg-btn--blue   { border-color: var(--mg-info); color: var(--mg-text); &:hover { background: var(--mg-info); } }
-      &.mg-btn--green  { border-color: var(--mg-success); color: var(--mg-text); &:hover { background: var(--mg-success); } }
-      &.mg-btn--yellow { border-color: var(--mg-warning); color: var(--mg-text); &:hover { background: var(--mg-warning); } }
-      &.mg-btn--pink   { border-color: var(--mg-accent); color: var(--mg-text); &:hover { background: var(--mg-surface-pink); } }
+      &.mg-btn--blue {
+        border-color: var(--mg-info);
+        color: var(--mg-text);
+        &:hover {
+          background: var(--mg-info);
+        }
+      }
+      &.mg-btn--green {
+        border-color: var(--mg-success);
+        color: var(--mg-text);
+        &:hover {
+          background: var(--mg-success);
+        }
+      }
+      &.mg-btn--yellow {
+        border-color: var(--mg-warning);
+        color: var(--mg-text);
+        &:hover {
+          background: var(--mg-warning);
+        }
+      }
+      &.mg-btn--pink {
+        border-color: var(--mg-accent);
+        color: var(--mg-text);
+        &:hover {
+          background: var(--mg-surface-pink);
+        }
+      }
     }
   }
 
@@ -234,16 +292,58 @@
     }
   }
 
-  // -- Display text: Space Grotesk, uppercase, black, no text-shadow --
+  // -- Display text: Space Grotesk, uppercase, black, clamp sizing --
   .mg-display-text {
+    font-family: var(--mg-font-heading);
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 700;
+    line-height: 1;
     color: var(--mg-text);
     text-shadow: none;
     text-transform: uppercase;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+  }
+
+  // -- PB Tag: monospace label badge --
+  .pb-tag {
+    display: inline-block;
+    font-family: var(--mg-font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 4px 12px;
+    border: 2px solid var(--mg-border);
+    color: var(--mg-text);
+    &--pink {
+      background: var(--mg-surface-pink);
+    }
+    &--blue {
+      background: var(--mg-info);
+    }
+    &--yellow {
+      background: var(--mg-warning);
+    }
+    &--lavender {
+      background: var(--mg-surface-lavender);
+    }
+  }
+
+  // -- PB Input label: monospace, uppercase --
+  .pb-input-label {
+    display: block;
+    font-family: var(--mg-font-mono);
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--mg-text);
+    margin-bottom: 8px;
   }
 
   // -- Glow → hard shadow --
-  .mg-glow-pink, .mg-glow-lilac {
+  .mg-glow-pink,
+  .mg-glow-lilac {
     box-shadow: var(--mg-shadow-card);
   }
   .mg-glow-hover:hover {
