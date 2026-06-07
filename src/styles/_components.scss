@@ -1674,6 +1674,12 @@
 }
 
 /* ── CharacterCard ── */
+.mg-character-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mg-space-sm, 8px);
+}
+
 .mg-character-card {
   border-radius: var(--mg-radius);
   background: var(--mg-bg-card);
@@ -1686,6 +1692,29 @@
   border-color: var(--mg-accent, #ff6b9d);
 }
 
+.mg-character-card--skeleton {
+  display: flex;
+  gap: var(--mg-space-md, 12px);
+  padding: var(--mg-space-md, 12px);
+  animation: mg-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.mg-character-card--error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--mg-space-sm, 8px);
+  padding: var(--mg-space-xl, 24px);
+  color: var(--mg-text-secondary);
+  font-size: var(--mg-font-sm, 0.85rem);
+
+  i {
+    font-size: 2.5rem;
+    opacity: 0.4;
+  }
+}
+
 .mg-character-card__body {
   display: flex;
   gap: var(--mg-space-md, 12px);
@@ -1696,11 +1725,17 @@
 
 .mg-character-card__avatar-wrap {
   flex-shrink: 0;
-  width: 76px;
+  width: 64px;
   aspect-ratio: 2 / 3;
   border-radius: var(--mg-radius);
   overflow: hidden;
   background: var(--mg-bg-surface, rgba(255, 255, 255, 0.05));
+}
+
+.mg-character-card--player .mg-character-card__avatar-wrap {
+  width: 76px;
+  border-color: var(--mg-accent, #ff6b9d);
+  box-shadow: var(--mg-glow-pink, 0 0 6px rgba(255, 107, 157, 0.3));
 }
 
 .mg-character-card__avatar {
@@ -1718,7 +1753,7 @@
   justify-content: center;
 
   i {
-    font-size: 2rem;
+    font-size: 1.6rem;
     color: var(--mg-text-secondary);
     opacity: 0.5;
   }
@@ -1737,6 +1772,19 @@
   font-weight: 800;
   font-size: var(--mg-font-base, 1rem);
   color: var(--mg-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mg-character-card--player .mg-character-card__name {
+  color: var(--mg-accent, #ff6b9d);
+}
+
+.mg-character-card__role-tag {
+  font-size: 0.75rem;
+  color: var(--mg-text-secondary);
+  opacity: 0.7;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1803,7 +1851,7 @@
 
 .mg-character-card__variables {
   border-top: var(--mg-border-width, 1px) solid var(--mg-border, rgba(255, 255, 255, 0.08));
-  max-height: 240px;
+  max-height: 200px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -1837,13 +1885,6 @@
   cursor: help;
 }
 
-.mg-character-card__skeleton {
-  display: flex;
-  gap: var(--mg-space-md, 12px);
-  padding: var(--mg-space-md, 12px);
-  animation: mg-skeleton-pulse 1.5s ease-in-out infinite;
-}
-
 .mg-character-card__skeleton-avatar {
   width: 76px;
   aspect-ratio: 2 / 3;
@@ -1868,20 +1909,4 @@
 
 .mg-character-card__skeleton-line--short {
   width: 60%;
-}
-
-.mg-character-card__error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--mg-space-sm, 8px);
-  padding: var(--mg-space-xl, 24px);
-  color: var(--mg-text-secondary);
-  font-size: var(--mg-font-sm, 0.85rem);
-
-  i {
-    font-size: 2.5rem;
-    opacity: 0.4;
-  }
 }

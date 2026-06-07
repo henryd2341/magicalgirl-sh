@@ -138,7 +138,7 @@ audioElement.addEventListener("pause", () => {
 });
 
 audioElement.addEventListener("ended", () => {
-  isPlaying.value = false;
+  cycleNext();
 });
 
 // Apply initial volume
@@ -232,23 +232,27 @@ export function pause(): void {
   audioElement.pause();
 }
 
-export function next(): void {
-  // Advance to next track in the current playlist (handled by BgmPlayer)
-  // This is a placeholder — BgmPlayer manages track cycling
-}
-
-export function prev(): void {
-  // Go to previous track (handled by BgmPlayer)
+export function prepareTrack(trackNumber: string): boolean {
+  const url = resolveTrackUrl(currentCategory.value, trackNumber);
+  if (url) {
+    audioElement.src = url;
+    currentTrack.value = trackNumber;
+    return true;
+  }
+  return false;
 }
 
 // ─── Category switching ────────────────────────────────────────────────────────
 
 export function switchToBattle(trackNumber: string): void {
   if (currentCategory.value === "scene" && currentTrack.value) {
+    pausedScenePlaylist = [...currentPlaylist.value];
+    pausedScenePlaylistIndex = playlistIndex;
     pausedSceneTrack = currentTrack.value;
     pausedSceneTime = audioElement.currentTime;
   }
   currentCategory.value = "battle";
+  setPlaylist([trackNumber], 0);
   const url = resolveTrackUrl("battle", trackNumber);
   if (url) {
     audioElement.src = url;
@@ -259,6 +263,11 @@ export function switchToBattle(trackNumber: string): void {
 
 export function resumeScene(trackNumber?: string, restoreTime?: boolean): void {
   currentCategory.value = "scene";
+  if (pausedScenePlaylist.length > 0) {
+    currentPlaylist.value = pausedScenePlaylist;
+    playlistIndex = pausedScenePlaylistIndex;
+    pausedScenePlaylist = [];
+  }
   const target = trackNumber || pausedSceneTrack || "001";
   const url = resolveTrackUrl("scene", target);
   if (url) {
@@ -275,8 +284,12 @@ export function resumeScene(trackNumber?: string, restoreTime?: boolean): void {
 
 // ─── Playlist management ───────────────────────────────────────────────────────
 
-const currentPlaylist = ref<string[]>([]);
+export const currentPlaylist = ref<string[]>([]);
 let playlistIndex = 0;
+
+// Saved scene playlist for resume after combat
+let pausedScenePlaylist: string[] = [];
+let pausedScenePlaylistIndex = 0;
 
 export function setPlaylist(tracks: string[], startIndex = 0): void {
   currentPlaylist.value = tracks;
@@ -326,6 +339,8 @@ export function reset(): void {
   masterVolume.value = 0.8;
   pausedSceneTrack = "";
   pausedSceneTime = 0;
+  pausedScenePlaylist = [];
+  pausedScenePlaylistIndex = 0;
   currentPlaylist.value = [];
   playlistIndex = 0;
 

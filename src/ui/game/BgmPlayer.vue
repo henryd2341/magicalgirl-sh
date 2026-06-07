@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, onUnmounted } from "vue";
+import { ref, watch, computed, onMounted } from "vue";
 import { useSessionStore } from "@/stores/sessionStore";
 import { storeToRefs } from "pinia";
 import {
@@ -8,11 +8,12 @@ import {
   duration,
   currentCategory,
   currentTrack,
+  currentPlaylist,
   play,
   pause,
+  prepareTrack,
   findSceneTrack,
   findBattleTrack,
-  resolveTrackUrl,
   cycleNext,
   cyclePrev,
   setPlaylist,
@@ -29,9 +30,6 @@ const showAutoplayOverlay = ref(false);
 const currentCategoryLabel = computed(() =>
   currentCategory.value === "battle" ? "战斗" : "场景"
 );
-
-// Tracks for current playlist display
-const currentPlaylistTracks = ref<string[]>([]);
 
 // ── Scene music auto-switch ──
 let lastLocation = "";
@@ -66,16 +64,14 @@ watch(
     const tracks = findSceneTrack(location, timeOfDay);
     if (tracks.length === 0) return;
 
-    currentPlaylistTracks.value = tracks;
     setPlaylist(tracks, 0);
 
-    const url = resolveTrackUrl("scene", tracks[0]);
-    if (url) {
-      currentTrack.value = tracks[0];
+    if (prepareTrack(tracks[0])) {
       await play();
+      if (!isPlaying.value) showAutoplayOverlay.value = true;
     }
   },
-  { deep: true }
+  { deep: true, immediate: true }
 );
 
 // ── Battle music auto-switch ──
@@ -89,8 +85,6 @@ watch(
       const vars = await sessionStore.getVariableSnapshot();
       const level = vars?.root?.player?.combat?.level ?? 1;
       const track = findBattleTrack(level);
-      currentPlaylistTracks.value = [track];
-      setPlaylist([track], 0);
       switchToBattle(track);
       wasInCombat = true;
     } else if (newState !== "IN_COMBAT" && wasInCombat) {
@@ -180,7 +174,7 @@ function onSeek(e: Event) {
     <!-- Expandable playlist -->
     <div v-if="playlistOpen" class="mg-bgm__playlist">
       <div
-        v-for="(track, idx) in currentPlaylistTracks"
+        v-for="(track, idx) in currentPlaylist"
         :key="idx"
         class="mg-bgm__playlist-item"
         :class="{ 'mg-bgm__playlist-item--active': track === currentTrack }"
@@ -191,7 +185,7 @@ function onSeek(e: Event) {
           <i class="fas fa-play"></i>
         </span>
       </div>
-      <div v-if="currentPlaylistTracks.length === 0" class="mg-bgm__playlist-empty">
+      <div v-if="currentPlaylist.length === 0" class="mg-bgm__playlist-empty">
         暂无曲目
       </div>
     </div>

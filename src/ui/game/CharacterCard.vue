@@ -1,7 +1,7 @@
 <template>
-  <div class="mg-character-card" :class="{ 'mg-character-card--expanded': expanded }">
+  <div class="mg-character-cards">
     <!-- Loading state -->
-    <div v-if="loading" class="mg-character-card__skeleton mg-skeleton-pulse" aria-busy="true">
+    <div v-if="loading" class="mg-character-card mg-character-card--skeleton mg-skeleton-pulse" aria-busy="true">
       <div class="mg-character-card__skeleton-avatar"></div>
       <div class="mg-character-card__skeleton-lines">
         <div class="mg-character-card__skeleton-line"></div>
@@ -10,68 +10,83 @@
       </div>
     </div>
     <!-- Error state -->
-    <div v-else-if="error || !vars" class="mg-character-card__error">
+    <div v-else-if="error || characterCards.length === 0" class="mg-character-card mg-character-card--error">
       <i class="fas fa-user-circle"></i>
       <span>角色信息暂不可用</span>
     </div>
-    <!-- Normal state -->
+    <!-- Character cards -->
     <template v-else>
-      <div class="mg-character-card__body" @click="toggleExpanded">
-        <!-- Avatar -->
-        <div class="mg-character-card__avatar-wrap">
-          <img
-            v-if="avatarUrl && !imgError"
-            :src="avatarUrl"
-            :alt="displayName"
-            class="mg-character-card__avatar"
-            @error="imgError = true"
-          />
-          <div v-else class="mg-character-card__avatar-fallback">
-            <i class="fas fa-user-circle"></i>
-          </div>
-        </div>
-        <!-- Info area -->
-        <div class="mg-character-card__info">
-          <div class="mg-character-card__name">{{ displayName }}</div>
-          <!-- Stat bars -->
-          <div v-if="playerCombat" class="mg-character-card__bars">
-            <div class="mg-character-card__bar">
-              <span class="mg-character-card__bar-label">HP</span>
-              <div class="mg-character-card__bar-track">
-                <div
-                  class="mg-character-card__bar-fill mg-character-card__bar-fill--hp"
-                  :style="{ width: barPercent(playerCombat.hp.current, playerCombat.hp.max) }"
-                ></div>
-              </div>
-              <span class="mg-character-card__bar-value">{{ playerCombat.hp.current }}/{{ playerCombat.hp.max }}</span>
-            </div>
-            <div class="mg-character-card__bar">
-              <span class="mg-character-card__bar-label">MP</span>
-              <div class="mg-character-card__bar-track">
-                <div
-                  class="mg-character-card__bar-fill mg-character-card__bar-fill--mp"
-                  :style="{ width: barPercent(playerCombat.mp.current, playerCombat.mp.max) }"
-                ></div>
-              </div>
-              <span class="mg-character-card__bar-value">{{ playerCombat.mp.current }}/{{ playerCombat.mp.max }}</span>
+      <div
+        v-for="card in characterCards"
+        :key="card.charId"
+        class="mg-character-card"
+        :class="{
+          'mg-character-card--expanded': expandedCards.has(card.charId),
+          'mg-character-card--player': card.isPlayer,
+          'mg-character-card--npc': !card.isPlayer,
+        }"
+      >
+        <div class="mg-character-card__body" @click="toggleExpanded(card.charId)">
+          <!-- Avatar: player uses gender-based avatar, NPC uses displayName-based -->
+          <div class="mg-character-card__avatar-wrap">
+            <img
+              v-if="card.avatarUrl && !imgErrors.has(card.charId)"
+              :src="card.avatarUrl"
+              :alt="card.displayName"
+              class="mg-character-card__avatar"
+              @error="imgErrors.add(card.charId)"
+            />
+            <div v-else class="mg-character-card__avatar-fallback">
+              <i class="fas fa-user-circle"></i>
             </div>
           </div>
-          <!-- Expand hint -->
-          <span class="mg-character-card__toggle-hint">
-            <i :class="expanded ? 'fas fa-chevron-up' : 'fas fa-chevron-down'"></i>
-          </span>
+          <!-- Info area -->
+          <div class="mg-character-card__info">
+            <div class="mg-character-card__name">{{ card.displayName }}</div>
+            <!-- Stat bars: player only -->
+            <div v-if="card.isPlayer && card.combat" class="mg-character-card__bars">
+              <div class="mg-character-card__bar">
+                <span class="mg-character-card__bar-label">HP</span>
+                <div class="mg-character-card__bar-track">
+                  <div
+                    class="mg-character-card__bar-fill mg-character-card__bar-fill--hp"
+                    :style="{ width: barPercent(card.combat.hp.current, card.combat.hp.max) }"
+                  ></div>
+                </div>
+                <span class="mg-character-card__bar-value">{{ card.combat.hp.current }}/{{ card.combat.hp.max }}</span>
+              </div>
+              <div class="mg-character-card__bar">
+                <span class="mg-character-card__bar-label">MP</span>
+                <div class="mg-character-card__bar-track">
+                  <div
+                    class="mg-character-card__bar-fill mg-character-card__bar-fill--mp"
+                    :style="{ width: barPercent(card.combat.mp.current, card.combat.mp.max) }"
+                  ></div>
+                </div>
+                <span class="mg-character-card__bar-value">{{ card.combat.mp.current }}/{{ card.combat.mp.max }}</span>
+              </div>
+            </div>
+            <!-- NPC: just a subtle role tag -->
+            <div v-else-if="!card.isPlayer && card.roleTag" class="mg-character-card__role-tag">
+              {{ card.roleTag }}
+            </div>
+            <!-- Expand hint -->
+            <span class="mg-character-card__toggle-hint">
+              <i :class="expandedCards.has(card.charId) ? 'fas fa-chevron-up' : 'fas fa-chevron-down'"></i>
+            </span>
+          </div>
         </div>
-      </div>
-      <!-- Expanded variable list -->
-      <div v-if="expanded" class="mg-character-card__variables">
-        <div
-          v-for="variable in characterVariables"
-          :key="variable.label"
-          class="mg-character-card__variable"
-          :title="variable.desc || variable.label"
-        >
-          <span class="mg-character-card__variable-label">{{ variable.label }}</span>
-          <span class="mg-character-card__variable-value">{{ variable.value }}</span>
+        <!-- Expanded variable list -->
+        <div v-if="expandedCards.has(card.charId)" class="mg-character-card__variables">
+          <div
+            v-for="variable in card.variables"
+            :key="variable.label"
+            class="mg-character-card__variable"
+            :title="variable.desc || variable.label"
+          >
+            <span class="mg-character-card__variable-label">{{ variable.label }}</span>
+            <span class="mg-character-card__variable-value">{{ variable.value }}</span>
+          </div>
         </div>
       </div>
     </template>
@@ -90,8 +105,8 @@ const { snapshot: sessionSnapshot } = storeToRefs(sessionStore);
 const loading = ref(true);
 const error = ref(false);
 const vars = ref<VariableValueRecord | null>(null);
-const expanded = ref(false);
-const imgError = ref(false);
+const expandedCards = ref<Set<string>>(new Set());
+const imgErrors = ref<Set<string>>(new Set());
 
 const avatarImages = import.meta.glob("../../assets/avatars/normal/*.png", {
   eager: true,
@@ -104,7 +119,8 @@ watch(
   async () => {
     loading.value = true;
     error.value = false;
-    imgError.value = false;
+    imgErrors.value.clear();
+    expandedCards.value.clear();
     try {
       const result = await sessionStore.getVariableSnapshot();
       vars.value = result;
@@ -123,58 +139,132 @@ function barPercent(current: number, max: number): string {
   return Math.min((current / max) * 100, 100) + "%";
 }
 
-const playerName = computed(() => vars.value?.root?.player?.profile?.name ?? "");
-const playerCombat = computed(() => vars.value?.root?.player?.combat);
-
-const matchingCharacter = computed(() => {
-  const characters = vars.value?.root?.characters;
-  const name = playerName.value;
-  if (!characters || !name) return null;
-  for (const [, charData] of Object.entries(characters)) {
-    if (charData.displayName === name) return charData;
-  }
-  return null;
-});
-
-const avatarUrl = computed(() => {
-  const name = matchingCharacter.value?.displayName || playerName.value;
-  if (!name) return "";
-  return avatarImages[`../../assets/avatars/normal/${name}.png`] ?? "";
-});
-
-const displayName = computed(() => matchingCharacter.value?.displayName || playerName.value || "角色");
-
-function toggleExpanded() {
-  expanded.value = !expanded.value;
+interface CharacterCardEntry {
+  charId: string;
+  displayName: string;
+  avatarUrl: string;
+  isPlayer: boolean;
+  roleTag: string;
+  combat: {
+    level: number;
+    exp: number;
+    hp: { current: number; max: number };
+    mp: { current: number; max: number };
+    attack: number;
+    defense: number;
+    agility: number;
+    intelligence: number;
+  } | null;
+  variables: { label: string; value: string; desc?: string }[];
 }
 
-const characterVariables = computed(() => {
-  const char = matchingCharacter.value;
-  const entries: { label: string; value: string; desc?: string }[] = [];
+function buildVariableList(
+  charData: {
+    identity?: string;
+    relationshipTag?: string;
+    awakeningStatus?: string;
+    currentState?: string;
+    inParty?: boolean;
+    combat?: CharacterCardEntry["combat"];
+  } | null,
+  extraCombat: CharacterCardEntry["combat"],
+): { label: string; value: string; desc?: string }[] {
+  const list: { label: string; value: string; desc?: string }[] = [];
+  if (charData?.identity) list.push({ label: "身份", value: charData.identity, desc: "角色身份/职业" });
+  if (charData?.relationshipTag) list.push({ label: "关系", value: charData.relationshipTag, desc: "与玩家的关系" });
+  if (charData?.awakeningStatus) list.push({ label: "觉醒", value: charData.awakeningStatus, desc: "魔法少女觉醒状态" });
+  if (charData?.currentState) list.push({ label: "状态", value: charData.currentState, desc: "当前状态描述" });
+  if (charData?.inParty !== undefined) list.push({ label: "在队", value: charData.inParty ? "是" : "否", desc: "是否在队伍中" });
 
-  if (char) {
-    if (char.identity) entries.push({ label: "身份", value: char.identity, desc: "角色身份/职业" });
-    if (char.relationshipTag) entries.push({ label: "关系", value: char.relationshipTag, desc: "与玩家的关系" });
-    if (char.awakeningStatus) entries.push({ label: "觉醒", value: char.awakeningStatus, desc: "魔法少女觉醒状态" });
-    if (char.currentState) entries.push({ label: "状态", value: char.currentState, desc: "当前状态描述" });
-    if (char.inParty !== undefined) entries.push({ label: "在队", value: char.inParty ? "是" : "否", desc: "是否在队伍中" });
-  }
-
-  const combat = char?.combat || playerCombat.value;
+  const combat = charData?.combat || extraCombat;
   if (combat) {
-    entries.push({ label: "等级", value: String(combat.level), desc: "当前等级" });
-    entries.push({ label: "经验", value: String(combat.exp), desc: "当前经验值" });
-    entries.push({ label: "攻击", value: String(combat.attack), desc: "攻击力" });
-    entries.push({ label: "防御", value: String(combat.defense), desc: "防御力" });
-    entries.push({ label: "敏捷", value: String(combat.agility), desc: "敏捷值" });
-    entries.push({ label: "智力", value: String(combat.intelligence), desc: "智力值" });
+    list.push({ label: "等级", value: String(combat.level), desc: "当前等级" });
+    list.push({ label: "经验", value: String(combat.exp), desc: "当前经验值" });
+    list.push({ label: "攻击", value: String(combat.attack), desc: "攻击力" });
+    list.push({ label: "防御", value: String(combat.defense), desc: "防御力" });
+    list.push({ label: "敏捷", value: String(combat.agility), desc: "敏捷值" });
+    list.push({ label: "智力", value: String(combat.intelligence), desc: "智力值" });
+  }
+  return list;
+}
+
+const characterCards = computed<CharacterCardEntry[]>(() => {
+  const allChars = vars.value?.root?.characters;
+  const playerName = vars.value?.root?.player?.profile?.name ?? "";
+  const playerGender = vars.value?.root?.player?.profile?.gender ?? "";
+  const playerCombat = vars.value?.root?.player?.combat ?? null;
+
+  const cards: CharacterCardEntry[] = [];
+  let playerFound = false;
+
+  if (allChars) {
+    for (const [charId, charData] of Object.entries(allChars)) {
+      const isPlayer = charData.displayName === playerName;
+      let avatarUrl = "";
+
+      if (isPlayer) {
+        playerFound = true;
+        const genderKey = playerGender === "男" ? "男user" : "女user";
+        avatarUrl = avatarImages[`../../assets/avatars/normal/${genderKey}.png`] ?? "";
+      } else {
+        avatarUrl = avatarImages[`../../assets/avatars/normal/${charData.displayName}.png`] ?? "";
+      }
+
+      const roleTag = charData.relationshipTag || charData.identity || "";
+
+      cards.push({
+        charId,
+        displayName: charData.displayName ?? "???",
+        avatarUrl,
+        isPlayer,
+        roleTag,
+        combat: (charData.combat || (isPlayer ? playerCombat : null)) ?? null,
+        variables: buildVariableList(charData, playerCombat),
+      });
+    }
   }
 
-  return entries;
+  // Ensure player card always exists (even if not in characters record)
+  if (!playerFound && playerName) {
+    const genderKey = playerGender === "男" ? "男user" : "女user";
+    cards.push({
+      charId: "__player__",
+      displayName: playerName,
+      avatarUrl: avatarImages[`../../assets/avatars/normal/${genderKey}.png`] ?? "",
+      isPlayer: true,
+      roleTag: "",
+      combat: playerCombat,
+      variables: buildVariableList(null, playerCombat),
+    });
+  }
+
+  // Player first, then NPCs by displayName
+  cards.sort((a, b) => {
+    if (a.isPlayer !== b.isPlayer) return a.isPlayer ? -1 : 1;
+    return a.displayName.localeCompare(b.displayName);
+  });
+
+  return cards;
 });
+
+function toggleExpanded(charId: string) {
+  const next = new Set(expandedCards.value);
+  if (next.has(charId)) {
+    next.delete(charId);
+  } else {
+    next.add(charId);
+  }
+  expandedCards.value = next;
+}
 </script>
 
 <style lang="scss" scoped>
+.mg-character-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mg-space-sm, 8px);
+}
+
 .mg-character-card {
   border-radius: var(--mg-radius);
   background: var(--mg-bg-card);
@@ -185,6 +275,13 @@ const characterVariables = computed(() => {
 
 .mg-character-card--expanded {
   border-color: var(--mg-accent, #ff6b9d);
+}
+
+.mg-character-card--skeleton {
+  display: flex;
+  gap: var(--mg-space-md, 12px);
+  padding: var(--mg-space-md, 12px);
+  animation: mg-skeleton-pulse 1.5s ease-in-out infinite;
 }
 
 .mg-character-card__body {
@@ -198,11 +295,17 @@ const characterVariables = computed(() => {
 /* ── Avatar ── */
 .mg-character-card__avatar-wrap {
   flex-shrink: 0;
-  width: 76px;
+  width: 64px;
   aspect-ratio: 2 / 3;
   border-radius: var(--mg-radius);
   overflow: hidden;
   background: var(--mg-bg-surface, rgba(255, 255, 255, 0.05));
+}
+
+.mg-character-card--player .mg-character-card__avatar-wrap {
+  width: 76px;
+  border-color: var(--mg-accent, #ff6b9d);
+  box-shadow: var(--mg-glow-pink, 0 0 6px rgba(255, 107, 157, 0.3));
 }
 
 .mg-character-card__avatar {
@@ -220,7 +323,7 @@ const characterVariables = computed(() => {
   justify-content: center;
 
   i {
-    font-size: 2rem;
+    font-size: 1.6rem;
     color: var(--mg-text-secondary);
     opacity: 0.5;
   }
@@ -240,6 +343,20 @@ const characterVariables = computed(() => {
   font-weight: 800;
   font-size: var(--mg-font-base, 1rem);
   color: var(--mg-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mg-character-card--player .mg-character-card__name {
+  color: var(--mg-accent, #ff6b9d);
+}
+
+/* ── NPC role tag ── */
+.mg-character-card__role-tag {
+  font-size: 0.75rem;
+  color: var(--mg-text-secondary);
+  opacity: 0.7;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -309,7 +426,7 @@ const characterVariables = computed(() => {
 /* ── Expanded variable list ── */
 .mg-character-card__variables {
   border-top: var(--mg-border-width, 1px) solid var(--mg-border, rgba(255, 255, 255, 0.08));
-  max-height: 240px;
+  max-height: 200px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -343,14 +460,7 @@ const characterVariables = computed(() => {
   cursor: help;
 }
 
-/* ── Loading skeleton ── */
-.mg-character-card__skeleton {
-  display: flex;
-  gap: var(--mg-space-md, 12px);
-  padding: var(--mg-space-md, 12px);
-  animation: mg-skeleton-pulse 1.5s ease-in-out infinite;
-}
-
+/* ── Skeleton ── */
 .mg-character-card__skeleton-avatar {
   width: 76px;
   aspect-ratio: 2 / 3;
@@ -378,7 +488,7 @@ const characterVariables = computed(() => {
 }
 
 /* ── Error state ── */
-.mg-character-card__error {
+.mg-character-card--error {
   display: flex;
   flex-direction: column;
   align-items: center;
