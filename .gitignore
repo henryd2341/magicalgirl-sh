@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 test-results
+temp.md
 
 # Editor directories and files
 .*/
