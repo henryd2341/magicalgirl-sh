@@ -269,12 +269,20 @@ function toggleExpanded(charId: string) {
   border-radius: var(--mg-radius);
   background: var(--mg-bg-card);
   border: var(--mg-border-width, 2px) solid var(--mg-border, rgba(255, 255, 255, 0.1));
-  overflow: hidden;
-  transition: all var(--mg-transition-normal, 0.3s ease);
+  box-shadow: var(--mg-shadow-card);
+  transition: transform var(--mg-transition-base), border-color var(--mg-transition-base), box-shadow var(--mg-transition-base);
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--mg-glow-pink);
+    border-color: var(--mg-accent, #ff6b9d);
+  }
 }
 
 .mg-character-card--expanded {
   border-color: var(--mg-accent, #ff6b9d);
+  box-shadow: var(--mg-glow-pink);
 }
 
 .mg-character-card--skeleton {

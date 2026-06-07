@@ -102,7 +102,7 @@ describe("MainGameView chat persistence wiring", () => {
 
     const textbox = screen.getByRole("textbox", { name: "故事输入框" });
     await fireEvent.update(textbox, "  请继续描写车站天桥上的风。  ");
-    await fireEvent.click(screen.getByRole("button", { name: "发送讯号" }));
+    await fireEvent.click(screen.getByRole("button", { name: "发送" }));
 
     expect(
       await screen.findByText("请继续描写车站天桥上的风。"),
@@ -129,7 +129,7 @@ describe("MainGameView chat persistence wiring", () => {
 
     const textbox = screen.getByRole("textbox", { name: "故事输入框" });
     await fireEvent.update(textbox, "调查旧校舍门口的影子。");
-    await fireEvent.click(screen.getByRole("button", { name: "发送讯号" }));
+    await fireEvent.click(screen.getByRole("button", { name: "发送" }));
 
     expect(
       await screen.findByText("调查旧校舍门口的影子。"),

@@ -25,6 +25,7 @@ design/
 *.njsproj
 *.sln
 *.sw?
+prototype/*
 
 # AI Agent
 AGENTS.md

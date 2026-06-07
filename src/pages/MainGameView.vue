@@ -6,8 +6,8 @@ import { useSessionStore } from "@/stores/sessionStore";
 import BattleOverlay from "@/ui/battle/BattleOverlay.vue";
 import GameConversationPanel from "@/ui/game/GameConversationPanel.vue";
 import GameInputDock from "@/ui/game/GameInputDock.vue";
-import GameStatusBanner from "@/ui/game/GameStatusBanner.vue";
 import GameTopBar from "@/ui/game/GameTopBar.vue";
+import SessionStateModal from "@/ui/dev/SessionStateModal.vue";
 import PromptViewerDrawer from "@/ui/dev/PromptViewerDrawer.vue";
 import PostCombatPanel from "@/ui/session/PostCombatPanel.vue";
 import SceneThumbnail from "@/ui/game/SceneThumbnail.vue";
@@ -19,7 +19,8 @@ import SettingsView from "./SettingsView.vue";
 import ApiSettingsView from "./ApiSettingsView.vue";
 import SaveExportView from "./SaveExportView.vue";
 import { storeToRefs } from "pinia";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { startTracking, resetHistory } from "@/composables/useStateTransitionHistory";
 
 const chatStore = useChatStore();
 const sessionStore = useSessionStore();
@@ -41,6 +42,7 @@ const showApiSettings = ref(false);
 const showSaveManage = ref(false);
 const showSystemSettings = ref(false);
 const promptViewerDrawerRef = ref();
+const showStateModal = ref(false);
 
 // ── Theme & PixiJS settings (read from localStorage, kept reactive for template) ──
 const activeTheme = ref(window.localStorage.getItem("mg-theme") || "e-girl");
@@ -114,12 +116,14 @@ function launchDebugBattleForTestingOnly() {
 
 async function handlePreviewPrompt() {
   await sessionStore.previewPrompt("(预览请求)");
-  promptViewerDrawerRef.value?.toggleDrawer();
+  promptViewerDrawerRef.value?.open();
 }
 
 onMounted(async () => {
   if (hasInitialized.value) return;
   hasInitialized.value = true;
+
+  startTracking();
 
   const persistenceClient = getChatPersistenceClient();
   if (persistenceClient) {
@@ -128,6 +132,10 @@ onMounted(async () => {
     await sessionStore.recoverFromInterruptedCombat();
   }
   await chatStore.refreshMessages();
+});
+
+onUnmounted(() => {
+  resetHistory();
 });
 </script>
 
@@ -159,11 +167,12 @@ onMounted(async () => {
             "
           ></i>
         </button>
-        <div v-if="leftPanelOpen" class="mg-game__left-content">
-          <SceneThumbnail />
-          <WorldInfo />
-          <BgmPlayer />
-          <nav class="mg-game__left-actions">
+        <Transition name="mg-panel">
+          <div v-if="leftPanelOpen" class="mg-game__left-content">
+            <SceneThumbnail />
+            <WorldInfo />
+            <BgmPlayer />
+            <nav class="mg-game__left-actions">
             <div class="mg-chain-divider" aria-hidden="true"></div>
             <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--blue">
               <i class="fas fa-users"></i> 队伍编组
@@ -175,7 +184,8 @@ onMounted(async () => {
               <i class="fas fa-scroll"></i> Credits
             </button>
           </nav>
-        </div>
+          </div>
+        </Transition>
       </aside>
 
       <!-- Center Chat Area -->
@@ -190,7 +200,6 @@ onMounted(async () => {
             <i class="fas fa-times"></i>
           </button>
         </div>
-        <GameStatusBanner />
         <div class="mg-game__messages">
           <GameConversationPanel />
         </div>
@@ -214,9 +223,11 @@ onMounted(async () => {
             "
           ></i>
         </button>
-        <div v-if="rightPanelOpen" class="mg-game__right-content">
-          <CharacterCard />
-        </div>
+        <Transition name="mg-panel">
+          <div v-if="rightPanelOpen" class="mg-game__right-content">
+            <CharacterCard />
+          </div>
+        </Transition>
       </aside>
     </div>
 
@@ -239,8 +250,7 @@ onMounted(async () => {
       <button class="mg-btn mg-btn--sm mg-btn--ghost">
         <i class="fas fa-list"></i> 日志列表
       </button>
-      <!-- TODO: 等待实现 — 查看状态机 -->
-      <button class="mg-btn mg-btn--sm mg-btn--ghost">
+      <button class="mg-btn mg-btn--sm mg-btn--ghost" @click="showStateModal = true">
         <i class="fas fa-project-diagram"></i> 查看状态机
       </button>
     </footer>
@@ -258,6 +268,8 @@ onMounted(async () => {
     <!-- ═══ Battle Overlay ═══ -->
     <BattleOverlay v-if="shouldShowBattleOverlay" />
     <PromptViewerDrawer ref="promptViewerDrawerRef" />
+
+    <SessionStateModal v-if="showStateModal" @close="showStateModal = false" />
 
     <!-- ═══ In-Game Modals ═══ -->
     <div
@@ -393,17 +405,29 @@ onMounted(async () => {
 .mg-game__center  { display: flex; flex: 1; overflow: hidden; }
 
 // Panels
-.mg-game__left    { position: relative; width: 240px; min-width: 0; background: var(--mg-bg-card); border-right: var(--mg-border-width) solid var(--mg-border); transition: width var(--mg-transition-base); flex-shrink: 0; &--closed { width: 36px; } }
+.mg-game__left    { flex: 0 0 clamp(240px, 18vw, 320px); position: relative; background: var(--mg-bg-card); border-right: var(--mg-border-width) solid var(--mg-border); transition: background 0.3s ease, border-color 0.3s ease; &--closed { background: transparent; border-right-color: transparent; pointer-events: none; .mg-panel-toggle { pointer-events: auto; } } }
 .mg-game__left-content  { padding: var(--mg-space-md); display: flex; flex-direction: column; gap: var(--mg-space-sm); }
 .mg-game__left-actions  { display: flex; flex-direction: column; gap: 6px; margin-top: var(--mg-space-sm); }
-.mg-game__right   { position: relative; width: 220px; min-width: 0; background: var(--mg-bg-card); border-left: var(--mg-border-width) solid var(--mg-border); transition: width var(--mg-transition-base); flex-shrink: 0; &--closed { width: 36px; } }
+.mg-game__right   { flex: 0 0 clamp(240px, 18vw, 320px); position: relative; background: var(--mg-bg-card); border-left: var(--mg-border-width) solid var(--mg-border); transition: background 0.3s ease, border-color 0.3s ease; &--closed { background: transparent; border-left-color: transparent; pointer-events: none; .mg-panel-toggle { pointer-events: auto; } } }
 .mg-game__right-content { padding: var(--mg-space-md); display: flex; flex-direction: column; gap: var(--mg-space-sm); }
+
+// Panel content transition
+.mg-panel-enter-active,
+.mg-panel-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+.mg-panel-enter-from,
+.mg-panel-leave-to       { opacity: 0; }
+.mg-panel-enter-from   { transform: translateX(-12px); }
+.mg-panel-leave-to     { transform: translateX(-12px); }
+.mg-game__right .mg-panel-enter-from,
+.mg-game__right .mg-panel-leave-to { transform: translateX(12px); }
 
 // Panel toggles
 .mg-panel-toggle  { position: absolute; top: 8px; right: 4px; width: 28px; height: 28px; border: var(--mg-border-width) solid var(--mg-border); border-radius: 50%; background: var(--mg-bg-card); color: var(--mg-text-secondary); font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 2; transition: all var(--mg-transition-fast); &:hover { color: var(--mg-accent); border-color: var(--mg-accent); box-shadow: var(--mg-glow-pink); } &--right { right: auto; left: 4px; } }
+.mg-game__left--closed .mg-panel-toggle  { right: auto; left: 4px; }
+.mg-game__right--closed .mg-panel-toggle { left: auto; right: 4px; }
 
-// Chat area
-.mg-game__chat    { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+// Chat area — fixed width, never stretches
+.mg-game__chat    { flex: 0 0 calc(100vw - 2 * clamp(240px, 18vw, 320px)); display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 .mg-game__messages { flex: 1; overflow-y: auto; padding: var(--mg-space-md); min-height: 0; }
 
 // Reminder banner

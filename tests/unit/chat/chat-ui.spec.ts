@@ -105,7 +105,7 @@ describe("ChatInputBox", () => {
     (textbox as HTMLTextAreaElement).value = "   帮我继续这段对话。  ";
     textbox.dispatchEvent(new Event("input", { bubbles: true }));
 
-    await screen.getByRole("button", { name: "发送讯号" }).click();
+    await screen.getByRole("button", { name: "发送" }).click();
 
     expect(onSubmit).toHaveBeenCalledWith("帮我继续这段对话。");
     expect((textbox as HTMLTextAreaElement).value).toBe("");
