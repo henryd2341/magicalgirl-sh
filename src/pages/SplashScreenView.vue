@@ -5,6 +5,7 @@ import { useThemeDeco } from "@/composables/useThemeDeco";
 import ApiSettingsView from "./ApiSettingsView.vue";
 import SaveExportView from "./SaveExportView.vue";
 import SettingsView from "./SettingsView.vue";
+import SystemSettingsPanel from "@/ui/settings/SystemSettingsPanel.vue";
 
 const { deco } = useThemeDeco();
 
@@ -177,7 +178,6 @@ function navigateTo(routeName: string) {
         </button>
         <h2 class="mg-modal__title">系统设置</h2>
         <div class="mg-modal__body">
-          <!-- TODO: 等待实现的功能 — 系统设置面板（主题、字号、音量调整） -->
           <div class="mg-system-settings">
             <div class="mg-sys-section">
               <h3>主题切换</h3>
@@ -202,10 +202,7 @@ function navigateTo(routeName: string) {
                 </button>
               </div>
             </div>
-            <p class="mg-sys-section__todo">
-              <i class="fas fa-info-circle"></i>
-              // TODO: 等待实现的功能 — 字号调整、音量控制
-            </p>
+            <SystemSettingsPanel />
             <div class="mg-sys-section">
               <h3><i class="fas fa-bolt"></i> 性能设置</h3>
               <p class="mg-sys-section__hint">PixiJS WebGL 背景特效对首次加载影响较大，可在低性能设备上关闭。</p>

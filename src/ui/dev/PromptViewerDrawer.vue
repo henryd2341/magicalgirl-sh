@@ -21,6 +21,7 @@ const tabs: Array<{ id: ViewerTab; label: string }> = [
 function toggleDrawer() {
   isOpen.value = !isOpen.value;
 }
+defineExpose({ toggleDrawer });
 </script>
 
 <template>

@@ -15,7 +15,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
       },
       location: {
         id: "prologue_classroom",
-        name: "教室",
+        name: "柚木女子学院 教室",
         description: "晨会前的教室还带着一点雨水气味。",
       },
       affairs: {},

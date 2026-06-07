@@ -10,6 +10,11 @@ import GameStatusBanner from "@/ui/game/GameStatusBanner.vue";
 import GameTopBar from "@/ui/game/GameTopBar.vue";
 import PromptViewerDrawer from "@/ui/dev/PromptViewerDrawer.vue";
 import PostCombatPanel from "@/ui/session/PostCombatPanel.vue";
+import SceneThumbnail from "@/ui/game/SceneThumbnail.vue";
+import WorldInfo from "@/ui/game/WorldInfo.vue";
+import BgmPlayer from "@/ui/game/BgmPlayer.vue";
+import CharacterCard from "@/ui/game/CharacterCard.vue";
+import SystemSettingsPanel from "@/ui/settings/SystemSettingsPanel.vue";
 import SettingsView from "./SettingsView.vue";
 import ApiSettingsView from "./ApiSettingsView.vue";
 import SaveExportView from "./SaveExportView.vue";
@@ -35,6 +40,7 @@ const showSettings = ref(false);
 const showApiSettings = ref(false);
 const showSaveManage = ref(false);
 const showSystemSettings = ref(false);
+const promptViewerDrawerRef = ref();
 
 // ── Theme & PixiJS settings (read from localStorage, kept reactive for template) ──
 const activeTheme = ref(window.localStorage.getItem("mg-theme") || "e-girl");
@@ -106,6 +112,11 @@ function launchDebugBattleForTestingOnly() {
   ]);
 }
 
+async function handlePreviewPrompt() {
+  await sessionStore.previewPrompt("(预览请求)");
+  promptViewerDrawerRef.value?.toggleDrawer();
+}
+
 onMounted(async () => {
   if (hasInitialized.value) return;
   hasInitialized.value = true;
@@ -149,24 +160,9 @@ onMounted(async () => {
           ></i>
         </button>
         <div v-if="leftPanelOpen" class="mg-game__left-content">
-          <!-- TODO: 等待实现的功能 — 场景缩略图（提取自世界变量） -->
-          <div class="mg-card mg-card--sm">
-            <p class="mg-card__placeholder">
-              <i class="fas fa-image"></i> 场景缩略图
-            </p>
-          </div>
-          <!-- TODO: 等待实现的功能 — 世界信息展示 -->
-          <div class="mg-card mg-card--sm">
-            <p class="mg-card__placeholder">
-              <i class="fas fa-globe"></i> 世界信息
-            </p>
-          </div>
-          <!-- TODO: 等待实现的功能 — BGM播放器 -->
-          <div class="mg-card mg-card--sm">
-            <p class="mg-card__placeholder">
-              <i class="fas fa-music"></i> // TODO: 等待实现的功能 — BGM播放器
-            </p>
-          </div>
+          <SceneThumbnail />
+          <WorldInfo />
+          <BgmPlayer />
           <nav class="mg-game__left-actions">
             <div class="mg-chain-divider" aria-hidden="true"></div>
             <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--blue">
@@ -219,13 +215,7 @@ onMounted(async () => {
           ></i>
         </button>
         <div v-if="rightPanelOpen" class="mg-game__right-content">
-          <!-- TODO: 等待实现的功能 — 角色信息卡片（实时变量） -->
-          <div class="mg-card mg-card--sm mg-card--char">
-            <p class="mg-card__placeholder">
-              <i class="fas fa-user-circle"></i> 角色卡片
-            </p>
-            <p class="mg-card__hint">可视化角色相关变量</p>
-          </div>
+          <CharacterCard />
         </div>
       </aside>
     </div>
@@ -238,15 +228,18 @@ onMounted(async () => {
       >
         <i class="fas fa-flask"></i> 测试：启动预置战斗
       </button>
-      <button class="mg-btn mg-btn--sm mg-btn--ghost">
+      <button class="mg-btn mg-btn--sm mg-btn--ghost" @click="handlePreviewPrompt">
         <i class="fas fa-eye"></i> 查看提示词
       </button>
+      <!-- TODO: 等待实现 — 变量修改器 -->
       <button class="mg-btn mg-btn--sm mg-btn--ghost">
         <i class="fas fa-code"></i> 变量修改器
       </button>
+      <!-- TODO: 等待实现 — 日志列表 -->
       <button class="mg-btn mg-btn--sm mg-btn--ghost">
         <i class="fas fa-list"></i> 日志列表
       </button>
+      <!-- TODO: 等待实现 — 查看状态机 -->
       <button class="mg-btn mg-btn--sm mg-btn--ghost">
         <i class="fas fa-project-diagram"></i> 查看状态机
       </button>
@@ -264,7 +257,7 @@ onMounted(async () => {
 
     <!-- ═══ Battle Overlay ═══ -->
     <BattleOverlay v-if="shouldShowBattleOverlay" />
-    <PromptViewerDrawer />
+    <PromptViewerDrawer ref="promptViewerDrawerRef" />
 
     <!-- ═══ In-Game Modals ═══ -->
     <div
@@ -383,10 +376,7 @@ onMounted(async () => {
                 <span class="mg-toggle__label">背景模糊动效</span>
               </label>
             </div>
-            <p class="mg-sys-section__todo">
-              <i class="fas fa-info-circle"></i>
-              // TODO: 等待实现的功能 — 字号调整、音量控制
-            </p>
+            <SystemSettingsPanel />
           </div>
         </div>
       </div>

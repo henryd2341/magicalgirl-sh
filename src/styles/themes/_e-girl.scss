@@ -114,6 +114,7 @@
   --mg-font-sm: 0.8rem;
   --mg-font-md: 0.9rem;
   --mg-font-base: 1rem;
+  --mg-font-size-base: 16px;
   --mg-font-lg: 1.2rem;
   --mg-font-xl: 1.5rem;
   --mg-font-display: clamp(2.5rem, 7vw, 5rem);
@@ -580,3 +581,4 @@
 @keyframes mg-glitch { 0% { transform: translate(0); } 10% { transform: translate(-1px, 1px); } 20% { transform: translate(1px, -1px); } 30% { transform: translate(-1px, -1px); } 40% { transform: translate(1px, 1px); } 50% { transform: translate(0); } 100% { transform: translate(0); } }
 @keyframes mg-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes mg-pulse-glow { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }
+@keyframes mg-skeleton-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }

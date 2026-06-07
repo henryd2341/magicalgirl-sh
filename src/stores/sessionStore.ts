@@ -1049,5 +1049,26 @@ export const useSessionStore = defineStore("session", () => {
     recoverFromInterruptedCombat,
     restoreFromCheckpointSnapshot,
     rollbackToLatestIdleCheckpoint,
+    getVariableSnapshot: () => variableRepository.getCurrent(),
+    previewPrompt: async (userInput: string) => {
+      const promptViewerStore = usePromptViewerStore();
+      const skillStore = useSkillStore();
+      const chatStore = useChatStore();
+      const chatRuntime = chatStore.getActiveChatRuntime();
+      const configuredProvider = await createConfiguredProviderClient();
+      const request = await buildConfiguredHarnessRequest({
+        userInput,
+        chatRepository: chatRuntime.repository,
+        variableRepository,
+        worldInfoRepository,
+        promptPresetRepository: getPromptPresetRepository(),
+        skillMetadata: skillStore.enabledMetadata,
+        previousValues: new Map(),
+        requestId: `preview-${Date.now()}`,
+        now: new Date().toISOString(),
+      });
+      promptViewerStore.record(request, configuredProvider.providerInfo);
+      return request;
+    },
   };
 });
