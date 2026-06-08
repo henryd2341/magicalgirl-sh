@@ -135,23 +135,23 @@ dominates -- instead, different pastels are assigned to different UI
 regions or component types, creating a patchwork quilt effect held
 together by the consistent black framework.
 
-  | Swatch   | Hex                                               | Role / Usage                                                               |
-  | -------- | ------------------------------------------------- | ----- |
-  | !#FFD6E0 | `#FFD6E0`{.language-plaintext .highlighter-rouge} | Baby Pink -- primary accent cards, hero backgrounds, CTA sections          |
-  | !#C5B4E3 | `#C5B4E3`{.language-plaintext .highlighter-rouge} | Soft Lavender -- secondary cards, featured content blocks, tag backgrounds |
-  | !#B8E8D0 | `#B8E8D0`{.language-plaintext .highlighter-rouge} | Mint Cream -- success states, positive indicators, alternate section fills |
-  | !#FFF1C1 | `#FFF1C1`{.language-plaintext .highlighter-rouge} | Buttercream -- warning states, highlight badges, warm accent areas         |
-  | !#B6D8F2 | `#B6D8F2`{.language-plaintext .highlighter-rouge} | Powder Blue -- info states, link highlights, cool accent sections          |
-  | !#FFCBA4 | `#FFCBA4`{.language-plaintext .highlighter-rouge} | Peach Sorbet -- tertiary accent, illustration backgrounds, hover fills     |
-  | !#F0F0F0 | `#F0F0F0`{.language-plaintext .highlighter-rouge} | Concrete -- page canvas, neutral background, structural base               |
-  | !#FFFFFF | `#FFFFFF`{.language-plaintext .highlighter-rouge} | Pure White -- card backgrounds (alternate), modal surfaces, input fields   |
-  | !#1A1A1A | `#1A1A1A`{.language-plaintext .highlighter-rouge} | Near Black -- primary text, borders, shadows, structural lines             |
-  | !#2B2B2B | `#2B2B2B`{.language-plaintext .highlighter-rouge} | Charcoal -- secondary text, body copy, descriptions                        |
-  | !#6B6B6B | `#6B6B6B`{.language-plaintext .highlighter-rouge} | Slate -- tertiary text, captions, disabled labels                          |
-  | !#E8C5E8 | `#E8C5E8`{.language-plaintext .highlighter-rouge} | Orchid Mist -- decorative accents, secondary badges, alternate tags        |
-  | !#D4F0B4 | `#D4F0B4`{.language-plaintext .highlighter-rouge} | Lime Sorbet -- positive metrics, growth indicators, fresh accents          |
-  | !#F5C6C6 | `#F5C6C6`{.language-plaintext .highlighter-rouge} | Blush -- error states, destructive action warnings, alert backgrounds      |
-  | !#D0D0D0 | `#D0D0D0`{.language-plaintext .highlighter-rouge} | Silver -- borders (alternate), dividers, disabled elements                 |
+  | Swatch   | Hex       | Role / Usage                                                               |
+  | -------- | --------- | -------------------------------------------------------------------------- |
+  | !#FFD6E0 | `#FFD6E0` | Baby Pink -- primary accent cards, hero backgrounds, CTA sections          |
+  | !#C5B4E3 | `#C5B4E3` | Soft Lavender -- secondary cards, featured content blocks, tag backgrounds |
+  | !#B8E8D0 | `#B8E8D0` | Mint Cream -- success states, positive indicators, alternate section fills |
+  | !#FFF1C1 | `#FFF1C1` | Buttercream -- warning states, highlight badges, warm accent areas         |
+  | !#B6D8F2 | `#B6D8F2` | Powder Blue -- info states, link highlights, cool accent sections          |
+  | !#FFCBA4 | `#FFCBA4` | Peach Sorbet -- tertiary accent, illustration backgrounds, hover fills     |
+  | !#F0F0F0 | `#F0F0F0` | Concrete -- page canvas, neutral background, structural base               |
+  | !#FFFFFF | `#FFFFFF` | Pure White -- card backgrounds (alternate), modal surfaces, input fields   |
+  | !#1A1A1A | `#1A1A1A` | Near Black -- primary text, borders, shadows, structural lines             |
+  | !#2B2B2B | `#2B2B2B` | Charcoal -- secondary text, body copy, descriptions                        |
+  | !#6B6B6B | `#6B6B6B` | Slate -- tertiary text, captions, disabled labels                          |
+  | !#E8C5E8 | `#E8C5E8` | Orchid Mist -- decorative accents, secondary badges, alternate tags        |
+  | !#D4F0B4 | `#D4F0B4` | Lime Sorbet -- positive metrics, growth indicators, fresh accents          |
+  | !#F5C6C6 | `#F5C6C6` | Blush -- error states, destructive action warnings, alert backgrounds      |
+  | !#D0D0D0 | `#D0D0D0` | Silver -- borders (alternate), dividers, disabled elements                 |
 
 ### CSS Custom Properties
 

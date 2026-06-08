@@ -4,23 +4,65 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 
 async function enterTitleScreen() {
+  // Try fullscreen API before entering
+  document.documentElement.requestFullscreen?.().catch(() => {});
   await router.push({ name: "title" });
 }
 </script>
 
 <template>
-  <main id="start-screen" class="start-screen-view scrapbook-panel" role="main">
-    <section class="start-screen-view__panel">
-      <p class="eyebrow eyebrow--pink">Boot Sequence</p>
-      <h1 class="section-heading--playful">MagicalGirl Shell</h1>
+  <main id="start-screen" class="mg-start" role="main">
+    <div class="mg-start__card">
+      <p class="mg-start__eyebrow">Boot Sequence</p>
+      <img
+        src="/logo.png"
+        alt="MagicalGirl SH"
+        class="mg-start__title mg-glitch-hover"
+      />
+      <p class="mg-start__version">v5 MVP</p>
       <button
         id="start-screen-enter-button"
-        class="primary-cta"
+        class="mg-btn mg-btn--primary mg-btn--lg"
         type="button"
         @click="enterTitleScreen"
       >
-        按下 Enter 或点击任意位置开始
+        <i class="fas fa-play"></i>
+        点击开始
       </button>
-    </section>
+    </div>
   </main>
 </template>
+
+<style lang="scss" scoped>
+.mg-start {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  text-align: center;
+  z-index: 1;
+  position: relative;
+}
+.mg-start__card {
+  padding: var(--mg-space-2xl);
+}
+.mg-start__eyebrow {
+  font-family: var(--mg-font-mono);
+  font-size: var(--mg-font-sm);
+  text-transform: uppercase;
+  letter-spacing: var(--mg-tracking-eyebrow);
+  color: var(--mg-text-secondary);
+  margin-bottom: var(--mg-space-md);
+}
+.mg-start__title {
+  max-width: 350px;
+  width: 60vw;
+  height: auto;
+  filter: drop-shadow(0 0 12px rgba(255, 107, 157, 0.35));
+}
+.mg-start__version {
+  font-size: var(--mg-font-sm);
+  color: var(--mg-text-muted);
+  margin-bottom: var(--mg-space-xl);
+}
+</style>

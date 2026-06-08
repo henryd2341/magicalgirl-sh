@@ -32,6 +32,11 @@ describe("BattleStatusPanel", () => {
         selectedTarget: selectedEnemy,
         turnCount: 2,
         pressTurnIcons,
+        ownerSide: "player",
+        iconAssets: {
+          player: { solid: "allyIcon.svg", bright: "allyIconBright.svg" },
+          enemy: { solid: "enemyIcon.svg", bright: "enemyIconBright.svg" },
+        },
       },
     });
 

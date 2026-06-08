@@ -5,9 +5,13 @@ import {
 } from "@/engine/battle/battleActionCatalog";
 import { useBattleStore } from "@/stores/battleStore";
 import { useSessionStore } from "@/stores/sessionStore";
-import avatarHeroine from "@/assets/avatars/heroine_1_transformed.png";
-import spriteOne from "@/assets/sprites/1.png";
-import spriteTwo from "@/assets/sprites/2.png";
+import avatarHeroine from "@/assets/avatars/transformed/女user.png";
+import spriteOne from "@/assets/sprites/bat1.png";
+import spriteTwo from "@/assets/sprites/bear1.png";
+import allyIcon from "@/assets/pressTurnIcon/allyIcon.svg";
+import allyIconBright from "@/assets/pressTurnIcon/allyIconBright.svg";
+import enemyIcon from "@/assets/pressTurnIcon/enemyIcon.svg";
+import enemyIconBright from "@/assets/pressTurnIcon/enemyIconBright.svg";
 import type {
   BattleActionId,
   BattleActionMenuNode,
@@ -17,13 +21,18 @@ import type {
 import BattleCommandMenu from "@/ui/battle/BattleCommandMenu.vue";
 import BattleStatusPanel from "@/ui/battle/BattleStatusPanel.vue";
 import { storeToRefs } from "pinia";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
 const battleStore = useBattleStore();
 const sessionStore = useSessionStore();
 const { pendingBattle, activeBattle } = storeToRefs(battleStore);
 const enemySprites = [spriteOne, spriteTwo];
 const partyAvatars = [avatarHeroine];
+
+const pressTurnIconAssets = {
+  player: { solid: allyIcon, bright: allyIconBright },
+  enemy: { solid: enemyIcon, bright: enemyIconBright },
+};
 
 const pendingEnemySummaries = computed(() => {
   if (pendingBattle.value === null) {
@@ -157,6 +166,16 @@ const selectedActionDescription = computed(() => {
     "行动描述框"
   );
 });
+
+const hoveredCommandDescription = ref<string | null>(null);
+
+const displayCommandDescription = computed(() => {
+  return hoveredCommandDescription.value ?? selectedActionDescription.value;
+});
+
+function onHoverCommandDescription(desc: string | null) {
+  hoveredCommandDescription.value = desc;
+}
 
 const isCommandMenuLocked = computed(() => {
   return activeBattle.value?.phase === "ENEMY_TURN";
@@ -308,6 +327,8 @@ function findBattleActionMenuNodeByActionId(
           :selected-target="selectedEnemyTarget"
           :turn-count="activeBattle?.turnCount ?? 1"
           :press-turn-icons="activeBattle?.pressTurn.icons ?? []"
+          :owner-side="activeBattle?.pressTurn.ownerSide ?? 'player'"
+          :icon-assets="pressTurnIconAssets"
         />
       </div>
 
@@ -316,10 +337,10 @@ function findBattleActionMenuNodeByActionId(
         <h2 class="battle-overlay__title">
           {{ activeBattle?.phase === "RESULT" ? "战斗结束" : "战斗进行中" }}
         </h2>
-        <p class="battle-overlay__encounter">
+        <!-- <p class="battle-overlay__encounter">
           <span>{{ activeBattle?.encounterId }}</span>
           <span>{{ activeBattle?.phase }}</span>
-        </p>
+        </p> -->
         <button
           v-if="activeBattle?.phase === 'ENEMY_TURN'"
           type="button"
@@ -369,6 +390,7 @@ function findBattleActionMenuNodeByActionId(
           @select-menu-node="selectMenuNode"
           @return-root="returnToRootMenu"
           @complete-battle="completeBattle"
+          @hover-description="onHoverCommandDescription"
         />
 
         <section class="battle-hud__party-row" aria-label="玩家队伍区域">
@@ -388,12 +410,24 @@ function findBattleActionMenuNodeByActionId(
             />
             <div class="battle-party-card__body">
               <p class="battle-party-card__name">{{ player.displayName }}</p>
-              <p class="battle-party-card__stat">
-                HP {{ player.hp.current }}/{{ player.hp.max }}
-              </p>
-              <p class="battle-party-card__stat">
-                MP {{ player.mp.current }}/{{ player.mp.max }}
-              </p>
+              <div class="battle-party-card__bar">
+                <span class="battle-party-card__bar-label">HP</span>
+                <progress
+                  class="battle-party-card__hp"
+                  :value="player.hp.current"
+                  :max="player.hp.max"
+                />
+                <span class="battle-party-card__bar-nums">{{ player.hp.current }}/{{ player.hp.max }}</span>
+              </div>
+              <div class="battle-party-card__bar">
+                <span class="battle-party-card__bar-label">MP</span>
+                <progress
+                  class="battle-party-card__mp"
+                  :value="player.mp.current"
+                  :max="player.mp.max"
+                />
+                <span class="battle-party-card__bar-nums">{{ player.mp.current }}/{{ player.mp.max }}</span>
+              </div>
               <p class="battle-party-card__status">
                 {{
                   player.statusEffects?.length
@@ -409,6 +443,14 @@ function findBattleActionMenuNodeByActionId(
               </p>
             </div>
           </article>
+        </section>
+
+        <section
+          class="battle-command-description"
+          :class="{ 'battle-command-description--hover': hoveredCommandDescription !== null }"
+          aria-label="行动描述"
+        >
+          <p>{{ displayCommandDescription }}</p>
         </section>
       </div>
     </div>

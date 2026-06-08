@@ -4,7 +4,7 @@ import type {
   BattleActionId,
   BattleActionMenuNode,
 } from "@/types/battle";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
 const props = withDefaults(defineProps<{
   actionMenu: BattleActionMenuNode[];
@@ -21,7 +21,10 @@ const emit = defineEmits<{
   selectMenuNode: [nodeId: string];
   returnRoot: [];
   completeBattle: [];
+  hoverDescription: [desc: string | null];
 }>();
+
+const hoveredDescription = ref<string | null>(null);
 
 const currentMenuNode = computed(() => {
   if (props.currentMenuNodeId == null) {
@@ -50,6 +53,16 @@ function returnRoot() {
 
   emit("returnRoot");
 }
+
+function onHoverAction(node: BattleActionMenuNode) {
+  hoveredDescription.value = node.description ?? null;
+  emit("hoverDescription", hoveredDescription.value);
+}
+
+function onLeaveAction() {
+  hoveredDescription.value = null;
+  emit("hoverDescription", null);
+}
 </script>
 
 <template>
@@ -77,7 +90,7 @@ function returnRoot() {
         完成战斗
       </button>
 
-      <ol v-else class="battle-command-menu__items">
+      <ol v-else class="battle-command-menu__items mg-scroll">
         <li v-for="action in visibleMenu" :key="action.id">
           <button
             type="button"
@@ -87,15 +100,13 @@ function returnRoot() {
             "
             :disabled="isLocked"
             @click="selectMenuNode(action.id)"
+            @mouseenter="onHoverAction(action)"
+            @mouseleave="onLeaveAction"
           >
             {{ action.label }}
           </button>
         </li>
       </ol>
     </div>
-
-    <section class="battle-command-description" aria-label="行动描述">
-      <p>{{ description }}</p>
-    </section>
   </section>
 </template>

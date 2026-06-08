@@ -19,6 +19,9 @@ import type { VariableValueRecord } from "@/types/variables";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 
+defineProps<{ embedded?: boolean }>();
+const emit = defineEmits<{ close: [] }>();
+
 const router = useRouter();
 const repository = getPromptPresetRepository();
 const skillStore = useSkillStore();
@@ -37,9 +40,7 @@ interface EditableWorldInfoEntry extends WorldInfoEntry {
   expanded: boolean;
 }
 
-async function returnToGame() {
-  await router.push({ name: "game" });
-}
+const returnToGame = () => emit("close");
 
 function applyConfig(config: PromptPresetConfig): void {
   form.systemPrompt = config.systemPrompt;

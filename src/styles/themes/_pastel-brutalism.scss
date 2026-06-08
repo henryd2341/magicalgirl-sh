@@ -1,0 +1,435 @@
+// ============================================================
+// Pastel Brutalism Theme
+// Reference: design/aesthetics_ref/Pastel_Brutalism_design.md
+// Soft pastels + thick black borders + hard zero-blur shadows
+// Zero-radius architecture, flat fills, uppercase monospace accents
+// ============================================================
+
+:root[data-theme="pastel-brutalism"] {
+  // ==========================================================
+  // RAW COLOR PALETTE (mapped from E-girl vars to PB palette)
+  // ==========================================================
+
+  --mg-pink-blush: #ff6b9d; // accent pink (shared)
+  --mg-pink-magenta: #1a1a1a; // black
+  --mg-pink-cream: #ffd6e0; // Baby Pink
+  --mg-dark-black: #1a1a1a; // Near Black
+  --mg-dark-charcoal: #2b2b2b; // Charcoal
+  --mg-dark-plum: #c5b4e3; // Soft Lavender (light!)
+  --mg-purple-lavender: #c5b4e3; // Soft Lavender
+  --mg-purple-lilac: #c5b4e3; // Soft Lavender
+  --mg-cool-blue: #b6d8f2; // Powder Blue
+  --mg-cool-eboy-blue: #b6d8f2; // Powder Blue
+  --mg-neutral-silver: #d0d0d0; // Silver
+  --mg-neutral-white: #ffffff; // Pure White
+  --mg-neutral-gray: #d0d0d0; // Silver
+  --mg-util-red: #f5c6c6; // Blush
+  --mg-util-green: #b8e8d0; // Mint Cream
+
+  // ==========================================================
+  // FUNCTIONAL TOKENS
+  // ==========================================================
+
+  // Backgrounds
+  --mg-bg: #f0f0f0; // Concrete canvas
+  --mg-bg-pattern:
+    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  --mg-bg-pattern-size: 24px 24px, 24px 24px;
+  --mg-bg-card: #ffffff;
+  --mg-bg-overlay: rgba(240, 240, 240, 0.95);
+  --mg-bg-input: #ffffff;
+  --mg-bg-hover: rgba(0, 0, 0, 0.04);
+  --mg-ink-outline: #1a1a1a;
+
+  // Text
+  --mg-text: #1a1a1a;
+  --mg-text-secondary: #2b2b2b;
+  --mg-text-muted: #6b6b6b;
+  --mg-text-on-accent: #ffffff;
+
+  // Accent
+  --mg-accent: #1a1a1a;
+  --mg-accent-strong: #1a1a1a;
+  --mg-accent-subtle: rgba(0, 0, 0, 0.05);
+  --mg-accent-glow: none;
+
+  // Borders
+  --mg-border: #1a1a1a;
+  --mg-border-light: #d0d0d0;
+  --mg-border-strong: #1a1a1a;
+
+  // Semantic
+  --mg-success: #b8e8d0; // Mint Cream
+  --mg-warning: #fff1c1; // Buttercream
+  --mg-error: #f5c6c6; // Blush
+  --mg-info: #b6d8f2; // Powder Blue
+
+  // Surfaces
+  --mg-surface-pink: #ffd6e0; // Baby Pink
+  --mg-surface-lavender: #c5b4e3; // Soft Lavender
+  --mg-surface-plum: #c5b4e3; // Soft Lavender
+  --mg-surface-peach: #ffcba4; // Peach Sorbet
+  --mg-surface-orchid: #e8c5e8; // Orchid Mist
+  --mg-surface-lime: #d4f0b4; // Lime Sorbet
+  --mg-surface-hover: rgba(0, 0, 0, 0.06);
+  --mg-surface-dark: #1a1a1a;
+
+  // ==========================================================
+  // MESSAGE ROLE BACKGROUNDS
+  // ==========================================================
+
+  --mg-message-assistant: #f0f0f0;
+  --mg-message-assistant-border: #1a1a1a;
+  --mg-message-user: #ffd6e0;
+  --mg-message-user-border: #1a1a1a;
+  --mg-message-system: #b6d8f2;
+  --mg-message-system-border: #1a1a1a;
+  --mg-message-failed: #fff1c1;
+  --mg-message-failed-border: #1a1a1a;
+
+  // Input
+  --mg-input-bg: #ffffff;
+  --mg-input-border: #1a1a1a;
+
+  // ==========================================================
+  // TYPOGRAPHY
+  // ==========================================================
+
+  --mg-font-heading: "Space Grotesk", sans-serif;
+  --mg-font-body: "Inter", sans-serif;
+  --mg-font-mono: "Space Mono", monospace;
+  --mg-font-handwritten: "Space Mono", monospace;
+  --mg-font-weight-heading: 700;
+  --mg-font-weight-body: 400;
+  --mg-font-weight-strong: 600;
+
+  // ==========================================================
+  // EFFECTS (hard zero-blur shadows)
+  // ==========================================================
+
+  --mg-shadow: #1a1a1a;
+  --mg-shadow-style: 6px 6px 0 var(--mg-shadow);
+  --mg-shadow-card: 4px 4px 0 var(--mg-shadow);
+  --mg-shadow-elevated: 8px 8px 0 var(--mg-shadow);
+  --mg-shadow-sticker: 3px 3px 0 var(--mg-shadow);
+
+  --mg-glow-pink: none;
+  --mg-glow-lilac: none;
+  --mg-glow-blue: none;
+  --mg-glow-strong: none;
+
+  --mg-text-outline: none;
+
+  --mg-text-stroke:
+    0 0 2px var(--mg-shadow), 0 0 2px var(--mg-shadow),
+    0 0 2px var(--mg-shadow), 0 0 2px var(--mg-shadow);
+
+  // Borders & radius (zero for brutalist feel, 6px soft variant)
+  --mg-border-width: 3px;
+  --mg-border-width-thick: 3px;
+  --mg-radius: 0px;
+  --mg-radius-sm: 0px;
+  --mg-radius-lg: 0px;
+
+  // ==========================================================
+  // BATTLE OVERLAY VARIABLES
+  // ==========================================================
+
+  --mg-battle-overlay-bg: var(--mg-bg);
+  --mg-battle-card-bg: var(--mg-bg-card);
+  --mg-battle-card-border: 3px solid var(--mg-ink-outline);
+  --mg-battle-card-shadow: 6px 6px 0 var(--mg-ink-outline);
+  --mg-battle-card-radius: 0;
+  --mg-battle-enemy-row-bg: var(--mg-surface-pink);
+  --mg-battle-enemy-row-border: 3px dashed var(--mg-ink-outline);
+  --mg-battle-enemy-card-bg: var(--mg-bg-card);
+  --mg-battle-enemy-card-border: 3px solid var(--mg-ink-outline);
+  --mg-battle-enemy-card-hover-border: var(--mg-accent);
+  --mg-battle-enemy-card-hover-shadow: 4px 4px 0 var(--mg-ink-outline);
+  --mg-battle-enemy-sprite-border: 2px solid var(--mg-ink-outline);
+  --mg-battle-enemy-sprite-bg: var(--mg-bg-card);
+  --mg-battle-turn-border: var(--mg-ink-outline);
+  --mg-battle-hp-track-border: 2px solid var(--mg-ink-outline);
+  --mg-battle-hp-track-bg: var(--mg-surface-pink);
+  --mg-battle-hp-fill: var(--mg-success);
+  --mg-battle-button-bg: linear-gradient(
+    135deg,
+    var(--mg-pink-cream),
+    var(--mg-cool-blue)
+  );
+  --mg-battle-button-primary-bg: linear-gradient(
+    135deg,
+    var(--mg-pink-blush),
+    var(--mg-warning)
+  );
+  --mg-battle-button-shadow: 3px 3px 0 var(--mg-ink-outline);
+  --mg-battle-button-hover-shadow: 2px 2px 0 var(--mg-ink-outline);
+  --mg-battle-phase-action-bg: linear-gradient(
+    135deg,
+    var(--mg-cool-blue),
+    var(--mg-success)
+  );
+  --mg-battle-phase-action-shadow: 4px 4px 0 var(--mg-ink-outline);
+  --mg-battle-party-actor-border: var(--mg-warning);
+  --mg-battle-party-actor-glow: none;
+  --mg-battle-party-avatar-border: 2px solid var(--mg-ink-outline);
+  --mg-battle-actor-badge-bg: var(--mg-battle-button-bg);
+  --mg-battle-icon-size: 60px;
+  --mg-battle-label-color: var(--mg-ink-outline);
+  --mg-battle-card-min-height: 88px;
+}
+
+// ============================================================
+// PASTEL BRUTALISM UTILITY CLASS OVERRIDES
+// Override E-girl base classes with brutalist structural styling.
+// ============================================================
+
+[data-theme="pastel-brutalism"] {
+  // -- Checkerboard: not used in PB, hide it --
+  .mg-checkerboard {
+    background-color: transparent;
+    background-image: none;
+  }
+
+  // -- Divider: thick black line --
+  .mg-chain-divider {
+    height: 3px;
+    background: var(--mg-border);
+    border-radius: 0;
+    opacity: 1;
+    margin: var(--mg-space-md) 0;
+  }
+
+  // -- Panel: 3px black border, sharp --
+  .mg-panel {
+    border: var(--mg-border-width) solid var(--mg-border);
+    border-radius: var(--mg-radius);
+  }
+
+  // -- Card: black border + hard shadow, shadow-displacement hover --
+  .mg-card {
+    background: var(--mg-surface-pink);
+    border: var(--mg-border-width) solid var(--mg-border);
+    border-radius: var(--mg-radius-sm);
+    padding: 28px;
+    box-shadow: 6px 6px 0 var(--mg-shadow);
+    transition:
+      box-shadow 0.12s ease,
+      transform 0.12s ease;
+    &::after {
+      content: none;
+    }
+    &:hover {
+      box-shadow: 2px 2px 0 var(--mg-shadow);
+      transform: translate(2px, 2px);
+    }
+    &__placeholder {
+      color: var(--mg-text-secondary);
+    }
+    &--sm {
+      padding: 16px 20px;
+    }
+  }
+
+  .mg-card--sm {
+    transform: rotate(0deg);
+  }
+
+  // -- Sticker: square, monospace label, no rotation --
+  .mg-sticker {
+    border-width: var(--mg-border-width);
+    border-radius: 0;
+    transform: none;
+    font-family: var(--mg-font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    box-shadow: var(--mg-shadow-sticker);
+    &:hover {
+      transform: none;
+      background: var(--mg-border);
+      color: #fff;
+    }
+    &--pink {
+      background: var(--mg-surface-pink);
+      color: var(--mg-text);
+      border-color: var(--mg-border);
+    }
+    &--purple {
+      background: var(--mg-surface-lavender);
+      color: var(--mg-text);
+      border-color: var(--mg-border);
+    }
+    &--dark {
+      background: var(--mg-dark-black);
+      color: #fff;
+      border-color: var(--mg-dark-black);
+    }
+  }
+
+  // -- Buttons: uppercase, shadow-displacement on hover/active --
+  .mg-btn {
+    border-radius: 0;
+    border-width: var(--mg-border-width);
+    font-family: var(--mg-font-heading);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    box-shadow: 4px 4px 0 var(--mg-border);
+    transition:
+      box-shadow 0.12s ease,
+      transform 0.12s ease;
+    &:hover {
+      box-shadow: 2px 2px 0 var(--mg-border);
+      transform: translate(2px, 2px);
+    }
+    &:active {
+      box-shadow: none;
+      transform: translate(4px, 4px);
+    }
+    &--primary {
+      background: var(--mg-pink-blush);
+      border-color: var(--mg-border);
+      color: #fff;
+      &:hover {
+        background: var(--mg-dark-black);
+      }
+    }
+    &--ghost {
+      background: #ffffff;
+      border-color: var(--mg-border);
+      color: var(--mg-text);
+      &:hover {
+        background: var(--mg-surface-lavender);
+        color: var(--mg-text);
+      }
+
+      // Color variants via tint variable from base
+      &.mg-btn--blue {
+        border-color: var(--mg-info);
+        color: var(--mg-text);
+        &:hover {
+          background: var(--mg-info);
+        }
+      }
+      &.mg-btn--green {
+        border-color: var(--mg-success);
+        color: var(--mg-text);
+        &:hover {
+          background: var(--mg-success);
+        }
+      }
+      &.mg-btn--yellow {
+        border-color: var(--mg-warning);
+        color: var(--mg-text);
+        &:hover {
+          background: var(--mg-warning);
+        }
+      }
+      &.mg-btn--pink {
+        border-color: var(--mg-surface-pink);
+        color: var(--mg-text);
+        &:hover {
+          background: var(--mg-surface-pink);
+        }
+      }
+    }
+  }
+
+  // -- Input: hard shadow on focus, buttercream glow --
+  .mg-input {
+    border-width: var(--mg-border-width);
+    border-radius: 0;
+    box-shadow: var(--mg-shadow-sticker);
+    &:focus {
+      border-color: var(--mg-border);
+      box-shadow: var(--mg-shadow-card);
+      background: var(--mg-warning);
+    }
+  }
+
+  // -- Display text: Space Grotesk, uppercase, black, clamp sizing --
+  .mg-display-text {
+    font-family: var(--mg-font-heading);
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--mg-text);
+    text-shadow: none;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+  }
+
+  // -- Charcter Cards
+  .mg-character-card:hover {
+    transform: translate(2px, 2px);
+  }
+
+  .battle-party-card__name,
+  .battle-party-card__bar-label,
+  .battle-party-card__bar-nums,
+  .battle-party-card__stat,
+  .battle-party-card__status,
+  .battle-party-card__actor {
+    color: var(--mg-pink-cream);
+  }
+
+  .battle-party-card__actor {
+    color: var(--mg-text);
+  }
+
+  // -- PB Tag: monospace label badge --
+  .pb-tag {
+    display: inline-block;
+    font-family: var(--mg-font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 4px 12px;
+    border: 2px solid var(--mg-border);
+    color: var(--mg-text);
+    &--pink {
+      background: var(--mg-surface-pink);
+    }
+    &--blue {
+      background: var(--mg-info);
+    }
+    &--yellow {
+      background: var(--mg-warning);
+    }
+    &--lavender {
+      background: var(--mg-surface-lavender);
+    }
+  }
+
+  // -- PB Input label: monospace, uppercase --
+  .pb-input-label {
+    display: block;
+    font-family: var(--mg-font-mono);
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--mg-text);
+    margin-bottom: 8px;
+  }
+
+  // -- Glow → hard shadow --
+  .mg-glow-pink,
+  .mg-glow-lilac {
+    box-shadow: var(--mg-shadow-card);
+  }
+  .mg-glow-hover:hover {
+    box-shadow: 2px 2px 0 var(--mg-border);
+    transform: translate(2px, 2px);
+  }
+
+  // -- Modal: thick border, sharp corners --
+  .mg-modal-card {
+    border-width: var(--mg-border-width);
+    border-radius: 0;
+  }
+  .mg-modal__close {
+    border-radius: 0;
+  }
+}

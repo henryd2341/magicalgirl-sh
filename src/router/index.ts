@@ -1,15 +1,15 @@
 import AppShell from "@/app/AppShell.vue";
-import ApiSettingsView from "@/pages/ApiSettingsView.vue";
 import MainGameView from "@/pages/MainGameView.vue";
 import NewGameSetupView from "@/pages/NewGameSetupView.vue";
-import SaveExportView from "@/pages/SaveExportView.vue";
-import SettingsView from "@/pages/SettingsView.vue";
 import SplashScreenView from "@/pages/SplashScreenView.vue";
 import StartScreenView from "@/pages/StartScreenView.vue";
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createMemoryHistory } from "vue-router";
+
+// Settings, API Settings, and Save Management are now modals — routes removed.
+// Only 4 main views remain: start, title, new-game, game.
 
 export const router = createRouter({
-  history: createWebHistory(),
+  history: createMemoryHistory(),
   routes: [
     {
       path: "/",
@@ -19,13 +19,7 @@ export const router = createRouter({
         { path: "title", name: "title", component: SplashScreenView },
         { path: "new-game", name: "new-game", component: NewGameSetupView },
         { path: "game", name: "game", component: MainGameView },
-        { path: "settings", name: "settings", component: SettingsView },
-        { path: "api-settings", name: "api-settings", component: ApiSettingsView },
-        { path: "save-manage", name: "save-manage", component: SaveExportView },
       ],
     },
   ],
-  scrollBehavior() {
-    return { top: 0, behavior: "smooth" };
-  },
 });

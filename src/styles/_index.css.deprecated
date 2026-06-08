@@ -1,0 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Fredoka:wght@500;600;700&display=swap");
+@import "./tokens.css";
+/* base.css deprecated — replaced by _base.scss with mg- tokens */
+@import "./components.css";

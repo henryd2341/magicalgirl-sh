@@ -32,6 +32,8 @@ export interface GameVariablesRoot {
       bodyType?: string;
       hairStyle?: string;
       eyeColor?: string;
+      family: string;
+      past: string;
     };
     combat: {
       level: number;

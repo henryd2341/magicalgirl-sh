@@ -82,11 +82,7 @@ export async function seedRawWorldInfoEntries(
   repository: WorldInfoRepository,
 ): Promise<WorldInfoEntry[]> {
   const entries = getRawWorldInfoEntries();
-
-  for (const entry of entries) {
-    await repository.save(entry);
-  }
-
+  await Promise.all(entries.map((entry) => repository.save(entry)));
   return entries;
 }
 
@@ -120,9 +116,7 @@ export async function syncRawWorldInfoEntries(
     }
   }
 
-  for (const entry of syncedEntries) {
-    await repository.save(entry);
-  }
+  await Promise.all(syncedEntries.map((entry) => repository.save(entry)));
 
   return syncedEntries.sort((left, right) => {
     const priorityDelta = right.priority - left.priority;

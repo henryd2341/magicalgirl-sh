@@ -92,17 +92,17 @@ describe("MainGameView provider progress feedback", () => {
 
     const textbox = screen.getByRole("textbox", { name: "故事输入框" });
     await fireEvent.update(textbox, "确认讯号是否发送。");
-    await fireEvent.click(screen.getByRole("button", { name: "发送讯号" }));
+    await fireEvent.click(screen.getByRole("button", { name: "发送" }));
 
     expect(await screen.findByText("确认讯号是否发送。")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "发送讯号" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "发送" })).toBeDisabled();
     expect(textbox).toBeDisabled();
 
     providerMocks.deferred?.resolve();
 
     expect(await screen.findByText("收到讯号，叙事继续。")).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "发送讯号" })).toBeEnabled();
+      expect(screen.getByRole("button", { name: "发送" })).toBeEnabled();
       expect(screen.getByRole("textbox", { name: "故事输入框" })).toBeEnabled();
     });
   });

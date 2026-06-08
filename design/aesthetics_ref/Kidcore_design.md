@@ -82,24 +82,24 @@ Kidcore demands a palette that hits like a box of 64 crayons spilled
 across a table. Primary colors form the foundation, supported by a full
 rainbow of secondary and accent hues at maximum saturation.
 
-| Color Name             | Hex                                               | Role / Usage                                            |
-| ---------------------- | ------------------------------------------------- | ------------------------------------------------------- |
-| Crayon Red             | `#FF2D2D`{.language-plaintext .highlighter-rouge} | Primary accent, buttons, hearts, alert states           |
-| Sunshine Yellow        | `#FFD600`{.language-plaintext .highlighter-rouge} | Backgrounds, highlights, star decorations, hover states |
-| True Blue              | `#2979FF`{.language-plaintext .highlighter-rouge} | Links, headers, borders, sky elements                   |
-| Grass Green            | `#00C853`{.language-plaintext .highlighter-rouge} | Success states, nature motifs, checkerboard fills       |
-| Bubblegum Pink         | `#FF6EC7`{.language-plaintext .highlighter-rouge} | Decorative accents, badges, sticker outlines            |
-| Tangerine Orange       | `#FF6D00`{.language-plaintext .highlighter-rouge} | Secondary buttons, callouts, warm accents               |
-| Grape Purple           | `#AA00FF`{.language-plaintext .highlighter-rouge} | Tags, decorative shadows, alternating pattern fills     |
-| Cloud White            | `#FFFEF5`{.language-plaintext .highlighter-rouge} | Page background, card surfaces, breathing room          |
-| Chalkboard Black       | `#1A1A2E`{.language-plaintext .highlighter-rouge} | Text, outlines, thick borders, cartoon strokes          |
-| Robin Egg Blue         | `#00E5FF`{.language-plaintext .highlighter-rouge} | Secondary links, decorative borders, water motifs       |
-| Candy Apple            | `#D50000`{.language-plaintext .highlighter-rouge} | Deep accent, important labels, bold emphasis            |
-| Lemon Lime             | `#C6FF00`{.language-plaintext .highlighter-rouge} | Highlight backgrounds, tag fills, energetic accents     |
-| Cotton Candy           | `#F8BBD0`{.language-plaintext .highlighter-rouge} | Soft backgrounds, alternating rows, gentle sections     |
-| Royal Blue             | `#304FFE`{.language-plaintext .highlighter-rouge} | Dark link variant, footer backgrounds, contrast text    |
-| Rainbow Gradient Start | `#FF0000`{.language-plaintext .highlighter-rouge} | Left/top edge of rainbow gradient bands                 |
-| Rainbow Gradient End   | `#8B00FF`{.language-plaintext .highlighter-rouge} | Right/bottom edge of rainbow gradient bands             |
+| Color Name             | Hex       | Role / Usage                                            |
+| ---------------------- | --------- | ------------------------------------------------------- |
+| Crayon Red             | `#FF2D2D` | Primary accent, buttons, hearts, alert states           |
+| Sunshine Yellow        | `#FFD600` | Backgrounds, highlights, star decorations, hover states |
+| True Blue              | `#2979FF` | Links, headers, borders, sky elements                   |
+| Grass Green            | `#00C853` | Success states, nature motifs, checkerboard fills       |
+| Bubblegum Pink         | `#FF6EC7` | Decorative accents, badges, sticker outlines            |
+| Tangerine Orange       | `#FF6D00` | Secondary buttons, callouts, warm accents               |
+| Grape Purple           | `#AA00FF` | Tags, decorative shadows, alternating pattern fills     |
+| Cloud White            | `#FFFEF5` | Page background, card surfaces, breathing room          |
+| Chalkboard Black       | `#1A1A2E` | Text, outlines, thick borders, cartoon strokes          |
+| Robin Egg Blue         | `#00E5FF` | Secondary links, decorative borders, water motifs       |
+| Candy Apple            | `#D50000` | Deep accent, important labels, bold emphasis            |
+| Lemon Lime             | `#C6FF00` | Highlight backgrounds, tag fills, energetic accents     |
+| Cotton Candy           | `#F8BBD0` | Soft backgrounds, alternating rows, gentle sections     |
+| Royal Blue             | `#304FFE` | Dark link variant, footer backgrounds, contrast text    |
+| Rainbow Gradient Start | `#FF0000` | Left/top edge of rainbow gradient bands                 |
+| Rainbow Gradient End   | `#8B00FF` | Right/bottom edge of rainbow gradient bands             |
 
 ### CSS Custom Properties
 
@@ -191,7 +191,7 @@ but personality matters more.
 ### Font Pairing Suggestions
 
 | Heading        | Body         | Vibe                                                                         |
-| -------------- | ------------ | ------- |
+| -------------- | ------------ | ---------------------------------------------------------------------------- |
 | Bubblegum Sans | Patrick Hand | Toy packaging meets notebook scribbles; playful and readable                 |
 | Fredoka (700)  | Gaegu        | Chunky rounded headers with casual handwritten body; arts-and-crafts         |
 | Bungee         | Patrick Hand | Bold block-letter impact paired with friendly handwriting; cereal box energy |

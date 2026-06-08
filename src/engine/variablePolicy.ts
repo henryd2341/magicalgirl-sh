@@ -15,7 +15,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
       },
       location: {
         id: "prologue_classroom",
-        name: "教室",
+        name: "柚木女子学院 教室",
         description: "晨会前的教室还带着一点雨水气味。",
       },
       affairs: {},
@@ -25,7 +25,9 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
       profile: {
         name: "",
         age: 16,
-        gender: "女",
+        gender: "男",
+        family: "",
+        past: "",
       },
       combat: {
         level: 1,
@@ -283,10 +285,9 @@ function isAllowedPath(path: string): boolean {
       "world.location.id",
       "world.location.name",
       "world.location.description",
-      "player.name",
-      "player.gender",
       "player.money",
     ].includes(path) ||
+    path.startsWith("player.profile.") ||
     path.startsWith("world.flags.") ||
     path.startsWith("player.flags.") ||
     path.startsWith("player.relationships.") ||

@@ -22,6 +22,9 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
+defineProps<{ embedded?: boolean }>();
+const emit = defineEmits<{ close: [] }>();
+
 const router = useRouter();
 const sessionStore = useSessionStore();
 const battleStore = useBattleStore();
@@ -62,9 +65,7 @@ onMounted(async () => {
   await refreshSaveSlots();
 });
 
-async function returnToGame() {
-  await router.push({ name: "game" });
-}
+const returnToGame = () => emit("close");
 
 function createDownload(fileName: string, jsonText: string) {
   const blob = new window.Blob([jsonText], {
