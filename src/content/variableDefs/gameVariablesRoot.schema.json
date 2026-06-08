@@ -235,6 +235,14 @@
           "type": "string",
           "minLength": 0,
           "maxLength": 120
+        },
+        "family": {
+          "type": "string",
+          "minLength": 0
+        },
+        "past": {
+          "type": "string",
+          "minLength": 0
         }
       }
     },

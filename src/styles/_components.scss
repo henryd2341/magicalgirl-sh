@@ -254,6 +254,10 @@
   gap: var(--mg-space-md);
 }
 
+.game-conversation-panel {
+  background-color: var(--mg-bg-card);
+}
+
 .story-nav {
   display: flex;
   flex-wrap: wrap;

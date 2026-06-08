@@ -52,9 +52,9 @@
 
   // Backgrounds
   --mg-bg: var(--mg-neutral-white);
-  --mg-bg-pattern: radial-gradient(circle, rgba(255, 214, 0, 0.22) 1px, transparent 1px),
-                    radial-gradient(circle, rgba(255, 45, 45, 0.12) 1px, transparent 1px);
-  --mg-bg-pattern-size: 32px 32px, 48px 48px;
+  --mg-bg-pattern: radial-gradient(circle, rgb(from var(--mg-neutral-gray) r g b / 0.45) 2px, transparent 2px),
+    radial-gradient(circle, rgb(from var(--mg-neutral-gray) r g b / 0.45) 2px, transparent 2px);
+  --mg-bg-pattern-size: 32px 32px;
   --mg-bg-card: #ffffff;
   --mg-bg-overlay: rgba(26, 26, 46, 0.7);
   --mg-bg-input: #faf5ff;                       // light purple-tinted white

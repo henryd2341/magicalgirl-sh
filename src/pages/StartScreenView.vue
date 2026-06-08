@@ -41,6 +41,7 @@ async function enterTitleScreen() {
   min-height: 100vh;
   text-align: center;
   z-index: 1;
+  position: relative;
 }
 .mg-start__card {
   padding: var(--mg-space-2xl);

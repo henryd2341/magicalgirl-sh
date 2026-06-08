@@ -25,7 +25,9 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
       profile: {
         name: "",
         age: 16,
-        gender: "女",
+        gender: "男",
+        family: "",
+        past: "",
       },
       combat: {
         level: 1,
@@ -61,8 +63,6 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
       flags: {
         isNewTransfer: true,
       },
-      family: null,
-      past: null
     },
     characters: {
       佐仓真央: {
@@ -285,10 +285,9 @@ function isAllowedPath(path: string): boolean {
       "world.location.id",
       "world.location.name",
       "world.location.description",
-      "player.profile.name",
-      "player.profile.gender",
-      "player.profile.money",
+      "player.money",
     ].includes(path) ||
+    path.startsWith("player.profile.") ||
     path.startsWith("world.flags.") ||
     path.startsWith("player.flags.") ||
     path.startsWith("player.relationships.") ||

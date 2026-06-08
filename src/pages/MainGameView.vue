@@ -403,8 +403,8 @@ onUnmounted(() => {
 // MainGameView — LAYOUT ONLY (shared classes in _e-girl.scss)
 // ============================================================
 
-.mg-game          { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--mg-bg); }
-.mg-game__center  { display: flex; flex: 1; overflow: hidden; }
+.mg-game          { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: transparent; }
+.mg-game__center  { display: flex; position: relative; flex: 1; overflow: hidden; }
 
 // Panels
 .mg-game__left    { flex: 0 0 clamp(240px, 18vw, 320px); position: relative; background: var(--mg-bg-card); border-right: var(--mg-border-width) solid var(--mg-border); transition: background 0.3s ease, border-color 0.3s ease; &--closed { background: transparent; border-right-color: transparent; pointer-events: none; .mg-panel-toggle { pointer-events: auto; } } }

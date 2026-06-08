@@ -20,6 +20,9 @@
   --mg-dark-black: #1a1a1a;
   --mg-dark-charcoal: #2d2d2d;
   --mg-dark-plum: #3d1f56;
+  --mg-dark-amethyst: #2a1028;
+  --mg-dark-grape: #18111f;
+  --mg-dark-violet: #120814;
 
   // Purples & lilacs
   --mg-purple-lavender: #c9a0dc;
@@ -43,18 +46,24 @@
   // ==========================================================
 
   // Backgrounds
+
   --mg-bg:
     radial-gradient(
-      circle at 50% 28%,
-      rgba(255, 107, 157, 0.2),
-      transparent 36%
+      circle at top left,
+      rgb(from var(--mg-pink-blush) r g b / 0.24),
+      transparent 28%
     ),
     radial-gradient(
-      circle at 78% 18%,
-      rgba(126, 200, 227, 0.18),
+      circle at 85% 18%,
+      rgb(from var(--mg-cool-blue) r g b / 0.2),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 50% 100%,
+      rgb(from var(--mg-purple-lilac) r g b / 0.16),
       transparent 32%
     ),
-    var(--mg-dark-black);
+    linear-gradient(180deg, var(--mg-dark-amethyst) 0%, var(--mg-dark-grape) 44%, var(--mg-dark-violet) 100%);
   --mg-bg-pattern:
     linear-gradient(45deg, rgba(255, 107, 157, 0.06) 25%, transparent 25%),
     linear-gradient(-45deg, rgba(255, 107, 157, 0.06) 25%, transparent 25%),
@@ -263,12 +272,14 @@
       transparent 32%
     ),
     linear-gradient(180deg, #120814, #08040d);
-  --mg-battle-card-bg:
-    linear-gradient(180deg, rgba(61, 31, 86, 0.84), rgba(23, 10, 31, 0.92));
+  --mg-battle-card-bg: linear-gradient(
+    180deg,
+    rgba(61, 31, 86, 0.84),
+    rgba(23, 10, 31, 0.92)
+  );
   --mg-battle-card-border: 2px solid var(--mg-border-light);
   --mg-battle-card-shadow:
-    6px 6px 0 rgba(7, 3, 10, 0.72),
-    inset 0 0 0 1px rgba(255, 245, 251, 0.04);
+    6px 6px 0 rgba(7, 3, 10, 0.72), inset 0 0 0 1px rgba(255, 245, 251, 0.04);
   --mg-battle-card-radius: var(--mg-radius-lg);
   --mg-battle-enemy-row-bg:
     radial-gradient(
@@ -276,26 +287,48 @@
       rgba(255, 107, 157, 0.18),
       transparent 42%
     ),
-    linear-gradient(180deg, rgba(255, 245, 251, 0.04), rgba(255, 245, 251, 0.01));
+    linear-gradient(
+      180deg,
+      rgba(255, 245, 251, 0.04),
+      rgba(255, 245, 251, 0.01)
+    );
   --mg-battle-enemy-row-border: 2px dashed rgba(255, 245, 251, 0.18);
-  --mg-battle-enemy-card-bg:
-    linear-gradient(180deg, rgba(32, 22, 45, 0.44), rgba(14, 7, 21, 0.76));
+  --mg-battle-enemy-card-bg: linear-gradient(
+    180deg,
+    rgba(32, 22, 45, 0.44),
+    rgba(14, 7, 21, 0.76)
+  );
   --mg-battle-enemy-card-border: 3px solid var(--mg-border-light);
   --mg-battle-enemy-card-hover-border: var(--mg-pink-blush);
   --mg-battle-enemy-card-hover-shadow:
-    0 0 0 2px rgba(255, 217, 61, 0.25),
-    var(--mg-glow-pink);
+    0 0 0 2px rgba(255, 217, 61, 0.25), var(--mg-glow-pink);
   --mg-battle-enemy-sprite-border: 2px solid rgba(255, 245, 251, 0.14);
   --mg-battle-enemy-sprite-bg: rgba(255, 245, 251, 0.08);
   --mg-battle-turn-border: rgba(126, 200, 227, 0.4);
   --mg-battle-hp-track-border: 1px solid rgba(255, 245, 251, 0.22);
   --mg-battle-hp-track-bg: rgba(255, 245, 251, 0.08);
-  --mg-battle-hp-fill: linear-gradient(90deg, var(--mg-success), var(--mg-warning));
-  --mg-battle-button-bg: linear-gradient(135deg, var(--mg-pink-cream), var(--mg-purple-lilac));
-  --mg-battle-button-primary-bg: linear-gradient(135deg, var(--mg-pink-blush), var(--mg-warning));
+  --mg-battle-hp-fill: linear-gradient(
+    90deg,
+    var(--mg-success),
+    var(--mg-warning)
+  );
+  --mg-battle-button-bg: linear-gradient(
+    135deg,
+    var(--mg-pink-cream),
+    var(--mg-purple-lilac)
+  );
+  --mg-battle-button-primary-bg: linear-gradient(
+    135deg,
+    var(--mg-pink-blush),
+    var(--mg-warning)
+  );
   --mg-battle-button-shadow: 4px 4px 0 rgba(7, 3, 10, 0.78);
   --mg-battle-button-hover-shadow: 6px 6px 0 rgba(7, 3, 10, 0.82);
-  --mg-battle-phase-action-bg: linear-gradient(135deg, var(--mg-cool-blue), var(--mg-success));
+  --mg-battle-phase-action-bg: linear-gradient(
+    135deg,
+    var(--mg-cool-blue),
+    var(--mg-success)
+  );
   --mg-battle-phase-action-shadow: 4px 4px 0 rgba(7, 3, 10, 0.78);
   --mg-battle-party-actor-border: rgba(255, 217, 61, 0.58);
   --mg-battle-party-actor-glow: 0 0 24px rgba(255, 217, 61, 0.18);
