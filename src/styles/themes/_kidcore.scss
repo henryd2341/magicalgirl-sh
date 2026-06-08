@@ -173,14 +173,14 @@
   --mg-battle-button-bg: linear-gradient(135deg, var(--mg-accent), var(--mg-pink-blush));
   --mg-battle-button-primary-bg: linear-gradient(135deg, var(--mg-accent), var(--mg-warning));
   --mg-battle-button-shadow: 4px 4px 0 var(--mg-ink-outline);
-  --mg-battle-button-hover-shadow: 6px 6px 0 var(--mg-ink-outline);
+  --mg-battle-button-hover-shadow: 2px 2px 0 var(--mg-ink-outline);
   --mg-battle-phase-action-bg: linear-gradient(135deg, var(--mg-accent), var(--mg-success));
   --mg-battle-phase-action-shadow: 4px 4px 0 var(--mg-ink-outline);
   --mg-battle-party-actor-border: var(--mg-warning);
   --mg-battle-party-actor-glow: none;
   --mg-battle-party-avatar-border: 2px solid var(--mg-ink-outline);
   --mg-battle-actor-badge-bg: rgba(255, 214, 0, 0.25);
-  --mg-battle-icon-size: 32px;
+  --mg-battle-icon-size: 60px;
   --mg-battle-label-color: var(--mg-ink-outline);
   --mg-battle-card-min-height: 96px;
 }
@@ -227,7 +227,7 @@
     box-shadow: var(--mg-shadow-card);
     transition: transform var(--mg-transition-fast), box-shadow var(--mg-transition-fast);
     &:hover {
-      transform: translateY(-2px) rotate(-0.5deg);
+      transform: translateY(-4px) rotate(1deg);
       box-shadow: var(--mg-shadow-elevated);
     }
     &__placeholder { color: var(--mg-text-secondary); }
@@ -300,5 +300,36 @@
   // -- Modal card: thicker outline --
   .mg-modal-card {
     border-width: var(--mg-border-width);
+  }
+
+  .mg-character-card:hover {
+    transform: translateY(-4px) rotate(-1deg);
+    box-shadow: var(--mg-shadow-elevated);
+  }
+
+  .battle-party-card__name,
+  .battle-party-card__bar-label,
+  .battle-party-card__bar-nums,
+  .battle-party-card__stat,
+  .battle-party-card__status,
+  .battle-party-card__actor {
+    color: var(--mg-neutral-white);
+  }
+
+  // -- Rainbow action buttons via nth-child --
+  .battle-command-menu__items li:nth-child(5n+1) .battle-command-menu__button {
+    background: linear-gradient(135deg, #ff4757, #ff6b81);
+  }
+  .battle-command-menu__items li:nth-child(5n+2) .battle-command-menu__button {
+    background: linear-gradient(135deg, #ffa502, #ffcf48);
+  }
+  .battle-command-menu__items li:nth-child(5n+3) .battle-command-menu__button {
+    background: linear-gradient(135deg, #2ed573, #7bed9f);
+  }
+  .battle-command-menu__items li:nth-child(5n+4) .battle-command-menu__button {
+    background: linear-gradient(135deg, #1e90ff, #70a1ff);
+  }
+  .battle-command-menu__items li:nth-child(5n) .battle-command-menu__button {
+    background: linear-gradient(135deg, #a855f7, #c084fc);
   }
 }

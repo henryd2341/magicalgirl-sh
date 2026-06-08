@@ -121,7 +121,9 @@
 
   --mg-text-outline: none;
 
-  --mg-text-stroke: 0 0 2px var(--mg-shadow), 0 0 2px var(--mg-shadow), 0 0 2px var(--mg-shadow), 0 0 2px var(--mg-shadow);
+  --mg-text-stroke:
+    0 0 2px var(--mg-shadow), 0 0 2px var(--mg-shadow),
+    0 0 2px var(--mg-shadow), 0 0 2px var(--mg-shadow);
 
   // Borders & radius (zero for brutalist feel, 6px soft variant)
   --mg-border-width: 3px;
@@ -151,17 +153,29 @@
   --mg-battle-hp-track-border: 2px solid var(--mg-ink-outline);
   --mg-battle-hp-track-bg: var(--mg-surface-pink);
   --mg-battle-hp-fill: var(--mg-success);
-  --mg-battle-button-bg: linear-gradient(135deg, var(--mg-pink-cream), var(--mg-cool-blue));
-  --mg-battle-button-primary-bg: linear-gradient(135deg, var(--mg-pink-blush), var(--mg-warning));
-  --mg-battle-button-shadow: 4px 4px 0 var(--mg-ink-outline);
-  --mg-battle-button-hover-shadow: 6px 6px 0 var(--mg-ink-outline);
-  --mg-battle-phase-action-bg: linear-gradient(135deg, var(--mg-cool-blue), var(--mg-success));
+  --mg-battle-button-bg: linear-gradient(
+    135deg,
+    var(--mg-pink-cream),
+    var(--mg-cool-blue)
+  );
+  --mg-battle-button-primary-bg: linear-gradient(
+    135deg,
+    var(--mg-pink-blush),
+    var(--mg-warning)
+  );
+  --mg-battle-button-shadow: 3px 3px 0 var(--mg-ink-outline);
+  --mg-battle-button-hover-shadow: 2px 2px 0 var(--mg-ink-outline);
+  --mg-battle-phase-action-bg: linear-gradient(
+    135deg,
+    var(--mg-cool-blue),
+    var(--mg-success)
+  );
   --mg-battle-phase-action-shadow: 4px 4px 0 var(--mg-ink-outline);
   --mg-battle-party-actor-border: var(--mg-warning);
   --mg-battle-party-actor-glow: none;
   --mg-battle-party-avatar-border: 2px solid var(--mg-ink-outline);
   --mg-battle-actor-badge-bg: var(--mg-battle-button-bg);
-  --mg-battle-icon-size: 28px;
+  --mg-battle-icon-size: 60px;
   --mg-battle-label-color: var(--mg-ink-outline);
   --mg-battle-card-min-height: 88px;
 }
@@ -216,6 +230,10 @@
     &--sm {
       padding: 16px 20px;
     }
+  }
+
+  .mg-card--sm {
+    transform: rotate(0deg);
   }
 
   // -- Sticker: square, monospace label, no rotation --
@@ -339,6 +357,11 @@
     text-shadow: none;
     text-transform: uppercase;
     letter-spacing: -0.03em;
+  }
+
+  // -- Charcter Cards
+  .mg-character-card:hover {
+    transform: translate(2px, 2px);
   }
 
   .battle-party-card__name,

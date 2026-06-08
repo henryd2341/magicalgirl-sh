@@ -21,7 +21,7 @@ import type {
 import BattleCommandMenu from "@/ui/battle/BattleCommandMenu.vue";
 import BattleStatusPanel from "@/ui/battle/BattleStatusPanel.vue";
 import { storeToRefs } from "pinia";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
 const battleStore = useBattleStore();
 const sessionStore = useSessionStore();
@@ -166,6 +166,16 @@ const selectedActionDescription = computed(() => {
     "行动描述框"
   );
 });
+
+const hoveredCommandDescription = ref<string | null>(null);
+
+const displayCommandDescription = computed(() => {
+  return hoveredCommandDescription.value ?? selectedActionDescription.value;
+});
+
+function onHoverCommandDescription(desc: string | null) {
+  hoveredCommandDescription.value = desc;
+}
 
 const isCommandMenuLocked = computed(() => {
   return activeBattle.value?.phase === "ENEMY_TURN";
@@ -380,6 +390,7 @@ function findBattleActionMenuNodeByActionId(
           @select-menu-node="selectMenuNode"
           @return-root="returnToRootMenu"
           @complete-battle="completeBattle"
+          @hover-description="onHoverCommandDescription"
         />
 
         <section class="battle-hud__party-row" aria-label="玩家队伍区域">
@@ -432,6 +443,14 @@ function findBattleActionMenuNodeByActionId(
               </p>
             </div>
           </article>
+        </section>
+
+        <section
+          class="battle-command-description"
+          :class="{ 'battle-command-description--hover': hoveredCommandDescription !== null }"
+          aria-label="行动描述"
+        >
+          <p>{{ displayCommandDescription }}</p>
         </section>
       </div>
     </div>

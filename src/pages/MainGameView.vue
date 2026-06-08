@@ -194,10 +194,8 @@ onUnmounted(() => {
       <section class="mg-game__chat">
         <!-- Save reminder banner -->
         <div v-if="showSaveReminder" class="mg-game__reminder mg-checkerboard">
-          <span
-            ><i class="fas fa-exclamation-triangle"></i>
-            提醒：请定期导出存档以避免数据丢失</span
-          >
+          <span><i class="fas fa-exclamation-triangle"></i>
+            提醒：请定期导出存档以避免数据丢失</span>
           <button @click="showSaveReminder = false">
             <i class="fas fa-times"></i>
           </button>
