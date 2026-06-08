@@ -202,7 +202,7 @@ onUnmounted(() => {
             <i class="fas fa-times"></i>
           </button>
         </div>
-        <div class="mg-game__messages">
+        <div class="mg-game__messages mg-scroll">
           <GameConversationPanel />
         </div>
         <PostCombatPanel v-if="shouldShowPostCombatPanel" />

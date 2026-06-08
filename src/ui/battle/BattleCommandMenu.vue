@@ -77,7 +77,7 @@ function returnRoot() {
         完成战斗
       </button>
 
-      <ol v-else class="battle-command-menu__items">
+      <ol v-else class="battle-command-menu__items mg-scroll">
         <li v-for="action in visibleMenu" :key="action.id">
           <button
             type="button"
