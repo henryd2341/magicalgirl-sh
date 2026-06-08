@@ -8,9 +8,9 @@
 
   外貌特征:
     常态:
-      体型: {{user.bodyType}}
-      发型: {{user.hairStyle}}
-      瞳色: {{user.eyeColor}}
+      体型: {{user.bodyType|default=肤色白而偏瘦}}
+      发型: {{user.hairStyle|default=黑色}}
+      瞳色: {{user.eyeColor|default=灰色}}
       肤色: 偏白
       穿着:
         校内: 柚木女子学院制服

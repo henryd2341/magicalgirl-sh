@@ -63,6 +63,8 @@ export interface GameVariablesRoot {
     relationships: Record<string, number>;
     learnedSkills: Record<string, string[]>;
     flags: Record<string, boolean>;
+    family: string | null;
+    past: string | null;
   };
   characters: Record<
     string,

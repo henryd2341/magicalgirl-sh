@@ -61,6 +61,8 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
       flags: {
         isNewTransfer: true,
       },
+      family: null,
+      past: null
     },
     characters: {
       佐仓真央: {
