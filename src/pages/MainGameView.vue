@@ -9,6 +9,7 @@ import GameInputDock from "@/ui/game/GameInputDock.vue";
 import GameTopBar from "@/ui/game/GameTopBar.vue";
 import SessionStateModal from "@/ui/dev/SessionStateModal.vue";
 import PromptViewerDrawer from "@/ui/dev/PromptViewerDrawer.vue";
+import CreditsModal from "@/ui/dev/CreditsModal.vue";
 import PostCombatPanel from "@/ui/session/PostCombatPanel.vue";
 import SceneThumbnail from "@/ui/game/SceneThumbnail.vue";
 import WorldInfo from "@/ui/game/WorldInfo.vue";
@@ -41,6 +42,7 @@ const showSettings = ref(false);
 const showApiSettings = ref(false);
 const showSaveManage = ref(false);
 const showSystemSettings = ref(false);
+const showCreditsModal = ref(false);
 const promptViewerDrawerRef = ref();
 const showStateModal = ref(false);
 
@@ -180,7 +182,7 @@ onUnmounted(() => {
             <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--green">
               <i class="fas fa-book"></i> 技能学习
             </button>
-            <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--yellow">
+            <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--yellow" @click="showCreditsModal = true">
               <i class="fas fa-scroll"></i> Credits
             </button>
           </nav>
@@ -270,6 +272,8 @@ onUnmounted(() => {
     <PromptViewerDrawer ref="promptViewerDrawerRef" />
 
     <SessionStateModal v-if="showStateModal" @close="showStateModal = false" />
+
+    <CreditsModal v-if="showCreditsModal" @close="showCreditsModal = false" />
 
     <!-- ═══ In-Game Modals ═══ -->
     <div

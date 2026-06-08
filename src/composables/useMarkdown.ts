@@ -16,8 +16,16 @@ const purifyConfig: Config = {
     "div", "span", "details", "summary",
     "p", "br", "hr", "blockquote",
   ],
-  ALLOWED_ATTR: ["href", "target", "class", "id", "open"],
+  ALLOWED_ATTR: ["href", "target", "rel", "class", "id", "open"],
+  ADD_ATTR: ["target", "rel"],
 };
+
+DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+  if (node instanceof HTMLAnchorElement) {
+    node.setAttribute("target", "_blank");
+    node.setAttribute("rel", "noopener noreferrer");
+  }
+});
 
 // ─── Render function ───────────────────────────────────────────────────────────
 
