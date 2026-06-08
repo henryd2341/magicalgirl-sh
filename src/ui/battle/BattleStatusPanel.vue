@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import type { BattleParticipant, PressTurnIcon } from "@/types/battle";
+import type { BattleParticipant, CombatantSide, PressTurnIcon } from "@/types/battle";
 
 defineProps<{
   selectedTarget: BattleParticipant | null;
   turnCount: number;
   pressTurnIcons: PressTurnIcon[];
+  ownerSide: CombatantSide;
+  iconAssets: Record<string, { solid: string; bright: string }>;
 }>();
 </script>
 
@@ -40,7 +42,20 @@ defineProps<{
           class="battle-status-panel__icon"
           :class="`battle-status-panel__icon--${icon.state}`"
           :aria-label="`${icon.state} press turn icon`"
-        />
+        >
+          <img
+            :src="iconAssets[ownerSide].solid"
+            class="battle-status-panel__icon-img"
+            :alt="`${ownerSide} press turn`"
+          />
+          <img
+            v-if="icon.state === 'blinking'"
+            :src="iconAssets[ownerSide].bright"
+            class="battle-status-panel__icon-img battle-status-panel__icon-img--bright"
+            alt=""
+            aria-hidden="true"
+          />
+        </li>
       </ol>
     </section>
   </div>

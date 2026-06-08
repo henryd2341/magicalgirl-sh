@@ -121,12 +121,49 @@
 
   --mg-text-outline: none;
 
+  --mg-text-stroke: 0 0 2px var(--mg-shadow), 0 0 2px var(--mg-shadow), 0 0 2px var(--mg-shadow), 0 0 2px var(--mg-shadow);
+
   // Borders & radius (zero for brutalist feel, 6px soft variant)
   --mg-border-width: 3px;
   --mg-border-width-thick: 3px;
   --mg-radius: 0px;
   --mg-radius-sm: 0px;
-  --mg-radius-lg: 6px;
+  --mg-radius-lg: 0px;
+
+  // ==========================================================
+  // BATTLE OVERLAY VARIABLES
+  // ==========================================================
+
+  --mg-battle-overlay-bg: var(--mg-bg);
+  --mg-battle-card-bg: var(--mg-bg-card);
+  --mg-battle-card-border: 3px solid var(--mg-ink-outline);
+  --mg-battle-card-shadow: 6px 6px 0 var(--mg-ink-outline);
+  --mg-battle-card-radius: 0;
+  --mg-battle-enemy-row-bg: var(--mg-surface-pink);
+  --mg-battle-enemy-row-border: 3px dashed var(--mg-ink-outline);
+  --mg-battle-enemy-card-bg: var(--mg-bg-card);
+  --mg-battle-enemy-card-border: 3px solid var(--mg-ink-outline);
+  --mg-battle-enemy-card-hover-border: var(--mg-accent);
+  --mg-battle-enemy-card-hover-shadow: 4px 4px 0 var(--mg-ink-outline);
+  --mg-battle-enemy-sprite-border: 2px solid var(--mg-ink-outline);
+  --mg-battle-enemy-sprite-bg: var(--mg-bg-card);
+  --mg-battle-turn-border: var(--mg-ink-outline);
+  --mg-battle-hp-track-border: 2px solid var(--mg-ink-outline);
+  --mg-battle-hp-track-bg: var(--mg-surface-pink);
+  --mg-battle-hp-fill: var(--mg-success);
+  --mg-battle-button-bg: linear-gradient(135deg, var(--mg-pink-cream), var(--mg-cool-blue));
+  --mg-battle-button-primary-bg: linear-gradient(135deg, var(--mg-pink-blush), var(--mg-warning));
+  --mg-battle-button-shadow: 4px 4px 0 var(--mg-ink-outline);
+  --mg-battle-button-hover-shadow: 6px 6px 0 var(--mg-ink-outline);
+  --mg-battle-phase-action-bg: linear-gradient(135deg, var(--mg-cool-blue), var(--mg-success));
+  --mg-battle-phase-action-shadow: 4px 4px 0 var(--mg-ink-outline);
+  --mg-battle-party-actor-border: var(--mg-warning);
+  --mg-battle-party-actor-glow: none;
+  --mg-battle-party-avatar-border: 2px solid var(--mg-ink-outline);
+  --mg-battle-actor-badge-bg: var(--mg-battle-button-bg);
+  --mg-battle-icon-size: 28px;
+  --mg-battle-label-color: var(--mg-ink-outline);
+  --mg-battle-card-min-height: 88px;
 }
 
 // ============================================================
@@ -302,6 +339,19 @@
     text-shadow: none;
     text-transform: uppercase;
     letter-spacing: -0.03em;
+  }
+
+  .battle-party-card__name,
+  .battle-party-card__bar-label,
+  .battle-party-card__bar-nums,
+  .battle-party-card__stat,
+  .battle-party-card__status,
+  .battle-party-card__actor {
+    color: var(--mg-pink-cream);
+  }
+
+  .battle-party-card__actor {
+    color: var(--mg-text);
   }
 
   // -- PB Tag: monospace label badge --
