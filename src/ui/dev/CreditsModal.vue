@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { renderMarkdown } from "@/composables/useMarkdown";
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 defineEmits<{ close: [] }>();
 
@@ -23,14 +23,16 @@ function onKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="mg-modal-overlay" @click.self="$emit('close')" @keydown="onKeydown">
+  <div
+    class="mg-modal-overlay"
+    @click.self="$emit('close')"
+    @keydown="onKeydown"
+  >
     <div class="mg-modal-card mg-modal-card--wide credits-modal">
       <button class="mg-modal__close" @click="$emit('close')">
         <i class="fas fa-times"></i>
       </button>
-      <h2 class="mg-modal__title">
-        <i class="fas fa-scroll"></i> Credits
-      </h2>
+      <h2 class="mg-modal__title"><i class="fas fa-scroll"></i> Attribution</h2>
       <div class="mg-modal__body mg-scroll credits-modal__body">
         <div v-if="!raw" class="credits-modal__loading">加载中…</div>
         <div v-else class="credits-modal__content" v-html="rendered" />
@@ -132,7 +134,9 @@ function onKeydown(e: KeyboardEvent) {
   }
 
   // ── body ──
-  :deep(p), :deep(ul), :deep(ol) {
+  :deep(p),
+  :deep(ul),
+  :deep(ol) {
     margin: var(--mg-space-xs, 6px) 0;
     line-height: 1.7;
   }

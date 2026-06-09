@@ -1,31 +1,34 @@
 <script setup lang="ts">
+import {
+  resetHistory,
+  startTracking,
+} from "@/composables/useStateTransitionHistory";
+import CharacterBuildView from "@/pages/CharacterBuildView.vue";
 import { getChatPersistenceClient } from "@/persistence/chatRuntime";
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
+import type { InPartyCharacter } from "@/stores/formationStore";
+import { useFormationStore } from "@/stores/formationStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import BattleOverlay from "@/ui/battle/BattleOverlay.vue";
+import CreditsModal from "@/ui/dev/CreditsModal.vue";
+import PromptViewerDrawer from "@/ui/dev/PromptViewerDrawer.vue";
+import SessionStateModal from "@/ui/dev/SessionStateModal.vue";
+import FormationModal from "@/ui/formation/FormationModal.vue";
+import BgmPlayer from "@/ui/game/BgmPlayer.vue";
+import CharacterCard from "@/ui/game/CharacterCard.vue";
 import GameConversationPanel from "@/ui/game/GameConversationPanel.vue";
 import GameInputDock from "@/ui/game/GameInputDock.vue";
 import GameTopBar from "@/ui/game/GameTopBar.vue";
-import SessionStateModal from "@/ui/dev/SessionStateModal.vue";
-import PromptViewerDrawer from "@/ui/dev/PromptViewerDrawer.vue";
-import CreditsModal from "@/ui/dev/CreditsModal.vue";
-import PostCombatPanel from "@/ui/session/PostCombatPanel.vue";
 import SceneThumbnail from "@/ui/game/SceneThumbnail.vue";
 import WorldInfo from "@/ui/game/WorldInfo.vue";
-import BgmPlayer from "@/ui/game/BgmPlayer.vue";
-import CharacterCard from "@/ui/game/CharacterCard.vue";
+import PostCombatPanel from "@/ui/session/PostCombatPanel.vue";
 import SystemSettingsPanel from "@/ui/settings/SystemSettingsPanel.vue";
-import FormationModal from "@/ui/formation/FormationModal.vue";
-import CharacterBuildView from "@/pages/CharacterBuildView.vue";
-import { useFormationStore } from "@/stores/formationStore";
-import type { InPartyCharacter } from "@/stores/formationStore";
-import SettingsView from "./SettingsView.vue";
-import ApiSettingsView from "./ApiSettingsView.vue";
-import SaveExportView from "./SaveExportView.vue";
 import { storeToRefs } from "pinia";
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { startTracking, resetHistory } from "@/composables/useStateTransitionHistory";
+import ApiSettingsView from "./ApiSettingsView.vue";
+import SaveExportView from "./SaveExportView.vue";
+import SettingsView from "./SettingsView.vue";
 
 const chatStore = useChatStore();
 const sessionStore = useSessionStore();
@@ -107,16 +110,20 @@ async function launchDebugBattleForTestingOnly() {
   const vars = await sessionStore.getVariableSnapshot();
   if (!vars?.root) {
     // eslint-disable-next-line no-console
-    console.warn("[MainGameView] No variable state — cannot start debug battle.");
+    console.warn(
+      "[MainGameView] No variable state — cannot start debug battle.",
+    );
     return;
   }
 
   const formation = await formationStore.getFormation();
-  const {
-    buildPlayerPartyFromFormation,
-  } = await import("@/engine/battle/battleSetup");
+  const { buildPlayerPartyFromFormation } =
+    await import("@/engine/battle/battleSetup");
 
-  const playerParty = buildPlayerPartyFromFormation(vars.root, formation.vanguard);
+  const playerParty = buildPlayerPartyFromFormation(
+    vars.root,
+    formation.vanguard,
+  );
 
   battleStore.stagePendingEncounter({
     encounterId: "enc-main-game-debug-battle",
@@ -203,17 +210,26 @@ onUnmounted(() => {
             <WorldInfo />
             <BgmPlayer />
             <nav class="mg-game__left-actions">
-            <div class="mg-chain-divider" aria-hidden="true"></div>
-            <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--blue" @click="openFormationModal">
-              <i class="fas fa-users"></i> 队伍编组
-            </button>
-            <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--green" @click="openCharacterBuild">
-              <i class="fas fa-book"></i> 角色Build
-            </button>
-            <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--yellow" @click="showCreditsModal = true">
-              <i class="fas fa-scroll"></i> Credits
-            </button>
-          </nav>
+              <div class="mg-chain-divider" aria-hidden="true"></div>
+              <button
+                class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--blue"
+                @click="openFormationModal"
+              >
+                <i class="fas fa-users"></i> 队伍编组
+              </button>
+              <button
+                class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--green"
+                @click="openCharacterBuild"
+              >
+                <i class="fas fa-book"></i> 角色Build
+              </button>
+              <button
+                class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--yellow"
+                @click="showCreditsModal = true"
+              >
+                <i class="fas fa-scroll"></i> Attribution
+              </button>
+            </nav>
           </div>
         </Transition>
       </aside>
@@ -222,8 +238,10 @@ onUnmounted(() => {
       <section class="mg-game__chat">
         <!-- Save reminder banner -->
         <div v-if="showSaveReminder" class="mg-game__reminder mg-checkerboard">
-          <span><i class="fas fa-exclamation-triangle"></i>
-            提醒：请定期导出存档以避免数据丢失</span>
+          <span
+            ><i class="fas fa-exclamation-triangle"></i>
+            提醒：请定期导出存档以避免数据丢失</span
+          >
           <button @click="showSaveReminder = false">
             <i class="fas fa-times"></i>
           </button>
@@ -267,7 +285,10 @@ onUnmounted(() => {
       >
         <i class="fas fa-flask"></i> 测试：启动预置战斗
       </button>
-      <button class="mg-btn mg-btn--sm mg-btn--ghost" @click="handlePreviewPrompt">
+      <button
+        class="mg-btn mg-btn--sm mg-btn--ghost"
+        @click="handlePreviewPrompt"
+      >
         <i class="fas fa-eye"></i> 查看提示词
       </button>
       <!-- TODO: 等待实现 — 变量修改器 -->
@@ -278,7 +299,10 @@ onUnmounted(() => {
       <button class="mg-btn mg-btn--sm mg-btn--ghost">
         <i class="fas fa-list"></i> 日志列表
       </button>
-      <button class="mg-btn mg-btn--sm mg-btn--ghost" @click="showStateModal = true">
+      <button
+        class="mg-btn mg-btn--sm mg-btn--ghost"
+        @click="showStateModal = true"
+      >
         <i class="fas fa-project-diagram"></i> 查看状态机
       </button>
     </footer>
@@ -444,39 +468,201 @@ onUnmounted(() => {
 // MainGameView — LAYOUT ONLY (shared classes in _e-girl.scss)
 // ============================================================
 
-.mg-game          { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: transparent; }
-.mg-game__center  { display: flex; position: relative; flex: 1; overflow: hidden; }
+.mg-game {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: transparent;
+}
+.mg-game__center {
+  display: flex;
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
 
 // Panels
-.mg-game__left    { flex: 0 0 clamp(240px, 18vw, 320px); position: relative; background: var(--mg-bg-card); border-right: var(--mg-border-width) solid var(--mg-border); transition: background 0.3s ease, border-color 0.3s ease; &--closed { background: transparent; border-right-color: transparent; pointer-events: none; .mg-panel-toggle { pointer-events: auto; } } }
-.mg-game__left-content  { padding: var(--mg-space-md); display: flex; flex-direction: column; gap: var(--mg-space-sm); }
-.mg-game__left-actions  { display: flex; flex-direction: column; gap: 6px; margin-top: var(--mg-space-sm); }
-.mg-game__right   { flex: 0 0 clamp(240px, 18vw, 320px); position: relative; background: var(--mg-bg-card); border-left: var(--mg-border-width) solid var(--mg-border); transition: background 0.3s ease, border-color 0.3s ease; &--closed { background: transparent; border-left-color: transparent; pointer-events: none; .mg-panel-toggle { pointer-events: auto; } } }
-.mg-game__right-content { padding: var(--mg-space-md); display: flex; flex-direction: column; gap: var(--mg-space-sm); }
+.mg-game__left {
+  flex: 0 0 clamp(240px, 18vw, 320px);
+  position: relative;
+  background: var(--mg-bg-card);
+  border-right: var(--mg-border-width) solid var(--mg-border);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
+  &--closed {
+    background: transparent;
+    border-right-color: transparent;
+    pointer-events: none;
+    .mg-panel-toggle {
+      pointer-events: auto;
+    }
+  }
+}
+.mg-game__left-content {
+  padding: var(--mg-space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mg-space-sm);
+}
+.mg-game__left-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--mg-space-sm);
+}
+.mg-game__right {
+  flex: 0 0 clamp(240px, 18vw, 320px);
+  position: relative;
+  background: var(--mg-bg-card);
+  border-left: var(--mg-border-width) solid var(--mg-border);
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
+  &--closed {
+    background: transparent;
+    border-left-color: transparent;
+    pointer-events: none;
+    .mg-panel-toggle {
+      pointer-events: auto;
+    }
+  }
+}
+.mg-game__right-content {
+  padding: var(--mg-space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mg-space-sm);
+}
 
 // Panel content transition
 .mg-panel-enter-active,
-.mg-panel-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+.mg-panel-leave-active {
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
 .mg-panel-enter-from,
-.mg-panel-leave-to       { opacity: 0; }
-.mg-panel-enter-from   { transform: translateX(-12px); }
-.mg-panel-leave-to     { transform: translateX(-12px); }
+.mg-panel-leave-to {
+  opacity: 0;
+}
+.mg-panel-enter-from {
+  transform: translateX(-12px);
+}
+.mg-panel-leave-to {
+  transform: translateX(-12px);
+}
 .mg-game__right .mg-panel-enter-from,
-.mg-game__right .mg-panel-leave-to { transform: translateX(12px); }
+.mg-game__right .mg-panel-leave-to {
+  transform: translateX(12px);
+}
 
 // Panel toggles
-.mg-panel-toggle  { position: absolute; top: 8px; right: 4px; width: 28px; height: 28px; border: var(--mg-border-width) solid var(--mg-border); border-radius: 50%; background: var(--mg-bg-card); color: var(--mg-text-secondary); font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 2; transition: all var(--mg-transition-fast); &:hover { color: var(--mg-accent); border-color: var(--mg-accent); box-shadow: var(--mg-glow-pink); } &--right { right: auto; left: 4px; } }
-.mg-game__left--closed .mg-panel-toggle  { right: auto; left: 4px; }
-.mg-game__right--closed .mg-panel-toggle { left: auto; right: 4px; }
+.mg-panel-toggle {
+  position: absolute;
+  top: 8px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  border: var(--mg-border-width) solid var(--mg-border);
+  border-radius: 50%;
+  background: var(--mg-bg-card);
+  color: var(--mg-text-secondary);
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: all var(--mg-transition-fast);
+  &:hover {
+    color: var(--mg-accent);
+    border-color: var(--mg-accent);
+    box-shadow: var(--mg-glow-pink);
+  }
+  &--right {
+    right: auto;
+    left: 4px;
+  }
+}
+.mg-game__left--closed .mg-panel-toggle {
+  right: auto;
+  left: 4px;
+}
+.mg-game__right--closed .mg-panel-toggle {
+  left: auto;
+  right: 4px;
+}
 
 // Chat area — fixed width, never stretches
-.mg-game__chat    { flex: 0 0 calc(100vw - 2 * clamp(240px, 18vw, 320px)); display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
-.mg-game__messages { flex: 1; overflow-y: auto; padding: var(--mg-space-md); min-height: 0; }
+.mg-game__chat {
+  flex: 0 0 calc(100vw - 2 * clamp(240px, 18vw, 320px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+.mg-game__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--mg-space-md);
+  min-height: 0;
+}
 
 // Reminder banner
-.mg-game__reminder { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: var(--mg-surface-pink); border-bottom: var(--mg-border-width) solid var(--mg-accent); font-size: 0.85rem; color: var(--mg-accent-strong); button { background: none; border: none; color: inherit; cursor: pointer; font-size: 0.85rem; } }
+.mg-game__reminder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--mg-surface-pink);
+  border-bottom: var(--mg-border-width) solid var(--mg-accent);
+  font-size: 0.85rem;
+  color: var(--mg-accent-strong);
+  button {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+}
 
 // Bottom dev bar & toggle
-.mg-game__bottom  { display: flex; align-items: center; gap: 4px; padding: 6px 12px; background: var(--mg-bg-card); border-top: var(--mg-border-width) solid var(--mg-border); flex-shrink: 0; flex-wrap: wrap; }
-.mg-game__dev-toggle { position: fixed; bottom: 12px; right: 12px; width: 28px; height: 28px; border: 1px solid transparent; border-radius: var(--mg-radius-sm); background: transparent; color: transparent; font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: var(--mg-z-devtools); transition: all var(--mg-transition-base); opacity: 0.15; &:hover { opacity: 1; color: var(--mg-accent); border-color: var(--mg-accent); background: var(--mg-bg-card); } }
+.mg-game__bottom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--mg-bg-card);
+  border-top: var(--mg-border-width) solid var(--mg-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.mg-game__dev-toggle {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--mg-radius-sm);
+  background: transparent;
+  color: transparent;
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--mg-z-devtools);
+  transition: all var(--mg-transition-base);
+  opacity: 0.15;
+  &:hover {
+    opacity: 1;
+    color: var(--mg-accent);
+    border-color: var(--mg-accent);
+    background: var(--mg-bg-card);
+  }
+}
 </style>
