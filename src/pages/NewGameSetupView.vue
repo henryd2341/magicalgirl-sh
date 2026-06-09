@@ -99,11 +99,10 @@ async function confirmNewGame() {
       // Phase 2: activate world info (depends on phase 1 writes)
       await syncPlayerGenderWorldInfoActivation({ variableRepository, worldInfoRepository });
 
-      // Phase 3: configure stores + clear snapshot in parallel
+      // Phase 3: configure stores (clearRuntimeSnapshot removed — resetCurrentGameData already wrote IDLE snapshot)
       await Promise.all([
         chatStore.configurePersistence({ client: persistenceClient }),
         sessionStore.configurePersistence({ client: persistenceClient }),
-        persistenceClient.clearRuntimeSnapshot(),
       ]);
 
       // Phase 4: create opening message (sync) + save + refresh

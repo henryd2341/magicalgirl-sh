@@ -213,6 +213,8 @@ async function restoreSlot(slot: SaveSlotRecord) {
       slotId: result.slotId,
       checkpointId: result.checkpoint.id,
     };
+    emit("close");
+    router.push({ name: "game" });
   } catch (error) {
     errorMessage.value =
       error instanceof Error ? error.message : "从槽位恢复失败。";
