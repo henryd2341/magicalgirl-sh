@@ -151,7 +151,7 @@ export function resolveTrackUrl(
   number: string,
 ): string {
   if (MUSIC_BASE_URL) {
-    return `${MUSIC_BASE_URL}/${category}/${number}.mp4`;
+    return `${MUSIC_BASE_URL}/${category}/${number}.mp3`;
   }
   const key = `../assets/music/${category}/${number}.mp3`;
   return localGlobUrls[key] || "";
