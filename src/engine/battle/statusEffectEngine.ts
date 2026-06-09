@@ -39,6 +39,9 @@ function buildShieldMap(): Record<string, ShieldEntry> {
   map["physical_reflect"] = { elementMask: 1, kind: "reflect" };
   map["physical_absorb"] = { elementMask: 1, kind: "absorb" };
 
+  // Ailment shield (Ailment = 1 << 11)
+  map["ailment_null"] = { elementMask: 1 << 11, kind: "nullify" };
+
   return map;
 }
 

@@ -378,5 +378,6 @@ export function createBattleSnapshotFromPendingBattle(
     actionMenu: createDefaultBattleCommandMenuTree(),
     battleResult: undefined,
     battleLog: [],
+    swapPhase: "idle",
   };
 }

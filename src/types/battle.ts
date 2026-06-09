@@ -90,6 +90,7 @@ export const BATTLE_ACTION_VALIDATION_ERRORS = [
   "target_required",
   "target_not_found",
   "target_not_allowed",
+  "no_valid_targets",
   "insufficient_mp",
   "insufficient_hp",
   "insufficient_item",
@@ -102,6 +103,7 @@ export const BATTLE_ACTION_VALIDATION_ERRORS = [
   "swap_in_not_reserve",
   "swap_in_down",
   "swap_unavailable",
+  "actor_not_found",
 ] as const;
 
 export type BattleActionValidationError =
@@ -339,6 +341,10 @@ export interface BattleSnapshot {
   battleLog?: BattleLogEntry[];
   /** Transient: set after item use, consumed by store layer */
   consumedItemId?: string | null;
+  /** Swap UI phase: idle, selecting swap-out target, or selecting swap-in target */
+  swapPhase?: "idle" | "select_out" | "select_in";
+  /** Transient: expected targetType hint for basic-skill target selection UI */
+  _targetTypeHint?: "single_enemy" | "single_ally" | null;
 }
 
 export interface CreatePendingBattleSnapshotInput {

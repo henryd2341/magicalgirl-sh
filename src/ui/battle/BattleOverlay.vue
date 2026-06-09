@@ -3,6 +3,7 @@ import {
   findBattleActionMenuNodeById,
   getBattleActionDefinition,
 } from "@/engine/battle/battleActionCatalog";
+import { getSkill, getStatusEffectMap } from "@/content/contentRegistry";
 import { useBattleStore } from "@/stores/battleStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import avatarHeroine from "@/assets/avatars/transformed/女user.png";
@@ -13,6 +14,7 @@ import allyIconBright from "@/assets/pressTurnIcon/allyIconBright.svg";
 import enemyIcon from "@/assets/pressTurnIcon/enemyIcon.svg";
 import enemyIconBright from "@/assets/pressTurnIcon/enemyIconBright.svg";
 import type {
+  ActiveStatusEffect,
   BattleActionId,
   BattleActionMenuNode,
   BattleEnemyInstance,
@@ -91,25 +93,34 @@ const selectedActionDefinition = computed(() => {
 });
 
 const selectedTarget = computed(() => {
-  const target =
-    activeParticipants.value.find(
-      (participant) => participant.id === activeBattle.value?.selectedTargetId,
-    ) ??
-    activeEnemies.value[0] ??
-    null;
+  const target = activeParticipants.value.find(
+    (participant) => participant.id === activeBattle.value?.selectedTargetId,
+  );
 
-  if (target == null) {
-    return null;
+  if (target) {
+    if (
+      selectedActionDefinition.value?.selectionMode === "selective" &&
+      !selectedActionDefinition.value.allowedSides.includes(target.side)
+    ) {
+      return null;
+    }
+    return target;
   }
+
+  // Don't default to enemy when selecting ally
+  if (activeBattle.value?._targetTypeHint === "single_ally") return null;
+
+  const fallback = activeEnemies.value[0] ?? null;
+  if (fallback == null) return null;
 
   if (
     selectedActionDefinition.value?.selectionMode === "selective" &&
-    !selectedActionDefinition.value.allowedSides.includes(target.side)
+    !selectedActionDefinition.value.allowedSides.includes(fallback.side)
   ) {
     return null;
   }
 
-  return target;
+  return fallback;
 });
 
 const selectedEnemyTarget = computed(() => {
@@ -172,7 +183,7 @@ const selectedActionDescription = computed(() => {
 const hoveredCommandDescription = ref<string | null>(null);
 
 const displayCommandDescription = computed(() => {
-  return hoveredCommandDescription.value ?? selectedActionDescription.value;
+  return hoveredCommandDescription.value ?? (targetHintText.value || selectedActionDescription.value);
 });
 
 function onHoverCommandDescription(desc: string | null) {
@@ -182,6 +193,87 @@ function onHoverCommandDescription(desc: string | null) {
 const isCommandMenuLocked = computed(() => {
   return activeBattle.value?.phase === "ENEMY_TURN";
 });
+
+// ── Target selection helpers ──
+
+const targetTypeHint = computed(() => {
+  return activeBattle.value?._targetTypeHint ?? null;
+});
+
+const canSelectAlly = computed(() => {
+  if (!activeBattle.value) return false;
+  // During swap phases, use swap handlers, not target selection
+  if (activeBattle.value.swapPhase !== "idle") return false;
+  return targetTypeHint.value === "single_ally";
+});
+
+const canSelectEnemy = computed(() => {
+  if (!activeBattle.value) return true;
+  // During swap phases, enemies are not clickable
+  if (activeBattle.value.swapPhase !== "idle") return false;
+  // If no action selected or single_enemy skill, enemies are clickable
+  if (targetTypeHint.value == null) return true;
+  return targetTypeHint.value === "single_enemy";
+});
+
+const targetHintText = computed(() => {
+  if (activeBattle.value?.swapPhase === "select_out") return "选择要换下的成员";
+  if (activeBattle.value?.swapPhase === "select_in") return "选择要换上的成员（可选）";
+  if (targetTypeHint.value === "single_ally") return "选择一个队友";
+  if (targetTypeHint.value === "single_enemy") return "选择一个敌人";
+  return "";
+});
+
+// ── Swap helpers ──
+
+const swapPhase = computed(() => {
+  return activeBattle.value?.swapPhase ?? "idle";
+});
+
+const swapOutCandidates = computed(() => {
+  if (swapPhase.value !== "select_out") return [];
+  const activeCount = activePlayers.value.filter(p => p.isActive && !p.isDown).length;
+  const reserveCount = reservePlayers.value.filter(p => !p.isDown).length;
+
+  // Allow current actor to swap out only if there are reserves to replace them
+  const candidates = activePlayers.value.filter(p => {
+    if (!p.isActive || p.isDown) return false;
+    if (p.id === currentActor.value?.id) {
+      // Current actor can only swap out if there's a reserve to take their place
+      return reserveCount > 0 || activeCount > 1;
+    }
+    return true;
+  });
+
+  // No candidates if swapping would leave zero active players with no reserve
+  if (candidates.length === 0) return [];
+  const wouldLeaveZeroActive = candidates.every(p => p.id === currentActor.value?.id)
+    ? activeCount <= 1 && reserveCount === 0
+    : false;
+  if (wouldLeaveZeroActive) return [];
+
+  return candidates;
+});
+
+const reservePlayers = computed(() => {
+  return activeParticipants.value.filter(
+    p => p.side === "player" && !p.isActive,
+  );
+});
+
+// ── Swap actions ──
+
+function selectSwapOut(participantId: string) {
+  battleStore.selectSwapOut(participantId);
+}
+
+function selectSwapIn(participantId: string | null) {
+  battleStore.selectSwapIn(participantId);
+}
+
+function cancelSwap() {
+  battleStore.cancelSwap();
+}
 
 const overlayMode = computed(() => {
   if (activeBattle.value !== null) {
@@ -275,6 +367,11 @@ function findBattleActionMenuNodeByActionId(
   }
 
   return null;
+}
+
+const _statusEffectNameCache = getStatusEffectMap();
+function formatStatusEffectName(effect: ActiveStatusEffect): string {
+  return _statusEffectNameCache.get(effect.effectId)?.name ?? effect.effectId;
 }
 </script>
 
@@ -386,7 +483,8 @@ function findBattleActionMenuNodeByActionId(
             'battle-enemy-card--down': enemy.isDown,
           }"
           :aria-pressed="selectedTarget?.id === enemy.id"
-          @click="selectTarget(enemy.id)"
+          :disabled="!canSelectEnemy"
+          @click="canSelectEnemy && selectTarget(enemy.id)"
         >
           <img
             class="battle-enemy-card__sprite"
@@ -418,14 +516,18 @@ function findBattleActionMenuNodeByActionId(
         />
 
         <section class="battle-hud__party-row" aria-label="玩家队伍区域">
-          <article
+          <button
             v-for="(player, index) in activePlayers"
             :key="player.id"
+            type="button"
             class="battle-party-card"
             :class="{
               'battle-party-card--actor': currentActor?.id === player.id,
               'battle-party-card--down': player.isDown,
+              'battle-party-card--clickable': canSelectAlly,
             }"
+            :disabled="!canSelectAlly"
+            @click="canSelectAlly && selectTarget(player.id)"
           >
             <img
               class="battle-party-card__avatar"
@@ -455,7 +557,7 @@ function findBattleActionMenuNodeByActionId(
               <p class="battle-party-card__status">
                 {{
                   player.statusEffects?.length
-                    ? player.statusEffects.join(", ")
+                    ? player.statusEffects.map(e => formatStatusEffectName(e)).join(", ")
                     : "正常"
                 }}
               </p>
@@ -466,7 +568,7 @@ function findBattleActionMenuNodeByActionId(
                 当前行动者
               </p>
             </div>
-          </article>
+          </button>
         </section>
 
         <section
@@ -476,6 +578,73 @@ function findBattleActionMenuNodeByActionId(
         >
           <p>{{ displayCommandDescription }}</p>
         </section>
+      </div>
+
+      <!-- ═══ Swap Popup Overlay ═══ -->
+      <div v-if="swapPhase !== 'idle'" class="battle-swap-overlay" @click.self="cancelSwap">
+        <div class="battle-swap-popup">
+          <h3 class="battle-swap-popup__title">{{ targetHintText }}</h3>
+
+          <!-- Phase: select swap-out -->
+          <div v-if="swapPhase === 'select_out'" class="battle-swap-popup__cards">
+            <button
+              v-for="player in swapOutCandidates"
+              :key="player.id"
+              type="button"
+              class="battle-swap-popup__card"
+              @click="selectSwapOut(player.id)"
+            >
+              <img
+                class="battle-swap-popup__avatar"
+                :src="getPartyAvatar(activePlayers.indexOf(player))"
+                :alt="`${player.displayName} avatar`"
+              />
+              <span class="battle-swap-popup__name">{{ player.displayName }}</span>
+              <span class="battle-swap-popup__hp">HP {{ player.hp.current }}/{{ player.hp.max }}</span>
+              <span class="battle-swap-popup__mp">MP {{ player.mp.current }}/{{ player.mp.max }}</span>
+            </button>
+            <p v-if="swapOutCandidates.length === 0" class="battle-swap-popup__empty">
+              没有可以换下的成员
+            </p>
+          </div>
+
+          <!-- Phase: select swap-in -->
+          <div v-if="swapPhase === 'select_in'" class="battle-swap-popup__cards">
+            <button
+              v-for="player in reservePlayers"
+              :key="player.id"
+              type="button"
+              class="battle-swap-popup__card"
+              @click="selectSwapIn(player.id)"
+            >
+              <span class="battle-swap-popup__name">{{ player.displayName }}</span>
+              <span class="battle-swap-popup__hp">HP {{ player.hp.current }}/{{ player.hp.max }}</span>
+              <span class="battle-swap-popup__mp">MP {{ player.mp.current }}/{{ player.mp.max }}</span>
+              <span class="battle-swap-popup__tag">后备</span>
+            </button>
+            <p v-if="reservePlayers.length === 0" class="battle-swap-popup__empty">
+              没有后备成员
+            </p>
+          </div>
+
+          <div class="battle-swap-popup__actions">
+            <button
+              v-if="swapPhase === 'select_in'"
+              type="button"
+              class="battle-swap-popup__btn battle-swap-popup__btn--skip"
+              @click="selectSwapIn(null)"
+            >
+              仅换下（不上场）
+            </button>
+            <button
+              type="button"
+              class="battle-swap-popup__btn battle-swap-popup__btn--cancel"
+              @click="cancelSwap"
+            >
+              取消
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </section>

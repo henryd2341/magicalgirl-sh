@@ -241,7 +241,7 @@ function close() {
 <style lang="scss" scoped>
 .character-build-modal {
   width: min(90vw, 1100px) !important;
-  padding: 0 20px;
+  padding: 20px;
   max-height: 85vh;
   display: flex;
   flex-direction: column;

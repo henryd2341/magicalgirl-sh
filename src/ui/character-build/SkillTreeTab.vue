@@ -372,7 +372,7 @@ const layoutNodes = computed(() => {
       const dependent = nodeList.find(n => n.prerequisites.includes(node.skillId));
       if (dependent) {
         node.x = dependent.x;
-        node.y = dependent.y + 80; // Below the dependent
+        node.y = dependent.y + NODE_HEIGHT + 4; // Below the dependent, avoiding overlap with next layer
       } else {
         node.x = PADDING;
         node.y = PADDING + (byDepth.size) * (NODE_HEIGHT + V_GAP);
@@ -629,8 +629,9 @@ watch(activeCategory, () => {
   transform: translateX(-50%);
   z-index: 10;
   padding: 6px 16px;
+  border: var(--mg-border-width) var(--mg-border-width) var(--mg-border);
   border-radius: var(--mg-radius-pill);
-  background: var(--mg-accent);
+  background: var(--mg-surface-pink);
   color: var(--mg-ink-outline);
   font-weight: 700;
   font-size: 0.85rem;
@@ -854,10 +855,17 @@ watch(activeCategory, () => {
   &:hover { z-index: 3; }
 
   &--ghost {
-    opacity: 0.55;
+    opacity: 0.45;
     border-style: dashed;
     background: var(--mg-bg-card);
     filter: none;
+    z-index: 0;
+    pointer-events: none;
+    min-height: 32px;
+    height: 32px;
+    font-size: 0.65rem;
+
+    &:hover { z-index: 0; }
   }
 }
 
@@ -909,7 +917,7 @@ watch(activeCategory, () => {
 
 .skilltree-tab__node-cost {
   font-size: 0.68rem;
-  color: var(--mg-warning);
+  color: var(--mg-ink-outline);
   font-weight: 600;
 }
 

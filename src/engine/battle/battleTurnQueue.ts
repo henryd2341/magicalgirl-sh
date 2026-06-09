@@ -2,7 +2,10 @@ import type { BattleParticipant } from "@/types/battle";
 
 function isEligibleActor(participant: BattleParticipant | undefined): boolean {
   return (
-    participant != null && !participant.isDown && participant.canAct !== false
+    participant != null &&
+    participant.isActive !== false &&
+    !participant.isDown &&
+    participant.canAct !== false
   );
 }
 

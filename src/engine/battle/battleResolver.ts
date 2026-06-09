@@ -627,6 +627,14 @@ export function resolveSelectedBattleAction(
     ...normalizedSnapshot,
     participants,
     pressTurn: nextPressTurn,
+    pressTurnAllocation: resolution.actionId === "swap"
+      ? {
+          participantIds: participants
+            .filter(p => p.side === "player" && p.isActive && !p.isDown)
+            .map(p => p.id),
+          initialIconCount: normalizedSnapshot.pressTurnAllocation?.initialIconCount ?? 1,
+        }
+      : normalizedSnapshot.pressTurnAllocation,
     currentActorId: nextActorId,
     lifecycleState:
       allEnemiesDefeated || allPlayersDefeated ? "RESOLVED" : "ACTIVE",
@@ -835,7 +843,7 @@ function resolveTargets(
     }
     case "single_ally": {
       const singleAlly = snapshot.participants.find(
-        (p) => p.id === snapshot.selectedTargetId && p.side === "player" && !p.isDown,
+        (p) => p.id === snapshot.selectedTargetId && p.side === "player" && p.isActive && !p.isDown,
       );
       return singleAlly != null ? [singleAlly] : [];
     }
@@ -1141,6 +1149,19 @@ export function resolveSelectedBattleActionToResolution(
         ? (snapshot.participants.filter((p) => p.id === snapshot.selectedTargetId))
         : resolveTargets(snapshot, actor ?? { id: actorId } as BattleParticipant, skillContent.targetType);
 
+      // Guard: no valid targets — skip MP cost and press turn consumption
+      if (targets.length === 0) {
+        return {
+          ok: false,
+          validationError: "no_valid_targets",
+          actorId,
+          actionId,
+          outcomes: [],
+          verboseLog: [`${actorId} had no valid targets for ${skillContent.name}.`],
+          summaryLog: [],
+        };
+      }
+
       for (const healTarget of targets) {
         // Calculate heal amount
         const healAmount = skillContent.healPercent != null
@@ -1161,6 +1182,39 @@ export function resolveSelectedBattleActionToResolution(
           finalTargetId: healTarget.id,
           hpDelta: reviveHp > 0 ? reviveHp : healAmount,
         });
+      }
+
+      // Status effects (buff/debuff for heal skills)
+      if (skillContent.statusEffects != null && skillContent.statusEffects.length > 0) {
+        const appliedEffects: AppliedStatusEffectPayload[] = [];
+        const effectMap = getStatusEffectMap();
+
+        for (const se of skillContent.statusEffects) {
+          const actorPassives = collectPassives(actor?.passiveEffects);
+          const chanceCtx = applyPassivesAtHook(actorPassives, "on_status_chance", {
+            chance: se.chance,
+          }) as { chance: number };
+          if (Math.random() * 100 < chanceCtx.chance) {
+            const effectContent = effectMap.get(se.effectId);
+            const duration = effectContent?.duration ?? 3;
+            appliedEffects.push({ effectId: se.effectId, duration });
+          }
+        }
+
+        if (appliedEffects.length > 0) {
+          for (const healTarget of targets) {
+            if (!healTarget.isDown) {
+              outcomes.push({
+                type: "hit" as const,
+                tags: [],
+                actorId,
+                primaryTargetId: healTarget.id,
+                finalTargetId: healTarget.id,
+                appliedStatusEffects: appliedEffects,
+              });
+            }
+          }
+        }
       }
 
       // MP cost applied once
@@ -1189,14 +1243,41 @@ export function resolveSelectedBattleActionToResolution(
 
     // Support skills (status effect application)
     if (skillContent.category === "support") {
+      if (!actor) {
+        return {
+          ok: false,
+          validationError: "actor_not_found",
+          actorId,
+          actionId: definition.id,
+          contentId,
+          intendedTargetId: snapshot.selectedTargetId,
+          outcomes: [],
+          verboseLog: [`[BATTLE] Actor ${actorId} not found`],
+          summaryLog: [],
+        };
+      }
+
       const outcomes: BattleActionOutcome[] = [];
 
       // Resolve targets for multi-target support skills
       const supportTargets = resolveTargets(
         snapshot,
-        actor ?? { id: actorId } as BattleParticipant,
+        actor,
         skillContent.targetType,
       );
+
+      // Guard: no valid targets — skip MP cost and press turn consumption
+      if (supportTargets.length === 0 && skillContent.targetType !== "self") {
+        return {
+          ok: false,
+          validationError: "no_valid_targets",
+          actorId,
+          actionId,
+          outcomes: [],
+          verboseLog: [`${actorId} had no valid targets for ${skillContent.name}.`],
+          summaryLog: [],
+        };
+      }
 
       // Build status effects to apply
       const appliedEffects: AppliedStatusEffectPayload[] = [];
@@ -1274,6 +1355,23 @@ export function resolveSelectedBattleActionToResolution(
     const offensiveTargets = resolveTargets(snapshot, actor, skillContent.targetType);
     const outcomes: BattleActionOutcome[] = [];
 
+    // Build status effects to apply (if any)
+    const appliedEffects: AppliedStatusEffectPayload[] = [];
+    if (skillContent.statusEffects != null) {
+      const effectMap = getStatusEffectMap();
+      for (const se of skillContent.statusEffects) {
+        const actorPassives = collectPassives(actor.passiveEffects);
+        const chanceCtx = applyPassivesAtHook(actorPassives, "on_status_chance", {
+          chance: se.chance,
+        }) as { chance: number };
+        if (Math.random() * 100 < chanceCtx.chance) {
+          const effectContent = effectMap.get(se.effectId);
+          const duration = effectContent?.duration ?? 3;
+          appliedEffects.push({ effectId: se.effectId, duration });
+        }
+      }
+    }
+
     for (const offenseTarget of offensiveTargets) {
       const targetOutcomes = buildAttackOutcomes({
         actorId,
@@ -1290,6 +1388,23 @@ export function resolveSelectedBattleActionToResolution(
         skillCategory: skillContent.category,
       });
       outcomes.push(...targetOutcomes);
+
+      // Apply status effects if the target was damaged
+      if (appliedEffects.length > 0 && !offenseTarget.isDown) {
+        const wasDamaged = targetOutcomes.some(
+          (o) => o.type === "hit" && o.finalTargetId === offenseTarget.id,
+        );
+        if (wasDamaged) {
+          outcomes.push({
+            type: "hit" as const,
+            tags: [],
+            actorId,
+            primaryTargetId: offenseTarget.id,
+            finalTargetId: offenseTarget.id,
+            appliedStatusEffects: appliedEffects,
+          });
+        }
+      }
     }
 
     // MP cost outcome (applied once, not per target)
@@ -1587,6 +1702,40 @@ export function resolveSelectedBattleActionToResolution(
       hitCount: skillContent.hitCount,
       hitCountMax: skillContent.hitCountMax,
   });
+
+  // Status effects (buff/debuff for attack skills)
+  if (skillContent.statusEffects != null && skillContent.statusEffects.length > 0 && !target.isDown) {
+    const wasDamaged = outcomes.some(
+      (o) => o.type === "hit" && o.finalTargetId === target.id,
+    );
+    if (wasDamaged) {
+      const appliedEffects: AppliedStatusEffectPayload[] = [];
+      const effectMap = getStatusEffectMap();
+
+      for (const se of skillContent.statusEffects) {
+        const actorPassives = collectPassives(actor?.passiveEffects);
+        const chanceCtx = applyPassivesAtHook(actorPassives, "on_status_chance", {
+          chance: se.chance,
+        }) as { chance: number };
+        if (Math.random() * 100 < chanceCtx.chance) {
+          const effectContent = effectMap.get(se.effectId);
+          const duration = effectContent?.duration ?? 3;
+          appliedEffects.push({ effectId: se.effectId, duration });
+        }
+      }
+
+      if (appliedEffects.length > 0) {
+        outcomes.push({
+          type: "hit" as const,
+          tags: [],
+          actorId,
+          primaryTargetId: target.id,
+          finalTargetId: target.id,
+          appliedStatusEffects: appliedEffects,
+        });
+      }
+    }
+  }
 
   if (skillContent.mpCost > 0) {
     outcomes.push({
