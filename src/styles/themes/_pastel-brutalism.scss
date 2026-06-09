@@ -131,6 +131,7 @@
   --mg-radius: 0px;
   --mg-radius-sm: 0px;
   --mg-radius-lg: 0px;
+  --mg-radius-xl: 0px;
 
   // ==========================================================
   // BATTLE OVERLAY VARIABLES
@@ -171,7 +172,7 @@
     var(--mg-success)
   );
   --mg-battle-phase-action-shadow: 4px 4px 0 var(--mg-ink-outline);
-  --mg-battle-party-actor-border: var(--mg-warning);
+  --mg-battle-party-actor-border: var(--mg-util-red);
   --mg-battle-party-actor-glow: none;
   --mg-battle-party-avatar-border: 2px solid var(--mg-ink-outline);
   --mg-battle-actor-badge-bg: var(--mg-battle-button-bg);
@@ -375,6 +376,14 @@
 
   .battle-party-card__actor {
     color: var(--mg-text);
+  }
+
+  .battle-party-card--actor {
+    background-clip: border-box, padding-box;
+    background-origin: border-box, padding-box;
+    background-image: var(--mg-battle-button-bg);
+    border-color: transparent;
+    box-shadow: 3px 3px var(--mg-shadow);
   }
 
   // -- PB Tag: monospace label badge --

@@ -527,3 +527,23 @@ export function getCharacter(id: string): CharacterContent {
 export function getAllCharacterIds(): string[] {
   return Array.from(loadCharacters().keys());
 }
+
+/**
+ * Look up a character by their display name (used by variable state keys).
+ * Falls back to direct ID lookup if name doesn't match.
+ */
+const _characterNameToId = new Map<string, string>();
+function getCharacterIdByDisplayName(name: string): string | null {
+  if (_characterNameToId.size === 0) {
+    for (const char of loadCharacters().values()) {
+      _characterNameToId.set(char.name, char.id);
+    }
+  }
+  return _characterNameToId.get(name) ?? null;
+}
+
+export function getCharacterByName(name: string): CharacterContent {
+  const id = getCharacterIdByDisplayName(name);
+  if (id != null) return getCharacter(id);
+  return getCharacter(name); // fallback to direct ID lookup
+}

@@ -85,7 +85,16 @@ function buildSkillActionNodes(
     });
   }
 
-  if (children.length === 0) return [];
+  if (children.length === 0) {
+    return [{
+      id: "skill-group",
+      kind: "group",
+      label: "Skill",
+      description: "没有可用的技能。",
+      children: [],
+      disabled: true,
+    }];
+  }
 
   return [
     {

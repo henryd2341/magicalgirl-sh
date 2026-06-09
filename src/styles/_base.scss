@@ -41,7 +41,7 @@ body {
   z-index: 0;
 }
 
-.mg-app-shell::before {
+.mg-app-shell-frame::before {
   content: '';
   position: absolute;
   inset: 0;

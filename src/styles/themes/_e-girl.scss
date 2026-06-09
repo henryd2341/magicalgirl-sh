@@ -47,23 +47,23 @@
 
   // Backgrounds
 
-  --mg-bg:
-    radial-gradient(
-      circle at top left,
-      rgb(from var(--mg-pink-blush) r g b / 0.24),
-      transparent 28%
-    ),
-    radial-gradient(
-      circle at 85% 18%,
-      rgb(from var(--mg-cool-blue) r g b / 0.2),
-      transparent 24%
-    ),
-    radial-gradient(
-      circle at 50% 100%,
-      rgb(from var(--mg-purple-lilac) r g b / 0.16),
-      transparent 32%
-    ),
-    linear-gradient(180deg, var(--mg-dark-amethyst) 0%, var(--mg-dark-grape) 44%, var(--mg-dark-violet) 100%);
+  // --mg-bg:
+  //   radial-gradient(
+  //     circle at top left,
+  //     rgb(from var(--mg-pink-blush) r g b / 0.24),
+  //     transparent 28%
+  //   ),
+  //   radial-gradient(
+  //     circle at 85% 18%,
+  //     rgb(from var(--mg-cool-blue) r g b / 0.2),
+  //     transparent 24%
+  //   ),
+  //   radial-gradient(
+  //     circle at 50% 100%,
+  //     rgb(from var(--mg-purple-lilac) r g b / 0.16),
+  //     transparent 32%
+  //   ),
+  //   linear-gradient(180deg, var(--mg-dark-amethyst) 0%, var(--mg-dark-grape) 44%, var(--mg-dark-violet) 100%);
   --mg-bg-pattern:
     linear-gradient(45deg, rgba(255, 107, 157, 0.06) 25%, transparent 25%),
     linear-gradient(-45deg, rgba(255, 107, 157, 0.06) 25%, transparent 25%),

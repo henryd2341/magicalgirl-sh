@@ -16,6 +16,10 @@ import WorldInfo from "@/ui/game/WorldInfo.vue";
 import BgmPlayer from "@/ui/game/BgmPlayer.vue";
 import CharacterCard from "@/ui/game/CharacterCard.vue";
 import SystemSettingsPanel from "@/ui/settings/SystemSettingsPanel.vue";
+import FormationModal from "@/ui/formation/FormationModal.vue";
+import CharacterBuildView from "@/pages/CharacterBuildView.vue";
+import { useFormationStore } from "@/stores/formationStore";
+import type { InPartyCharacter } from "@/stores/formationStore";
 import SettingsView from "./SettingsView.vue";
 import ApiSettingsView from "./ApiSettingsView.vue";
 import SaveExportView from "./SaveExportView.vue";
@@ -43,6 +47,9 @@ const showApiSettings = ref(false);
 const showSaveManage = ref(false);
 const showSystemSettings = ref(false);
 const showCreditsModal = ref(false);
+const showFormationModal = ref(false);
+const formationInPartyChars = ref<InPartyCharacter[]>([]);
+const showCharacterBuild = ref(false);
 const promptViewerDrawerRef = ref();
 const showStateModal = ref(false);
 
@@ -95,30 +102,51 @@ const shouldShowPostCombatPanel = computed(() => {
   return snapshot.value.sessionState === "POST_COMBAT_READY";
 });
 
-// ── Debug battle (kept for testing) ──
-function launchDebugBattleForTestingOnly() {
+// ── Debug battle (uses real formation + variable state) ──
+async function launchDebugBattleForTestingOnly() {
+  const vars = await sessionStore.getVariableSnapshot();
+  if (!vars?.root) {
+    // eslint-disable-next-line no-console
+    console.warn("[MainGameView] No variable state — cannot start debug battle.");
+    return;
+  }
+
+  const formation = await formationStore.getFormation();
+  const {
+    buildPlayerPartyFromFormation,
+  } = await import("@/engine/battle/battleSetup");
+
+  const playerParty = buildPlayerPartyFromFormation(vars.root, formation.vanguard);
+
   battleStore.stagePendingEncounter({
     encounterId: "enc-main-game-debug-battle",
-    narrativeReason: "测试用预置战斗入口，后续应删除。",
-    enemies: [{ enemy_id: "debug-shadow", count: 1 }],
+    narrativeReason: "测试用预置战斗入口（使用实际编队数据）。",
+    enemies: [{ enemy_id: "1", count: 1 }],
   });
   sessionStore.enterCombatPending();
-  sessionStore.startBattle([
-    {
-      id: "player-heroine-1",
-      side: "player",
-      displayName: "鹿目真昼",
-      hp: { current: 120, max: 120 },
-      mp: { current: 48, max: 48 },
-      isDown: false,
-      isActive: true,
-    },
-  ]);
+  await sessionStore.startBattle(playerParty);
 }
 
 async function handlePreviewPrompt() {
   await sessionStore.previewPrompt("(预览请求)");
   promptViewerDrawerRef.value?.open();
+}
+
+const formationStore = useFormationStore();
+
+async function openFormationModal() {
+  const chars = await formationStore.openFormationModal();
+  formationInPartyChars.value = chars;
+  showFormationModal.value = true;
+}
+
+async function onSaveFormation(vanguardIds: string[], reserveIds: string[]) {
+  await formationStore.saveFormation(vanguardIds, reserveIds);
+  showFormationModal.value = false;
+}
+
+function openCharacterBuild() {
+  showCharacterBuild.value = true;
 }
 
 onMounted(async () => {
@@ -176,11 +204,11 @@ onUnmounted(() => {
             <BgmPlayer />
             <nav class="mg-game__left-actions">
             <div class="mg-chain-divider" aria-hidden="true"></div>
-            <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--blue">
+            <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--blue" @click="openFormationModal">
               <i class="fas fa-users"></i> 队伍编组
             </button>
-            <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--green">
-              <i class="fas fa-book"></i> 技能学习
+            <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--green" @click="openCharacterBuild">
+              <i class="fas fa-book"></i> 角色Build
             </button>
             <button class="mg-btn mg-btn--sm mg-btn--ghost mg-btn--yellow" @click="showCreditsModal = true">
               <i class="fas fa-scroll"></i> Credits
@@ -272,6 +300,19 @@ onUnmounted(() => {
     <SessionStateModal v-if="showStateModal" @close="showStateModal = false" />
 
     <CreditsModal v-if="showCreditsModal" @close="showCreditsModal = false" />
+
+    <FormationModal
+      :visible="showFormationModal"
+      :in-party-characters="formationInPartyChars"
+      @close="showFormationModal = false"
+      @save="onSaveFormation"
+    />
+
+    <CharacterBuildView
+      v-if="showCharacterBuild"
+      as-modal
+      @close="showCharacterBuild = false"
+    />
 
     <!-- ═══ In-Game Modals ═══ -->
     <div

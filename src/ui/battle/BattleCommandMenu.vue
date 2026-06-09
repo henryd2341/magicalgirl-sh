@@ -98,7 +98,7 @@ function onLeaveAction() {
             :aria-pressed="
               action.kind === 'action' && selectedActionId === action.actionId
             "
-            :disabled="isLocked"
+            :disabled="isLocked || action.disabled === true"
             @click="selectMenuNode(action.id)"
             @mouseenter="onHoverAction(action)"
             @mouseleave="onLeaveAction"

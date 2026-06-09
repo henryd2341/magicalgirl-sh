@@ -1,4 +1,4 @@
-import { BattleResultService } from "@/engine/battleResultService";
+import { BattleResultService, type BattleRewards } from "@/engine/battleResultService";
 import { RuntimePersistenceService } from "@/engine/runtimePersistenceService";
 import { ConversationSummarizer } from "@/engine/conversationSummarizer";
 import {
@@ -57,15 +57,24 @@ import type { BattleParticipant } from "@/types/battle";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { PreviousValueMap } from "@/types/variables";
-import { getCharacter } from "@/content/contentRegistry";
-import { getAllCharacterIds } from "@/content/contentRegistry";
+import type { PreviousValueMap, VariablePathPatch } from "@/types/variables";
+import { getCharacter, getCharacterByName } from "@/content/contentRegistry";
+import { getAllCharacterIds, getGrowth } from "@/content/contentRegistry";
 import { getAllItems } from "@/content/contentRegistry";
 import { VariableEngine } from "@/engine/variableEngine";
-import type { CharacterContent, SkillTreeNode } from "@/types/content";
+import type { CharacterContent, GrowthContent, SkillTreeNode } from "@/types/content";
+import {
+  statsAtLevel,
+  expRequiredForLevel,
+  canLevelUp,
+  computeAutoLevelStats,
+} from "@/engine/battle/formulaEngine";
 import { createDefaultBattleCommandMenuTree } from "@/engine/battle/battleActionCatalog";
 
 const POST_COMBAT_CONTINUE_INPUT = "请根据最近的战斗摘要继续剧情。";
+
+// Idempotency guard: tracks encounter IDs whose rewards have been applied
+const _appliedBattleRewardEncounters = new Set<string>();
 
 function createPostCombatId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random()
@@ -147,7 +156,7 @@ export const useSessionStore = defineStore("session", () => {
   ): SkillTreeNode[] {
     let character: CharacterContent;
     try {
-      character = getCharacter(characterId);
+      character = getCharacterByName(characterId);
     } catch {
       return [];
     }
@@ -181,7 +190,7 @@ export const useSessionStore = defineStore("session", () => {
   ): Promise<LearnSkillResult> {
     let character: CharacterContent;
     try {
-      character = getCharacter(characterId);
+      character = getCharacterByName(characterId);
     } catch {
       return "not_in_tree";
     }
@@ -259,8 +268,10 @@ export const useSessionStore = defineStore("session", () => {
     const varState = await variableRepository.getCurrent();
     if (!varState) return "not_learned";
 
-    const charState = varState.root.characters[characterId];
-    const current = charState?.equippedSkills ?? [];
+    const isProtagonist = characterId === "player";
+    const current = isProtagonist
+      ? (varState.root.player.equippedSkills ?? [])
+      : (varState.root.characters[characterId]?.equippedSkills ?? []);
 
     if (current.includes(skillId)) return "already_equipped";
     if (current.length >= 8) return "slots_full";
@@ -276,7 +287,7 @@ export const useSessionStore = defineStore("session", () => {
         tool_call_id: callId,
         bypassAllowlist: true,
         patches: [
-          { path: `characters.${characterId}.equippedSkills`, value: updated },
+          { path: isProtagonist ? "player.equippedSkills" : `characters.${characterId}.equippedSkills`, value: updated },
         ],
       },
     });
@@ -291,8 +302,10 @@ export const useSessionStore = defineStore("session", () => {
     const varState = await variableRepository.getCurrent();
     if (!varState) return "not_equipped";
 
-    const charState = varState.root.characters[characterId];
-    const current = charState?.equippedSkills ?? [];
+    const isProtagonist = characterId === "player";
+    const current = isProtagonist
+      ? (varState.root.player.equippedSkills ?? [])
+      : (varState.root.characters[characterId]?.equippedSkills ?? []);
     if (!current.includes(skillId)) return "not_equipped";
 
     const updated = current.filter((id) => id !== skillId);
@@ -306,7 +319,7 @@ export const useSessionStore = defineStore("session", () => {
         tool_call_id: callId,
         bypassAllowlist: true,
         patches: [
-          { path: `characters.${characterId}.equippedSkills`, value: updated },
+          { path: isProtagonist ? "player.equippedSkills" : `characters.${characterId}.equippedSkills`, value: updated },
         ],
       },
     });
@@ -336,6 +349,228 @@ export const useSessionStore = defineStore("session", () => {
     });
     await variableRepository.saveCurrent(result.next);
     return "ok";
+  }
+
+  async function applyBattleRewards(rewards: BattleRewards) {
+    const varState = await variableRepository.getCurrent();
+    if (!varState) return;
+
+    const patches: VariablePathPatch[] = [];
+
+    // Process character EXP and level-ups
+    for (const [entityId, gainedExp] of rewards.characterExp) {
+      const charState = varState.root.characters[entityId];
+      if (!charState?.combat) continue;
+
+      let newExp = charState.combat.exp + gainedExp;
+      let currentLevel = charState.combat.level;
+      let currentHpMax = charState.combat.hp.max;
+      let currentMpMax = charState.combat.mp.max;
+      let currentAttack = charState.combat.attack;
+      let currentDefense = charState.combat.defense;
+      let currentAgility = charState.combat.agility;
+      let currentIntelligence = charState.combat.intelligence;
+      let unspentPoints = charState.combat.unspentPoints;
+
+      // Lookup growth data for level-up calculations
+      let growth: GrowthContent | null = null;
+      try {
+        const charContent = getCharacterByName(entityId);
+        growth = getGrowth(charContent.growthId);
+      } catch {
+        // Character not found in content registry; skip level-up
+      }
+
+      if (growth) {
+        while (
+          newExp >= expRequiredForLevel(currentLevel) &&
+          canLevelUp(currentLevel)
+        ) {
+          newExp -= expRequiredForLevel(currentLevel);
+          currentLevel++;
+
+          // Update base stats with per-level growth
+          currentAttack += growth.perLevel.attack;
+          currentDefense += growth.perLevel.defense;
+          currentAgility += growth.perLevel.agility;
+          currentIntelligence += growth.perLevel.intelligence;
+
+          // Full HP/MP refresh from new level's base stats
+          const nextStats = statsAtLevel(growth.base, growth.perLevel, currentLevel);
+          currentHpMax = nextStats.hp.max;
+          currentMpMax = nextStats.mp.max;
+
+          unspentPoints += growth.perLevel.freePoints ?? 0;
+        }
+      }
+
+      patches.push(
+        { path: `characters.${entityId}.combat.exp`, value: newExp },
+        { path: `characters.${entityId}.combat.level`, value: currentLevel },
+        { path: `characters.${entityId}.combat.hp.current`, value: currentHpMax },
+        { path: `characters.${entityId}.combat.hp.max`, value: currentHpMax },
+        { path: `characters.${entityId}.combat.mp.current`, value: currentMpMax },
+        { path: `characters.${entityId}.combat.mp.max`, value: currentMpMax },
+        { path: `characters.${entityId}.combat.attack`, value: currentAttack },
+        { path: `characters.${entityId}.combat.defense`, value: currentDefense },
+        { path: `characters.${entityId}.combat.agility`, value: currentAgility },
+        { path: `characters.${entityId}.combat.intelligence`, value: currentIntelligence },
+        { path: `characters.${entityId}.combat.unspentPoints`, value: unspentPoints },
+      );
+    }
+
+    // Add money reward
+    if (rewards.moneyGained > 0) {
+      patches.push({
+        path: "player.money",
+        value: varState.root.player.money + rewards.moneyGained,
+      });
+    }
+
+    if (patches.length === 0) return;
+
+    const callId = `battle-rewards-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
+    const result = variableEngine.applyPatchSet({
+      current: varState,
+      envelope: {
+        request_id: "apply-battle-rewards",
+        context_version: varState.version,
+        state_hash: varState.stateHash,
+        tool_call_id: callId,
+        bypassAllowlist: true,
+        patches,
+      },
+    });
+    await variableRepository.saveCurrent(result.next);
+  }
+
+  async function allocatePoints(
+    characterId: string | null,
+    allocatedPoints: { attack: number; defense: number; agility: number; intelligence: number },
+    unspentPoints: number,
+  ): Promise<"ok"> {
+    const varState = await variableRepository.getCurrent();
+    if (!varState) return "ok";
+
+    const callId = `allocate-points-${Date.now().toString(36)}`;
+    const target = characterId === null || characterId === "__player__" ? "player" : `characters.${characterId}`;
+    const patches: VariablePathPatch[] = [
+      { path: `${target}.combat.allocatedPoints`, value: allocatedPoints },
+      { path: `${target}.combat.unspentPoints`, value: unspentPoints },
+    ];
+
+    const result = variableEngine.applyPatchSet({
+      current: varState,
+      envelope: {
+        request_id: `allocate-points-${characterId ?? "player"}`,
+        context_version: varState.version,
+        state_hash: varState.stateHash,
+        tool_call_id: callId,
+        bypassAllowlist: true,
+        patches,
+      },
+    });
+    await variableRepository.saveCurrent(result.next);
+    return "ok";
+  }
+
+  async function patchVariables(
+    patches: VariablePathPatch[],
+    requestId?: string,
+  ): Promise<void> {
+    if (patches.length === 0) return;
+    const varState = await variableRepository.getCurrent();
+    if (!varState) return;
+    const callId = `patch-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
+    const result = variableEngine.applyPatchSet({
+      current: varState,
+      envelope: {
+        request_id: requestId ?? callId,
+        context_version: varState.version,
+        state_hash: varState.stateHash,
+        tool_call_id: callId,
+        bypassAllowlist: true,
+        patches,
+      },
+    });
+    await variableRepository.saveCurrent(result.next);
+  }
+
+  async function setCharacterInParty(
+    characterId: string,
+    inParty: boolean,
+  ): Promise<void> {
+    const varState = await variableRepository.getCurrent();
+    if (!varState) return;
+
+    const charState = varState.root.characters[characterId];
+    if (!charState) return;
+
+    if (inParty) {
+      // Adding to party: auto-level to match protagonist
+      const protagonistLevel = varState.root.player.combat.level;
+      const currentLevel = charState.combat?.level ?? 1;
+      const growth = getGrowth(characterId);
+      const perLevel = growth?.perLevel ?? { hp: 10, mp: 5, freePoints: 2 };
+
+      const autoStats = computeAutoLevelStats(
+        currentLevel,
+        protagonistLevel,
+        perLevel,
+      );
+
+      const patches: VariablePathPatch[] = [
+        { path: `characters.${characterId}.inParty`, value: true },
+        { path: `characters.${characterId}.isVanguard`, value: true },
+      ];
+
+      if (autoStats) {
+        const newHp = (charState.combat?.hp.max ?? 50) + autoStats.hpBonus;
+        const newMp = (charState.combat?.mp.max ?? 30) + autoStats.mpBonus;
+        const newUnspent = (charState.combat?.unspentPoints ?? 0) + autoStats.freePointsGained;
+
+        patches.push(
+          { path: `characters.${characterId}.combat.level`, value: autoStats.newLevel },
+          { path: `characters.${characterId}.combat.hp.max`, value: newHp },
+          { path: `characters.${characterId}.combat.hp.current`, value: newHp },
+          { path: `characters.${characterId}.combat.mp.max`, value: newMp },
+          { path: `characters.${characterId}.combat.mp.current`, value: newMp },
+          { path: `characters.${characterId}.combat.unspentPoints`, value: newUnspent },
+        );
+      }
+
+      const callId = `party-add-${Date.now().toString(36)}`;
+      const result = variableEngine.applyPatchSet({
+        current: varState,
+        envelope: {
+          request_id: `set-character-in-party-${characterId}`,
+          context_version: varState.version,
+          state_hash: varState.stateHash,
+          tool_call_id: callId,
+          bypassAllowlist: true,
+          patches,
+        },
+      });
+      await variableRepository.saveCurrent(result.next);
+    } else {
+      // Removing from party
+      const callId = `party-remove-${Date.now().toString(36)}`;
+      const result = variableEngine.applyPatchSet({
+        current: varState,
+        envelope: {
+          request_id: `remove-character-from-party-${characterId}`,
+          context_version: varState.version,
+          state_hash: varState.stateHash,
+          tool_call_id: callId,
+          bypassAllowlist: true,
+          patches: [
+            { path: `characters.${characterId}.inParty`, value: false },
+            { path: `characters.${characterId}.isVanguard`, value: false },
+          ],
+        },
+      });
+      await variableRepository.saveCurrent(result.next);
+    }
   }
 
   function createDbRecoveryRepositories(client: DbWorkerClient) {
@@ -554,42 +789,58 @@ export const useSessionStore = defineStore("session", () => {
 
     battleStore.startBattle(playerParty);
 
-    // Filter action menu to show only skills the current character has learned
-    const firstPlayer = playerParty.find((p) => p.side === "player" && p.characterId);
-    if (firstPlayer?.characterId && battleStore.activeBattle) {
-      const charSkills = learnedSkills.value.get(firstPlayer.characterId);
-      // Include innate skills (e.g. attack) from the character's definition
-      let availableIds: Set<string> | undefined;
-      try {
-        const char = getCharacter(firstPlayer.characterId);
-        const innate = new Set(char.innateSkills);
-        if (charSkills) {
-          charSkills.forEach((sid) => innate.add(sid));
-        }
-        availableIds = innate;
-      } catch {
-        availableIds = charSkills ?? undefined;
-      }
+    // Build availableSkillIds for each player participant
+    let battleItems: Record<string, number> | undefined;
 
-      // Further filter to equipped skills only (innate 1 always included)
-      const INNATE_IDS = new Set(["1"]);
-      try {
-        const varState = await variableRepository.getCurrent();
-        const equipped = varState?.root.characters[firstPlayer.characterId]?.equippedSkills ?? [];
-        const filtered = new Set<string>(INNATE_IDS);
-        for (const sid of equipped) {
-          if (availableIds?.has(sid)) filtered.add(sid);
+    if (battleStore.activeBattle) {
+      // Build skills for each player character
+      const varState = await variableRepository.getCurrent();
+
+      let firstPlayerSkills: Set<string> | undefined;
+
+      for (const player of playerParty) {
+        if (player.side !== "player" || !player.characterId) continue;
+
+        // Map "__player__" to "player" for content registry lookups
+        const contentId = player.characterId === "__player__" ? "player" : player.characterId;
+        const isProtagonist = player.characterId === "__player__";
+
+        // Get learned skills (keyed by content ID in learnedSkills map)
+        const charSkills = learnedSkills.value.get(contentId);
+        let availableIds: Set<string> | undefined;
+        try {
+          const char = getCharacterByName(contentId);
+          const innate = new Set(char.innateSkills);
+          if (charSkills) {
+            charSkills.forEach((sid) => innate.add(sid));
+          }
+          availableIds = innate;
+        } catch {
+          availableIds = charSkills ?? undefined;
         }
-        availableIds = filtered;
-      } catch {
-        // If variable state unavailable, fall back to learned set
+
+        // Further filter to equipped skills only (innate 1 always included)
+        const INNATE_IDS = new Set(["1"]);
+        if (varState) {
+          const equipped = isProtagonist
+            ? (varState.root.player.equippedSkills ?? [])
+            : (varState.root.characters[player.characterId]?.equippedSkills ?? []);
+          const filtered = new Set<string>(INNATE_IDS);
+          for (const sid of equipped) {
+            if (availableIds?.has(sid)) filtered.add(sid);
+          }
+          availableIds = filtered;
+        }
+
+        if (availableIds) {
+          player.availableSkillIds = availableIds;
+          if (!firstPlayerSkills) firstPlayerSkills = availableIds;
+        }
       }
 
       // Build battle items map from variable state inventory
-      let battleItems: Record<string, number> | undefined;
       try {
-        const vsItems = await variableRepository.getCurrent();
-        const inventory = vsItems?.root.inventory;
+        const inventory = varState?.root.inventory;
         if (inventory?.items) {
           const items = getAllItems();
           const battleMap = {} as Record<string, number>;
@@ -635,8 +886,11 @@ export const useSessionStore = defineStore("session", () => {
           });
           await variableRepository.saveCurrent(pr.next);
           if (battleStore.activeBattle) {
+            const actorId = battleStore.activeBattle.currentActorId;
+            const actor = battleStore.activeBattle.participants.find(p => p.id === actorId);
+            const actorSkills = actor?.availableSkillIds;
             battleStore.activeBattle.actionMenu = createDefaultBattleCommandMenuTree(
-              availableIds,
+              actorSkills ?? undefined,
               ub,
             );
           }
@@ -645,8 +899,8 @@ export const useSessionStore = defineStore("session", () => {
         }
       };
 
-      // Rebuild menu with battle items
-      battleStore.activeBattle.actionMenu = createDefaultBattleCommandMenuTree(availableIds, battleItems);
+      // Rebuild initial menu with first player's skills
+      battleStore.activeBattle.actionMenu = createDefaultBattleCommandMenuTree(firstPlayerSkills, battleItems);
     }
     gameEngineFacade.enterCombat();
     snapshot.value = gameEngineFacade.getSessionSnapshot();
@@ -689,6 +943,13 @@ export const useSessionStore = defineStore("session", () => {
     const result = await battleResultService.commitResolvedBattle(
       battleStore.activeBattle,
     );
+
+    // Apply rewards with idempotency guard
+    const encounterId = battleStore.activeBattle.encounterId;
+    if (!_appliedBattleRewardEncounters.has(encounterId)) {
+      _appliedBattleRewardEncounters.add(encounterId);
+      await applyBattleRewards(result.rewards);
+    }
 
     gameEngineFacade.markPostCombatReady();
     snapshot.value = gameEngineFacade.getSessionSnapshot();
@@ -1039,6 +1300,10 @@ export const useSessionStore = defineStore("session", () => {
     equipSkill,
     unequipSkill,
     equipAccessory,
+    applyBattleRewards,
+    allocatePoints,
+    patchVariables,
+    setCharacterInParty,
     configurePersistence,
     beginAiRequest,
     executeUpdateVariables,

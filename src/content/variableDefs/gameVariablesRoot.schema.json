@@ -511,6 +511,24 @@
           "x-aiWritableBy": ["update_character_state"],
           "x-aiContext": true
         },
+        "inParty": {
+          "type": "boolean",
+          "default": false,
+
+          "description": "是否在队伍中。仅在队伍中的角色参与战斗布局。",
+          "x-aiAccess": "read_write",
+          "x-aiWritableBy": ["update_character_state"],
+          "x-aiContext": true
+        },
+        "isVanguard": {
+          "type": "boolean",
+          "default": false,
+
+          "description": "是否处于前锋位置。前锋角色在战斗中优先行动或承受伤害。",
+          "x-aiAccess": "read_write",
+          "x-aiWritableBy": ["update_character_state"],
+          "x-aiContext": true
+        },
         "currentState": {
           "type": "string",
           "minLength": 0,

@@ -146,7 +146,7 @@ export class BattleResultService {
         const ctx = applyPassivesAtHook(passives, "on_exp_calc", { exp }) as { exp: number };
         exp = ctx.exp;
 
-        characterExp.set(player.id, exp);
+        characterExp.set(player.characterId ?? player.id, exp);
       }
     }
 

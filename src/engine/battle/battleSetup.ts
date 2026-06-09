@@ -172,6 +172,91 @@ export function createPlayerBattleParticipant(
   };
 }
 
+import type { GameVariablesRoot } from "@/types/variables";
+
+/**
+ * Build a BattleParticipant for the protagonist from player.combat variable state.
+ */
+export function createProtagonistBattleParticipant(
+  vars: GameVariablesRoot,
+): BattleParticipant {
+  const playerCombat = vars.player.combat;
+  const growth = getGrowth("player");
+  const params = getFormulaParams();
+  const derived = computeDerivedCombatStats(
+    playerCombat.agility,
+    params.hitRate,
+    params.critRate,
+  );
+
+  const displayName = vars.player.profile.name || "主角";
+
+  return {
+    id: "player-heroine-1",
+    side: "player",
+    displayName,
+    characterId: "__player__",
+    level: playerCombat.level,
+    hp: {
+      current: playerCombat.hp.current,
+      max: playerCombat.hp.max,
+    },
+    mp: {
+      current: playerCombat.mp.current,
+      max: playerCombat.mp.max,
+    },
+    attack: playerCombat.attack,
+    defense: playerCombat.defense,
+    agility: playerCombat.agility,
+    intelligence: playerCombat.intelligence,
+    isDown: false,
+    isActive: true,
+    statusEffects: [],
+    affinities: { weak: 0, resist: 0, nullify: 0, reflect: 0, absorb: 0 },
+    combatStats: derived,
+    skillIds: vars.player.equippedSkills ?? [],
+    passiveEffects: undefined,
+    canAct: true,
+  };
+}
+
+/**
+ * Build the full player party from variable state and formation data.
+ * Protagonist is always in vanguard slot 0.
+ */
+export function buildPlayerPartyFromFormation(
+  vars: GameVariablesRoot,
+  vanguardIds: string[],
+  growthIdOverrides?: Record<string, string>,
+): BattleParticipant[] {
+  const party: BattleParticipant[] = [];
+
+  // Protagonist is always first
+  party.push(createProtagonistBattleParticipant(vars));
+
+  // Add each vanguard character (skip "__player__" sentinel)
+  for (const charId of vanguardIds) {
+    if (charId === "__player__") continue;
+    const charData = vars.characters[charId];
+    if (!charData?.combat) continue;
+
+    const growthId = growthIdOverrides?.[charId] ?? "player";
+    const participant = createPlayerBattleParticipant(
+      charId,
+      charData.displayName,
+      charData.combat.level,
+      growthId,
+      charData.combat.allocatedPoints ?? { attack: 0, defense: 0, agility: 0, intelligence: 0 },
+      charId,
+      undefined,
+      charData.equippedSkills ?? [],
+    );
+    party.push(participant);
+  }
+
+  return party;
+}
+
 export function expandTriggerBattleEnemies(
   enemies: TriggerBattleEnemyInput[],
 ): BattleEnemyInstance[] {

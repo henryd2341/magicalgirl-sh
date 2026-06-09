@@ -2,6 +2,7 @@
 import {
   findBattleActionMenuNodeById,
   getBattleActionDefinition,
+  createDefaultBattleCommandMenuTree,
 } from "@/engine/battle/battleActionCatalog";
 import {
   resolveEnemyTurn,
@@ -193,6 +194,11 @@ export const useBattleStore = defineStore("battle", {
         this.onItemConsumed(this.activeBattle.consumedItemId);
         this.activeBattle.consumedItemId = null;
       }
+
+      // Rebuild menu for next player actor
+      if (this.activeBattle.currentActorId) {
+        this.rebuildActionMenuForActor(this.activeBattle.currentActorId);
+      }
     },
     resolveEnemyTurn() {
       if (this.activeBattle === null) {
@@ -200,6 +206,11 @@ export const useBattleStore = defineStore("battle", {
       }
 
       this.activeBattle = resolveEnemyTurn(this.activeBattle);
+
+      // Rebuild menu when turn returns to player
+      if (this.activeBattle.currentActorId) {
+        this.rebuildActionMenuForActor(this.activeBattle.currentActorId);
+      }
     },
     restoreBattleSnapshot(input: {
       pendingBattle?: PendingBattleSnapshot;
@@ -207,6 +218,16 @@ export const useBattleStore = defineStore("battle", {
     }) {
       this.pendingBattle = input.pendingBattle ?? null;
       this.activeBattle = input.activeBattle ?? null;
+    },
+    rebuildActionMenuForActor(actorId: string) {
+      if (this.activeBattle === null) return;
+      const actor = this.activeBattle.participants.find(p => p.id === actorId);
+      if (!actor) return;
+      const actorSkills = actor.availableSkillIds;
+      this.activeBattle.actionMenu = createDefaultBattleCommandMenuTree(
+        actorSkills,
+        undefined,
+      );
     },
   },
 });

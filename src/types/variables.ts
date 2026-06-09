@@ -65,6 +65,7 @@ export interface GameVariablesRoot {
     relationships: Record<string, number>;
     learnedSkills: Record<string, string[]>;
     flags: Record<string, boolean>;
+    equippedSkills?: string[];
   };
   characters: Record<
     string,
@@ -98,6 +99,7 @@ export interface GameVariablesRoot {
         unspentPoints: number;
       } | null;
       inParty?: boolean;
+      isVanguard?: boolean;
       flags?: Record<string, boolean>;
       equipment?: { accessory: string | null };
       equippedSkills?: string[];

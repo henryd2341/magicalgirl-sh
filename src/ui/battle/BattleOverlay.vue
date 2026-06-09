@@ -20,6 +20,8 @@ import type {
 } from "@/types/battle";
 import BattleCommandMenu from "@/ui/battle/BattleCommandMenu.vue";
 import BattleStatusPanel from "@/ui/battle/BattleStatusPanel.vue";
+import { useFormationStore } from "@/stores/formationStore";
+import { buildPlayerPartyFromFormation } from "@/engine/battle/battleSetup";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 
@@ -213,6 +215,21 @@ function cancelPendingBattle() {
   sessionStore.cancelPendingBattle();
 }
 
+const formationStore = useFormationStore();
+
+async function startPendingBattle() {
+  const vars = await sessionStore.getVariableSnapshot();
+  if (!vars?.root) {
+    // eslint-disable-next-line no-console
+    console.warn("[BattleOverlay] No variable state — cannot start battle.");
+    return;
+  }
+
+  const formation = await formationStore.getFormation();
+  const playerParty = buildPlayerPartyFromFormation(vars.root, formation.vanguard);
+  await sessionStore.startBattle(playerParty);
+}
+
 async function completeBattle() {
   await sessionStore.completeActiveBattle();
 }
@@ -311,6 +328,13 @@ function findBattleActionMenuNodeByActionId(
         <p v-if="pendingBattle?.narrativeReason" class="battle-overlay__reason">
           {{ pendingBattle.narrativeReason }}
         </p>
+        <button
+          type="button"
+          class="battle-overlay__phase-action battle-overlay__phase-action--primary"
+          @click="startPendingBattle"
+        >
+          开始战斗
+        </button>
         <button
           type="button"
           class="battle-overlay__phase-action"

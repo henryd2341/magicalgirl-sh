@@ -193,6 +193,7 @@ export interface BattleParticipant {
   passiveEffects?: import("@/types/content").PassiveEffectDef[];
   endureUsed?: boolean;
   skillIds?: string[];
+  availableSkillIds?: Set<string>;
 }
 
 export interface BattleResult {
@@ -252,6 +253,7 @@ export interface BattleActionMenuNode {
   actionId?: BattleActionId;
   contentId?: string;
   children?: BattleActionMenuNode[];
+  disabled?: boolean;
 }
 
 export interface AppliedStatusEffectPayload {

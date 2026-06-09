@@ -12,6 +12,33 @@ import type {
   StatusEffectTickResult,
 } from "@/types/content";
 
+// ── Level-up constants ──
+
+export const MAX_LEVEL = 99;
+
+export function expRequiredForLevel(level: number): number {
+  return level * level;
+}
+
+export function canLevelUp(currentLevel: number): boolean {
+  return currentLevel < MAX_LEVEL;
+}
+
+export function computeAutoLevelStats(
+  charLevel: number,
+  protagonistLevel: number,
+  perLevel: { hp: number; mp: number; freePoints?: number },
+): { newLevel: number; hpBonus: number; mpBonus: number; freePointsGained: number } | null {
+  if (charLevel >= protagonistLevel) return null;
+  const diff = protagonistLevel - charLevel;
+  return {
+    newLevel: protagonistLevel,
+    hpBonus: perLevel.hp * diff,
+    mpBonus: perLevel.mp * diff,
+    freePointsGained: (perLevel.freePoints ?? 0) * diff,
+  };
+}
+
 // ── Random utility ──
 
 function randomInRange(min: number, max: number): number {

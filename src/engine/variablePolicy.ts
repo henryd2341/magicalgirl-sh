@@ -33,12 +33,12 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         level: 1,
         exp: 0,
         hp: {
-          current: 20,
-          max: 20,
+          current: 60,
+          max: 60,
         },
         mp: {
-          current: 10,
-          max: 10,
+          current: 30,
+          max: 30,
         },
         attack: 5,
         defense: 5,
@@ -52,10 +52,11 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         },
         unspentPoints: 0,
       },
-      money: 0,
+      money: 500,
       equipment: {
         accessory: null,
       },
+      equippedSkills: [],
       relationships: {
         佐仓真央: 50,
       },
@@ -71,16 +72,17 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         relationshipTag: "同班同学，行动小组的前辈",
         awakeningStatus: "现役",
         inParty: true,
+        isVanguard: true,
         currentState: "在教室看漫画杂志",
         combat: {
           level: 1,
           exp: 0,
-          hp: { current: 20, max: 20 },
-          mp: { current: 10, max: 10 },
-          attack: 5,
-          defense: 5,
-          agility: 5,
-          intelligence: 5,
+          hp: { current: 50, max: 50 },
+          mp: { current: 40, max: 40 },
+          attack: 4,
+          defense: 4,
+          agility: 7,
+          intelligence: 7,
           allocatedPoints: {
             attack: 0,
             defense: 0,
@@ -162,12 +164,12 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         combat: {
           level: 1,
           exp: 0,
-          hp: { current: 20, max: 20 },
-          mp: { current: 10, max: 10 },
-          attack: 5,
-          defense: 5,
-          agility: 5,
-          intelligence: 5,
+          hp: { current: 50, max: 50 },
+          mp: { current: 40, max: 40 },
+          attack: 4,
+          defense: 4,
+          agility: 7,
+          intelligence: 7,
           allocatedPoints: {
             attack: 0,
             defense: 0,
@@ -191,12 +193,12 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         combat: {
           level: 1,
           exp: 0,
-          hp: { current: 20, max: 20 },
-          mp: { current: 10, max: 10 },
-          attack: 5,
-          defense: 5,
-          agility: 5,
-          intelligence: 5,
+          hp: { current: 50, max: 50 },
+          mp: { current: 40, max: 40 },
+          attack: 4,
+          defense: 4,
+          agility: 7,
+          intelligence: 7,
           allocatedPoints: {
             attack: 0,
             defense: 0,
@@ -220,12 +222,12 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         combat: {
           level: 1,
           exp: 0,
-          hp: { current: 20, max: 20 },
-          mp: { current: 10, max: 10 },
-          attack: 5,
-          defense: 5,
-          agility: 5,
-          intelligence: 5,
+          hp: { current: 50, max: 50 },
+          mp: { current: 40, max: 40 },
+          attack: 4,
+          defense: 4,
+          agility: 7,
+          intelligence: 7,
           allocatedPoints: {
             attack: 0,
             defense: 0,
@@ -296,7 +298,20 @@ function isAllowedPath(path: string): boolean {
     path.startsWith("player.learnedSkills.") ||
     (path.startsWith("characters.") &&
       (path.endsWith(".equipment.accessory") ||
-        path.endsWith(".equippedSkills")))
+        path.endsWith(".equippedSkills") ||
+        path.endsWith(".inParty") ||
+        path.endsWith(".isVanguard") ||
+        path.endsWith(".combat.level") ||
+        path.endsWith(".combat.hp.current") ||
+        path.endsWith(".combat.hp.max") ||
+        path.endsWith(".combat.mp.current") ||
+        path.endsWith(".combat.mp.max") ||
+        path.endsWith(".combat.attack") ||
+        path.endsWith(".combat.defense") ||
+        path.endsWith(".combat.agility") ||
+        path.endsWith(".combat.intelligence") ||
+        path.endsWith(".combat.allocatedPoints") ||
+        path.endsWith(".combat.unspentPoints")))
   );
 }
 
@@ -490,6 +505,64 @@ export function validateVariablePathPatch(
       throw createVariableError(
         "VARIABLE_SCHEMA_INVALID",
         `Accessory value must be a string or null: ${patch.path}`,
+      );
+    }
+    return;
+  }
+
+  // Character boolean fields
+  if (patch.path.endsWith(".inParty") || patch.path.endsWith(".isVanguard")) {
+    if (typeof patch.value !== "boolean") {
+      throw createVariableError(
+        "VARIABLE_SCHEMA_INVALID",
+        `Character flag value must be a boolean: ${patch.path}`,
+      );
+    }
+    return;
+  }
+
+  // Character combat integer fields
+  if (
+    patch.path.endsWith(".combat.level") ||
+    patch.path.endsWith(".combat.hp.current") ||
+    patch.path.endsWith(".combat.hp.max") ||
+    patch.path.endsWith(".combat.mp.current") ||
+    patch.path.endsWith(".combat.mp.max") ||
+    patch.path.endsWith(".combat.attack") ||
+    patch.path.endsWith(".combat.defense") ||
+    patch.path.endsWith(".combat.agility") ||
+    patch.path.endsWith(".combat.intelligence") ||
+    patch.path.endsWith(".combat.unspentPoints")
+  ) {
+    if (
+      typeof patch.value !== "number" ||
+      !Number.isInteger(patch.value) ||
+      patch.value < 0
+    ) {
+      throw createVariableError(
+        "VARIABLE_SCHEMA_INVALID",
+        `Character combat value must be a non-negative integer: ${patch.path}`,
+      );
+    }
+    return;
+  }
+
+  // Character combat.allocatedPoints object validation
+  if (patch.path.endsWith(".combat.allocatedPoints")) {
+    if (
+      !isPlainObject(patch.value) ||
+      typeof (patch.value as Record<string, unknown>).attack !== "number" ||
+      typeof (patch.value as Record<string, unknown>).defense !== "number" ||
+      typeof (patch.value as Record<string, unknown>).agility !== "number" ||
+      typeof (patch.value as Record<string, unknown>).intelligence !== "number" ||
+      !Number.isInteger((patch.value as Record<string, unknown>).attack) ||
+      !Number.isInteger((patch.value as Record<string, unknown>).defense) ||
+      !Number.isInteger((patch.value as Record<string, unknown>).agility) ||
+      !Number.isInteger((patch.value as Record<string, unknown>).intelligence)
+    ) {
+      throw createVariableError(
+        "VARIABLE_SCHEMA_INVALID",
+        `Allocated points must be an object with non-negative integer attack/defense/agility/intelligence: ${patch.path}`,
       );
     }
     return;
