@@ -14,6 +14,7 @@ import BattleOverlay from "@/ui/battle/BattleOverlay.vue";
 import CreditsModal from "@/ui/dev/CreditsModal.vue";
 import PromptViewerDrawer from "@/ui/dev/PromptViewerDrawer.vue";
 import SessionStateModal from "@/ui/dev/SessionStateModal.vue";
+import VariableEditor from "@/ui/dev/VariableEditor.vue";
 import FormationModal from "@/ui/formation/FormationModal.vue";
 import BgmPlayer from "@/ui/game/BgmPlayer.vue";
 import CharacterCard from "@/ui/game/CharacterCard.vue";
@@ -55,6 +56,7 @@ const formationInPartyChars = ref<InPartyCharacter[]>([]);
 const showCharacterBuild = ref(false);
 const promptViewerDrawerRef = ref();
 const showStateModal = ref(false);
+const showVariableEditor = ref(false);
 
 // ── Theme & PixiJS settings (read from localStorage, kept reactive for template) ──
 const activeTheme = ref(window.localStorage.getItem("mg-theme") || "e-girl");
@@ -291,8 +293,10 @@ onUnmounted(() => {
       >
         <i class="fas fa-eye"></i> 查看提示词
       </button>
-      <!-- TODO: 等待实现 — 变量修改器 -->
-      <button class="mg-btn mg-btn--sm mg-btn--ghost">
+      <button
+        class="mg-btn mg-btn--sm mg-btn--ghost"
+        @click="showVariableEditor = true"
+      >
         <i class="fas fa-code"></i> 变量修改器
       </button>
       <!-- TODO: 等待实现 — 日志列表 -->
@@ -322,6 +326,7 @@ onUnmounted(() => {
     <PromptViewerDrawer ref="promptViewerDrawerRef" />
 
     <SessionStateModal v-if="showStateModal" @close="showStateModal = false" />
+    <VariableEditor v-if="showVariableEditor" @close="showVariableEditor = false" />
 
     <CreditsModal v-if="showCreditsModal" @close="showCreditsModal = false" />
 
