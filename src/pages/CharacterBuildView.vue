@@ -108,7 +108,7 @@ function close() {
       <button class="mg-modal__close" @click="close">
         <i class="fas fa-times"></i>
       </button>
-      <h2 class="mg-modal__title">角色Build</h2>
+      <h2 class="mg-modal__title">角色构筑</h2>
 
       <!-- Loading -->
       <div v-if="loading" class="character-build__loading">
