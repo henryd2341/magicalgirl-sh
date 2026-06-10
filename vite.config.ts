@@ -16,6 +16,12 @@ export default defineConfig({
       "Cross-Origin-Embedder-Policy": "require-corp",
       "Cross-Origin-Opener-Policy": "same-origin",
     },
+    proxy: {
+      "/music": {
+        target: "https://tyrdamn.cc.cd",
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     headers: {

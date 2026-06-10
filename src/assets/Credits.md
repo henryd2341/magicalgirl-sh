@@ -32,7 +32,7 @@
 - CELLON. - 三日月シエスタ #`scene/007`
 - polycube - みやこわすれ #`scene/008`
 
-#### [\[[UNSP-0014]GrayScape\]](https://unisphere.tv/unsp0014/)
+#### [\[UNSP-0014\]GrayScape](https://unisphere.tv/unsp0014/)
 
 - HOUJIROU - X.Y.Z #`scene/009`
 - おみー　- Memories Sacrifice #`battle/005`
@@ -43,7 +43,7 @@
 
 - Frums - Zephyrs #`scene/011`
 
-#### [\[[UNSP-0016]あるくEP\]](https://unisphere.tv/unsp0016/)
+#### [\[UNSP-0016\]あるくEP](https://unisphere.tv/unsp0016/)
 
 - K.key - Midway #`scene/012`
 - Kaname Shigeyoshi - chasing a day #`scene/013`

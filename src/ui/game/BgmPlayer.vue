@@ -92,7 +92,8 @@ watch(
       resumeScene(undefined, true);
       wasInCombat = false;
     }
-  }
+  },
+  { immediate: true },
 );
 
 // ── Autoplay handling ──

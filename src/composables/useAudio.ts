@@ -4,6 +4,7 @@ import { MUSIC_BASE_URL } from "../env";
 // ─── Module-level singleton ────────────────────────────────────────────────────
 
 const audioElement = new window.Audio();
+audioElement.crossOrigin = "anonymous";
 const localStorage = window.localStorage;
 audioElement.preload = "metadata";
 
@@ -139,6 +140,23 @@ audioElement.addEventListener("pause", () => {
 
 audioElement.addEventListener("ended", () => {
   cycleNext();
+});
+
+audioElement.addEventListener("error", () => {
+  if (!MUSIC_BASE_URL) return;
+  if (!currentTrack.value) return;
+  const src = audioElement.src;
+  if (!src || !src.startsWith(MUSIC_BASE_URL)) return;
+
+  console.warn(
+    `[useAudio] 远程音频加载失败，回退到本地: ${src}`,
+  );
+  const key = `../assets/music/${currentCategory.value}/${currentTrack.value}.mp3`;
+  const localUrl = localGlobUrls[key];
+  if (localUrl) {
+    audioElement.src = localUrl;
+    audioElement.play().catch(() => {});
+  }
 });
 
 // Apply initial volume
