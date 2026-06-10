@@ -3,12 +3,9 @@ import {
   findBattleActionMenuNodeById,
   getBattleActionDefinition,
 } from "@/engine/battle/battleActionCatalog";
-import { getSkill, getStatusEffectMap } from "@/content/contentRegistry";
+import { getEnemy, getSkill, getStatusEffectMap } from "@/content/contentRegistry";
 import { useBattleStore } from "@/stores/battleStore";
 import { useSessionStore } from "@/stores/sessionStore";
-import avatarHeroine from "@/assets/avatars/transformed/女user.png";
-import spriteOne from "@/assets/sprites/bat1.png";
-import spriteTwo from "@/assets/sprites/bear1.png";
 import allyIcon from "@/assets/pressTurnIcon/allyIcon.svg";
 import allyIconBright from "@/assets/pressTurnIcon/allyIconBright.svg";
 import enemyIcon from "@/assets/pressTurnIcon/enemyIcon.svg";
@@ -25,13 +22,77 @@ import BattleStatusPanel from "@/ui/battle/BattleStatusPanel.vue";
 import { useFormationStore } from "@/stores/formationStore";
 import { buildPlayerPartyFromFormation } from "@/engine/battle/battleSetup";
 import { storeToRefs } from "pinia";
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 const battleStore = useBattleStore();
 const sessionStore = useSessionStore();
 const { pendingBattle, activeBattle } = storeToRefs(battleStore);
-const enemySprites = [spriteOne, spriteTwo];
-const partyAvatars = [avatarHeroine];
+const transformedAvatars = import.meta.glob(
+  "../../assets/avatars/transformed/*.png",
+  { eager: true, query: "?url", import: "default" },
+) as Record<string, string>;
+
+const allSprites = import.meta.glob("../../assets/sprites/*.png", {
+  eager: true,
+  query: "?url",
+  import: "default",
+}) as Record<string, string>;
+
+/**
+ * Chinese creature name -> English sprite filename (no extension).
+ * Maps CREATURE_1 / CREATURE_2 entries from generate_enemies.py to sprite files.
+ */
+const CREATURE_SPRITE_MAP: Record<string, string> = {
+  // CREATURE_1 (single char) — default variant uses bare name (no number)
+  "兽": "beast",
+  "蝶": "bug",
+  "蜥": "lizzard",
+  "蟒": "snake",
+  "鸟": "bird",
+  "鱼": "fish",
+  "龟": "turtle",
+  "牛": "cow",
+  "隼": "bird3",
+  "鹿": "deer",
+  "狐": "fox",
+  "犬": "dog",
+  "猫": "cat",
+  "兔": "rabbit",
+  "蟹": "crab2",
+  "蝎": "scorpion",
+  "熊": "bear1",
+  "豹": "leopard",
+  "蝠": "bat1",
+
+  // CREATURE_2 (two char) — more specific, tried first
+  "飞蛾": "bug2",
+  "巨蜥": "lizzard2",
+  "毒蛇": "snake2",
+  "猛禽": "bird2",
+  "海兽": "carb",
+  "陆龟": "turtle2",
+  "剑隼": "bird3",
+  "角马": "cow3",
+  "猎犬": "dog2",
+  "影猫": "cat2",
+  "白兔": "rabbit",
+  "巨蟹": "crab2",
+  "天鹅": "bird4",
+  "暴熊": "bear2",
+  "暗蝠": "bat2",
+  "坚龟": "turtle2",
+  "幻蛇": "snake3",
+  "巨兽": "beast",
+  "水母": "jellyfish",
+  "飞蛇": "snake5",
+  "鳞鱼": "fish2",
+  "刃龟": "turtle3",
+  "火鸟": "bird5",
+};
+
+const CREATURE_KEYS = Object.keys(CREATURE_SPRITE_MAP).sort(
+  (a, b) => b.length - a.length,
+);
 
 const pressTurnIconAssets = {
   player: { solid: allyIcon, bright: allyIconBright },
@@ -309,6 +370,17 @@ function cancelPendingBattle() {
 
 const formationStore = useFormationStore();
 
+const playerGender = ref<string>("女");
+
+onMounted(async () => {
+  try {
+    const vars = await sessionStore.getVariableSnapshot();
+    if (vars?.root?.player?.profile?.gender) {
+      playerGender.value = vars.root.player.profile.gender;
+    }
+  } catch { /* variable store not ready */ }
+});
+
 async function startPendingBattle() {
   const vars = await sessionStore.getVariableSnapshot();
   if (!vars?.root) {
@@ -316,6 +388,8 @@ async function startPendingBattle() {
     console.warn("[BattleOverlay] No variable state — cannot start battle.");
     return;
   }
+
+  playerGender.value = vars.root.player?.profile?.gender ?? "女";
 
   const formation = await formationStore.getFormation();
   const playerParty = buildPlayerPartyFromFormation(vars.root, formation.vanguard);
@@ -326,23 +400,47 @@ async function completeBattle() {
   await sessionStore.completeActiveBattle();
 }
 
-function getEnemySprite(index: number): string {
-  return enemySprites[index % enemySprites.length] ?? spriteOne;
+function getEnemySprite(displayName: string): string {
+  if (!displayName) return "";
+  for (const creature of CREATURE_KEYS) {
+    if (displayName.includes(creature)) {
+      const filename = CREATURE_SPRITE_MAP[creature];
+      for (const [key, url] of Object.entries(allSprites)) {
+        if (key.includes(filename)) {
+          return url;
+        }
+      }
+    }
+  }
+  return "";
 }
 
-function getPartyAvatar(index: number): string {
-  return partyAvatars[index % partyAvatars.length] ?? avatarHeroine;
+function getPartyAvatar(player: BattleParticipant): string {
+  if (!player.displayName) return "";
+  const targetFile = player.characterId === "__player__"
+    ? (playerGender.value === "男" ? "男user" : "女user")
+    : player.displayName;
+  for (const [key, url] of Object.entries(transformedAvatars)) {
+    if (key.includes(targetFile)) {
+      return url;
+    }
+  }
+  return "";
 }
 
-function getPendingEnemySprite(enemy: BattleEnemyInstance, index: number): string {
-  return getEnemySprite(index + enemy.enemyId.length);
+function getPendingEnemySprite(enemy: BattleEnemyInstance): string {
+  // BattleEnemyInstance.displayName is the enemyId, not the real name.
+  // Look up the enemy definition from the content registry for creature matching.
+  try {
+    const enemyDef = getEnemy(enemy.enemyId);
+    return getEnemySprite(enemyDef.name);
+  } catch {
+    return "";
+  }
 }
 
-function getActiveEnemySprite(
-  _enemy: BattleParticipant,
-  index: number,
-): string {
-  return getEnemySprite(index);
+function getActiveEnemySprite(enemy: BattleParticipant): string {
+  return getEnemySprite(enemy.displayName);
 }
 
 function findBattleActionMenuNodeByActionId(
@@ -413,7 +511,7 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
         >
           <img
             class="battle-enemy-card__sprite"
-            :src="getPendingEnemySprite(enemy, index)"
+            :src="getPendingEnemySprite(enemy)"
             :alt="`${enemy.displayName} sprite`"
           />
           <span class="battle-enemy-card__name">{{ enemy.displayName }}</span>
@@ -488,7 +586,7 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
         >
           <img
             class="battle-enemy-card__sprite"
-            :src="getActiveEnemySprite(enemy, index)"
+            :src="getActiveEnemySprite(enemy)"
             :alt="`${enemy.displayName} sprite`"
           />
           <span class="battle-enemy-card__level">LV {{ enemy.level ?? 1 }}</span>
@@ -531,7 +629,7 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
           >
             <img
               class="battle-party-card__avatar"
-              :src="getPartyAvatar(index)"
+              :src="getPartyAvatar(player)"
               :alt="`${player.displayName} avatar`"
             />
             <div class="battle-party-card__body">
@@ -596,7 +694,7 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
             >
               <img
                 class="battle-swap-popup__avatar"
-                :src="getPartyAvatar(activePlayers.indexOf(player))"
+                :src="getPartyAvatar(player)"
                 :alt="`${player.displayName} avatar`"
               />
               <span class="battle-swap-popup__name">{{ player.displayName }}</span>
