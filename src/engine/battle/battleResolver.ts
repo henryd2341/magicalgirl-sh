@@ -3,7 +3,7 @@ import { getBattleActionDefinition } from "@/engine/battle/battleActionCatalog";
 import {
   appendBattleLogs,
   createBattleResultLogEntry,
-  createEnemyAttackLogEntry,
+  createEnemySkillLogEntry,
   createPlayerActionLogEntry,
   createPlayerRoundStartLogEntry,
 } from "@/engine/battle/battleLogger";
@@ -51,6 +51,8 @@ import {
   getSkill,
   getStatusEffectMap,
 } from "@/content/contentRegistry";
+import { selectEnemyAction, type EnemyBehaviorType } from "@/engine/battle/enemyUtility";
+import { BATTLE_ELEMENTS } from "@/types/battle";
 import type {
   ActiveStatusEffect,
   AppliedStatusEffectPayload,
@@ -261,7 +263,7 @@ function hasGuardStatus(participant: BattleParticipant): boolean {
 
 // ── Core attack outcome builder ──
 
-interface BuildAttackOutcomesInput {
+export interface BuildAttackOutcomesInput {
   actorId: string;
   actor: BattleParticipant;
   targetId: string;
@@ -276,7 +278,7 @@ interface BuildAttackOutcomesInput {
   skillCategory?: "physical" | "magic" | "heal" | "support" | "passive";
 }
 
-function buildAttackOutcomes(
+export function buildAttackOutcomes(
   input: BuildAttackOutcomesInput,
 ): BattleActionOutcome[] {
   const params = getFormulaParams();
@@ -670,7 +672,6 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
     return snapshot;
   }
 
-  const params = getFormulaParams();
   const turnCount = snapshot.turnCount ?? 1;
   const enemyActors = snapshot.participants.filter(
     (p) =>
@@ -703,37 +704,69 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
 
   for (let index = 0; index < attackCount; index += 1) {
     const actor = enemyActors[index % enemyActors.length];
-    const target = selectEnemyTurnTarget(participants);
-    if (actor == null || target == null) break;
+    if (actor == null) break;
 
-    // Use formula engine for enemy damage
-    const actorAtk = actor.attack ?? 5;
-    const targetDef = target.defense ?? 5;
-    let damage = calculateDamage(
-      actorAtk,
-      actor.level ?? 1,
-      targetDef,
-      10, // basic attack power for enemies
-      1.0, // neutral affinity
-      params.damage,
+    // Use utility AI to select action + target
+    const scored = selectEnemyAction(
+      actor,
+      participants,
+      "aggressive", // default behavior; overridable via enemy content
     );
+    if (scored == null) break;
 
-    // Apply guard reduction
-    if (hasGuardStatus(target)) {
-      damage = calculateGuardReduction(damage, params.guard);
+    const { action, target } = scored;
+
+    if (action.targetType === "all_enemies" || action.targetType === "all_allies") {
+      // Multi-target: resolve against each valid target
+      const allTargets = participants.filter(
+        (p) => p.side !== actor.side && p.isActive && !p.isDown,
+      );
+      for (const t of allTargets) {
+        const outcomes = buildAttackOutcomes({
+          actorId: actor.id,
+          actor,
+          targetId: t.id,
+          target: t,
+          skillPower: action.basePower,
+          skillElement: action.element,
+          skillAccuracy: action.accuracy,
+          statDriver: action.statDriver,
+        });
+        for (const outcome of outcomes) {
+          participants = participants.map((p) =>
+            applyOutcomeToParticipant(p, outcome),
+          );
+        }
+        logs.push(
+          createEnemySkillLogEntry(
+            turnCount, actor, t, action.name, outcomes,
+          ),
+        );
+      }
+    } else {
+      // Single-target
+      const targetParticipant = participants.find((p) => p.id === target.id) ?? target;
+      const outcomes = buildAttackOutcomes({
+        actorId: actor.id,
+        actor,
+        targetId: targetParticipant.id,
+        target: targetParticipant,
+        skillPower: action.basePower,
+        skillElement: action.element,
+        skillAccuracy: action.accuracy,
+        statDriver: action.statDriver,
+      });
+      for (const outcome of outcomes) {
+        participants = participants.map((p) =>
+          applyOutcomeToParticipant(p, outcome),
+        );
+      }
+      logs.push(
+        createEnemySkillLogEntry(
+          turnCount, actor, targetParticipant, action.name, outcomes,
+        ),
+      );
     }
-
-    const nextHp = Math.max(0, target.hp.current - damage);
-    participants = participants.map((p) =>
-      p.id === target.id
-        ? {
-            ...p,
-            hp: { ...p.hp, current: nextHp },
-            isDown: nextHp === 0,
-          }
-        : p,
-    );
-    logs.push(createEnemyAttackLogEntry(turnCount, actor, target, damage));
   }
 
   // Tick status effects at round boundary

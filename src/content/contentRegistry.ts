@@ -102,6 +102,7 @@ const enemyContentSchema = z.object({
   skills: z.array(z.string()),
   expReward: z.number().int().min(0),
   moneyReward: z.number().int().min(0),
+  behaviorType: z.enum(["conservative", "aggressive", "chaotic"]).optional(),
 });
 
 const growthStatsSchema = z.object({

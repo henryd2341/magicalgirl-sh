@@ -86,6 +86,8 @@ export interface EnemyContent {
   skills: string[];
   expReward: number;
   moneyReward: number;
+  /** AI behavior type override. Defaults to "aggressive" if not set. */
+  behaviorType?: "conservative" | "aggressive" | "chaotic";
 }
 
 // ── Growth Content (one line in growth.jsonl) ──

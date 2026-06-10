@@ -1,4 +1,4 @@
-import { getEnemy, getFormulaParams, getGrowth } from "@/content/contentRegistry";
+import { getEnemy, getEnemySkillIds, getFormulaParams, getGrowth } from "@/content/contentRegistry";
 import {
   computeDerivedCombatStats,
   computeGrowthStats,
@@ -38,6 +38,8 @@ export function createEnemyBattleParticipant(
   let displayName = enemy.displayName;
   let affinities = { weak: 0, resist: 0, nullify: 0, reflect: 0, absorb: 0 };
 
+  let skillIds: string[] | undefined;
+
   try {
     const enemyDef = getEnemy(enemy.enemyId);
     level = enemyDef.baseLevel;
@@ -49,6 +51,7 @@ export function createEnemyBattleParticipant(
     intelligence = enemyDef.stats.intelligence;
     displayName = enemyDef.name;
     affinities = enemyDef.affinities;
+    skillIds = enemyDef.skills.length > 0 ? [...enemyDef.skills] : undefined;
   } catch {
     // Enemy not in content registry, use defaults
   }
@@ -59,6 +62,8 @@ export function createEnemyBattleParticipant(
     params.hitRate,
     params.critRate,
   );
+
+  const passiveEffects = resolvePassiveEffects(skillIds ?? []);
 
   return {
     id: enemy.instanceId,
@@ -82,6 +87,8 @@ export function createEnemyBattleParticipant(
     statusEffects: [],
     affinities,
     combatStats: derived,
+    skillIds,
+    passiveEffects: passiveEffects.length > 0 ? passiveEffects : undefined,
     canAct: true,
   };
 }
