@@ -30,7 +30,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         past: "",
       },
       combat: {
-        level: 16,
+        level: 1,
         exp: 0,
         hp: {
           current: 60,
@@ -52,7 +52,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
         },
         unspentPoints: 45,
       },
-      money: 50000,
+      money: 5000,
       equipment: {
         accessory: null,
       },

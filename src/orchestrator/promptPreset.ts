@@ -6,11 +6,80 @@ import { deepClone } from "@/utils/deepClone";
 
 const STORAGE_KEY = "magicalgirl-sh.prompt-preset.v1";
 
+export interface ChainOfThoughtConfig {
+  enabled: boolean;
+  template: string;
+  style: "prefix" | "suffix";
+  placement: "system_message" | "replace_user_input";
+  prefillText: string;
+  beautifyTagName: string;
+}
+
+const DEFAULT_COT_TEMPLATE_PREFIX = [
+  "**输出准则：**",
+  "- 你的输出以 <thinking> 开始，在 <thinking></thinking> 块中完成创作前的检查",
+  "- 你必须检查以下关键内容：",
+  " 1. 当前处于何种场景？",
+  " 2. 场景中存在哪些人物？",
+  " 3. 从玩家输入中能得到哪些信息？{{user}}是否有行动？",
+  " 4. 其他已经存在的人物将会做出何种行动？",
+  " 5. 是否有必要引入新的主要人物？新人物只作为提及还是会正式加入场景并做出行动？",
+  " 6. 当前场景是否命中了某个skill的description？",
+  " 7. 会有哪些变量发生变化？合理的新值是什么？",
+  "- 检查完之后结束思考，开始输出正文和调用相关工具",
+  "- 你输出的正文必须由 <content></content> 标签包裹",
+  "",
+  "下面是本轮叙事中的玩家输入",
+  "<UserInput>",
+  "{{userInput}}",
+  "</UserInput>",
+].join("\n");
+
+const DEFAULT_COT_TEMPLATE_SUFFIX = [
+  "<UserInput>",
+  "{{userInput}}",
+  "</UserInput>",
+  "",
+  "上面是本轮叙事中的玩家输入",
+  "",
+  "**输出准则：**",
+  "- 你的输出以 <thinking> 开始，在 <thinking></thinking> 块中完成创作前的检查",
+  "- 你必须检查以下关键内容：",
+  " 1. 当前处于何种场景？",
+  " 2. 场景中存在哪些人物？",
+  " 3. 从玩家输入中能得到哪些信息？{{user}}是否有行动？",
+  " 4. 其他已经存在的人物将会做出何种行动？",
+  " 5. 是否有必要引入新的主要人物？新人物只作为提及还是会正式加入场景并做出行动？",
+  " 6. 当前场景是否命中了某个skill的description？",
+  " 7. 会有哪些变量发生变化？合理的新值是什么？",
+  "- 检查完之后结束思考，开始输出正文和调用相关工具",
+  "- 你输出的正文必须由 <content></content> 标签包裹",
+  "",
+].join("\n");
+
+export const DEFAULT_CHAIN_OF_THOUGHT_CONFIG: ChainOfThoughtConfig = {
+  enabled: false,
+  template: DEFAULT_COT_TEMPLATE_PREFIX,
+  style: "prefix",
+  placement: "system_message",
+  prefillText: "Parsley明白了，先思考：<thinking>",
+  beautifyTagName: "thinking",
+};
+
+export const COT_TEMPLATE_PRESETS: Record<
+  ChainOfThoughtConfig["style"],
+  string
+> = {
+  prefix: DEFAULT_COT_TEMPLATE_PREFIX,
+  suffix: DEFAULT_COT_TEMPLATE_SUFFIX,
+};
+
 export interface PromptPresetConfig {
   systemPrompt: string;
   maxTotalTokens: number;
   previewMustacheVariables: boolean;
   updatedAt: string;
+  customChainOfThought: ChainOfThoughtConfig;
 }
 
 interface LegacyPromptPresetConfig {
@@ -48,6 +117,7 @@ export function createDefaultPromptPresetConfig(
     maxTotalTokens: createDefaultContextBudget().maxTotalTokens,
     previewMustacheVariables: false,
     updatedAt: now,
+    customChainOfThought: { ...DEFAULT_CHAIN_OF_THOUGHT_CONFIG },
   };
 }
 
@@ -56,21 +126,21 @@ function normalizeConfig(
   updatedAt: string,
 ): PromptPresetConfig {
   const maxTotalTokens =
-    "budget" in config
-      ? config.budget.maxTotalTokens
-      : config.maxTotalTokens;
+    "budget" in config ? config.budget.maxTotalTokens : config.maxTotalTokens;
 
   return {
     systemPrompt: config.systemPrompt,
     maxTotalTokens: Number(maxTotalTokens),
     previewMustacheVariables: config.previewMustacheVariables ?? false,
     updatedAt,
+    customChainOfThought:
+      "customChainOfThought" in config
+        ? config.customChainOfThought
+        : { ...DEFAULT_CHAIN_OF_THOUGHT_CONFIG },
   };
 }
 
-export class InMemoryPromptPresetRepository
-  implements PromptPresetRepository
-{
+export class InMemoryPromptPresetRepository implements PromptPresetRepository {
   private current: PromptPresetConfig | null = null;
 
   private readonly now: () => string;
@@ -95,9 +165,7 @@ export class InMemoryPromptPresetRepository
   }
 }
 
-export class LocalStoragePromptPresetRepository
-  implements PromptPresetRepository
-{
+export class LocalStoragePromptPresetRepository implements PromptPresetRepository {
   private readonly now: () => string;
 
   public constructor(options: PromptPresetRepositoryOptions = {}) {

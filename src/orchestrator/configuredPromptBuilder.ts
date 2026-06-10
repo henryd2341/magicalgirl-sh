@@ -23,5 +23,6 @@ export async function buildConfiguredHarnessRequest(
       maxTotalTokens: preset.maxTotalTokens,
     },
     skillMetadata: input.skillMetadata,
+    customChainOfThought: preset.customChainOfThought,
   });
 }

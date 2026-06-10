@@ -5,6 +5,7 @@ import { renderMarkdown } from "@/composables/useMarkdown";
 
 const props = defineProps<{
   messages: ChatMessage[];
+  beautifyTagName?: string;
 }>();
 
 const expandedReasoning = ref<Record<string, boolean>>({});
@@ -50,6 +51,24 @@ function getRoleLabel(message: ChatMessage): string {
   }
 
   return "系统";
+}
+
+function beautifyRawContent(rawText: string, tagName: string): string {
+  if (!tagName) return rawText;
+  const escaped = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(
+    `<${escaped}>\\s?([\\s\\S]*?)\\s?</${escaped}>`,
+    'g',
+  );
+  return rawText.replace(regex, '<div class="cot-fold">$1</div>');
+}
+
+function renderMessageContent(message: ChatMessage): string {
+  let content = message.content;
+  if (message.role === "assistant" && props.beautifyTagName) {
+    content = beautifyRawContent(content, props.beautifyTagName);
+  }
+  return renderMarkdown(content);
 }
 </script>
 
@@ -108,8 +127,20 @@ function getRoleLabel(message: ChatMessage): string {
             {{ getStatusLabel(message) }}
           </span>
         </div>
-        <div class="chat-message-card__content" v-html="renderMarkdown(message.content)" />
+        <div class="chat-message-card__content" v-html="renderMessageContent(message)" />
       </li>
     </ol>
   </section>
 </template>
+
+<style scoped>
+.chat-message-card__content :deep(.cot-fold) {
+  border-left: 3px solid var(--color-accent, #c2185b);
+  padding: 0.5em 1em;
+  margin: 0.5em 0;
+  background: var(--color-surface-2, rgba(255, 255, 255, 0.05));
+  border-radius: 4px;
+  font-style: italic;
+  color: var(--color-text-secondary, #999);
+}
+</style>

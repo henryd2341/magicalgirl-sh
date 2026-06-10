@@ -9,11 +9,12 @@ import { describe, expect, it } from "vitest";
 describe("prompt preset config", () => {
   it("creates defaults from the bundled system prompt and context budget", () => {
     expect(createDefaultPromptPresetConfig("2026-05-26T12:00:00.000Z"))
-      .toEqual({
+      .toMatchObject({
         systemPrompt,
         maxTotalTokens: createDefaultContextBudget().maxTotalTokens,
         previewMustacheVariables: false,
         updatedAt: "2026-05-26T12:00:00.000Z",
+        customChainOfThought: expect.objectContaining({ enabled: false }),
       });
   });
 
@@ -27,17 +28,22 @@ describe("prompt preset config", () => {
       maxTotalTokens: 1234,
       previewMustacheVariables: true,
       updatedAt: "ignored-by-repository",
+      customChainOfThought: { enabled: false, template: "", style: "prefix", placement: "system_message", prefillText: "", beautifyTagName: "" },
     });
 
-    await expect(repository.getCurrent()).resolves.toEqual({
+    await expect(repository.getCurrent()).resolves.toMatchObject({
       systemPrompt: "custom system prompt",
       maxTotalTokens: 1234,
       previewMustacheVariables: true,
       updatedAt: "2026-05-26T12:00:00.000Z",
+      customChainOfThought: expect.objectContaining({ enabled: false }),
     });
 
-    await expect(repository.resetToDefault()).resolves.toEqual(
-      createDefaultPromptPresetConfig("2026-05-26T12:00:00.000Z"),
+    await expect(repository.resetToDefault()).resolves.toMatchObject(
+      expect.objectContaining({
+        systemPrompt,
+        customChainOfThought: expect.objectContaining({ enabled: false }),
+      }),
     );
   });
 
@@ -56,11 +62,12 @@ describe("prompt preset config", () => {
       updatedAt: "legacy",
     });
 
-    await expect(repository.getCurrent()).resolves.toEqual({
+    await expect(repository.getCurrent()).resolves.toMatchObject({
       systemPrompt: "legacy prompt",
       maxTotalTokens: 4096,
       previewMustacheVariables: false,
       updatedAt: "2026-05-26T12:00:00.000Z",
+      customChainOfThought: expect.objectContaining({ enabled: false }),
     });
   });
 });

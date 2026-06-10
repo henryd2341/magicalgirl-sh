@@ -15,6 +15,7 @@ describe("configured Harness request builder", () => {
       maxTotalTokens: 2048,
       previewMustacheVariables: false,
       updatedAt: "ignored",
+      customChainOfThought: { enabled: false, template: "", style: "prefix", placement: "system_message", prefillText: "", beautifyTagName: "" },
     });
 
     const request = await buildConfiguredHarnessRequest({

@@ -25,6 +25,7 @@ import type {
 } from "@/persistence/repositories/worldInfoRepository";
 import type { ChatMessage } from "@/types/chat";
 import type { PreviousValueMap, VariableValueRecord } from "@/types/variables";
+import type { ChainOfThoughtConfig } from "@/orchestrator/promptPreset";
 
 export interface BuildHarnessRequestInput {
   chatRepository: ChatHistoryRepository;
@@ -39,6 +40,7 @@ export interface BuildHarnessRequestInput {
   mustacheVariables?: Record<string, string | number | boolean | null>;
   skillMetadata?: SkillMetadata[];
   previousValues?: PreviousValueMap;
+  customChainOfThought?: ChainOfThoughtConfig;
 }
 
 interface SelectedWorldInfo {
@@ -287,10 +289,16 @@ function renderToolDefinitions(tools: ProviderToolDefinition[]): string {
 function buildMessages(
   segments: PromptSegment[],
   historyMessages: ChatMessage[],
+  cotSystemMessage?: string,
+  cotPrefill?: string,
 ): ProviderMessage[] {
   const systemMessages: ProviderMessage[] = segments
     .filter((item) => item.included && item.kind !== "history")
     .map((item) => ({ role: "system" as const, content: item.content }));
+
+  if (cotSystemMessage) {
+    systemMessages.push({ role: "system", content: cotSystemMessage });
+  }
 
   const historyProviderMessages: ProviderMessage[] = historyMessages.map(
     (message) => ({
@@ -299,7 +307,13 @@ function buildMessages(
     }),
   );
 
-  return [...systemMessages, ...historyProviderMessages];
+  const result = [...systemMessages, ...historyProviderMessages];
+
+  if (cotPrefill) {
+    result.push({ role: "assistant", content: cotPrefill });
+  }
+
+  return result;
 }
 
 function joinPromptText(segments: PromptSegment[]): string {
@@ -452,6 +466,32 @@ export async function buildHarnessRequest(
     }
   }
 
+  // Pre-render CoT template for injection
+  let cotSystemMessage: string | undefined;
+  let cotPrefill: string | undefined;
+  if (input.customChainOfThought?.enabled && input.userInput) {
+    const rendered = input.customChainOfThought.template.replace(
+      /\{\{userInput\}\}/g,
+      input.userInput,
+    );
+    if (input.customChainOfThought.placement === "system_message") {
+      cotSystemMessage = rendered;
+    }
+    if (input.customChainOfThought.prefillText) {
+      cotPrefill = input.customChainOfThought.prefillText;
+    }
+
+    // Inject a trace segment so CoT is visible in Prompt Viewer.
+    // MUST be pushed BEFORE applyContextBudget() so it appears in budgeted.segments.
+    segments.push(segment({
+      id: "cot_injection",
+      kind: "summary",
+      title: "Custom Chain of Thought",
+      content: `[CoT enabled] style=${input.customChainOfThought.style} placement=${input.customChainOfThought.placement}`,
+      source: "promptPreset",
+    }));
+  }
+
   const budgeted = applyContextBudget({
     segments,
     budget,
@@ -473,6 +513,20 @@ export async function buildHarnessRequest(
     ]),
   });
 
+  // Handle replace_user_input: modify the last user message in historyMessages
+  if (input.customChainOfThought?.enabled && input.customChainOfThought.placement === "replace_user_input") {
+    const rendered = input.customChainOfThought.template.replace(
+      /\{\{userInput\}\}/g,
+      input.userInput ?? "",
+    );
+    for (let i = historyMessages.length - 1; i >= 0; i--) {
+      if (historyMessages[i].role === "user") {
+        historyMessages[i] = { ...historyMessages[i], content: rendered };
+        break;
+      }
+    }
+  }
+
   return {
     metadata: {
       request_id: input.requestId,
@@ -482,7 +536,7 @@ export async function buildHarnessRequest(
     },
     segments: budgeted.segments,
     traces: [...selectedWorldInfo.traces, ...budgeted.traces],
-    messages: buildMessages(budgeted.segments, historyMessages),
+    messages: buildMessages(budgeted.segments, historyMessages, cotSystemMessage, cotPrefill),
     tools,
     promptText: joinPromptText(budgeted.segments),
   };

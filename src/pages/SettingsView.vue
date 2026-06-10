@@ -5,6 +5,8 @@ import { renderMustacheTemplate } from "@/orchestrator/mustacheTemplate";
 import {
   createDefaultPromptPresetConfig,
   getPromptPresetRepository,
+  DEFAULT_CHAIN_OF_THOUGHT_CONFIG,
+  COT_TEMPLATE_PRESETS,
   type PromptPresetConfig,
 } from "@/orchestrator/promptPreset";
 import { getChatPersistenceClient } from "@/persistence/chatRuntime";
@@ -26,7 +28,7 @@ const router = useRouter();
 const repository = getPromptPresetRepository();
 const skillStore = useSkillStore();
 const statusMessage = ref("");
-const activeTab = ref<"prompt" | "skills">("prompt");
+const activeTab = ref<"prompt" | "skills" | "cot">("prompt");
 const variableState = ref<VariableValueRecord>(
   new VariableEngine().createInitialState(),
 );
@@ -47,6 +49,8 @@ function applyConfig(config: PromptPresetConfig): void {
   form.maxTotalTokens = config.maxTotalTokens;
   form.previewMustacheVariables = config.previewMustacheVariables;
   form.updatedAt = config.updatedAt;
+  form.customChainOfThought = config.customChainOfThought
+    ?? { ...DEFAULT_CHAIN_OF_THOUGHT_CONFIG };
 }
 
 function toEditableWorldInfoEntry(entry: WorldInfoEntry): EditableWorldInfoEntry {
@@ -144,6 +148,7 @@ async function savePromptPreset() {
     maxTotalTokens: Number(form.maxTotalTokens),
     previewMustacheVariables: form.previewMustacheVariables,
     updatedAt: form.updatedAt,
+    customChainOfThought: form.customChainOfThought,
   });
   const client = getChatPersistenceClient();
   if (client) {
@@ -160,6 +165,11 @@ async function savePromptPreset() {
 async function resetPromptPreset() {
   applyConfig(await repository.resetToDefault());
   statusMessage.value = "Prompt 设置已恢复默认。";
+}
+
+function onCotStyleChange(): void {
+  form.customChainOfThought.template =
+    COT_TEMPLATE_PRESETS[form.customChainOfThought.style];
 }
 
 onMounted(async () => {
@@ -191,6 +201,14 @@ onMounted(async () => {
           @click="activeTab = 'skills'"
         >
           技能 (Skills)
+        </button>
+        <button
+          class="secondary-cta"
+          :class="{ 'primary-cta': activeTab === 'cot' }"
+          type="button"
+          @click="activeTab = 'cot'"
+        >
+          自定义思维链
         </button>
       </nav>
 
@@ -369,6 +387,111 @@ onMounted(async () => {
       </template>
 
       <SkillSettingsPanel v-if="activeTab === 'skills'" />
+
+      <template v-if="activeTab === 'cot'">
+        <form class="settings-view__form" @submit.prevent="savePromptPreset">
+          <label class="chat-input-box__label settings-view__checkbox-label" for="cot-enabled">
+            <input
+              id="cot-enabled"
+              v-model="form.customChainOfThought.enabled"
+              type="checkbox"
+            />
+            启用自定义思维链
+          </label>
+
+          <p v-if="form.customChainOfThought.enabled" class="settings-view__hint">
+            在每次 AI 请求中动态注入思维链引导提示词。
+            模板中使用 <code> userInput </code> 代表玩家输入的位置。
+          </p>
+
+          <template v-if="form.customChainOfThought.enabled">
+            <div class="settings-view__budget-grid">
+              <label class="chat-input-box__label" for="cot-style">
+                模板预设
+                <select
+                  id="cot-style"
+                  v-model="form.customChainOfThought.style"
+                  class="settings-view__text-input"
+                  @change="onCotStyleChange"
+                >
+                  <option value="prefix">头插法（规则 → 玩家输入）</option>
+                  <option value="suffix">尾插法（玩家输入 → 规则）</option>
+                </select>
+              </label>
+
+              <label class="chat-input-box__label" for="cot-placement">
+                注入方式
+                <select
+                  id="cot-placement"
+                  v-model="form.customChainOfThought.placement"
+                  class="settings-view__text-input"
+                >
+                  <option value="system_message">独立系统消息</option>
+                  <option value="replace_user_input">替换用户输入</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="chat-input-box__label" for="cot-template">
+              思维链模板
+              <textarea
+                id="cot-template"
+                v-model="form.customChainOfThought.template"
+                class="settings-view__textarea"
+                rows="10"
+              />
+            </label>
+
+            <label class="chat-input-box__label" for="cot-prefill">
+              助手预填充（可选，用于引导 AI 回复开头）
+              <input
+                id="cot-prefill"
+                v-model="form.customChainOfThought.prefillText"
+                class="settings-view__text-input"
+                type="text"
+                placeholder="例如：以thinking标签开始：<thinking>"
+              />
+            </label>
+
+            <label class="chat-input-box__label" for="cot-beautify-tag">
+              美化标签名（助手回复中的 &lt;标签名&gt; 会被转换为折叠块）
+              <input
+                id="cot-beautify-tag"
+                v-model="form.customChainOfThought.beautifyTagName"
+                class="settings-view__text-input"
+                type="text"
+                placeholder="thinking"
+              />
+            </label>
+          </template>
+
+          <p v-if="statusMessage" role="status">{{ statusMessage }}</p>
+
+          <div class="settings-view__actions">
+            <button id="settings-save-cot" class="primary-cta" type="submit">
+              保存 思维链 设置
+            </button>
+            <button
+              id="settings-reset-cot"
+              class="secondary-cta"
+              type="button"
+              @click="resetPromptPreset"
+            >
+              恢复默认
+            </button>
+          </div>
+        </form>
+        <div class="settings-view__actions">
+          <button
+            id="settings-return-game-cot"
+            class="secondary-cta"
+            type="button"
+            @click="returnToGame"
+          >
+            返回主游戏
+          </button>
+        </div>
+      </template>
     </section>
   </main>
 </template>

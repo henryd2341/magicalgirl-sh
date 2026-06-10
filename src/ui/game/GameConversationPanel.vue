@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { getPromptPresetRepository } from "@/orchestrator/promptPreset";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import ChatMessageList from "@/ui/chat/ChatMessageList.vue";
 import FailedDraftActions from "@/ui/chat/FailedDraftActions.vue";
 import { storeToRefs } from "pinia";
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 const chatStore = useChatStore();
 const sessionStore = useSessionStore();
@@ -12,6 +13,7 @@ const { messages } = storeToRefs(chatStore);
 const recoveryStatus = ref<string | null>(null);
 const recoveryError = ref<string | null>(null);
 const isRollingBack = ref(false);
+const cotBeautifyTagName = ref<string | undefined>();
 
 const visibleMessages = computed(() => {
   return messages.value.filter((message) => message.user_visible);
@@ -42,11 +44,19 @@ async function rollbackLatestFailedDraft() {
     isRollingBack.value = false;
   }
 }
+
+onMounted(async () => {
+  const preset = await getPromptPresetRepository().getCurrent();
+  const cot = preset.customChainOfThought;
+  if (cot?.enabled && cot.beautifyTagName) {
+    cotBeautifyTagName.value = cot.beautifyTagName;
+  }
+});
 </script>
 
 <template>
   <section id="game-conversation-panel" class="game-conversation-panel">
-    <ChatMessageList :messages="visibleMessages" />
+    <ChatMessageList :messages="visibleMessages" :beautify-tag-name="cotBeautifyTagName" />
     <FailedDraftActions
       v-if="latestFailedDraftId"
       :message-id="latestFailedDraftId"
