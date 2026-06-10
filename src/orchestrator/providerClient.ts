@@ -69,10 +69,11 @@ export class FakeStreamingProviderClient implements ProviderClient {
   private readonly error: Error | null;
 
   public constructor(input: FakeStreamingProviderClientInput) {
-    this.textChunks =
-      input.textChunks ?? [
-        "战斗后的空气慢慢安静下来，新的选择浮现在你面前。",
-      ];
+    this.textChunks = input.textChunks ?? [
+      "四周的空气突然变得凝重...",
+      "暗影中有什么正在靠近。",
+      "\n\n你迅速环顾四周，摆出战斗姿态——一场恶战在所难免！",
+    ];
     this.toolCalls = input.toolCalls ?? DEFAULT_FAKE_TOOL_CALLS;
     this.toolResults = input.toolResults ?? [];
     this.onExecuteTools = input.onExecuteTools ?? null;

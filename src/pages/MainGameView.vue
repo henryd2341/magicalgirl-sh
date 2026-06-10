@@ -24,6 +24,7 @@ import GameTopBar from "@/ui/game/GameTopBar.vue";
 import SceneThumbnail from "@/ui/game/SceneThumbnail.vue";
 import WorldInfo from "@/ui/game/WorldInfo.vue";
 import PostCombatPanel from "@/ui/session/PostCombatPanel.vue";
+import PendingBattleBar from "@/ui/session/PendingBattleBar.vue";
 import SystemSettingsPanel from "@/ui/settings/SystemSettingsPanel.vue";
 import { storeToRefs } from "pinia";
 import { computed, onMounted, onUnmounted, ref } from "vue";
@@ -95,12 +96,14 @@ const showSaveReminder = ref(false);
 
 // ── Battle / post-combat visibility ──
 const shouldShowBattleOverlay = computed(() => {
-  const isPending =
+  return snapshot.value.sessionState === "IN_COMBAT" && activeBattle.value !== null;
+});
+
+const shouldShowPendingBattleBar = computed(() => {
+  return (
     snapshot.value.sessionState === "COMBAT_PENDING" &&
-    pendingBattle.value !== null;
-  const isActive =
-    snapshot.value.sessionState === "IN_COMBAT" && activeBattle.value !== null;
-  return isPending || isActive;
+    pendingBattle.value !== null
+  );
 });
 
 const shouldShowPostCombatPanel = computed(() => {
@@ -252,6 +255,7 @@ onUnmounted(() => {
           <GameConversationPanel />
         </div>
         <PostCombatPanel v-if="shouldShowPostCombatPanel" />
+        <PendingBattleBar v-if="shouldShowPendingBattleBar" />
         <GameInputDock />
       </section>
 
