@@ -58,7 +58,14 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
       },
       equippedSkills: [],
       relationships: {
-        佐仓真央: 50,
+        佐仓真央: 10,
+        榊原琉音: 5,
+        榊原千夏: 5,
+        国津燕: 0,
+        永江铃奈: 0,
+        盐田堇子: 0,
+        石崎真纱: 1,
+        青井霞: 0,
       },
       learnedSkills: {},
       flags: {
@@ -554,7 +561,8 @@ export function validateVariablePathPatch(
       typeof (patch.value as Record<string, unknown>).attack !== "number" ||
       typeof (patch.value as Record<string, unknown>).defense !== "number" ||
       typeof (patch.value as Record<string, unknown>).agility !== "number" ||
-      typeof (patch.value as Record<string, unknown>).intelligence !== "number" ||
+      typeof (patch.value as Record<string, unknown>).intelligence !==
+        "number" ||
       !Number.isInteger((patch.value as Record<string, unknown>).attack) ||
       !Number.isInteger((patch.value as Record<string, unknown>).defense) ||
       !Number.isInteger((patch.value as Record<string, unknown>).agility) ||

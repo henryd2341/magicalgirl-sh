@@ -21,7 +21,7 @@ function returnToTitle() {
     class="mg-topbar"
     aria-label="主游戏顶部栏"
   >
-    <span class="mg-topbar__title">MagicalGirl Shell</span>
+    <span class="mg-topbar__title" data-text="SWEET HEART">SWEET HEART</span>
     <nav class="mg-topbar__actions" aria-label="主游戏快捷操作">
       <button class="mg-topbar__btn" title="背包" type="button">
         <i class="fas fa-backpack"></i>
@@ -80,7 +80,7 @@ function returnToTitle() {
 
 .mg-topbar__title {
   font-family: var(--mg-font-heading, "Fredoka", sans-serif);
-  font-size: 1rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: var(--mg-accent, #ff6b9d);
 }

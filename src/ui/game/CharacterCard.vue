@@ -66,9 +66,18 @@
                 <span class="mg-character-card__bar-value">{{ card.combat.mp.current }}/{{ card.combat.mp.max }}</span>
               </div>
             </div>
-            <!-- NPC: just a subtle role tag -->
-            <div v-else-if="!card.isPlayer && card.roleTag" class="mg-character-card__role-tag">
-              {{ card.roleTag }}
+            <!-- NPC: relationship bar -->
+            <div v-else-if="!card.isPlayer" class="mg-character-card__bars mg-character-card__bars--npc">
+              <div class="mg-character-card__bar">
+                <span class="mg-character-card__bar-label">好感</span>
+                <div class="mg-character-card__bar-track">
+                  <div
+                    class="mg-character-card__bar-fill mg-character-card__bar-fill--relationship"
+                    :style="{ width: barPercent(card.relationship, 100) }"
+                  ></div>
+                </div>
+                <span class="mg-character-card__bar-value">{{ card.relationship }}/100</span>
+              </div>
             </div>
             <!-- Expand hint -->
             <span class="mg-character-card__toggle-hint">
@@ -145,6 +154,7 @@ interface CharacterCardEntry {
   avatarUrl: string;
   isPlayer: boolean;
   roleTag: string;
+  relationship: number;
   combat: {
     level: number;
     exp: number;
@@ -193,6 +203,7 @@ const characterCards = computed<CharacterCardEntry[]>(() => {
   const playerName = vars.value?.root?.player?.profile?.name ?? "";
   const playerGender = vars.value?.root?.player?.profile?.gender ?? "";
   const playerCombat = vars.value?.root?.player?.combat ?? null;
+  const playerRelationships = vars.value?.root?.player?.relationships ?? {};
 
   const cards: CharacterCardEntry[] = [];
   let playerFound = false;
@@ -218,6 +229,7 @@ const characterCards = computed<CharacterCardEntry[]>(() => {
         avatarUrl,
         isPlayer,
         roleTag,
+        relationship: isPlayer ? 0 : (playerRelationships[charId] ?? 0),
         combat: (charData.combat || (isPlayer ? playerCombat : null)) ?? null,
         variables: buildVariableList(charData, playerCombat),
       });
@@ -233,6 +245,7 @@ const characterCards = computed<CharacterCardEntry[]>(() => {
       avatarUrl: avatarImages[`../../assets/avatars/normal/${genderKey}.png`] ?? "",
       isPlayer: true,
       roleTag: "",
+      relationship: 0,
       combat: playerCombat,
       variables: buildVariableList(null, playerCombat),
     });
@@ -411,6 +424,14 @@ function toggleExpanded(charId: string) {
 
 .mg-character-card__bar-fill--mp {
   background: linear-gradient(90deg, #74b9ff, #0984e3);
+}
+
+.mg-character-card__bar-fill--relationship {
+  background: linear-gradient(90deg, #fd79a8, #e84393);
+}
+
+.mg-character-card__bars--npc {
+  margin-top: 2px;
 }
 
 .mg-character-card__bar-value {

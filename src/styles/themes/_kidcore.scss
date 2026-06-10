@@ -11,39 +11,46 @@
   // ==========================================================
 
   // Primary accents
-  --mg-pink-blush: #FF2D2D;       // Crayon Red
-  --mg-pink-magenta: #D50000;     // Candy Apple
-  --mg-pink-cream: #F8BBD0;       // Cotton Candy
+  --mg-pink-blush: #ff2d2d; // Crayon Red
+  --mg-pink-magenta: #d50000; // Candy Apple
+  --mg-pink-cream: #f8bbd0; // Cotton Candy
 
   // Darks → Kidcore neutrals
-  --mg-dark-black: #1A1A2E;       // Chalkboard Black
-  --mg-dark-charcoal: #2a2a3e;    // slightly lighter charcoal
-  --mg-dark-plum: #e8d5f5;        // light purple (not dark!)
+  --mg-dark-black: #1a1a2e; // Chalkboard Black
+  --mg-dark-charcoal: #2a2a3e; // slightly lighter charcoal
+  --mg-dark-plum: #e8d5f5; // light purple (not dark!)
 
   // Purples
-  --mg-purple-lavender: #AA00FF;  // Grape Purple
-  --mg-purple-lilac: #AA00FF;     // Grape Purple
+  --mg-purple-lavender: #aa00ff; // Grape Purple
+  --mg-purple-lilac: #aa00ff; // Grape Purple
 
   // Cool tones
-  --mg-cool-blue: #2979FF;        // True Blue
-  --mg-cool-eboy-blue: #304FFE;   // Royal Blue
+  --mg-cool-blue: #2979ff; // True Blue
+  --mg-cool-eboy-blue: #304ffe; // Royal Blue
 
   // Neutrals
   --mg-neutral-silver: #c0c0c0;
-  --mg-neutral-white: #FFFEF5;    // Cloud White
+  --mg-neutral-white: #fffef5; // Cloud White
   --mg-neutral-gray: #e8e0eb;
 
   // Utility
-  --mg-util-red: #FF2D2D;         // Crayon Red
-  --mg-util-green: #00C853;       // Grass Green
+  --mg-util-red: #ff2d2d; // Crayon Red
+  --mg-util-green: #00c853; // Grass Green
 
   // Extra Kidcore colors (not in E-girl palette, used as aliases)
-  --mg-kid-yellow: #FFD600;       // Sunshine Yellow
-  --mg-kid-orange: #FF6D00;       // Tangerine Orange
-  --mg-kid-lime: #C6FF00;         // Lemon Lime
-  --mg-kid-cyan: #00E5FF;         // Robin Egg Blue
+  --mg-kid-yellow: #ffd600; // Sunshine Yellow
+  --mg-kid-orange: #ff6d00; // Tangerine Orange
+  --mg-kid-lime: #c6ff00; // Lemon Lime
+  --mg-kid-cyan: #00e5ff; // Robin Egg Blue
   --mg-kid-rainbow: linear-gradient(
-    90deg, #FF0000, #FF8800, #FFD600, #00C853, #2979FF, #AA00FF, #8B00FF
+    90deg,
+    #ff0000,
+    #ff8800,
+    #ffd600,
+    #00c853,
+    #2979ff,
+    #aa00ff,
+    #8b00ff
   );
 
   // ==========================================================
@@ -52,14 +59,23 @@
 
   // Backgrounds
   --mg-bg: var(--mg-neutral-white);
-  --mg-bg-pattern: radial-gradient(circle, rgb(from var(--mg-neutral-gray) r g b / 0.45) 2px, transparent 2px),
-    radial-gradient(circle, rgb(from var(--mg-neutral-gray) r g b / 0.45) 2px, transparent 2px);
+  --mg-bg-pattern:
+    radial-gradient(
+      circle,
+      rgb(from var(--mg-neutral-gray) r g b / 0.45) 2px,
+      transparent 2px
+    ),
+    radial-gradient(
+      circle,
+      rgb(from var(--mg-neutral-gray) r g b / 0.45) 2px,
+      transparent 2px
+    );
   --mg-bg-pattern-size: 32px 32px;
   --mg-bg-card: #ffffff;
   --mg-bg-overlay: rgba(26, 26, 46, 0.7);
-  --mg-bg-input: #faf5ff;                       // light purple-tinted white
+  --mg-bg-input: #faf5ff; // light purple-tinted white
   --mg-bg-hover: rgba(255, 45, 45, 0.06);
-  --mg-ink-outline: var(--mg-dark-black);       // #1A1A2E
+  --mg-ink-outline: var(--mg-dark-black); // #1A1A2E
 
   // Text
   --mg-text: var(--mg-dark-black);
@@ -68,26 +84,26 @@
   --mg-text-on-accent: #ffffff;
 
   // Accent
-  --mg-accent: var(--mg-pink-blush);            // #FF2D2D
-  --mg-accent-strong: var(--mg-pink-magenta);   // #D50000
+  --mg-accent: var(--mg-pink-blush); // #FF2D2D
+  --mg-accent-strong: var(--mg-pink-magenta); // #D50000
   --mg-accent-subtle: rgba(255, 45, 45, 0.12);
   --mg-accent-glow: rgba(255, 45, 45, 0.3);
 
   // Borders
-  --mg-border: var(--mg-dark-black);            // #1A1A2E
+  --mg-border: var(--mg-dark-black); // #1A1A2E
   --mg-border-light: rgba(26, 26, 46, 0.2);
-  --mg-border-strong: var(--mg-pink-magenta);   // #D50000
+  --mg-border-strong: var(--mg-pink-magenta); // #D50000
 
   // Semantic
-  --mg-success: var(--mg-util-green);           // #00C853
-  --mg-warning: #FFD600;
-  --mg-error: var(--mg-util-red);               // #D50000
-  --mg-info: #00E5FF;                           // Robin Egg Blue
+  --mg-success: var(--mg-util-green); // #00C853
+  --mg-warning: #ffd600;
+  --mg-error: var(--mg-util-red); // #D50000
+  --mg-info: #00e5ff; // Robin Egg Blue
 
   // Surfaces
-  --mg-surface-pink: #F8BBD0;                   // Cotton Candy
+  --mg-surface-pink: #f8bbd0; // Cotton Candy
   --mg-surface-lavender: #e8c5e8;
-  --mg-surface-plum: #e8d5f5;                   // light purple
+  --mg-surface-plum: #e8d5f5; // light purple
   --mg-surface-hover: rgba(255, 45, 45, 0.1);
 
   // ==========================================================
@@ -105,7 +121,7 @@
 
   // Input backgrounds
   --mg-input-bg: #fffef5;
-  --mg-input-border: #FF6EC7;                   // Bubblegum Pink
+  --mg-input-border: #ff6ec7; // Bubblegum Pink
 
   // ==========================================================
   // TYPOGRAPHY
@@ -113,7 +129,7 @@
 
   --mg-font-heading: "Bubblegum Sans", "Fredoka", cursive;
   --mg-font-body: "Patrick Hand", "Comic Sans MS", cursive;
-  --mg-font-mono: monospace;
+  --mg-font-mono: "Fredoka", cursive;
   --mg-font-handwritten: "Patrick Hand", cursive;
   --mg-font-weight-heading: 700;
   --mg-font-weight-body: 400;
@@ -123,7 +139,7 @@
   // EFFECTS (chunky shadows replace glows)
   // ==========================================================
 
-  --mg-shadow: #FF6EC7;                         // Bubblegum Pink shadow
+  --mg-shadow: #ff6ec7; // Bubblegum Pink shadow
   --mg-shadow-style: 5px 5px 0 var(--mg-shadow);
   --mg-shadow-card: 4px 4px 0 var(--mg-shadow);
   --mg-shadow-elevated: 6px 6px 0 var(--mg-shadow);
@@ -147,7 +163,7 @@
   --mg-radius-circle: 50%;
 
   // Surface dark alias (used by some components)
-  --mg-surface-dark: #1A1A2E;
+  --mg-surface-dark: #1a1a2e;
 
   // ==========================================================
   // BATTLE OVERLAY VARIABLES
@@ -170,11 +186,23 @@
   --mg-battle-hp-track-border: 2px solid var(--mg-ink-outline);
   --mg-battle-hp-track-bg: var(--mg-bg-input);
   --mg-battle-hp-fill: var(--mg-success);
-  --mg-battle-button-bg: linear-gradient(135deg, var(--mg-accent), var(--mg-pink-blush));
-  --mg-battle-button-primary-bg: linear-gradient(135deg, var(--mg-accent), var(--mg-warning));
+  --mg-battle-button-bg: linear-gradient(
+    135deg,
+    var(--mg-accent),
+    var(--mg-pink-blush)
+  );
+  --mg-battle-button-primary-bg: linear-gradient(
+    135deg,
+    var(--mg-accent),
+    var(--mg-warning)
+  );
   --mg-battle-button-shadow: 4px 4px 0 var(--mg-ink-outline);
   --mg-battle-button-hover-shadow: 2px 2px 0 var(--mg-ink-outline);
-  --mg-battle-phase-action-bg: linear-gradient(135deg, var(--mg-accent), var(--mg-success));
+  --mg-battle-phase-action-bg: linear-gradient(
+    135deg,
+    var(--mg-accent),
+    var(--mg-success)
+  );
   --mg-battle-phase-action-shadow: 4px 4px 0 var(--mg-ink-outline);
   --mg-battle-party-actor-border: var(--mg-warning);
   --mg-battle-party-actor-glow: var(--mg-kid-yellow);
@@ -201,7 +229,11 @@
       linear-gradient(45deg, transparent 75%, var(--mg-kid-yellow) 75%),
       linear-gradient(-45deg, transparent 75%, var(--mg-kid-yellow) 75%);
     background-size: 40px 40px;
-    background-position: 0 0, 0 20px, 20px -20px, -20px 0;
+    background-position:
+      0 0,
+      0 20px,
+      20px -20px,
+      -20px 0;
   }
 
   // -- Rainbow divider replacing chain-link --
@@ -225,12 +257,16 @@
     border: var(--mg-border-width) solid var(--mg-border);
     border-radius: var(--mg-radius);
     box-shadow: var(--mg-shadow-card);
-    transition: transform var(--mg-transition-fast), box-shadow var(--mg-transition-fast);
+    transition:
+      transform var(--mg-transition-fast),
+      box-shadow var(--mg-transition-fast);
     &:hover {
       transform: translateY(-4px) rotate(1deg);
       box-shadow: var(--mg-shadow-elevated);
     }
-    &__placeholder { color: var(--mg-text-secondary); }
+    &__placeholder {
+      color: var(--mg-text-secondary);
+    }
   }
 
   // -- Sticker: no rotation, bold borders, saturated colors --
@@ -238,14 +274,29 @@
     border-width: var(--mg-border-width);
     transform: rotate(-1.5deg);
     box-shadow: 2px 2px 0 var(--mg-border);
-    &:hover { transform: rotate(1.5deg) scale(1.06); }
-    &--pink { background: var(--mg-pink-blush); color: #fff; border-color: var(--mg-pink-magenta); }
-    &--purple { background: var(--mg-purple-lavender); color: #fff; border-color: var(--mg-dark-black); }
-    &--dark { background: var(--mg-dark-black); color: var(--mg-kid-yellow); border-color: var(--mg-dark-black); }
+    &:hover {
+      transform: rotate(1.5deg) scale(1.06);
+    }
+    &--pink {
+      background: var(--mg-pink-blush);
+      color: #fff;
+      border-color: var(--mg-pink-magenta);
+    }
+    &--purple {
+      background: var(--mg-purple-lavender);
+      color: #fff;
+      border-color: var(--mg-dark-black);
+    }
+    &--dark {
+      background: var(--mg-dark-black);
+      color: var(--mg-kid-yellow);
+      border-color: var(--mg-dark-black);
+    }
   }
 
   // -- Buttons: blockier, shadow hover instead of glow --
   .mg-btn {
+    font-family: var(--mg-font-mono);
     border-radius: var(--mg-radius-pill);
     border-width: var(--mg-border-width);
     box-shadow: 4px 4px 0 var(--mg-border);
@@ -253,24 +304,67 @@
       transform: translate(-1px, -2px);
       box-shadow: 6px 6px 0 var(--mg-border);
     }
-    &:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--mg-border); }
+    &:active {
+      transform: translate(1px, 1px);
+      box-shadow: 1px 1px 0 var(--mg-border);
+    }
     &--primary {
       background: var(--mg-accent);
       border-color: var(--mg-border);
       color: var(--mg-text-on-accent);
-      &:hover { background: var(--mg-accent-strong); }
+      &:hover {
+        background: var(--mg-accent-strong);
+      }
     }
     &--ghost {
       background: var(--mg-neutral-white);
       border-color: var(--mg-border);
       color: var(--mg-text);
-      &:hover { background: var(--mg-kid-yellow); color: var(--mg-dark-black); }
+      &:hover {
+        background: var(--mg-kid-yellow);
+        color: var(--mg-dark-black);
+      }
 
-      &.mg-btn--blue   { border-color: #2979FF; color: #2979FF; &:hover { background: #2979FF; color: #fff; } }
-      &.mg-btn--green  { border-color: #00C853; color: #00C853; &:hover { background: #00C853; color: #fff; } }
-      &.mg-btn--yellow { border-color: #FFD600; color: #FF8F00; &:hover { background: #FFD600; color: #1A1A2E; } }
-      &.mg-btn--orange { border-color: #FF6D00; color: #FF6D00; &:hover { background: #FF6D00; color: #fff; } }
-      &.mg-btn--pink   { border-color: #FF6EC7; color: #FF6EC7; &:hover { background: #FF6EC7; color: #fff; } }
+      &.mg-btn--blue {
+        border-color: #2979ff;
+        color: #2979ff;
+        &:hover {
+          background: #2979ff;
+          color: #fff;
+        }
+      }
+      &.mg-btn--green {
+        border-color: #00c853;
+        color: #00c853;
+        &:hover {
+          background: #00c853;
+          color: #fff;
+        }
+      }
+      &.mg-btn--yellow {
+        border-color: #ffd600;
+        color: #ff8f00;
+        &:hover {
+          background: #ffd600;
+          color: #1a1a2e;
+        }
+      }
+      &.mg-btn--orange {
+        border-color: #ff6d00;
+        color: #ff6d00;
+        &:hover {
+          background: #ff6d00;
+          color: #fff;
+        }
+      }
+      &.mg-btn--pink {
+        border-color: #ff6ec7;
+        color: #ff6ec7;
+        &:hover {
+          background: #ff6ec7;
+          color: #fff;
+        }
+      }
     }
   }
 
@@ -288,8 +382,25 @@
     color: var(--mg-dark-black);
   }
 
+  // GameTopBar Title
+  .mg-topbar__title {
+    color: var(--mg-dark-charcoal);
+    text-shadow:
+      2px 2px 0 var(--mg-kid-yellow),
+      -1px -1px 0 var(--mg-purple-lavender);
+    transition: text-shadow 0.2s ease;
+  }
+
+  .mg-topbar__title:hover {
+    color: var(--mg-dark-charcoal);
+    text-shadow:
+      2px 2px 0 var(--mg-kid-cyan),
+      -1px -1px 0 var(--mg-kid-orange);
+  }
+
   // -- Glow → shadow hover for interactive cards/buttons --
-  .mg-glow-pink, .mg-glow-lilac {
+  .mg-glow-pink,
+  .mg-glow-lilac {
     box-shadow: var(--mg-shadow-card);
   }
   .mg-glow-hover:hover {
@@ -325,16 +436,24 @@
   }
 
   // -- Rainbow action buttons via nth-child --
-  .battle-command-menu__items li:nth-child(5n+1) .battle-command-menu__button {
+  .battle-command-menu__items
+    li:nth-child(5n + 1)
+    .battle-command-menu__button {
     background: linear-gradient(135deg, #ff4757, #ff6b81);
   }
-  .battle-command-menu__items li:nth-child(5n+2) .battle-command-menu__button {
+  .battle-command-menu__items
+    li:nth-child(5n + 2)
+    .battle-command-menu__button {
     background: linear-gradient(135deg, #ffa502, #ffcf48);
   }
-  .battle-command-menu__items li:nth-child(5n+3) .battle-command-menu__button {
+  .battle-command-menu__items
+    li:nth-child(5n + 3)
+    .battle-command-menu__button {
     background: linear-gradient(135deg, #2ed573, #7bed9f);
   }
-  .battle-command-menu__items li:nth-child(5n+4) .battle-command-menu__button {
+  .battle-command-menu__items
+    li:nth-child(5n + 4)
+    .battle-command-menu__button {
     background: linear-gradient(135deg, #1e90ff, #70a1ff);
   }
   .battle-command-menu__items li:nth-child(5n) .battle-command-menu__button {

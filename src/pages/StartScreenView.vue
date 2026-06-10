@@ -19,7 +19,7 @@ async function enterTitleScreen() {
         alt="MagicalGirl SH"
         class="mg-start__title mg-glitch-hover"
       />
-      <p class="mg-start__version">v5 MVP</p>
+      <p class="mg-start__version">v0.8 Beta</p>
       <button
         id="start-screen-enter-button"
         class="mg-btn mg-btn--primary mg-btn--lg"

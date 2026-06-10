@@ -47,12 +47,15 @@ watch(
     const location = vars.root.world?.location?.name || "";
     const timeVal = vars.root.world?.time;
     let timeOfDay: "day" | "night" = "day";
-    if (typeof timeVal === "number") {
-      timeOfDay = timeVal >= 6 && timeVal < 18 ? "day" : "night";
-    } else if (typeof timeVal === "string") {
-      const hour = parseInt(timeVal, 10);
-      if (!isNaN(hour)) {
-        timeOfDay = hour >= 6 && hour < 18 ? "day" : "night";
+    if (timeVal?.timeSlot) {
+      const s = timeVal.timeSlot.toLowerCase();
+      if (s.includes("night") || s.includes("evening") || s.includes("夜") || s.includes("晚")) {
+        timeOfDay = "night";
+      }
+    }
+    if (timeOfDay === "day" && timeVal?.displayText) {
+      if (timeVal.displayText.includes("夜") || timeVal.displayText.includes("晚") || /night|evening/i.test(timeVal.displayText)) {
+        timeOfDay = "night";
       }
     }
 

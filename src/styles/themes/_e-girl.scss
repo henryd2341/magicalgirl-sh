@@ -441,6 +441,10 @@
   line-height: var(--mg-leading-tight);
 }
 
+.skilltree-tab__node-cost {
+  color: var(--mg-warning);
+}
+
 // -- Handwritten accent text (Patrick Hand, rotated) --
 .mg-handwritten {
   font-family: var(--mg-font-handwritten);
@@ -473,7 +477,7 @@
 
 // -- Glitch hover effect --
 .mg-glitch-hover:hover {
-  animation: mg-glitch 0.3s ease-in-out 3;
+  animation: mg-glitch-0 0.3s ease-in-out 3;
 }
 
 // -- Scrollbar (thin, theme-colored) --
@@ -584,6 +588,42 @@
   }
 }
 
+// GameTopBar
+[data-theme="e-girl"] {
+  .mg-topbar__title {
+    position: relative;
+    display: inline-block;
+  }
+
+  .mg-topbar__title::before {
+    content: attr(data-text);
+    color: var(--mg-cool-blue);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    animation: mg-glitch 2.5s infinite;
+    clip-path: polygon(0 0%, 100% 0%, 100% 40%, 0% 40%);
+    z-index: 1;
+  }
+
+  .mg-topbar__title::after {
+    content: attr(data-text);
+    color: var(--mg-pink-magenta);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    animation: mg-glitch 2.5s infinite;
+    clip-path: polygon(0 60%, 100% 60%, 100% 100%, 0 100%);
+    z-index: 1;
+  }
+}
+
 // -- Small card --
 .mg-card {
   position: relative;
@@ -667,7 +707,7 @@
   max-width: 520px;
   display: flex;
   flex-direction: column;
-  animation: mg-modal-in 250ms var(--mg-transition-bounce);
+  //animation: mg-modal-in 200ms var(--mg-transition-bounce);
   &--wide {
     max-width: 720px;
   }
@@ -855,15 +895,15 @@
     opacity: 1;
   }
 }
-@keyframes mg-glitch {
+@keyframes mg-glitch-0 {
   0% {
     transform: translate(0);
   }
   10% {
-    transform: translate(-1px, 1px);
+    transform: translate(1px, -1px);
   }
   20% {
-    transform: translate(1px, -1px);
+    transform: translate(-1px, 1px);
   }
   30% {
     transform: translate(-1px, -1px);
@@ -876,6 +916,30 @@
   }
   100% {
     transform: translate(0);
+  }
+}
+@keyframes mg-glitch {
+  0%,
+  92%,
+  100% {
+    transform: translate(0);
+    opacity: 0;
+  }
+  93% {
+    transform: translate(-3px, -2px);
+    opacity: 0.8;
+  }
+  94% {
+    transform: translate(3px, 1px);
+    opacity: 0.6;
+  }
+  95% {
+    transform: translate(-1px, 2px);
+    opacity: 0.8;
+  }
+  96% {
+    transform: translate(0);
+    opacity: 0;
   }
 }
 @keyframes mg-bounce {

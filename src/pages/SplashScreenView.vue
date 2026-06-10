@@ -72,9 +72,9 @@ function navigateTo(routeName: string) {
 
     <!-- ── Hero Header ── -->
     <section class="mg-splash__hero">
-      <p class="mg-splash__eyebrow">AI-Narrative Prototype // V5 MVP</p>
+      <p class="mg-splash__eyebrow">AI-Narrative Prototype // v0.8 Beta</p>
       <div class="mg-splash__logo-wrap">
-        <img class="mg-splash__logo" src="/logo.png" alt="MagicalGirl SH" />
+        <img class="mg-splash__logo mg-glitch-hover" src="/logo.png" alt="MagicalGirl SH" />
       </div>
       <div v-if="deco.splashKaomoji.length" class="mg-splash__kaomoji" aria-hidden="true">
         <span v-for="(d, i) in deco.splashKaomoji" :key="i">{{ d }}</span>
@@ -109,7 +109,7 @@ function navigateTo(routeName: string) {
     </nav>
 
     <!-- ── Version ── -->
-    <p class="mg-splash__version">v5 MVP — feat-frontend-refactor</p>
+    <p class="mg-splash__version">v0.8 Beta</p>
 
     <!-- ══════════════════════════════════════════════════════
          MODALS
