@@ -452,6 +452,22 @@ export function getEnemy(id: string): ResolvedEnemyContent {
   return enemy;
 }
 
+const _enemyNameToId = new Map<string, string>();
+function getEnemyIdByName(name: string): string | null {
+  if (_enemyNameToId.size === 0) {
+    for (const enemy of loadEnemies().values()) {
+      _enemyNameToId.set(enemy.name, enemy.id);
+    }
+  }
+  return _enemyNameToId.get(name) ?? null;
+}
+
+export function getEnemyByName(name: string): ResolvedEnemyContent {
+  const id = getEnemyIdByName(name);
+  if (id != null) return getEnemy(id);
+  throw new Error(`Enemy not found by name: "${name}"`);
+}
+
 export function getItem(id: string): ItemContent {
   const items = loadItems();
   const item = items.get(id);

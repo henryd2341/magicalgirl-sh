@@ -50,7 +50,7 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
           agility: 0,
           intelligence: 0,
         },
-        unspentPoints: 45,
+        unspentPoints: 0,
       },
       money: 5000,
       equipment: {

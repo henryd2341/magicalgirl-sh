@@ -359,24 +359,30 @@ export const useSessionStore = defineStore("session", () => {
 
     // Process character EXP and level-ups
     for (const [entityId, gainedExp] of rewards.characterExp) {
-      const charState = varState.root.characters[entityId];
-      if (!charState?.combat) continue;
+      // Route protagonist to root.player.combat, companions to root.characters[name].combat
+      const isPlayer = entityId === "__player__";
+      const combat = isPlayer
+        ? varState.root.player.combat
+        : varState.root.characters[entityId]?.combat;
+      if (!combat) continue;
+      const pathPrefix = isPlayer ? "player.combat" : `characters.${entityId}.combat`;
 
-      let newExp = charState.combat.exp + gainedExp;
-      let currentLevel = charState.combat.level;
-      let currentHpMax = charState.combat.hp.max;
-      let currentMpMax = charState.combat.mp.max;
-      let currentAttack = charState.combat.attack;
-      let currentDefense = charState.combat.defense;
-      let currentAgility = charState.combat.agility;
-      let currentIntelligence = charState.combat.intelligence;
-      let unspentPoints = charState.combat.unspentPoints;
+      let newExp = combat.exp + gainedExp;
+      let currentLevel = combat.level;
+      let currentHpMax = combat.hp.max;
+      let currentMpMax = combat.mp.max;
+      let currentAttack = combat.attack;
+      let currentDefense = combat.defense;
+      let currentAgility = combat.agility;
+      let currentIntelligence = combat.intelligence;
+      let unspentPoints = combat.unspentPoints;
 
       // Lookup growth data for level-up calculations
       let growth: GrowthContent | null = null;
       try {
-        const charContent = getCharacterByName(entityId);
-        growth = getGrowth(charContent.growthId);
+        growth = isPlayer
+          ? getGrowth("player")
+          : getGrowth(getCharacterByName(entityId).growthId);
       } catch {
         // Character not found in content registry; skip level-up
       }
@@ -405,17 +411,17 @@ export const useSessionStore = defineStore("session", () => {
       }
 
       patches.push(
-        { path: `characters.${entityId}.combat.exp`, value: newExp },
-        { path: `characters.${entityId}.combat.level`, value: currentLevel },
-        { path: `characters.${entityId}.combat.hp.current`, value: currentHpMax },
-        { path: `characters.${entityId}.combat.hp.max`, value: currentHpMax },
-        { path: `characters.${entityId}.combat.mp.current`, value: currentMpMax },
-        { path: `characters.${entityId}.combat.mp.max`, value: currentMpMax },
-        { path: `characters.${entityId}.combat.attack`, value: currentAttack },
-        { path: `characters.${entityId}.combat.defense`, value: currentDefense },
-        { path: `characters.${entityId}.combat.agility`, value: currentAgility },
-        { path: `characters.${entityId}.combat.intelligence`, value: currentIntelligence },
-        { path: `characters.${entityId}.combat.unspentPoints`, value: unspentPoints },
+        { path: `${pathPrefix}.exp`, value: newExp },
+        { path: `${pathPrefix}.level`, value: currentLevel },
+        { path: `${pathPrefix}.hp.current`, value: currentHpMax },
+        { path: `${pathPrefix}.hp.max`, value: currentHpMax },
+        { path: `${pathPrefix}.mp.current`, value: currentMpMax },
+        { path: `${pathPrefix}.mp.max`, value: currentMpMax },
+        { path: `${pathPrefix}.attack`, value: currentAttack },
+        { path: `${pathPrefix}.defense`, value: currentDefense },
+        { path: `${pathPrefix}.agility`, value: currentAgility },
+        { path: `${pathPrefix}.intelligence`, value: currentIntelligence },
+        { path: `${pathPrefix}.unspentPoints`, value: unspentPoints },
       );
     }
 

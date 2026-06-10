@@ -4,7 +4,7 @@ import { createBattleSummaries } from "@/engine/battle/battleSummary";
 import type { CreateBattleSummaryMessageInput } from "@/engine/chatMessageService";
 import type { BattleSnapshot, BattleSummarySet } from "@/types/battle";
 import type { ChatMessage } from "@/types/chat";
-import { getEnemy } from "@/content/contentRegistry";
+import { getEnemyByName } from "@/content/contentRegistry";
 import { calculateExpGained } from "@/engine/battle/formulaEngine";
 import {
   collectPassives,
@@ -115,7 +115,7 @@ export class BattleResultService {
       if (participant.side !== "enemy" || !participant.isDown) continue;
       enemyIds.push(participant.id);
       try {
-        const enemyDef = getEnemy(participant.id);
+        const enemyDef = getEnemyByName(participant.displayName);
         totalExpGained += calculateExpGained(
           enemyDef.expReward,
           enemyDef.baseLevel,
