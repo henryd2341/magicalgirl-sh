@@ -117,13 +117,64 @@ function renderConversationSummary(messages: ChatMessage[]): string {
   return latest.content;
 }
 
+const DETAILS_RE = /<details[\s\S]*?<\/details>/gi;
+
+function stripDetailsHtml(content: string): string {
+  return content.replace(DETAILS_RE, "").trim();
+}
+
+function extractRecentVarUpdates(
+  messages: ChatMessage[],
+  maxResults = 3,
+): string {
+  const patches: Array<{ path: string; value: unknown }> = [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const content = messages[i].content;
+    const match = content.match(DETAILS_RE);
+    if (!match) continue;
+    for (const block of match) {
+      // Extract update_variables patches from the details block
+      const varSection = block.match(/\*\*变量更新\*\*\n([\s\S]*?)(?=\*\*|$)/);
+      if (!varSection) continue;
+      const lines = varSection[1].matchAll(/- `([^`]+)` → (.+)/g);
+      for (const line of lines) {
+        if (patches.length >= maxResults * 5) break;
+        try {
+          patches.push({ path: line[1], value: JSON.parse(line[2]) });
+        } catch {
+          patches.push({ path: line[1], value: line[2].trim() });
+        }
+      }
+    }
+    if (patches.length >= maxResults * 5) break;
+  }
+
+  // Deduplicate by path, keep most recent
+  const seen = new Set<string>();
+  const deduped: Array<{ path: string; value: unknown }> = [];
+  for (const p of patches.reverse()) {
+    if (deduped.length >= maxResults) break;
+    if (seen.has(p.path)) continue;
+    seen.add(p.path);
+    deduped.push(p);
+  }
+
+  if (deduped.length === 0) return "";
+  return (
+    "最近变量变更：\n" +
+    deduped.map((p) => `- ${p.path} → ${JSON.stringify(p.value)}`).join("\n")
+  );
+}
+
 function renderHistory(messages: ChatMessage[]): string {
   if (messages.length === 0) {
     return "无可见历史。";
   }
 
   return messages
-    .map((message) => `${message.role}: ${message.content}`)
+    .map(
+      (message) => `${message.role}: ${stripDetailsHtml(message.content)}`,
+    )
     .join("\n");
 }
 
@@ -242,7 +293,10 @@ function buildMessages(
     .map((item) => ({ role: "system" as const, content: item.content }));
 
   const historyProviderMessages: ProviderMessage[] = historyMessages.map(
-    (message) => ({ role: message.role, content: message.content }),
+    (message) => ({
+      role: message.role,
+      content: stripDetailsHtml(message.content),
+    }),
   );
 
   return [...systemMessages, ...historyProviderMessages];
@@ -364,6 +418,19 @@ export async function buildHarnessRequest(
       source: "chatHistoryRepository",
     }),
   ];
+
+  // Insert recent variable updates right before history.
+  const recentVarContent = extractRecentVarUpdates(historyMessages);
+  if (recentVarContent) {
+    const historyIndex = segments.findIndex((s) => s.id === "history");
+    segments.splice(historyIndex, 0, segment({
+      id: "recent_variable_updates",
+      kind: "summary",
+      title: "Recent Variable Updates",
+      content: recentVarContent,
+      source: "chatHistoryRepository",
+    } as const));
+  }
 
   // Insert conversation summary right before history, with high priority.
   // It's a separate segment so the budget algorithm treats it as non-droppable.

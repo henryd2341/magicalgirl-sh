@@ -1022,7 +1022,7 @@ export const useSessionStore = defineStore("session", () => {
                   tool_name: "update_variables",
                   tool_call_id: callId,
                   ok: true,
-                  output: "patches applied",
+                  output: { patches: input.patches },
                 });
               } else {
                 results.push({
@@ -1074,6 +1074,14 @@ export const useSessionStore = defineStore("session", () => {
                   battleState: "pending",
                   encounterId: input.encounter_id,
                 },
+              });
+            } else if (call.tool_name === "read_skill") {
+              const input = call.input as { name: string };
+              results.push({
+                tool_name: "read_skill",
+                tool_call_id: callId,
+                ok: true,
+                output: { name: input.name },
               });
             } else {
               results.push({

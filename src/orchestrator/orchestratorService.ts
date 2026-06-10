@@ -9,7 +9,10 @@ import type { GameEngineFacade } from "@/engine/gameEngineFacade";
 import type {
   BuiltProviderRequest,
 } from "@/orchestrator/harnessContextTypes";
-import type { ProviderClient } from "@/orchestrator/providerClient";
+import type {
+  ProviderClient,
+  ProviderStreamResult,
+} from "@/orchestrator/providerClient";
 import type { EventLogRepository } from "@/persistence/repositories/eventLogRepository";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 
@@ -164,6 +167,15 @@ export class OrchestratorService {
       });
       toolResults.push(...streamResult.toolResults);
 
+      // Inject tool call results as fold blocks in the assistant message
+      const toolFoldHtml = buildToolFoldHtml(streamResult.toolResults);
+      if (toolFoldHtml) {
+        await this.chatService.appendAssistantChunk({
+          messageId: assistantMessageId,
+          chunk: toolFoldHtml,
+        });
+      }
+
       const failedResult = streamResult.toolResults.find((tr) => !tr.ok);
       if (failedResult) {
         throw new Error(
@@ -233,4 +245,43 @@ export class OrchestratorService {
       },
     });
   }
+}
+
+function buildToolFoldHtml(
+  toolResults: ProviderStreamResult["toolResults"],
+): string {
+  const visible = toolResults.filter(
+    (tr) => tr.tool_name !== "trigger_battle" && tr.ok,
+  );
+  if (visible.length === 0) return "";
+
+  let html = `\n\n<details class="chat-tool-fold"><summary>工具调用 (${visible.length})</summary>\n\n`;
+
+  for (const tr of visible) {
+    if (tr.tool_name === "update_variables") {
+      html += "**变量更新**\n";
+      const output = tr.output as
+        | { patches?: Array<{ path: string; value: unknown }> }
+        | undefined;
+      if (output?.patches && output.patches.length > 0) {
+        for (const p of output.patches) {
+          html += `- \`${p.path}\` → ${JSON.stringify(p.value)}\n`;
+        }
+      } else {
+        html += "*(已执行)*\n";
+      }
+    } else if (tr.tool_name === "read_skill") {
+      html += "**读取技能**\n";
+      const output = tr.output as { name?: string } | undefined;
+      if (output?.name) {
+        html += `- ${output.name}\n`;
+      } else {
+        html += "*(已执行)*\n";
+      }
+    }
+    html += "\n";
+  }
+
+  html += "</details>\n";
+  return html;
 }
