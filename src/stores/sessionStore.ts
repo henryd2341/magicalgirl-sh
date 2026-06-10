@@ -966,6 +966,7 @@ export const useSessionStore = defineStore("session", () => {
   }): Promise<OrchestratorService> {
     const chatStore = useChatStore();
     const chatRuntime = chatStore.getActiveChatRuntime();
+    const preRequestState = snapshot.value.sessionState;
     const configuredProvider = await createConfiguredProviderClient(
       undefined,
       {
@@ -1000,6 +1001,99 @@ export const useSessionStore = defineStore("session", () => {
             assistant: lastAssistant?.content ?? "",
           };
         },
+      },
+      async (calls) => {
+        const battleStore = useBattleStore();
+        const results: Array<{
+          tool_name: string;
+          tool_call_id: string;
+          ok: boolean;
+          output?: unknown;
+          error?: string;
+        }> = [];
+        for (const call of calls) {
+          const callId = `fake-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
+          try {
+            if (call.tool_name === "update_variables") {
+              const input = call.input as { patches: VariablePathPatch[] };
+              if (input.patches?.length > 0) {
+                await patchVariables(input.patches, "fake-provider");
+                results.push({
+                  tool_name: "update_variables",
+                  tool_call_id: callId,
+                  ok: true,
+                  output: "patches applied",
+                });
+              } else {
+                results.push({
+                  tool_name: "update_variables",
+                  tool_call_id: callId,
+                  ok: false,
+                  error: "empty patches",
+                });
+              }
+            } else if (call.tool_name === "trigger_battle") {
+              if (preRequestState === "POST_COMBAT_READY") {
+                results.push({
+                  tool_name: "trigger_battle",
+                  tool_call_id: callId,
+                  ok: true,
+                  output: { accepted: false, reason: "skipped: post-combat continuation should not re-trigger battle" },
+                });
+                continue;
+              }
+              const input = call.input as {
+                encounter_id: string;
+                enemies: Array<{ enemy_id: string; count: number }>;
+                modifiers?: string[];
+                narrative_reason: string;
+              };
+              await gameEngineFacade.dispatchCommand({
+                type: "TRIGGER_BATTLE",
+                payload: {
+                  tool_name: "trigger_battle",
+                  tool_call_id: callId,
+                  request_id: "fake-provider",
+                  context_version: 1,
+                  state_hash: "mock",
+                  input,
+                },
+              });
+              battleStore.stagePendingEncounter({
+                encounterId: input.encounter_id,
+                narrativeReason: input.narrative_reason,
+                enemies: input.enemies,
+              });
+              await persistRuntimeSnapshot();
+              results.push({
+                tool_name: "trigger_battle",
+                tool_call_id: callId,
+                ok: true,
+                output: {
+                  accepted: true,
+                  battleState: "pending",
+                  encounterId: input.encounter_id,
+                },
+              });
+            } else {
+              results.push({
+                tool_name: call.tool_name,
+                tool_call_id: callId,
+                ok: false,
+                error: `unsupported tool: ${call.tool_name}`,
+              });
+            }
+          } catch (err) {
+            results.push({
+              tool_name: call.tool_name,
+              tool_call_id: callId,
+              ok: false,
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        }
+        snapshot.value = gameEngineFacade.getSessionSnapshot();
+        return results;
       },
     );
     const repositories = getDbRecoveryRepositories();

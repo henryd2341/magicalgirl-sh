@@ -5,7 +5,9 @@ import { AiSdkProviderClient } from "@/orchestrator/aiSdkProviderClient";
 import type { HarnessToolExecutorDeps } from "@/orchestrator/harnessTools";
 import {
   FakeStreamingProviderClient,
+  type FakeToolCall,
   type ProviderClient,
+  type ProviderStreamResult,
 } from "@/orchestrator/providerClient";
 import { deepClone } from "@/utils/deepClone";
 
@@ -687,12 +689,15 @@ export async function createConfiguredSummaryProviderClient(
 export async function createConfiguredProviderClient(
   repository: ProviderSettingsRepository = getProviderSettingsRepository(),
   harnessDeps?: Partial<HarnessToolExecutorDeps>,
+  onFakeToolExecute?: (
+    calls: FakeToolCall[],
+  ) => Promise<ProviderStreamResult["toolResults"]>,
 ): Promise<ConfiguredProviderClient> {
   const profile = await repository.getActiveProfile();
 
   if (profile.kind === "fake") {
     return {
-      client: new FakeStreamingProviderClient({}),
+      client: new FakeStreamingProviderClient({ onExecuteTools: onFakeToolExecute }),
       providerInfo: toPromptViewerProviderInfo(profile),
     };
   }

@@ -27,17 +27,45 @@ export interface ProviderClient {
   ): Promise<ProviderStreamResult>;
 }
 
+export interface FakeToolCall {
+  tool_name: string;
+  input: unknown;
+}
+
+export const DEFAULT_FAKE_TOOL_CALLS: FakeToolCall[] = [
+  {
+    tool_name: "update_variables",
+    input: {
+      patches: [{ path: "player.money", value: 49900 }],
+    },
+  },
+  {
+    tool_name: "trigger_battle",
+    input: {
+      encounter_id: "enc-mock-default",
+      enemies: [{ enemy_id: "1", count: 1 }],
+      narrative_reason: "测试用默认战斗",
+    },
+  },
+];
+
 export interface FakeStreamingProviderClientInput {
   textChunks?: string[];
+  toolCalls?: FakeToolCall[];
   toolResults?: ProviderStreamResult["toolResults"];
+  onExecuteTools?: (
+    calls: FakeToolCall[],
+  ) => Promise<ProviderStreamResult["toolResults"]>;
   error?: Error;
 }
 
 export class FakeStreamingProviderClient implements ProviderClient {
   private readonly textChunks: string[];
-
+  private readonly toolCalls: FakeToolCall[];
   private readonly toolResults: ProviderStreamResult["toolResults"];
-
+  private readonly onExecuteTools: ((
+    calls: FakeToolCall[],
+  ) => Promise<ProviderStreamResult["toolResults"]>) | null;
   private readonly error: Error | null;
 
   public constructor(input: FakeStreamingProviderClientInput) {
@@ -45,7 +73,9 @@ export class FakeStreamingProviderClient implements ProviderClient {
       input.textChunks ?? [
         "战斗后的空气慢慢安静下来，新的选择浮现在你面前。",
       ];
+    this.toolCalls = input.toolCalls ?? DEFAULT_FAKE_TOOL_CALLS;
     this.toolResults = input.toolResults ?? [];
+    this.onExecuteTools = input.onExecuteTools ?? null;
     this.error = input.error ?? null;
   }
 
@@ -61,9 +91,14 @@ export class FakeStreamingProviderClient implements ProviderClient {
       throw this.error;
     }
 
+    const finalResults: ProviderStreamResult["toolResults"] =
+      this.onExecuteTools && this.toolCalls.length > 0
+        ? await this.onExecuteTools(this.toolCalls)
+        : this.toolResults.map((tr) => ({ ...tr }));
+
     return {
-      finishReason: this.toolResults.length > 0 ? "tool_calls" : "stop",
-      toolResults: this.toolResults.map((tr) => ({ ...tr })),
+      finishReason: finalResults.length > 0 ? "tool_calls" : "stop",
+      toolResults: finalResults,
     };
   }
 }
