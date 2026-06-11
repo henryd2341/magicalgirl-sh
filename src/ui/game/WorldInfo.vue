@@ -23,14 +23,14 @@ import { storeToRefs } from "pinia";
 import type { VariableValueRecord } from "@/types/variables";
 
 const sessionStore = useSessionStore();
-const { snapshot: sessionSnapshot } = storeToRefs(sessionStore);
+const { snapshot: sessionSnapshot, variableVersion } = storeToRefs(sessionStore);
 
 const loading = ref(true);
 const error = ref(false);
 const vars = ref<VariableValueRecord | null>(null);
 
 watch(
-  () => sessionSnapshot.value?.sessionState,
+  [() => sessionSnapshot.value?.sessionState, variableVersion],
   async () => {
     loading.value = true;
     error.value = false;

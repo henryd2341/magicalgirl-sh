@@ -33,7 +33,7 @@ import { storeToRefs } from "pinia";
 import { computed, ref, watch } from "vue";
 
 const sessionStore = useSessionStore();
-const { snapshot: sessionSnapshot } = storeToRefs(sessionStore);
+const { snapshot: sessionSnapshot, variableVersion } = storeToRefs(sessionStore);
 
 const loading = ref(true);
 const error = ref(false);
@@ -63,7 +63,7 @@ const locationImages = import.meta.glob("../../assets/location/**/*.png", {
 }) as Record<string, string>;
 
 watch(
-  () => sessionSnapshot.value?.sessionState,
+  [() => sessionSnapshot.value?.sessionState, variableVersion],
   async () => {
     loading.value = true;
     error.value = false;

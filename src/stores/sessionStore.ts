@@ -111,6 +111,7 @@ export const useSessionStore = defineStore("session", () => {
   const snapshot = ref(gameEngineFacade.getSessionSnapshot());
   const isStoryTurnRunning = ref(false);
   const lastPreviousValues = ref<PreviousValueMap>(new Map());
+  const variableVersion = ref(0);
 
   // ── Skill tree state ──
   const learnedSkills = ref<Map<string, Set<string>>>(new Map());
@@ -249,6 +250,7 @@ export const useSessionStore = defineStore("session", () => {
     updated.add(skillId);
     learnedSkills.value = new Map(learnedSkills.value).set(characterId, updated);
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    variableVersion.value++;
 
     return "ok";
   }
@@ -292,6 +294,7 @@ export const useSessionStore = defineStore("session", () => {
       },
     });
     await variableRepository.saveCurrent(result.next);
+    variableVersion.value++;
     return "ok";
   }
 
@@ -324,6 +327,7 @@ export const useSessionStore = defineStore("session", () => {
       },
     });
     await variableRepository.saveCurrent(result.next);
+    variableVersion.value++;
     return "ok";
   }
 
@@ -348,6 +352,7 @@ export const useSessionStore = defineStore("session", () => {
       },
     });
     await variableRepository.saveCurrent(result.next);
+    variableVersion.value++;
     return "ok";
   }
 
@@ -448,6 +453,7 @@ export const useSessionStore = defineStore("session", () => {
       },
     });
     await variableRepository.saveCurrent(result.next);
+    variableVersion.value++;
   }
 
   async function allocatePoints(
@@ -477,6 +483,7 @@ export const useSessionStore = defineStore("session", () => {
       },
     });
     await variableRepository.saveCurrent(result.next);
+    variableVersion.value++;
     return "ok";
   }
 
@@ -500,6 +507,7 @@ export const useSessionStore = defineStore("session", () => {
       },
     });
     await variableRepository.saveCurrent(result.next);
+    variableVersion.value++;
   }
 
   async function setCharacterInParty(
@@ -558,6 +566,7 @@ export const useSessionStore = defineStore("session", () => {
         },
       });
       await variableRepository.saveCurrent(result.next);
+      variableVersion.value++;
     } else {
       // Removing from party
       const callId = `party-remove-${Date.now().toString(36)}`;
@@ -576,6 +585,7 @@ export const useSessionStore = defineStore("session", () => {
         },
       });
       await variableRepository.saveCurrent(result.next);
+      variableVersion.value++;
     }
   }
 
@@ -764,6 +774,7 @@ export const useSessionStore = defineStore("session", () => {
   ): Promise<UpdateVariablesToolResult> {
     const result = await toolExecutor.execute(envelope);
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    variableVersion.value++;
 
     if (result.ok) {
       lastPreviousValues.value = result.output.previousValues;
@@ -1401,6 +1412,7 @@ export const useSessionStore = defineStore("session", () => {
   return {
     snapshot,
     isStoryTurnRunning,
+    variableVersion,
     learnedSkills,
     isSkillLearned,
     getLearnableSkills,

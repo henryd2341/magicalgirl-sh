@@ -109,7 +109,7 @@ import { storeToRefs } from "pinia";
 import type { VariableValueRecord } from "@/types/variables";
 
 const sessionStore = useSessionStore();
-const { snapshot: sessionSnapshot } = storeToRefs(sessionStore);
+const { snapshot: sessionSnapshot, variableVersion } = storeToRefs(sessionStore);
 
 const loading = ref(true);
 const error = ref(false);
@@ -124,7 +124,7 @@ const avatarImages = import.meta.glob("../../assets/avatars/normal/*.png", {
 }) as Record<string, string>;
 
 watch(
-  () => sessionSnapshot.value?.sessionState,
+  [() => sessionSnapshot.value?.sessionState, variableVersion],
   async () => {
     loading.value = true;
     error.value = false;
