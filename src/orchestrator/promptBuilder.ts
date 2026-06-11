@@ -15,6 +15,7 @@ import type {
   ProviderMessage,
   ProviderToolDefinition,
 } from "@/orchestrator/harnessContextTypes";
+import type { ChainOfThoughtConfig } from "@/orchestrator/promptPreset";
 import type { SkillMetadata } from "@/orchestrator/skillRegistry";
 import type { ChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
 import type { VariableRepository } from "@/persistence/repositories/variableRepository";
@@ -25,7 +26,6 @@ import type {
 } from "@/persistence/repositories/worldInfoRepository";
 import type { ChatMessage } from "@/types/chat";
 import type { PreviousValueMap, VariableValueRecord } from "@/types/variables";
-import type { ChainOfThoughtConfig } from "@/orchestrator/promptPreset";
 
 export interface BuildHarnessRequestInput {
   chatRepository: ChatHistoryRepository;
@@ -174,9 +174,7 @@ function renderHistory(messages: ChatMessage[]): string {
   }
 
   return messages
-    .map(
-      (message) => `${message.role}: ${stripDetailsHtml(message.content)}`,
-    )
+    .map((message) => `${message.role}: ${stripDetailsHtml(message.content)}`)
     .join("\n");
 }
 
@@ -408,16 +406,6 @@ export async function buildHarnessRequest(
       source: "worldInfoRepository",
     }),
     segment({
-      id: "state",
-      kind: "state",
-      title: "Game State Snapshot",
-      content: serializeVariableStateToYaml(
-        variableState.root,
-        input.previousValues,
-      ),
-      source: "variableRepository",
-    }),
-    segment({
       id: "tools",
       kind: "tools",
       title: "Available Tools",
@@ -431,19 +419,33 @@ export async function buildHarnessRequest(
       content: renderHistory(historyMessages),
       source: "chatHistoryRepository",
     }),
+    segment({
+      id: "state",
+      kind: "state",
+      title: "Game State Snapshot",
+      content: serializeVariableStateToYaml(
+        variableState.root,
+        input.previousValues,
+      ),
+      source: "variableRepository",
+    }),
   ];
 
   // Insert recent variable updates right before history.
   const recentVarContent = extractRecentVarUpdates(historyMessages);
   if (recentVarContent) {
     const historyIndex = segments.findIndex((s) => s.id === "history");
-    segments.splice(historyIndex, 0, segment({
-      id: "recent_variable_updates",
-      kind: "summary",
-      title: "Recent Variable Updates",
-      content: recentVarContent,
-      source: "chatHistoryRepository",
-    } as const));
+    segments.splice(
+      historyIndex,
+      0,
+      segment({
+        id: "recent_variable_updates",
+        kind: "summary",
+        title: "Recent Variable Updates",
+        content: recentVarContent,
+        source: "chatHistoryRepository",
+      } as const),
+    );
   }
 
   // Insert conversation summary right before history, with high priority.
@@ -483,13 +485,15 @@ export async function buildHarnessRequest(
 
     // Inject a trace segment so CoT is visible in Prompt Viewer.
     // MUST be pushed BEFORE applyContextBudget() so it appears in budgeted.segments.
-    segments.push(segment({
-      id: "cot_injection",
-      kind: "summary",
-      title: "Custom Chain of Thought",
-      content: `[CoT enabled] style=${input.customChainOfThought.style} placement=${input.customChainOfThought.placement}`,
-      source: "promptPreset",
-    }));
+    segments.push(
+      segment({
+        id: "cot_injection",
+        kind: "summary",
+        title: "Custom Chain of Thought",
+        content: `[CoT enabled] style=${input.customChainOfThought.style} placement=${input.customChainOfThought.placement}`,
+        source: "promptPreset",
+      }),
+    );
   }
 
   const budgeted = applyContextBudget({
@@ -514,7 +518,10 @@ export async function buildHarnessRequest(
   });
 
   // Handle replace_user_input: modify the last user message in historyMessages
-  if (input.customChainOfThought?.enabled && input.customChainOfThought.placement === "replace_user_input") {
+  if (
+    input.customChainOfThought?.enabled &&
+    input.customChainOfThought.placement === "replace_user_input"
+  ) {
     const rendered = input.customChainOfThought.template.replace(
       /\{\{userInput\}\}/g,
       input.userInput ?? "",
@@ -536,7 +543,12 @@ export async function buildHarnessRequest(
     },
     segments: budgeted.segments,
     traces: [...selectedWorldInfo.traces, ...budgeted.traces],
-    messages: buildMessages(budgeted.segments, historyMessages, cotSystemMessage, cotPrefill),
+    messages: buildMessages(
+      budgeted.segments,
+      historyMessages,
+      cotSystemMessage,
+      cotPrefill,
+    ),
     tools,
     promptText: joinPromptText(budgeted.segments),
   };
