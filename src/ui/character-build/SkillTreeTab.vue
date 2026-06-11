@@ -58,16 +58,59 @@ function onPanMove(e: MouseEvent) {
 
 function onPanEnd() {
   isPanning.value = false;
+  clampPan();
+}
+
+// ── Touch pan handlers ──
+function onTouchStart(e: TouchEvent) {
+  if ((e.target as HTMLElement).closest(".skilltree-tab__node--learnable")) return;
+  isPanning.value = true;
+  panStartX = e.touches[0].clientX;
+  panStartY = e.touches[0].clientY;
+  panStartPanX = pan.x;
+  panStartPanY = pan.y;
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (!isPanning.value) return;
+  pan.x = panStartPanX + (e.touches[0].clientX - panStartX);
+  pan.y = panStartPanY + (e.touches[0].clientY - panStartY);
+}
+
+function onTouchEnd() {
+  isPanning.value = false;
+  clampPan();
+}
+
+// ── Boundary clamping ──
+function clampPan() {
+  const container = document.querySelector(".skilltree-tab__graph-wrap");
+  if (!container) return;
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  const tw = totalWidth.value;
+  const th = totalHeight.value;
+  // Allow 30% overhang, don't let nodes escape left/top edge
+  const maxPanX = Math.max(0, tw * 0.3);
+  const minPanX = cw - tw - 20;
+  const maxPanY = Math.max(0, th * 0.3);
+  const minPanY = ch - th - 20;
+  pan.x = Math.max(minPanX, Math.min(maxPanX, pan.x));
+  pan.y = Math.max(minPanY, Math.min(maxPanY, pan.y));
 }
 
 onMounted(() => {
   window.addEventListener("mousemove", onPanMove);
   window.addEventListener("mouseup", onPanEnd);
+  window.addEventListener("touchmove", onTouchMove, { passive: true });
+  window.addEventListener("touchend", onTouchEnd);
 });
 
 onUnmounted(() => {
   window.removeEventListener("mousemove", onPanMove);
   window.removeEventListener("mouseup", onPanEnd);
+  window.removeEventListener("touchmove", onTouchMove);
+  window.removeEventListener("touchend", onTouchEnd);
 });
 
 // ── Load data ──
@@ -966,6 +1009,42 @@ watch(activeCategory, () => {
     color: var(--mg-accent);
     border-color: var(--mg-accent);
     &:hover { background: var(--mg-surface-pink); }
+  }
+}
+
+// ═══════════════════════════════════════════
+// Mobile: touch-optimized panning
+// ═══════════════════════════════════════════
+@media (max-width: 639px) {
+  .skilltree-tab__graph-wrap {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: none;
+    min-height: 350px;
+  }
+
+  .skilltree-tab__cats {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .skilltree-tab__cat {
+    flex-shrink: 0;
+  }
+
+  .skilltree-tab__pan-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 399px) {
+  .skilltree-tab__node {
+    width: 110px !important;
+    font-size: 0.7rem;
+    padding: 4px 6px;
+    min-height: 40px;
   }
 }
 </style>

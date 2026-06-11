@@ -1,0 +1,30 @@
+// ============================================================
+// Responsive breakpoint mixins
+// Usage: @include mg-respond-to(sm) { ... }
+// ============================================================
+
+// Extra-small screens (< 400px) — small phones (iPhone SE, etc.)
+@mixin mg-respond-to-xs {
+  @media (max-width: 399px) { @content; }
+}
+
+// Small screens (400px - 639px) — phones
+@mixin mg-respond-to-sm {
+  @media (max-width: 639px) { @content; }
+}
+
+// Medium screens (640px - 1023px) — tablets
+@mixin mg-respond-to-md {
+  @media (max-width: 1023px) { @content; }
+}
+
+// Large screens (>= 1024px) — desktop
+@mixin mg-respond-to-lg {
+  @media (min-width: 1024px) { @content; }
+}
+
+// Touch-friendly minimum target size (WCAG 2.5.8 AAA / Apple HIG)
+@mixin mg-touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}

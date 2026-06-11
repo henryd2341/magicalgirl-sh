@@ -411,4 +411,17 @@ const CATEGORY_LABELS: Record<string, string> = {
     &:hover { border-color: var(--mg-accent-strong); color: var(--mg-accent-strong); }
   }
 }
+
+// ── Mobile: single column ──
+@media (max-width: 639px) {
+  .equip-tab__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .equip-tab__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
 </style>

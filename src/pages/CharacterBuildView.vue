@@ -379,4 +379,51 @@ function close() {
 .mg-modal-card--wide.character-build-modal {
   max-width: 1100px;
 }
+
+// ── Mobile: horizontal sidebar, stacked layout ──
+@media (max-width: 639px) {
+  .character-build__layout {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .character-build__sidebar {
+    flex: none;
+    width: 100%;
+  }
+
+  .character-build__char-list {
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 6px;
+    padding-bottom: 4px;
+  }
+
+  .character-build__char-btn {
+    flex-shrink: 0;
+    width: auto;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 14px;
+  }
+
+  .character-build__tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .character-build__tab {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .character-build-modal {
+    width: 95vw !important;
+    padding: 12px;
+  }
+}
 </style>

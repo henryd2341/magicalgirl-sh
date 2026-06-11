@@ -447,4 +447,23 @@ function handleSave() {
   font-size: 0.85rem;
   opacity: 0.5;
 }
+
+// ── Mobile touch targets ──
+@media (max-width: 639px) {
+  .formation-slot__btn {
+    width: 36px;
+    height: 36px;
+    font-size: 0.85rem;
+  }
+
+  .formation-reserve-card__add {
+    width: 36px;
+    height: 36px;
+    font-size: 0.85rem;
+  }
+
+  .formation-slot__name {
+    font-size: 0.8rem;
+  }
+}
 </style>

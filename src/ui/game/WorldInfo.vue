@@ -11,6 +11,7 @@
         <i :class="isNight ? 'fas fa-moon' : 'fas fa-sun'"></i>
         {{ isNight ? "夜晚" : "白天" }}
       </span>
+      <span class="mg-world-info__datetime">{{ now }}&nbsp;第{{ dayIndex }}天</span>
     </template>
   </div>
 </template>
@@ -59,11 +60,15 @@ const isNight = computed(() => {
   }
   return false;
 });
+
+const dayIndex = computed(() => vars.value?.root?.world?.time.dayIndex ?? NaN);
+const now = computed(() => vars.value?.root?.world?.time.displayText ?? "");
 </script>
 
 <style lang="scss" scoped>
 .mg-world-info {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   padding: var(--mg-space-sm) var(--mg-space-md);
@@ -83,17 +88,29 @@ const isNight = computed(() => {
   min-width: 0;
 }
 
-.mg-world-info__time {
-  display: flex;
+
+.mg-world-info__time,
+.mg-world-info__datetime {
   align-items: center;
   gap: var(--mg-space-xs, 4px);
   font-size: var(--mg-font-sm, 0.85rem);
   color: var(--mg-text-secondary);
   white-space: nowrap;
+}
 
+.mg-world-info__time {
+  display: flex;
   i {
     font-size: 1rem;
   }
+}
+
+.mg-world-info__datetime {
+  display: inline;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
 }
 
 .mg-world-info__skeleton {

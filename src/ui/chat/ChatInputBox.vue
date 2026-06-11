@@ -39,7 +39,7 @@ function submitDraft(): void {
       <textarea
         id="story-input-box"
         v-model="draft"
-        class="chat-input-box__textarea"
+        class="chat-input-box__textarea mg-scroll"
         name="story-input"
         rows="2"
         placeholder="输入你的行动、对白或继续故事的请求……"

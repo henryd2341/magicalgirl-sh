@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
+import { ref, onMounted, onUnmounted } from "vue";
 
 defineEmits<{
   openPromptSettings: [];
@@ -9,9 +10,36 @@ defineEmits<{
 }>();
 
 const router = useRouter();
+const menuOpen = ref(false);
+const isMobile = ref(false);
+
+let mql: MediaQueryList | null = null;
+
+function onMediaChange(e: MediaQueryListEvent | MediaQueryList) {
+  isMobile.value = e.matches;
+  if (!e.matches) menuOpen.value = false;
+}
+
+onMounted(() => {
+  mql = window.matchMedia("(max-width: 767px)");
+  onMediaChange(mql);
+  mql.addEventListener("change", onMediaChange);
+});
+
+onUnmounted(() => {
+  mql?.removeEventListener("change", onMediaChange);
+});
 
 function returnToTitle() {
   router.push({ name: "title" });
+}
+
+function toggleMenu() {
+  menuOpen.value = !menuOpen.value;
+}
+
+function closeMenu() {
+  menuOpen.value = false;
 }
 </script>
 
@@ -22,7 +50,8 @@ function returnToTitle() {
     aria-label="主游戏顶部栏"
   >
     <span class="mg-topbar__title" data-text="SWEET HEART">SWEET HEART</span>
-    <nav class="mg-topbar__actions" aria-label="主游戏快捷操作">
+    <!-- Desktop nav -->
+    <nav v-if="!isMobile" class="mg-topbar__actions" aria-label="主游戏快捷操作">
       <button class="mg-topbar__btn" title="背包" type="button">
         <i class="fas fa-backpack"></i>
         <span>背包</span>
@@ -61,6 +90,39 @@ function returnToTitle() {
       <button class="mg-topbar__btn" title="返回标题页" type="button" @click="returnToTitle">
         <i class="fas fa-home"></i>
         <span>标题</span>
+      </button>
+    </nav>
+    <!-- Mobile hamburger -->
+    <button v-else class="mg-topbar__hamburger" @click="toggleMenu" :aria-label="menuOpen ? '关闭菜单' : '打开菜单'">
+      <i :class="menuOpen ? 'fas fa-times' : 'fas fa-bars'"></i>
+    </button>
+    <!-- Mobile dropdown menu -->
+    <nav v-if="isMobile && menuOpen" class="mg-topbar__dropdown" aria-label="移动端游戏菜单">
+      <button class="mg-topbar__dropdown-btn" title="背包" type="button" @click="closeMenu">
+        <i class="fas fa-backpack"></i> 背包
+      </button>
+      <button class="mg-topbar__dropdown-btn" title="商店" type="button" @click="closeMenu">
+        <i class="fas fa-store"></i> 商店
+      </button>
+      <button class="mg-topbar__dropdown-btn" title="训练场" type="button" @click="closeMenu">
+        <i class="fas fa-dumbbell"></i> 训练场
+      </button>
+      <hr class="mg-topbar__dropdown-divider" />
+      <button class="mg-topbar__dropdown-btn" title="存档/读档" type="button" @click="$emit('openSaveManage'); closeMenu()">
+        <i class="fas fa-save"></i> 存档
+      </button>
+      <button class="mg-topbar__dropdown-btn" title="提示词设置" type="button" @click="$emit('openPromptSettings'); closeMenu()">
+        <i class="fas fa-book-open"></i> 提示词
+      </button>
+      <button class="mg-topbar__dropdown-btn" title="API 设置" type="button" @click="$emit('openApiSettings'); closeMenu()">
+        <i class="fas fa-plug"></i> API
+      </button>
+      <button class="mg-topbar__dropdown-btn" title="系统设置" type="button" @click="$emit('openSystemSettings'); closeMenu()">
+        <i class="fas fa-cog"></i> 系统
+      </button>
+      <hr class="mg-topbar__dropdown-divider" />
+      <button class="mg-topbar__dropdown-btn" title="返回标题页" type="button" @click="returnToTitle(); closeMenu()">
+        <i class="fas fa-home"></i> 标题
       </button>
     </nav>
   </header>
@@ -129,6 +191,95 @@ function returnToTitle() {
     border-radius: 2px;
     margin: 0 4px;
     align-self: stretch;
+  }
+}
+
+// ═══════════════════════════════════════════
+// Mobile hamburger & dropdown
+// ═══════════════════════════════════════════
+.mg-topbar__hamburger {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border: var(--mg-border-width) solid var(--mg-border);
+  border-radius: var(--mg-radius-sm);
+  background: transparent;
+  color: var(--mg-accent);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all var(--mg-transition-fast);
+
+  &:hover {
+    border-color: var(--mg-accent);
+    box-shadow: var(--mg-glow-pink);
+  }
+}
+
+.mg-topbar__dropdown {
+  position: fixed;
+  top: 52px;
+  right: 8px;
+  z-index: var(--mg-z-overlay, 100);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border: var(--mg-border-width) solid var(--mg-border);
+  border-radius: var(--mg-radius-md);
+  background: var(--mg-bg-card);
+  box-shadow: var(--mg-shadow-sticker);
+  min-width: 180px;
+}
+
+.mg-topbar__dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--mg-radius-sm);
+  background: transparent;
+  color: var(--mg-text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    background: var(--mg-surface-pink, rgba(255, 107, 157, 0.15));
+    color: var(--mg-accent);
+  }
+
+  i {
+    width: 20px;
+    text-align: center;
+  }
+}
+
+.mg-topbar__dropdown-divider {
+  border: none;
+  border-top: var(--mg-border-width) solid var(--mg-border);
+  margin: 4px 0;
+  opacity: 0.5;
+}
+
+// ── Mobile breakpoint ──
+@media (max-width: 767px) {
+  .mg-topbar__hamburger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mg-topbar__actions {
+    display: none;
+  }
+
+  .mg-topbar__title {
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50vw;
   }
 }
 </style>

@@ -41,6 +41,29 @@ const { pendingBattle, activeBattle } = storeToRefs(battleStore);
 // ── Initialization guard ──
 const hasInitialized = ref(false);
 
+// ── Responsive breakpoint detection ──
+const isMobile = ref(false);
+const isTablet = ref(false);
+
+let mobileMql: MediaQueryList | null = null;
+let tabletMql: MediaQueryList | null = null;
+
+function onMobileChange(e: MediaQueryListEvent | MediaQueryList) {
+  isMobile.value = e.matches;
+  if (e.matches) {
+    leftPanelOpen.value = false;
+    rightPanelOpen.value = false;
+  }
+}
+
+function onTabletChange(e: MediaQueryListEvent | MediaQueryList) {
+  isTablet.value = e.matches;
+  if (e.matches && !isMobile.value) {
+    leftPanelOpen.value = false;
+    rightPanelOpen.value = false;
+  }
+}
+
 // ── Panel collapse state ──
 const leftPanelOpen = ref(true);
 const rightPanelOpen = ref(true);
@@ -165,6 +188,14 @@ onMounted(async () => {
   if (hasInitialized.value) return;
   hasInitialized.value = true;
 
+  // MatchMedia for responsive layout
+  mobileMql = window.matchMedia("(max-width: 639px)");
+  tabletMql = window.matchMedia("(max-width: 1023px)");
+  onMobileChange(mobileMql);
+  onTabletChange(tabletMql);
+  mobileMql.addEventListener("change", onMobileChange);
+  tabletMql.addEventListener("change", onTabletChange);
+
   startTracking();
 
   const persistenceClient = getChatPersistenceClient();
@@ -177,6 +208,8 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  mobileMql?.removeEventListener("change", onMobileChange);
+  tabletMql?.removeEventListener("change", onTabletChange);
   resetHistory();
 });
 </script>
@@ -190,6 +223,45 @@ onUnmounted(() => {
       @open-save-manage="showSaveManage = true"
       @open-system-settings="showSystemSettings = true"
     />
+
+    <!-- ═══ Mobile bottom nav ═══ -->
+    <nav v-if="isMobile" class="mg-game__mobile-nav">
+      <button
+        @click="leftPanelOpen = !leftPanelOpen; rightPanelOpen = false"
+        :class="{ 'mg-game__mobile-nav-btn--active': leftPanelOpen }"
+        class="mg-game__mobile-nav-btn"
+        title="场景信息"
+      >
+        <i class="fas fa-map"></i>
+        <span>场景</span>
+      </button>
+      <button
+        @click="rightPanelOpen = !rightPanelOpen; leftPanelOpen = false"
+        :class="{ 'mg-game__mobile-nav-btn--active': rightPanelOpen }"
+        class="mg-game__mobile-nav-btn"
+        title="角色"
+      >
+        <i class="fas fa-user"></i>
+        <span>角色</span>
+      </button>
+      <button
+        class="mg-game__mobile-nav-btn"
+        @click="openFormationModal"
+        title="编队"
+      >
+        <i class="fas fa-users"></i>
+        <span>编队</span>
+      </button>
+      <button
+        class="mg-game__mobile-nav-btn"
+        @click="bottomBarOpen = !bottomBarOpen"
+        :class="{ 'mg-game__mobile-nav-btn--active': bottomBarOpen }"
+        title="更多"
+      >
+        <i class="fas fa-ellipsis-h"></i>
+        <span>更多</span>
+      </button>
+    </nav>
 
     <!-- ═══ Center Row (3 columns) ═══ -->
     <div class="mg-game__center">
@@ -672,6 +744,180 @@ onUnmounted(() => {
     color: var(--mg-accent);
     border-color: var(--mg-accent);
     background: var(--mg-bg-card);
+  }
+}
+
+// ═══════════════════════════════════════════
+// Mobile bottom navigation
+// ═══════════════════════════════════════════
+.mg-game__mobile-nav {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 4px 4px;
+  padding-bottom: max(4px, env(safe-area-inset-bottom));
+  background: var(--mg-bg-card);
+  border-top: var(--mg-border-width) solid var(--mg-border);
+  z-index: var(--mg-z-content);
+}
+
+.mg-game__mobile-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: var(--mg-radius-sm);
+  background: transparent;
+  color: var(--mg-text-secondary);
+  font-size: 0.6rem;
+  cursor: pointer;
+  transition: color var(--mg-transition-fast);
+
+  i {
+    font-size: 1.1rem;
+  }
+
+  &:hover,
+  &:active {
+    color: var(--mg-accent);
+  }
+
+  &--active {
+    color: var(--mg-accent);
+  }
+}
+
+// ═══════════════════════════════════════════
+// Mobile: <= 639px — single-column, overlay panels
+// ═══════════════════════════════════════════
+@media (max-width: 639px) {
+  .mg-game__center {
+    flex-direction: column;
+  }
+
+  .mg-game__left,
+  .mg-game__right {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: var(--mg-z-overlay, 100);
+    width: 280px;
+    max-width: 85vw;
+    flex: none;
+    background: var(--mg-bg-card);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+
+    &--closed {
+      background: var(--mg-bg-card);
+      border-color: var(--mg-border);
+      pointer-events: none;
+    }
+  }
+
+  .mg-game__left {
+    left: 0;
+    border-right: var(--mg-border-width) solid var(--mg-border);
+
+    &--closed {
+      transform: translateX(-100%);
+    }
+  }
+
+  .mg-game__right {
+    right: 0;
+    border-left: var(--mg-border-width) solid var(--mg-border);
+
+    &--closed {
+      transform: translateX(100%);
+    }
+  }
+
+  .mg-game__chat {
+    flex: 1;
+    width: 100%;
+  }
+
+  // Adjust panel toggles for overlay mode
+  .mg-panel-toggle {
+    top: 8px;
+    z-index: 3;
+  }
+
+  .mg-game__left .mg-panel-toggle {
+    right: 4px;
+    left: auto;
+  }
+
+  .mg-game__right .mg-panel-toggle {
+    left: 4px;
+    right: auto;
+  }
+
+  .mg-game__left--closed .mg-panel-toggle {
+    right: -36px;
+    left: auto;
+    border-radius: 0 50% 50% 0;
+  }
+
+  .mg-game__right--closed .mg-panel-toggle {
+    left: -36px;
+    right: auto;
+    border-radius: 50% 0 0 50%;
+  }
+}
+
+// ═══════════════════════════════════════════
+// Tablet: 640px-1023px — absolute overlays
+// ═══════════════════════════════════════════
+@media (min-width: 640px) and (max-width: 1023px) {
+  .mg-game__chat {
+    flex: 1;
+    width: 100%;
+  }
+
+  .mg-game__left,
+  .mg-game__right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: var(--mg-z-overlay, 100);
+    flex: 0 0 280px;
+    width: 280px;
+    box-shadow: var(--mg-shadow-sticker);
+
+    &--closed {
+      background: transparent;
+      border-color: transparent;
+      pointer-events: none;
+      box-shadow: none;
+
+      .mg-panel-toggle {
+        pointer-events: auto;
+      }
+    }
+  }
+
+  .mg-game__left {
+    left: 0;
+  }
+
+  .mg-game__right {
+    right: 0;
+  }
+
+  // Show toggle on outer edge when closed
+  .mg-game__left--closed .mg-panel-toggle {
+    right: auto;
+    left: 4px;
+  }
+
+  .mg-game__right--closed .mg-panel-toggle {
+    left: auto;
+    right: 4px;
   }
 }
 </style>

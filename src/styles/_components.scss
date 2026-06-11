@@ -1590,6 +1590,107 @@
   .battle-party-card {
     min-width: 220px;
   }
+
+  .battle-command-description p {
+    white-space: normal;
+    text-overflow: clip;
+    overflow: visible;
+  }
+
+  .mg-bgm__btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+
+  .mg-bgm__btn--play {
+    width: 44px;
+    height: 44px;
+    font-size: 1.1rem;
+  }
+}
+
+// ═══════════════════════════════════════════
+// Extra-small screens (< 400px) — small phones
+// ═══════════════════════════════════════════
+@media (max-width: 399px) {
+  .battle-overlay {
+    padding: 4px;
+  }
+
+  .battle-hud {
+    gap: 4px;
+    height: auto;
+    min-height: calc(100dvh - 0.5rem);
+  }
+
+  .battle-enemy-card {
+    min-width: 110px;
+    width: 120px;
+    padding: 6px;
+
+    .battle-enemy-card__sprite {
+      max-height: 60px;
+    }
+
+    .battle-enemy-card__name {
+      font-size: 0.7rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+  }
+
+  .battle-party-card {
+    min-width: 140px;
+    width: 160px;
+
+    &__body {
+      padding: 6px;
+    }
+
+    &__name {
+      font-size: 0.7rem;
+    }
+
+    &__bar {
+      font-size: 0.5rem;
+      grid-template-columns: 1.2em auto 3em;
+    }
+  }
+
+  .battle-hud__enemy-row {
+    min-height: 140px;
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .battle-hud__party-row {
+    min-height: 140px;
+    gap: 6px;
+    padding-bottom: 2px;
+  }
+
+  .battle-status-panel__enemy,
+  .battle-status-panel__turn {
+    min-height: auto;
+    padding: 8px;
+  }
+
+  .battle-status-panel__name {
+    font-size: 1rem;
+  }
+
+  .battle-command-menu__button {
+    min-height: 28px;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .battle-command-menu__items {
+    max-height: 160px;
+  }
 }
 
 /* ===== TODO Feature Widgets ===== */

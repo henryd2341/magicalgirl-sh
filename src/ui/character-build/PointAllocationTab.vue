@@ -499,4 +499,34 @@ watch(() => props.characterId, () => loadState());
   justify-content: center;
   margin-top: var(--mg-space-sm);
 }
+
+// ── Mobile touch targets ──
+@media (max-width: 639px) {
+  .points-tab__stat-row {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .points-tab__stat-label {
+    width: 40px;
+    font-size: 0.78rem;
+  }
+
+  .points-tab__btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+  }
+
+  .points-tab__stat-values {
+    gap: 4px;
+    font-size: 0.8rem;
+  }
+
+  .points-tab__info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
 </style>

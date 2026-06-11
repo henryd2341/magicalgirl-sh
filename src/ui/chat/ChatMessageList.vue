@@ -134,6 +134,37 @@ function renderMessageContent(message: ChatMessage): string {
 </template>
 
 <style scoped>
+.chat-message-card__content {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.chat-message-card__content :deep(pre) {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-message-card__content :deep(code) {
+  word-break: break-all;
+}
+
+.chat-message-card__content :deep(table) {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+.chat-message-card__content :deep(img) {
+  max-width: 100%;
+  height: auto;
+}
+
 .chat-message-card__content :deep(.cot-fold) {
   border-left: 3px solid var(--color-accent, #c2185b);
   padding: 0.5em 1em;
