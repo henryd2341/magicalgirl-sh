@@ -54,6 +54,7 @@ import { useChatStore } from "@/stores/chatStore";
 import { usePromptViewerStore } from "@/stores/promptViewerStore";
 import { useSkillStore } from "@/stores/skillStore";
 import type { BattleParticipant } from "@/types/battle";
+import type { ChatMessage } from "@/types/chat";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
 import { defineStore } from "pinia";
 import { ref } from "vue";
@@ -1268,6 +1269,69 @@ export const useSessionStore = defineStore("session", () => {
     }
   }
 
+  async function retryFromMessage(messageId: string) {
+    const chatStore = useChatStore();
+
+    if (isStoryTurnRunning.value) return;
+    isStoryTurnRunning.value = true;
+
+    try {
+      const currentMessages = chatStore.messages;
+      const targetIdx = currentMessages.findIndex(m => m.id === messageId);
+      if (targetIdx === -1) return;
+
+      const targetMessage = currentMessages[targetIdx];
+
+      // Find the triggering user message (nearest preceding user message)
+      let triggerUserMsg: ChatMessage | undefined;
+      for (let i = targetIdx; i >= 0; i--) {
+        if (currentMessages[i].role === "user") {
+          triggerUserMsg = currentMessages[i];
+          break;
+        }
+      }
+      if (!triggerUserMsg) return;
+
+      // Rollback to the latest idle checkpoint
+      await rollbackToLatestIdleCheckpoint();
+      await chatStore.refreshMessages();
+
+      // Cascade deletion: keep messages through trigger user (AI retry) or before trigger user (user retry)
+      const restoredMessages = chatStore.messages;
+      const triggerIdx = restoredMessages.findIndex(
+        m => m.id === triggerUserMsg!.id
+      );
+      const keepEndIdx = targetMessage.role === "assistant"
+        ? triggerIdx + 1  // AI retry: keep through trigger user
+        : triggerIdx;      // User retry: keep before trigger user
+      const keepMessages = restoredMessages.slice(0, keepEndIdx);
+      const repo = chatStore.getActiveChatRuntime().repository;
+      await repo.replaceAll(keepMessages);
+      await chatStore.refreshMessages();
+
+      if (targetMessage.role === "assistant") {
+        // AI message retry: trigger user message preserved, resume from it
+        const orchestrator = await createRetryOrchestrator();
+        await orchestrator.retryUserTurn({
+          userContent: triggerUserMsg.content,
+        });
+      } else {
+        // User message retry: runStoryTurn recreates the trigger user fresh
+        await runStoryTurn(triggerUserMsg.content);
+      }
+    } finally {
+      isStoryTurnRunning.value = false;
+    }
+  }
+
+  async function createRetryOrchestrator(): Promise<OrchestratorService> {
+    return createStoryOrchestratorService({
+      requestId: createStoryTurnId("retry-turn"),
+      userMessageId: createStoryTurnId("msg-retry-user"),
+      assistantMessageId: createStoryTurnId("msg-retry-assistant"),
+    });
+  }
+
   async function continuePostCombatStory() {
     if (snapshot.value.sessionState !== "POST_COMBAT_READY") {
       throw new Error(
@@ -1439,6 +1503,7 @@ export const useSessionStore = defineStore("session", () => {
     recoverFromInterruptedCombat,
     restoreFromCheckpointSnapshot,
     rollbackToLatestIdleCheckpoint,
+    retryFromMessage,
     getVariableSnapshot: () => variableRepository.getCurrent(),
     previewPrompt: async (userInput: string) => {
       const promptViewerStore = usePromptViewerStore();

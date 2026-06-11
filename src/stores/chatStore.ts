@@ -8,6 +8,7 @@ import {
   type CreateUserMessageInput,
   type FinalizeAssistantMessageInput,
   type MarkAssistantFailedDraftInput,
+  type UpdateMessageContentInput,
 } from "@/engine/chatMessageService";
 import type { DbWorkerClient } from "@/persistence/dbClient";
 import {
@@ -101,6 +102,10 @@ export const useChatStore = defineStore("chat", {
       return message;
     },
     async refreshMessages() {
+      this.messages = await listMessages();
+    },
+    async updateMessageContent(payload: UpdateMessageContentInput) {
+      await activeService.updateMessageContent(payload);
       this.messages = await listMessages();
     },
     getActiveChatRuntime(): ActiveChatRuntime {

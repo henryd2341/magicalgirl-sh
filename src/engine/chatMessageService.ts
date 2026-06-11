@@ -50,6 +50,11 @@ export interface CreateContextSummaryMessageInput {
   createdAt: string;
 }
 
+export interface UpdateMessageContentInput {
+  messageId: string;
+  content: string;
+}
+
 function createChatLifecycleError(code: string, message: string): Error {
   return new Error(`[${code}] ${message}`);
 }
@@ -219,6 +224,15 @@ export class ChatMessageService {
 
     await this.repository.save(message);
     return message;
+  }
+
+  public async updateMessageContent(
+    input: UpdateMessageContentInput,
+  ): Promise<ChatMessage> {
+    const message = await this.requireMessage(input.messageId);
+    const updated: ChatMessage = { ...message, content: input.content };
+    await this.repository.save(updated);
+    return updated;
   }
 
   private async requireMessage(messageId: string): Promise<ChatMessage> {

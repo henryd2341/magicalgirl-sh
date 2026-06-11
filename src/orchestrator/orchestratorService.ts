@@ -223,6 +223,113 @@ export class OrchestratorService {
     }
   }
 
+  public async retryUserTurn(input: {
+    userContent: string;
+  }): Promise<RunUserTurnResult> {
+    const assistantMessageId = this.idFactory.assistantMessageId();
+    let request: BuiltProviderRequest | null = null;
+    let checkpoint: CheckpointSnapshotRecord | null = null;
+    let assistantMessageCreated = false;
+    const toolResults: Array<{ tool_name: string; tool_call_id: string; ok: boolean; output?: unknown; error?: string }> = [];
+
+    // NOTE: do NOT create user message — it already exists from checkpoint rollback
+
+    try {
+      request = await this.buildRequest({ userInput: input.userContent });
+      checkpoint = await this.checkpointManager?.createCheckpoint({
+        kind: "idle_checkpoint",
+        reason: "before_ai_request_retry",
+        contextVersion: request.metadata.context_version,
+        stateHash: request.metadata.state_hash,
+        metadata: {
+          requestId: request.metadata.request_id,
+        },
+      }) ?? null;
+      this.gameEngineFacade.beginAiRequest(request.metadata.request_id);
+      await this.appendEventLog({
+        type: "RequestStarted",
+        requestId: request.metadata.request_id,
+        checkpointId: checkpoint?.id ?? null,
+      });
+      await this.chatService.createAssistantProvisionalMessage({
+        id: assistantMessageId,
+        requestId: request.metadata.request_id,
+        createdAt: this.now(),
+      });
+      assistantMessageCreated = true;
+
+      this.gameEngineFacade.advancePipeline("STREAMING_TEXT");
+      const streamResult = await this.providerClient.stream(request, {
+        onTextChunk: async (chunk) => {
+          await this.chatService.appendAssistantChunk({
+            messageId: assistantMessageId,
+            chunk,
+          });
+        },
+        onReasoningChunk: async (chunk) => {
+          await this.chatService.appendAssistantReasoning({
+            messageId: assistantMessageId,
+            chunk,
+          });
+        },
+      });
+      toolResults.push(...streamResult.toolResults);
+
+      const toolFoldHtml = buildToolFoldHtml(streamResult.toolResults);
+      if (toolFoldHtml) {
+        await this.chatService.appendAssistantChunk({
+          messageId: assistantMessageId,
+          chunk: toolFoldHtml,
+        });
+      }
+
+      const failedResult = streamResult.toolResults.find((tr) => !tr.ok);
+      if (failedResult) {
+        throw new Error(
+          `[TOOL_EXECUTION_FAILED] Tool ${failedResult.tool_name} (${failedResult.tool_call_id}) failed: ${failedResult.error ?? "unknown error"}`,
+        );
+      }
+
+      const snapshot = this.gameEngineFacade.getSessionSnapshot();
+      if (snapshot.sessionState === "GENERATING") {
+        this.gameEngineFacade.completeAiRequest();
+      }
+
+      await this.chatService.finalizeAssistantMessage({
+        messageId: assistantMessageId,
+        commitAck: true,
+      });
+      await this.appendEventLog({
+        type: "AssistantMessageFinalized",
+        requestId: request.metadata.request_id,
+        assistantMessageId,
+      });
+
+      return {
+        ok: true,
+        request,
+        assistantMessageId,
+        toolResults,
+      };
+    } catch (error) {
+      if (assistantMessageCreated) {
+        await this.chatService.markAssistantFailedDraft({
+          messageId: assistantMessageId,
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+      }
+      this.gameEngineFacade.enterErrorRecovery();
+
+      return {
+        ok: false,
+        request,
+        assistantMessageId,
+        toolResults,
+        error: error instanceof Error ? error : new Error(String(error)),
+      };
+    }
+  }
+
   private async appendEventLog(input: {
     type: "RequestStarted" | "AssistantMessageFinalized";
     requestId: string;

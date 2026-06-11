@@ -56,7 +56,11 @@ onMounted(async () => {
 
 <template>
   <section id="game-conversation-panel" class="game-conversation-panel">
-    <ChatMessageList :messages="visibleMessages" :beautify-tag-name="cotBeautifyTagName" />
+    <ChatMessageList
+      :messages="visibleMessages"
+      :beautify-tag-name="cotBeautifyTagName"
+      @retry="sessionStore.retryFromMessage($event)"
+    />
     <FailedDraftActions
       v-if="latestFailedDraftId"
       :message-id="latestFailedDraftId"

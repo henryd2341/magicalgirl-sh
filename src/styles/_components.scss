@@ -753,6 +753,81 @@
   }
 }
 
+// ── Message action buttons ──
+.chat-message-card__actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  padding: 4px var(--mg-space-md, 12px) var(--mg-space-sm, 8px);
+  opacity: 0.7;
+}
+
+.mg-btn-action {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  border: 1px solid var(--mg-border, rgba(255, 255, 255, 0.08));
+  border-radius: 4px;
+  background: var(--mg-bg-surface, rgba(255, 255, 255, 0.04));
+  color: var(--mg-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: var(--mg-bg-card, rgba(255, 255, 255, 0.08));
+    color: var(--mg-text);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+}
+
+.mg-btn-action--copied {
+  color: #27ae60;
+  border-color: rgba(39, 174, 96, 0.3);
+}
+
+.mg-btn-action--retry {
+  &:hover:not(:disabled) {
+    border-color: rgba(231, 76, 60, 0.3);
+    color: #e74c3c;
+  }
+}
+
+.mg-btn-action--confirm {
+  color: #27ae60;
+  border-color: rgba(39, 174, 96, 0.3);
+}
+
+// ── Inline edit ──
+.chat-message-card__edit-input {
+  width: 100%;
+  min-height: 80px;
+  max-height: 300px;
+  padding: 8px;
+  font-size: var(--mg-font-sm, 0.85rem);
+  font-family: inherit;
+  border: 1px solid var(--mg-accent, #ff6b9d);
+  border-radius: var(--mg-radius);
+  background: var(--mg-bg-card);
+  color: var(--mg-text);
+  resize: vertical;
+  outline: none;
+  margin-bottom: 6px;
+
+  &:focus {
+    box-shadow: var(--mg-glow-pink);
+  }
+}
+
+.chat-message-card__edit-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
 .chat-input-box__form {
   display: flex;
   gap: var(--mg-space-sm, 8px);
