@@ -406,18 +406,18 @@ export async function buildHarnessRequest(
       source: "worldInfoRepository",
     }),
     segment({
-      id: "tools",
-      kind: "tools",
-      title: "Available Tools",
-      content: renderToolDefinitions(tools),
-      source: "toolSchemas",
-    }),
-    segment({
       id: "history",
       kind: "history",
       title: "Conversation History",
       content: renderHistory(historyMessages),
       source: "chatHistoryRepository",
+    }),
+    segment({
+      id: "tools",
+      kind: "tools",
+      title: "Available Tools",
+      content: renderToolDefinitions(tools),
+      source: "toolSchemas",
     }),
     segment({
       id: "state",
