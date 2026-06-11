@@ -358,7 +358,7 @@ function buildToolFoldHtml(
   toolResults: ProviderStreamResult["toolResults"],
 ): string {
   const visible = toolResults.filter(
-    (tr) => tr.tool_name !== "trigger_battle" && tr.ok,
+    (tr) => tr.ok,
   );
   if (visible.length === 0) return "";
 
