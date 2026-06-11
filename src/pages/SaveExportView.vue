@@ -34,6 +34,7 @@ const isExporting = ref(false);
 const isImporting = ref(false);
 const isRestoringSlotId = ref<string | null>(null);
 const isDeletingSlotId = ref<string | null>(null);
+const isQuickLoading = ref(false);
 const selectedImportFile = ref<File | null>(null);
 const saveSlots = ref<SaveSlotRecord[]>([]);
 const lastExport = ref<{
@@ -147,6 +148,36 @@ async function exportFullSave() {
       error instanceof Error ? error.message : "完整备份导出失败。";
   } finally {
     isExporting.value = false;
+  }
+}
+
+async function loadLatestSnapshot() {
+  if (!persistenceClient || isQuickLoading.value) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "加载最近快照会覆盖当前游戏进度。\n\n提示：建议定期导出完整备份以确保数据安全。\n\n是否继续？",
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  isQuickLoading.value = true;
+  errorMessage.value = null;
+
+  try {
+    await sessionStore.rollbackToLatestIdleCheckpoint();
+    await chatStore.configurePersistence({ client: persistenceClient });
+    await chatStore.refreshMessages();
+    emit("close");
+    router.push({ name: "game" });
+  } catch (error) {
+    errorMessage.value =
+      error instanceof Error ? error.message : "加载最近快照失败。";
+  } finally {
+    isQuickLoading.value = false;
   }
 }
 
@@ -301,7 +332,11 @@ function exportSlot(slot: SaveSlotRecord) {
     class="save-export-view scrapbook-panel"
     role="main"
   >
-    <section class="save-export-view__panel">
+    <div v-if="isQuickLoading" class="save-export-view__restoring">
+      <i class="fas fa-spinner fa-spin"></i>
+      <span>正在恢复存档…</span>
+    </div>
+    <section v-else class="save-export-view__panel">
       <p class="eyebrow eyebrow--lime">Save Manager</p>
       <h1 class="section-heading--playful">存档管理</h1>
       <p class="hero-subtitle">
@@ -338,6 +373,18 @@ function exportSlot(slot: SaveSlotRecord) {
         >
           {{ isExporting ? "导出中" : "导出完整备份" }}
         </button>
+        <button
+          id="save-load-latest-snapshot"
+          class="secondary-cta"
+          type="button"
+          :disabled="!persistenceClient || isQuickLoading"
+          @click="loadLatestSnapshot"
+        >
+          {{ isQuickLoading ? "加载中" : "加载最近快照" }}
+        </button>
+        <p v-if="persistenceClient" class="hero-subtitle" style="opacity: 0.65; font-size: 0.8rem; margin-top: 2px;">
+          提示：此功能加载最近自动保存的快照，建议定期导出完整备份
+        </p>
         <label class="secondary-cta" for="save-import-file">
           选择导入文件
         </label>
@@ -449,3 +496,21 @@ function exportSlot(slot: SaveSlotRecord) {
     </section>
   </main>
 </template>
+
+<style lang="scss" scoped>
+.save-export-view__restoring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 16px;
+  border: 2px solid var(--mg-accent);
+  border-radius: var(--mg-radius-sm);
+  background: var(--mg-surface-pink);
+  color: var(--mg-accent);
+  font-family: var(--mg-font-heading);
+  font-size: 0.95rem;
+  font-weight: 600;
+  animation: mg-fade-in 200ms ease;
+}
+</style>
