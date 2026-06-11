@@ -1357,29 +1357,35 @@ export const useSessionStore = defineStore("session", () => {
       );
     }
 
-    const chatStore = useChatStore();
-    const orchestratorService = await createStoryOrchestratorService({
-      requestId: createPostCombatId("post-combat-continue"),
-      userMessageId: createPostCombatId("msg-post-combat-user"),
-      assistantMessageId: createPostCombatId("msg-post-combat-assistant"),
-    });
+    isStoryTurnRunning.value = true;
 
-    const result = await orchestratorService.runUserTurn({
-      userInput: POST_COMBAT_CONTINUE_INPUT,
-      userVisible: false,
-      aiVisible: true,
-    });
+    try {
+      const chatStore = useChatStore();
+      const orchestratorService = await createStoryOrchestratorService({
+        requestId: createPostCombatId("post-combat-continue"),
+        userMessageId: createPostCombatId("msg-post-combat-user"),
+        assistantMessageId: createPostCombatId("msg-post-combat-assistant"),
+      });
 
-    await chatStore.refreshMessages();
-    snapshot.value = gameEngineFacade.getSessionSnapshot();
-    await loadLearnedSkills();
-    await persistRuntimeSnapshot();
+      const result = await orchestratorService.runUserTurn({
+        userInput: POST_COMBAT_CONTINUE_INPUT,
+        userVisible: false,
+        aiVisible: true,
+      });
 
-    maybeSummarizeHistory().catch((err) => {
-      console.warn("[sessionStore] Summarization skipped:", err);
-    });
+      await chatStore.refreshMessages();
+      snapshot.value = gameEngineFacade.getSessionSnapshot();
+      await loadLearnedSkills();
+      await persistRuntimeSnapshot();
 
-    return result;
+      maybeSummarizeHistory().catch((err) => {
+        console.warn("[sessionStore] Summarization skipped:", err);
+      });
+
+      return result;
+    } finally {
+      isStoryTurnRunning.value = false;
+    }
   }
 
   function refreshSnapshot() {

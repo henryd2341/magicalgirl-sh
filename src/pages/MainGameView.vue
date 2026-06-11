@@ -139,7 +139,10 @@ watch([() => snapshot.value.sessionState, pendingBattle], ([state, battle]) => {
 });
 
 const shouldShowPostCombatPanel = computed(() => {
-  return snapshot.value.sessionState === "POST_COMBAT_READY";
+  return (
+    snapshot.value.sessionState === "POST_COMBAT_READY" &&
+    !sessionStore.isStoryTurnRunning
+  );
 });
 
 // ── Debug battle (uses real formation + variable state) ──
