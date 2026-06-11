@@ -1274,6 +1274,7 @@ export const useSessionStore = defineStore("session", () => {
 
       await chatStore.refreshMessages();
       snapshot.value = gameEngineFacade.getSessionSnapshot();
+      variableVersion.value++;
       await persistRuntimeSnapshot();
 
       // Trigger summarization asynchronously — failure is non-fatal.
@@ -1375,6 +1376,7 @@ export const useSessionStore = defineStore("session", () => {
 
       await chatStore.refreshMessages();
       snapshot.value = gameEngineFacade.getSessionSnapshot();
+      variableVersion.value++;
       await loadLearnedSkills();
       await persistRuntimeSnapshot();
 
