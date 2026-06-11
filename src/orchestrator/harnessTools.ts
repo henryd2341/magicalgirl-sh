@@ -11,6 +11,7 @@ import {
   type TriggerBattleToolInput,
   type UpdateVariablesToolInput,
 } from "@/orchestrator/toolEnvelope";
+import type { TriggerBattleEnemyInput } from "@/orchestrator/toolEnvelope";
 import {
   readSkillToolInputSchema,
   triggerBattleToolInputSchema,
@@ -24,6 +25,11 @@ export interface HarnessToolExecutorDeps {
   getToolProfile?: (toolName: string) => Promise<ProviderProfile | null>;
   getVariableSnapshot?: () => Promise<string>;
   getLastMessages?: () => Promise<{ user: string; assistant: string }>;
+  onTriggerBattle?: (params: {
+    encounterId: string;
+    narrativeReason: string;
+    enemies: TriggerBattleEnemyInput[];
+  }) => void | Promise<void>;
 }
 
 export interface VariableAgentPrompt {
@@ -237,6 +243,14 @@ export function createHarnessToolsWithExecute(
       description: createHarnessTools().trigger_battle.description,
       inputSchema: triggerBattleToolInputSchema,
       execute: async (input, options) => {
+        console.log("[harnessTools] trigger_battle EXECUTE START", {
+          encounter_id: input.encounter_id,
+          enemies: input.enemies,
+          modifiers: input.modifiers,
+          narrative_reason: input.narrative_reason,
+          toolCallId: options.toolCallId,
+        });
+
         const result = await deps.dispatchCommand({
           type: "TRIGGER_BATTLE",
           payload: toTriggerBattleCommandPayload({
@@ -248,6 +262,22 @@ export function createHarnessToolsWithExecute(
             input,
           }),
         });
+
+        console.log("[harnessTools] dispatchCommand result", result);
+
+        // Notify the UI layer to stage the pending encounter so the
+        // PendingBattleBar appears for the player.
+        if (deps.onTriggerBattle) {
+          console.log("[harnessTools] calling onTriggerBattle...");
+          await deps.onTriggerBattle({
+            encounterId: input.encounter_id,
+            narrativeReason: input.narrative_reason,
+            enemies: input.enemies,
+          });
+          console.log("[harnessTools] onTriggerBattle done");
+        } else {
+          console.warn("[harnessTools] onTriggerBattle NOT SET — pendingBattle will NOT be staged!");
+        }
 
         return {
           ok: true,
@@ -371,18 +401,23 @@ export function createHarnessTools() {
     }),
     trigger_battle: tool({
       description: [
-        "Initiate a combat encounter. Places the game into pending battle state.",
+        "触发战斗遭遇。将游戏置入待战斗状态。当叙事中出现敌对遭遇时必须调用。",
         "",
-        "Fields:",
-        "  encounter_id (string) — Unique encounter identifier",
+        "字段说明：",
+        '  encounter_id (string) — 遭遇唯一标识，如 "encounter_rooftop_shade"',
         "  enemies (array) — [{ enemy_id: string, count: int >=1 }]",
-        "  modifiers (string[], optional) — Battle conditions",
-        "  narrative_reason (string) — Why this battle is happening",
+        "    enemy_id: 敌人类型标识（可用数字ID或名称）",
+        "    count: 该类型数量",
+        "  modifiers (string[], 可选) — 战斗条件，如 [\"ambush\", \"midnight\", \"first_battle\"]",
+        "  narrative_reason (string) — 此战斗在故事中发生的原因",
         "",
-        "Example: { encounter_id: \"encounter_rooftop_shade\",",
-        "  enemies: [{ enemy_id: \"shade_student\", count: 1 }],",
+        "可用敌人举例：牙牛(id:1)、蛮豹(id:2)、影兽(id:57)、幽蟒(id:63)、影猫(id:62)、噬光巨蟹(id:60) 等",
+        "enemy_id 可使用敌人名称或数字ID。encounter_id 格式为 encounter_<场景描述>。",
+        "",
+        "示例: { encounter_id: \"encounter_rooftop_shade\",",
+        "  enemies: [{ enemy_id: \"57\", count: 1 }],",
         "  modifiers: [\"first_battle\"],",
-        "  narrative_reason: \"一只暗影生物从虫洞出现\" }",
+        "  narrative_reason: \"一只影兽从虫洞出现\" }",
       ].join("\n"),
       inputSchema: triggerBattleToolInputSchema,
     }),

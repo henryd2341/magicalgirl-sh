@@ -1019,6 +1019,24 @@ export const useSessionStore = defineStore("session", () => {
             assistant: lastAssistant?.content ?? "",
           };
         },
+        onTriggerBattle: async (params) => {
+          console.log("[sessionStore.onTriggerBattle] CALLED", params);
+          const battleStore = useBattleStore();
+          console.log("[sessionStore.onTriggerBattle] battleStore.pendingBattle before =", battleStore.pendingBattle);
+          battleStore.stagePendingEncounter({
+            encounterId: params.encounterId,
+            narrativeReason: params.narrativeReason,
+            enemies: params.enemies,
+          });
+          console.log("[sessionStore.onTriggerBattle] battleStore.pendingBattle after =", battleStore.pendingBattle);
+          await markCombatCheckpoint({
+            reason: "combat_pending",
+            encounterId: params.encounterId,
+          });
+          console.log("[sessionStore.onTriggerBattle] markCombatCheckpoint done");
+          await persistRuntimeSnapshot();
+          console.log("[sessionStore.onTriggerBattle] persistRuntimeSnapshot done");
+        },
       },
       async (calls) => {
         const battleStore = useBattleStore();

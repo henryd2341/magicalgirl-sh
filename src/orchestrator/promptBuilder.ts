@@ -233,18 +233,21 @@ function createToolDefinitions(): ProviderToolDefinition[] {
     {
       name: "trigger_battle",
       description: [
-        "Initiate a combat encounter. Places the game into pending battle state.",
+        "触发战斗遭遇。将游戏置入待战斗状态。当叙事中出现敌对遭遇时必须调用此工具。",
         "",
-        "Fields:",
-        '  encounter_id (string) - Unique identifier for this encounter, e.g. "encounter_rooftop_shade"',
+        "字段说明：",
+        '  encounter_id (string) - 遭遇唯一标识，如 "encounter_rooftop_shade"',
         '  enemies (array) - [{ "enemy_id": string, "count": integer >=1 }]',
-        "    enemy_id: enemy type identifier",
-        "    count: how many of this type",
-        '  modifiers (string[], optional) - Battle conditions, e.g. ["ambush", "midnight", "first_battle"]',
-        "  narrative_reason (string) - Why this battle is happening in the story",
+        "    enemy_id: 敌人类型标识（可用敌人的数字ID或名称）",
+        "    count: 该类型敌人数量",
+        '  modifiers (string[], 可选) - 战斗条件，如 ["ambush", "midnight", "first_battle"]',
+        "  narrative_reason (string) - 此战斗在故事中发生的原因",
         "",
-        "Example:",
-        '  { "encounter_id": "encounter_classroom_shade", "enemies": [{ "enemy_id": "shade_student", "count": 1 }], "modifiers": ["first_battle"], "narrative_reason": "一只暗影生物从虫洞出现，袭击了教室" }',
+        "可用敌人举例：牙牛(id:1)、蛮豹(id:2)、影兽(id:57)、幽蟒(id:63)、影猫(id:62)、噬光巨蟹(id:60) 等",
+        "enemy_id 可使用敌人名称或数字ID。encounter_id 格式为 encounter_<场景描述>。",
+        "",
+        "示例：",
+        '  { "encounter_id": "encounter_classroom_shade", "enemies": [{ "enemy_id": "57", "count": 1 }], "modifiers": ["first_battle"], "narrative_reason": "一只影兽从虫洞出现，袭击了教室" }',
       ].join("\n"),
     },
     {
@@ -273,6 +276,8 @@ function renderSkillsMetadata(metadata: SkillMetadata[]): string {
       (skill) =>
         `- **${skill.name}**: ${skill.description}\n  使用 read_skill 工具读取 "${skill.name}" 获取完整内容。`,
     ),
+    "",
+    "重要提醒：当叙事中出现战斗/敌对遭遇时，必须使用 trigger_battle 工具触发战斗。不要仅用文本描述战斗场景——战斗是游戏的核心机制，text-only 的战斗描述不会触发实际游戏逻辑。",
   ].join("\n");
 }
 

@@ -184,8 +184,10 @@ export class OrchestratorService {
       }
 
       const snapshot = this.gameEngineFacade.getSessionSnapshot();
+      console.log("[OrchestratorService] AI done, sessionState =", snapshot.sessionState);
       if (snapshot.sessionState === "GENERATING") {
         this.gameEngineFacade.completeAiRequest();
+        console.log("[OrchestratorService] completeAiRequest called");
       }
 
       await this.chatService.finalizeAssistantMessage({
@@ -291,8 +293,10 @@ export class OrchestratorService {
       }
 
       const snapshot = this.gameEngineFacade.getSessionSnapshot();
+      console.log("[OrchestratorService] AI done, sessionState =", snapshot.sessionState);
       if (snapshot.sessionState === "GENERATING") {
         this.gameEngineFacade.completeAiRequest();
+        console.log("[OrchestratorService] completeAiRequest called");
       }
 
       await this.chatService.finalizeAssistantMessage({
@@ -383,6 +387,20 @@ function buildToolFoldHtml(
       if (output?.name) {
         html += `- ${output.name}\n`;
       } else {
+        html += "*(已执行)*\n";
+      }
+    } else if (tr.tool_name === "trigger_battle") {
+      html += "**触发战斗**\n";
+      const output = tr.output as
+        | { encounter_id?: string; narrative_reason?: string }
+        | undefined;
+      if (output?.encounter_id) {
+        html += `- 遭遇: ${output.encounter_id}\n`;
+      }
+      if (output?.narrative_reason) {
+        html += `- 原因: ${output.narrative_reason}\n`;
+      }
+      if (!output?.encounter_id && !output?.narrative_reason) {
         html += "*(已执行)*\n";
       }
     }

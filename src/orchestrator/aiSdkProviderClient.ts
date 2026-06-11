@@ -23,6 +23,7 @@ export interface AiSdkProviderClientConfig {
   reasoningEffort?: "none" | "low" | "medium" | "high" | "xhigh" | "max";
   thinkingEnabled?: boolean;
   showReasoning?: boolean;
+  toolChoice?: "auto" | "required" | "none";
   harnessDeps: HarnessToolExecutorDeps;
 }
 
@@ -85,7 +86,10 @@ export class AiSdkProviderClient implements ProviderClient {
       model: provider(this.config.model),
       messages: toModelMessages(request),
       tools: toolsWithExecute,
-      stopWhen: stepCountIs(5),
+      ...(this.config.toolChoice !== undefined
+        ? { toolChoice: this.config.toolChoice }
+        : {}),
+      stopWhen: stepCountIs(8),
       temperature: this.config.temperature,
       maxOutputTokens: this.config.maxOutputTokens,
       ...(hasEffort || hasThinking

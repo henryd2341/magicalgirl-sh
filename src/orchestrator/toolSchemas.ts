@@ -19,12 +19,10 @@ export const updateVariablesToolInputSchema = z
           .object({
             path: z.string().min(1),
             value: z.unknown(),
-          })
-          .strict(),
+          }),
       )
       .min(1),
-  })
-  .strict();
+  });
 
 export const triggerBattleToolInputSchema = z
   .object({
@@ -35,20 +33,17 @@ export const triggerBattleToolInputSchema = z
           .object({
             enemy_id: z.string().min(1),
             count: z.number().int().min(1),
-          })
-          .strict(),
+          }),
       )
       .min(1),
     modifiers: z.array(z.string().min(1)).optional(),
     narrative_reason: z.string().min(1),
-  })
-  .strict();
+  });
 
 export const readSkillToolInputSchema = z
   .object({
     name: z.string().min(1),
-  })
-  .strict();
+  });
 
 const toolEnvelopeBaseSchema = z
   .object({

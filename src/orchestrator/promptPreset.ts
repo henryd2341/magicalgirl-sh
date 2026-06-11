@@ -27,6 +27,8 @@ const DEFAULT_COT_TEMPLATE_PREFIX = [
   " 6. 当前场景是否命中了某个skill的description？",
   " 7. 会有哪些变量发生变化？合理的新值是什么？",
   "- 检查完之后结束思考，开始输出正文和调用相关工具",
+  "- 至少调用一次update_variables工具",
+  "- 战斗场景下，必须调用trigger_battle工具，选择合适的enemy_id和count",
   "- 你输出的正文必须由 <content></content> 标签包裹",
   "",
   "下面是本轮叙事中的玩家输入",
@@ -53,6 +55,8 @@ const DEFAULT_COT_TEMPLATE_SUFFIX = [
   " 6. 当前场景是否命中了某个skill的description？",
   " 7. 会有哪些变量发生变化？合理的新值是什么？",
   "- 检查完之后结束思考，开始输出正文和调用相关工具",
+  "- 至少调用一次update_variables工具",
+  "- 战斗场景下，必须调用trigger_battle工具，选择合适的enemy_id和count",
   "- 你输出的正文必须由 <content></content> 标签包裹",
   "",
 ].join("\n");

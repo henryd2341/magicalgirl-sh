@@ -98,6 +98,7 @@ export function createSessionManager(): SessionManager {
       };
     },
     enterCombatPending() {
+      console.log("[SessionManager.enterCombatPending] current =", snapshot.sessionState);
       if (
         snapshot.sessionState !== "IDLE" &&
         snapshot.sessionState !== "GENERATING" &&
@@ -113,6 +114,7 @@ export function createSessionManager(): SessionManager {
         pipelineState: null,
         activeRequestId: null,
       };
+      console.log("[SessionManager.enterCombatPending] DONE, new =", snapshot.sessionState);
     },
     enterCombat() {
       if (snapshot.sessionState !== "COMBAT_PENDING") {

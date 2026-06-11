@@ -40,7 +40,9 @@ export const useBattleStore = defineStore("battle", {
   }),
   actions: {
     stagePendingEncounter(input: StagePendingEncounterInput) {
+      console.log("[battleStore.stagePendingEncounter] input =", input);
       this.pendingBattle = createPendingBattleSnapshot(input);
+      console.log("[battleStore.stagePendingEncounter] pendingBattle set to =", this.pendingBattle);
     },
     clearPendingEncounter() {
       this.pendingBattle = null;

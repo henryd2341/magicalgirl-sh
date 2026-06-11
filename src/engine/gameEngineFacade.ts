@@ -144,7 +144,14 @@ export class GameEngineFacade {
       ) as Promise<GameEngineCommandResult<TCommand>>;
     }
 
+    console.log("[GameEngineFacade.dispatchCommand] TRIGGER_BATTLE received", {
+      encounter_id: (command.payload as { input?: { encounter_id?: string } })?.input?.encounter_id,
+      prevState: this.sessionManager.getSnapshot().sessionState,
+    });
     this.sessionManager.enterCombatPending();
+    const newState = this.sessionManager.getSnapshot().sessionState;
+    console.log("[GameEngineFacade.dispatchCommand] after enterCombatPending, newState =", newState);
+
     return Promise.resolve({
       accepted: true,
       battleState: "pending",

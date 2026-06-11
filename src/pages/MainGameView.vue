@@ -27,7 +27,7 @@ import PostCombatPanel from "@/ui/session/PostCombatPanel.vue";
 import PendingBattleBar from "@/ui/session/PendingBattleBar.vue";
 import SystemSettingsPanel from "@/ui/settings/SystemSettingsPanel.vue";
 import { storeToRefs } from "pinia";
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import ApiSettingsView from "./ApiSettingsView.vue";
 import SaveExportView from "./SaveExportView.vue";
 import SettingsView from "./SettingsView.vue";
@@ -123,10 +123,19 @@ const shouldShowBattleOverlay = computed(() => {
 });
 
 const shouldShowPendingBattleBar = computed(() => {
-  return (
+  const show = (
     snapshot.value.sessionState === "COMBAT_PENDING" &&
     pendingBattle.value !== null
   );
+  return show;
+});
+
+watch([() => snapshot.value.sessionState, pendingBattle], ([state, battle]) => {
+  console.log("[MainGameView] shouldShowPendingBattleBar check:", {
+    sessionState: state,
+    pendingBattle: !!battle,
+    willShow: state === "COMBAT_PENDING" && battle !== null,
+  });
 });
 
 const shouldShowPostCombatPanel = computed(() => {
