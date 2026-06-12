@@ -44,11 +44,11 @@ export function useThemeDeco() {
   }
 
   onMounted(() => {
-    window.addEventListener("mg-theme-change", onThemeChange);
+    addEventListener("mg-theme-change", onThemeChange);
   });
 
   onUnmounted(() => {
-    window.removeEventListener("mg-theme-change", onThemeChange);
+    removeEventListener("mg-theme-change", onThemeChange);
   });
 
   return { deco, E_GIRL, KIDCORE, PASTEL };

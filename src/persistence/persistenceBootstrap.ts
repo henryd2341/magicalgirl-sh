@@ -28,12 +28,9 @@ export interface InitializePersistentChatRuntimeResult {
 }
 
 function createDefaultBrowserWorker(): BrowserDbWorkerLike {
-  return new window.Worker(
-    new window.URL("../workers/db.worker.ts", import.meta.url),
-    {
-      type: "module",
-    },
-  );
+  return new Worker(new URL("../workers/db.worker.ts", import.meta.url), {
+    type: "module",
+  });
 }
 
 export async function initializePersistentChatRuntime(

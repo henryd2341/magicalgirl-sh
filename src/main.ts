@@ -10,7 +10,7 @@ import "./styles/tailwind.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 
 // Initialize theme from localStorage (default: e-girl)
-const savedTheme = window.localStorage.getItem("mg-theme") || "e-girl";
+const savedTheme = localStorage.getItem("mg-theme") || "e-girl";
 document.documentElement.dataset.theme = savedTheme;
 
 const builtinSkillModules = import.meta.glob<string>(

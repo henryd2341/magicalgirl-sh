@@ -4,7 +4,6 @@ const STORAGE_KEY = "mg-font-size";
 const DEFAULT_SIZE = 16;
 const MIN_SIZE = 12;
 const MAX_SIZE = 24;
-const localStorage = window.localStorage;
 
 function readInitialSize(): number {
   try {

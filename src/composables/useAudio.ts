@@ -3,9 +3,8 @@ import { MUSIC_BASE_URL } from "../env";
 
 // ─── Module-level singleton ────────────────────────────────────────────────────
 
-const audioElement = new window.Audio();
+const audioElement = new Audio();
 audioElement.crossOrigin = "anonymous";
-const localStorage = window.localStorage;
 audioElement.preload = "metadata";
 
 // ─── Vite glob: local fallback tracks ──────────────────────────────────────────
