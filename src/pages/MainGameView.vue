@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useGameDialog } from "@/composables/useGameDialog";
 import {
   resetHistory,
   startTracking,
@@ -35,6 +36,7 @@ import SettingsView from "./SettingsView.vue";
 const chatStore = useChatStore();
 const sessionStore = useSessionStore();
 const battleStore = useBattleStore();
+const { alert } = useGameDialog();
 const { snapshot } = storeToRefs(sessionStore);
 const { pendingBattle, activeBattle } = storeToRefs(battleStore);
 
@@ -214,7 +216,10 @@ onMounted(async () => {
   if (persistenceClient) {
     await chatStore.configurePersistence({ client: persistenceClient });
     await sessionStore.configurePersistence({ client: persistenceClient });
-    await sessionStore.recoverFromInterruptedCombat();
+    const recoveryResult = await sessionStore.recoverFromInterruptedCombat();
+    if (recoveryResult.recoveryMessage) {
+      void alert(recoveryResult.recoveryMessage);
+    }
   }
   await chatStore.refreshMessages();
 });

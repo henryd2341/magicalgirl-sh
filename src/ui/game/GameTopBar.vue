@@ -20,14 +20,30 @@ function onMediaChange(e: MediaQueryListEvent | MediaQueryList) {
   if (!e.matches) menuOpen.value = false;
 }
 
+// ── Fullscreen toggle ──
+const isFullscreen = ref(!!document.fullscreenElement);
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  } else {
+    document.exitFullscreen?.();
+  }
+  isFullscreen.value = !!document.fullscreenElement;
+}
+function onFullscreenChange() {
+  isFullscreen.value = !!document.fullscreenElement;
+}
+
 onMounted(() => {
   mql = window.matchMedia("(max-width: 767px)");
   onMediaChange(mql);
   mql.addEventListener("change", onMediaChange);
+  document.addEventListener("fullscreenchange", onFullscreenChange);
 });
 
 onUnmounted(() => {
   mql?.removeEventListener("change", onMediaChange);
+  document.removeEventListener("fullscreenchange", onFullscreenChange);
 });
 
 function returnToTitle() {
@@ -91,6 +107,15 @@ function closeMenu() {
         <i class="fas fa-home"></i>
         <span>标题</span>
       </button>
+      <span class="mg-topbar__sep mg-topbar__sep--divider" aria-hidden="true"></span>
+      <button
+        class="mg-topbar__btn"
+        :title="isFullscreen ? '退出全屏' : '全屏模式'"
+        type="button"
+        @click="toggleFullscreen"
+      >
+        <i :class="isFullscreen ? 'fas fa-compress' : 'fas fa-expand'"></i>
+      </button>
     </nav>
     <!-- Mobile hamburger -->
     <button v-else class="mg-topbar__hamburger" @click="toggleMenu" :aria-label="menuOpen ? '关闭菜单' : '打开菜单'">
@@ -119,6 +144,15 @@ function closeMenu() {
       </button>
       <button class="mg-topbar__dropdown-btn" title="系统设置" type="button" @click="$emit('openSystemSettings'); closeMenu()">
         <i class="fas fa-cog"></i> 系统
+      </button>
+      <hr class="mg-topbar__dropdown-divider" />
+      <button
+        class="mg-topbar__dropdown-btn"
+        :title="isFullscreen ? '退出全屏' : '全屏模式'"
+        type="button"
+        @click="toggleFullscreen(); closeMenu()"
+      >
+        <i :class="isFullscreen ? 'fas fa-compress' : 'fas fa-expand'"></i> 全屏
       </button>
       <hr class="mg-topbar__dropdown-divider" />
       <button class="mg-topbar__dropdown-btn" title="返回标题页" type="button" @click="returnToTitle(); closeMenu()">

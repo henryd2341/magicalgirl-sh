@@ -19,6 +19,7 @@ import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useGameDialog } from "@/composables/useGameDialog";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -29,6 +30,7 @@ const router = useRouter();
 const sessionStore = useSessionStore();
 const battleStore = useBattleStore();
 const chatStore = useChatStore();
+const { confirm } = useGameDialog();
 const persistenceClient = getChatPersistenceClient();
 const isExporting = ref(false);
 const isImporting = ref(false);
@@ -156,13 +158,10 @@ async function loadLatestSnapshot() {
     return;
   }
 
-  const confirmed = window.confirm(
+  if (!(await confirm(
     "加载最近快照会覆盖当前游戏进度。\n\n提示：建议定期导出完整备份以确保数据安全。\n\n是否继续？",
-  );
-
-  if (!confirmed) {
+  )))
     return;
-  }
 
   isQuickLoading.value = true;
   errorMessage.value = null;
@@ -220,13 +219,10 @@ async function restoreSlot(slot: SaveSlotRecord) {
     return;
   }
 
-  const confirmed = window.confirm(
+  if (!(await confirm(
     `恢复槽位 ${slot.label} 会覆盖当前游戏进度。是否继续？`,
-  );
-
-  if (!confirmed) {
+  )))
     return;
-  }
 
   isRestoringSlotId.value = slot.id;
   errorMessage.value = null;
@@ -293,11 +289,8 @@ async function deleteSlot(slot: SaveSlotRecord) {
     return;
   }
 
-  const confirmed = window.confirm(`删除槽位 ${slot.label}。是否继续？`);
-
-  if (!confirmed) {
+  if (!(await confirm(`删除槽位 ${slot.label}。是否继续？`)))
     return;
-  }
 
   isDeletingSlotId.value = slot.id;
   errorMessage.value = null;

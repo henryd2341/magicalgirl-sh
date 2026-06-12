@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useGameDialog } from "@/composables/useGameDialog";
 import { renderMarkdown } from "@/composables/useMarkdown";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -17,6 +18,7 @@ const emit = defineEmits<{
 
 const chatStore = useChatStore();
 const sessionStore = useSessionStore();
+const { confirm } = useGameDialog();
 const { isStoryTurnRunning } = storeToRefs(sessionStore);
 
 const expandedReasoning = ref<Record<string, boolean>>({});
@@ -164,10 +166,10 @@ function onEditKeydown(e: KeyboardEvent, message: ChatMessage) {
   }
 }
 
-function handleRetry(message: ChatMessage) {
+async function handleRetry(message: ChatMessage) {
   if (message.provisional || isStoryTurnRunning.value) return;
   if (
-    !confirm("确定要重试此消息吗？该消息及之后的所有消息将被删除并重新生成。")
+    !(await confirm("确定要重试此消息吗？该消息及之后的所有消息将被删除并重新生成。"))
   )
     return;
   emit("retry", message.id);

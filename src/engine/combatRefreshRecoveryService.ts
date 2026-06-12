@@ -17,6 +17,7 @@ export interface CombatRefreshRecoveryResult {
   recovered: boolean;
   mode: CombatRefreshRecoveryMode;
   checkpointId?: string;
+  recoveryMessage?: string;
 }
 
 export interface CombatRefreshRecoveryIdFactory {
@@ -124,6 +125,7 @@ export class CombatRefreshRecoveryService {
         recovered: true,
         mode: "rolled_back",
         checkpointId: combatCheckpoint.id,
+        recoveryMessage: RECOVERY_MESSAGE,
       };
     }
 
@@ -132,6 +134,7 @@ export class CombatRefreshRecoveryService {
       recovered: true,
       mode: "safe_reset",
       checkpointId: combatCheckpoint.id,
+      recoveryMessage: RECOVERY_MESSAGE,
     };
   }
 
@@ -149,7 +152,6 @@ export class CombatRefreshRecoveryService {
       pendingBattle: idleCheckpoint.pendingBattle,
       activeBattle: idleCheckpoint.activeBattle,
     });
-    window.alert(RECOVERY_MESSAGE);
     await this.appendRollbackEvent({
       combatCheckpoint,
       rollbackCheckpoint: idleCheckpoint,
@@ -166,7 +168,6 @@ export class CombatRefreshRecoveryService {
       pendingBattle: undefined,
       activeBattle: undefined,
     });
-    window.alert(RECOVERY_MESSAGE);
     await this.appendRollbackEvent({
       combatCheckpoint,
       rollbackCheckpoint: null,
