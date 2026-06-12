@@ -39,7 +39,7 @@ The game fuses:
 - **PixiJS 8 animated backgrounds** with WebGL rendering and performance-friendly fallbacks
 - **Multi-theme UI** — E-girl / E-boy, Kidcore, and Pastel Brutalism
 
-In short: it's a **single-page JRPG engine** where the AI is your GM, your combat arbiter, and your co-writer.
+It's a **single-page JRPG engine** where the AI is your GM, your combat arbiter, and your co-writer.
 
 ```
   ╭──────────────────────────────────────────────╮
