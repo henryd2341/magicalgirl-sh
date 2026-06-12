@@ -11,5 +11,11 @@
         { "key": "Access-Control-Allow-Credentials", "value": "true" }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/music/:path*",
+      "destination": "https://tyrdamn.cc.cd/music/:path*"
+    }
   ]
 }
