@@ -125,6 +125,20 @@ function stripDetailsHtml(content: string): string {
   return content.replace(DETAILS_RE, "").trim();
 }
 
+function buildTagRegexes(tagName: string) {
+  const escaped = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return {
+    closed: new RegExp(`<${escaped}>[\\s\\S]*?<\\/${escaped}>`, "gi"),
+    loneClose: new RegExp(`[\\s\\S]*?<\\/${escaped}>`, "gi"),
+  };
+}
+
+function stripTagContent(content: string, tagName?: string): string {
+  if (!tagName) return content;
+  const { closed, loneClose } = buildTagRegexes(tagName);
+  return content.replace(closed, "").replace(loneClose, "").trim();
+}
+
 function extractRecentVarUpdates(
   messages: ChatMessage[],
   maxResults = 3,
@@ -168,13 +182,16 @@ function extractRecentVarUpdates(
   );
 }
 
-function renderHistory(messages: ChatMessage[]): string {
+function renderHistory(messages: ChatMessage[], tagName?: string): string {
   if (messages.length === 0) {
     return "无可见历史。";
   }
 
   return messages
-    .map((message) => `${message.role}: ${stripDetailsHtml(message.content)}`)
+    .map(
+      (message) =>
+        `${message.role}: ${stripTagContent(stripDetailsHtml(message.content), tagName)}`,
+    )
     .join("\n");
 }
 
@@ -294,6 +311,7 @@ function buildMessages(
   historyMessages: ChatMessage[],
   cotSystemMessage?: string,
   cotPrefill?: string,
+  tagName?: string,
 ): ProviderMessage[] {
   const systemMessages: ProviderMessage[] = segments
     .filter((item) => item.included && item.kind !== "history")
@@ -306,7 +324,7 @@ function buildMessages(
   const historyProviderMessages: ProviderMessage[] = historyMessages.map(
     (message) => ({
       role: message.role,
-      content: stripDetailsHtml(message.content),
+      content: stripTagContent(stripDetailsHtml(message.content), tagName),
     }),
   );
 
@@ -414,7 +432,7 @@ export async function buildHarnessRequest(
       id: "history",
       kind: "history",
       title: "Conversation History",
-      content: renderHistory(historyMessages),
+      content: renderHistory(historyMessages, input.customChainOfThought?.beautifyTagName),
       source: "chatHistoryRepository",
     }),
     segment({
@@ -553,6 +571,7 @@ export async function buildHarnessRequest(
       historyMessages,
       cotSystemMessage,
       cotPrefill,
+      input.customChainOfThought?.beautifyTagName,
     ),
     tools,
     promptText: joinPromptText(budgeted.segments),
