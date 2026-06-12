@@ -29,7 +29,6 @@ async function mountEffects() {
   try {
     await effects.init({
       container: canvasHost.value,
-      particles: true,
       colorScheme: getColorScheme(),
     });
   } catch {
