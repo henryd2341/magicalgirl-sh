@@ -11,6 +11,7 @@ import {
   type ProviderProfileKind,
   type ProviderSettingsState,
 } from "@/orchestrator/providerSettings";
+import { ENABLE_DEV_TOOLS } from "@/env";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -49,6 +50,11 @@ const activeProfile = computed(() =>
   state.value.profiles.find(
     (profile) => profile.id === state.value.activeProfileId,
   ),
+);
+const visibleProfiles = computed(() =>
+  ENABLE_DEV_TOOLS
+    ? state.value.profiles
+    : state.value.profiles.filter((p) => p.kind !== "fake"),
 );
 const isBuiltInProfile = computed(() => form.builtIn);
 
@@ -260,7 +266,7 @@ onMounted(refreshState);
       <section class="settings-view__world-info" aria-label="Provider Profiles">
         <div class="settings-view__world-info-actions">
           <button
-            v-for="profile in state.profiles"
+            v-for="profile in visibleProfiles"
             :id="`api-profile-select-${profile.id}`"
             :key="profile.id"
             class="secondary-cta"
@@ -301,7 +307,7 @@ onMounted(refreshState);
               class="settings-view__text-input"
               :disabled="isBuiltInProfile"
             >
-              <option value="fake">Fake</option>
+              <option v-if="ENABLE_DEV_TOOLS" value="fake">Fake</option>
               <option value="openai-compatible">OpenAI-compatible</option>
             </select>
           </label>

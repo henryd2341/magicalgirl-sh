@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ENABLE_DEV_TOOLS } from "@/env";
 import { useGameDialog } from "@/composables/useGameDialog";
 import {
   resetHistory,
@@ -375,6 +376,7 @@ onUnmounted(() => {
     <!-- ═══ Bottom Bar (dev tools, hidden by default) ═══ -->
     <footer v-if="bottomBarOpen" class="mg-game__bottom">
       <button
+        v-if="ENABLE_DEV_TOOLS"
         class="mg-btn mg-btn--sm mg-btn--ghost"
         @click="launchDebugBattleForTestingOnly"
       >

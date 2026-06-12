@@ -1,32 +1,35 @@
-import type { WorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
-import type { WorldInfoEntry } from "@/persistence/repositories/worldInfoRepository";
+import type { WorldInfoEntry, WorldInfoRepository } from '@/persistence/repositories/worldInfoRepository';
 
-const rawEntryModules = import.meta.glob<string>("../../raw_entries/*.txt", {
+const rawEntryModules = import.meta.glob<string>('../../raw_entries/*.txt', {
   eager: true,
-  import: "default",
-  query: "?raw",
+  import: 'default',
+  query: '?raw',
 });
 
 export const RAW_WORLD_INFO_CONSTANT_IDS = [
-  "raw_entries/世界观基础",
-  "raw_entries/角色速览",
-  "raw_entries/M.A.S.C.O.T",
+  'raw_entries/世界观基础',
+  'raw_entries/角色速览',
+  'raw_entries/M.A.S.C.O.T',
+  'raw_entries/男user',
+  'raw_entries/女user',
 ] as const;
 
 const constantPriorityById = new Map<string, number>([
-  ["raw_entries/世界观基础", 1000],
-  ["raw_entries/角色速览", 995],
-  ["raw_entries/M.A.S.C.O.T", 990],
+  ['raw_entries/世界观基础', 1000],
+  ['raw_entries/角色速览', 995],
+  ['raw_entries/M.A.S.C.O.T', 990],
+  ['raw_entries/男user', 999],
+  ['raw_entries/女user', 999],
 ]);
 
 function normalizePath(path: string): string {
-  return path.replace(/\\/g, "/");
+  return path.replace(/\\/g, '/');
 }
 
 function basenameWithoutExtension(path: string): string {
   const normalized = normalizePath(path);
-  const fileName = normalized.split("/").at(-1) ?? normalized;
-  return fileName.replace(/\.txt$/i, "");
+  const fileName = normalized.split('/').at(-1) ?? normalized;
+  return fileName.replace(/\.txt$/i, '');
 }
 
 function extractFirstTopLevelTag(content: string): string | null {
@@ -35,11 +38,11 @@ function extractFirstTopLevelTag(content: string): string | null {
 }
 
 function unique(values: string[]): string[] {
-  return [...new Set(values.filter((value) => value.length > 0))];
+  return [...new Set(values.filter(value => value.length > 0))];
 }
 
 function keywordsForRawEntry(baseName: string, content: string): string[] {
-  return unique([baseName, extractFirstTopLevelTag(content) ?? ""]);
+  return unique([baseName, extractFirstTopLevelTag(content) ?? '']);
 }
 
 function priorityForEntry(id: string): number {
@@ -50,9 +53,7 @@ function isConstantEntry(id: string): boolean {
   return constantPriorityById.has(id);
 }
 
-export function buildRawWorldInfoEntries(
-  modules: Record<string, string>,
-): WorldInfoEntry[] {
+export function buildRawWorldInfoEntries(modules: Record<string, string>): WorldInfoEntry[] {
   return Object.entries(modules)
     .map(([path, content]) => {
       const baseName = basenameWithoutExtension(path);
@@ -68,9 +69,7 @@ export function buildRawWorldInfoEntries(
     })
     .sort((left, right) => {
       const priorityDelta = right.priority - left.priority;
-      return priorityDelta === 0
-        ? left.id.localeCompare(right.id)
-        : priorityDelta;
+      return priorityDelta === 0 ? left.id.localeCompare(right.id) : priorityDelta;
     });
 }
 
@@ -78,11 +77,9 @@ export function getRawWorldInfoEntries(): WorldInfoEntry[] {
   return buildRawWorldInfoEntries(rawEntryModules);
 }
 
-export async function seedRawWorldInfoEntries(
-  repository: WorldInfoRepository,
-): Promise<WorldInfoEntry[]> {
+export async function seedRawWorldInfoEntries(repository: WorldInfoRepository): Promise<WorldInfoEntry[]> {
   const entries = getRawWorldInfoEntries();
-  await Promise.all(entries.map((entry) => repository.save(entry)));
+  await Promise.all(entries.map(entry => repository.save(entry)));
   return entries;
 }
 
@@ -91,10 +88,8 @@ export async function syncRawWorldInfoEntries(
   modules: Record<string, string> = rawEntryModules,
 ): Promise<WorldInfoEntry[]> {
   const rawEntries = buildRawWorldInfoEntries(modules);
-  const existingById = new Map(
-    (await repository.list()).map((entry) => [entry.id, entry]),
-  );
-  const syncedEntries = rawEntries.map((rawEntry) => {
+  const existingById = new Map((await repository.list()).map(entry => [entry.id, entry]));
+  const syncedEntries = rawEntries.map(rawEntry => {
     const existing = existingById.get(rawEntry.id);
     if (!existing) {
       return rawEntry;
@@ -111,17 +106,15 @@ export async function syncRawWorldInfoEntries(
 
   // Preserve entries that exist in DB but not in raw_entries (e.g., imported save data).
   for (const [id, existing] of existingById) {
-    if (!rawEntries.some((re) => re.id === id)) {
+    if (!rawEntries.some(re => re.id === id)) {
       syncedEntries.push(existing);
     }
   }
 
-  await Promise.all(syncedEntries.map((entry) => repository.save(entry)));
+  await Promise.all(syncedEntries.map(entry => repository.save(entry)));
 
   return syncedEntries.sort((left, right) => {
     const priorityDelta = right.priority - left.priority;
-    return priorityDelta === 0
-      ? left.id.localeCompare(right.id)
-      : priorityDelta;
+    return priorityDelta === 0 ? left.id.localeCompare(right.id) : priorityDelta;
   });
 }
