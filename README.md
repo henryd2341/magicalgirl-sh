@@ -58,13 +58,13 @@ The orchestrator layer (`src/orchestrator/`) constructs structured prompts from 
 
 A faithful adaptation of the **Press Turn** battle engine from *Shin Megami Tensei*, featuring:
 
-| Mechanic | Description |
-|---|---|
-| **Elemental Affinity** | Bitmask-based; `WEAK` / `NEUTRAL` / `RESIST` / `NULL` / `DRAIN` / `REPEL` |
-| **Turn Economy** | Hit a weakness → gain extra press turn; get nulled → lose turns |
-| **Status Effects** | Poison, Paralysis, Charm, Fear, and more — each with unique turn logic |
-| **Passive Skills** | Passive effects that trigger under specific battle conditions |
-| **Formula-Based Damage** | Stats-driven damage calculation with skill power multipliers |
+| Mechanic                 | Description                                                               |
+| ------------------------ | ------------------------------------------------------------------------- |
+| **Elemental Affinity**   | Bitmask-based; `WEAK` / `NEUTRAL` / `RESIST` / `NULL` / `DRAIN` / `REPEL` |
+| **Turn Economy**         | Hit a weakness → gain extra press turn; get nulled → lose turns           |
+| **Status Effects**       | Poison, Paralysis, Charm, Fear, and more — each with unique turn logic    |
+| **Passive Skills**       | Passive effects that trigger under specific battle conditions             |
+| **Formula-Based Damage** | Stats-driven damage calculation with skill power multipliers              |
 
 ### 🎨 Character Creator
 
@@ -88,10 +88,10 @@ A content registry backed by JSONL data files that injects contextual lore into 
 
 ### 🎨 Triple Theme System
 
-| Theme | Vibe |
-|---|---|
-| **E-girl / E-boy** | Neon pastels, soft gradients, internet-culture aesthetic |
-| **Kidcore** | Bright primaries, playful typography, nostalgic energy |
+| Theme                | Vibe                                                     |
+| -------------------- | -------------------------------------------------------- |
+| **E-girl / E-boy**   | Neon pastels, soft gradients, internet-culture aesthetic |
+| **Kidcore**          | Bright primaries, playful typography, nostalgic energy   |
 | **Pastel Brutalism** | Raw structural layouts softened by pastel color palettes |
 
 ```
@@ -105,19 +105,19 @@ A content registry backed by JSONL data files that injects contextual lore into 
 
 <div align="center">
 
-| Layer | Stack |
-|---|---|
-| **Framework** | Vue 3 (Composition API) + Pinia |
-| **Language** | TypeScript (strict) |
-| **Build** | Vite 7 |
-| **AI SDK** | Vercel AI SDK 6 (`ai`) |
-| **Database** | SQLite WASM (Web Worker) |
-| **Rendering** | PixiJS 8 (WebGL) |
-| **CSS** | Tailwind CSS 4 + SCSS |
-| **Validation** | Zod 4 |
-| **Markdown** | markdown-it + DOMPurify |
-| **Testing** | Vitest + Playwright + Testing Library |
-| **Lint** | ESLint 9 + Prettier |
+| Layer          | Stack                                 |
+| -------------- | ------------------------------------- |
+| **Framework**  | Vue 3 (Composition API) + Pinia       |
+| **Language**   | TypeScript (strict)                   |
+| **Build**      | Vite 7                                |
+| **AI SDK**     | Vercel AI SDK 6 (`ai`)                |
+| **Database**   | SQLite WASM (Web Worker)              |
+| **Rendering**  | PixiJS 8 (WebGL)                      |
+| **CSS**        | Tailwind CSS 4 + SCSS                 |
+| **Validation** | Zod 4                                 |
+| **Markdown**   | markdown-it + DOMPurify               |
+| **Testing**    | Vitest + Playwright + Testing Library |
+| **Lint**       | ESLint 9 + Prettier                   |
 
 </div>
 
@@ -132,7 +132,7 @@ cd magicalgirl-sh
 pnpm install
 
 # Start dev server
-pnpm dev
+pnpx vite
 
 # Run tests
 pnpm test
