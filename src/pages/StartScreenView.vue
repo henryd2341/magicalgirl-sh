@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { useRouter } from "vue-router";
+import { useRouter } from 'vue-router';
 
 const router = useRouter();
 
 async function enterTitleScreen() {
   // Try fullscreen API before entering
   document.documentElement.requestFullscreen?.().catch(() => {});
-  await router.push({ name: "title" });
+  await router.push({ name: 'title' });
 }
 </script>
 
@@ -14,12 +14,8 @@ async function enterTitleScreen() {
   <main id="start-screen" class="mg-start" role="main">
     <div class="mg-start__card">
       <p class="mg-start__eyebrow">Boot Sequence</p>
-      <img
-        src="/logo.png"
-        alt="MagicalGirl SH"
-        class="mg-start__title mg-glitch-hover"
-      />
-      <p class="mg-start__version">v0.8 Beta</p>
+      <img src="/logo.png" alt="MagicalGirl SH" class="mg-start__title mg-glitch-hover" />
+      <p class="mg-start__version">v0.8.1 Beta</p>
       <button
         id="start-screen-enter-button"
         class="mg-btn mg-btn--primary mg-btn--lg"
