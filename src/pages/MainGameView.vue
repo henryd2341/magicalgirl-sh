@@ -15,6 +15,7 @@ import { useSessionStore } from "@/stores/sessionStore";
 import BattleOverlay from "@/ui/battle/BattleOverlay.vue";
 import CreditsModal from "@/ui/dev/CreditsModal.vue";
 import PromptViewerDrawer from "@/ui/dev/PromptViewerDrawer.vue";
+import ProviderMetadataModal from "@/ui/dev/ProviderMetadataModal.vue";
 import SessionStateModal from "@/ui/dev/SessionStateModal.vue";
 import VariableEditor from "@/ui/dev/VariableEditor.vue";
 import FormationModal from "@/ui/formation/FormationModal.vue";
@@ -84,6 +85,7 @@ const showCharacterBuild = ref(false);
 const promptViewerDrawerRef = ref();
 const showStateModal = ref(false);
 const showVariableEditor = ref(false);
+const showProviderMetadataModal = ref(false);
 
 // ── Theme & PixiJS settings (read from localStorage, kept reactive for template) ──
 const activeTheme = ref(window.localStorage.getItem("mg-theme") || "e-girl");
@@ -199,6 +201,14 @@ function openCharacterBuild() {
   showCharacterBuild.value = true;
 }
 
+function onKeydown(e: KeyboardEvent): void {
+  if (e.key === "Escape") {
+    if (showProviderMetadataModal.value) {
+      showProviderMetadataModal.value = false;
+    }
+  }
+}
+
 onMounted(async () => {
   if (hasInitialized.value) return;
   hasInitialized.value = true;
@@ -210,6 +220,8 @@ onMounted(async () => {
   onTabletChange(tabletMql);
   mobileMql.addEventListener("change", onMobileChange);
   tabletMql.addEventListener("change", onTabletChange);
+
+  document.addEventListener("keydown", onKeydown);
 
   startTracking();
 
@@ -228,6 +240,7 @@ onMounted(async () => {
 onUnmounted(() => {
   mobileMql?.removeEventListener("change", onMobileChange);
   tabletMql?.removeEventListener("change", onTabletChange);
+  document.removeEventListener("keydown", onKeydown);
   resetHistory();
 });
 </script>
@@ -389,6 +402,13 @@ onUnmounted(() => {
         <i class="fas fa-eye"></i> 查看提示词
       </button>
       <button
+        v-if="ENABLE_DEV_TOOLS"
+        class="mg-btn mg-btn--sm mg-btn--ghost"
+        @click="showProviderMetadataModal = true"
+      >
+        <i class="fas fa-database"></i> 历史响应元数据
+      </button>
+      <button
         class="mg-btn mg-btn--sm mg-btn--ghost"
         @click="showVariableEditor = true"
       >
@@ -422,6 +442,7 @@ onUnmounted(() => {
 
     <SessionStateModal v-if="showStateModal" @close="showStateModal = false" />
     <VariableEditor v-if="showVariableEditor" @close="showVariableEditor = false" />
+    <ProviderMetadataModal v-if="showProviderMetadataModal" @close="showProviderMetadataModal = false" />
 
     <CreditsModal v-if="showCreditsModal" @close="showCreditsModal = false" />
 

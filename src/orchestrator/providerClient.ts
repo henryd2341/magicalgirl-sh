@@ -18,6 +18,7 @@ export interface ProviderStreamResult {
     output?: unknown;
     error?: string;
   }>;
+  providerMetadata?: Record<string, unknown>;
 }
 
 export interface ProviderClient {

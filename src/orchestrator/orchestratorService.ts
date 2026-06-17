@@ -59,6 +59,7 @@ export interface RunUserTurnResult {
   request: BuiltProviderRequest | null;
   assistantMessageId: string;
   toolResults: Array<{ tool_name: string; tool_call_id: string; ok: boolean; output?: unknown; error?: string }>;
+  providerMetadata?: Record<string, unknown>;
   error?: Error;
 }
 
@@ -205,6 +206,7 @@ export class OrchestratorService {
         request,
         assistantMessageId,
         toolResults,
+        providerMetadata: streamResult.providerMetadata,
       };
     } catch (error) {
       if (assistantMessageCreated) {
@@ -314,6 +316,7 @@ export class OrchestratorService {
         request,
         assistantMessageId,
         toolResults,
+        providerMetadata: streamResult.providerMetadata,
       };
     } catch (error) {
       if (assistantMessageCreated) {

@@ -53,6 +53,7 @@ import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
 import { usePromptViewerStore } from "@/stores/promptViewerStore";
 import { useSkillStore } from "@/stores/skillStore";
+import { useProviderMetadataHistory } from "@/composables/useProviderMetadataHistory";
 import type { BattleParticipant } from "@/types/battle";
 import type { ChatMessage } from "@/types/chat";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
@@ -1271,6 +1272,8 @@ export const useSessionStore = defineStore("session", () => {
         userVisible: true,
         aiVisible: true,
       });
+
+      useProviderMetadataHistory().record(result.providerMetadata);
 
       await chatStore.refreshMessages();
       snapshot.value = gameEngineFacade.getSessionSnapshot();

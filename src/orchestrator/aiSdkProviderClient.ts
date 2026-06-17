@@ -159,9 +159,14 @@ export class AiSdkProviderClient implements ProviderClient {
         await callbacks.onTextChunk(result.text);
       }
 
+      const nonStreamMetadata = (
+        result as unknown as { providerMetadata?: Record<string, unknown> }
+      ).providerMetadata;
+
       return {
         finishReason: normalizeFinishReason(result.finishReason),
         toolResults,
+        providerMetadata: nonStreamMetadata,
       };
     }
 
@@ -224,6 +229,9 @@ export class AiSdkProviderClient implements ProviderClient {
     return {
       finishReason: normalizeFinishReason(finishReason),
       toolResults,
+      providerMetadata: (
+        result as unknown as { providerMetadata?: Record<string, unknown> }
+      ).providerMetadata,
     };
   }
 }
