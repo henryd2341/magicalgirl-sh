@@ -15,7 +15,7 @@ const STORAGE_KEY_V1 = "magicalgirl-sh.provider-settings.v1";
 const STORAGE_KEY_V2 = "magicalgirl-sh.provider-settings.v2";
 export const BUILTIN_FAKE_PROFILE_ID = "builtin-fake";
 
-export type ProviderProfileKind = "fake" | "openai-compatible";
+export type ProviderProfileKind = "fake" | "openai-compatible" | "deepseek";
 
 export interface ProviderProfile {
   id: string;
@@ -223,8 +223,8 @@ export function toPromptViewerProviderInfo(
   return {
     profileName: profile.name,
     kind: profile.kind,
-    baseURL: profile.kind === "openai-compatible" ? profile.baseURL : undefined,
-    model: profile.kind === "openai-compatible" ? profile.model : undefined,
+    baseURL: profile.kind !== "fake" ? profile.baseURL : undefined,
+    model: profile.kind !== "fake" ? profile.model : undefined,
     hasApiKey: profile.apiKey.trim().length > 0,
     streamingEnabled: profile.streamingEnabled,
   };
@@ -702,14 +702,21 @@ export async function createConfiguredProviderClient(
     };
   }
 
-  if (!profile.baseURL || !profile.model) {
+  if (!profile.model) {
     throw new Error(
-      "[PROVIDER_SETTINGS_INVALID] OpenAI-compatible provider requires Base URL and Model.",
+      "[PROVIDER_SETTINGS_INVALID] Provider requires a Model.",
+    );
+  }
+
+  if (profile.kind === "openai-compatible" && !profile.baseURL) {
+    throw new Error(
+      "[PROVIDER_SETTINGS_INVALID] OpenAI-compatible provider requires Base URL.",
     );
   }
 
   return {
     client: new AiSdkProviderClient({
+      providerKind: profile.kind,
       providerName: profile.name,
       baseURL: profile.baseURL,
       model: profile.model,

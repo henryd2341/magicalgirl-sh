@@ -1,3 +1,4 @@
+import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, stepCountIs, streamText, type ModelMessage } from "ai";
 
@@ -11,8 +12,10 @@ import type {
   ProviderStreamCallbacks,
   ProviderStreamResult,
 } from "@/orchestrator/providerClient";
+import type { ProviderProfileKind } from "@/orchestrator/providerSettings";
 
 export interface AiSdkProviderClientConfig {
+  providerKind?: ProviderProfileKind;
   providerName: string;
   baseURL: string;
   model: string;
@@ -51,14 +54,27 @@ export class AiSdkProviderClient implements ProviderClient {
     request: BuiltProviderRequest,
     callbacks: ProviderStreamCallbacks,
   ): Promise<ProviderStreamResult> {
-    const provider = createOpenAICompatible({
-      name: this.config.providerName,
-      baseURL: this.config.baseURL,
-      apiKey:
-        this.config.apiKey && this.config.apiKey.trim().length > 0
-          ? this.config.apiKey
-          : undefined,
-    });
+    const isDeepSeek = this.config.providerKind === "deepseek";
+
+    const provider = isDeepSeek
+      ? createDeepSeek({
+          baseURL:
+            this.config.baseURL && this.config.baseURL.trim().length > 0
+              ? this.config.baseURL
+              : undefined,
+          apiKey:
+            this.config.apiKey && this.config.apiKey.trim().length > 0
+              ? this.config.apiKey
+              : undefined,
+        })
+      : createOpenAICompatible({
+          name: this.config.providerName,
+          baseURL: this.config.baseURL,
+          apiKey:
+            this.config.apiKey && this.config.apiKey.trim().length > 0
+              ? this.config.apiKey
+              : undefined,
+        });
 
     const toolsWithExecute = createHarnessToolsWithExecute(
       this.config.harnessDeps,
@@ -82,6 +98,10 @@ export class AiSdkProviderClient implements ProviderClient {
     const hasThinking = thinkingType !== undefined;
     const hasEffort = eff !== undefined && eff !== "none";
 
+    const providerOptionsKey = isDeepSeek
+      ? "deepseek"
+      : this.config.providerName;
+
     const modelOptions = {
       model: provider(this.config.model),
       messages: toModelMessages(request),
@@ -95,7 +115,7 @@ export class AiSdkProviderClient implements ProviderClient {
       ...(hasEffort || hasThinking
         ? {
             providerOptions: {
-              [this.config.providerName]: {
+              [providerOptionsKey]: {
                 ...(hasEffort ? ({ reasoningEffort: eff } as const) : {}),
                 ...(hasThinking
                   ? ({ thinking: { type: thinkingType } } as const)

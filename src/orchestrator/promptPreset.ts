@@ -10,8 +10,9 @@ export interface ChainOfThoughtConfig {
   enabled: boolean;
   template: string;
   style: "prefix" | "suffix";
-  placement: "system_message" | "replace_user_input";
+  placement: "system_message" | "user" | "replace_user_input";
   prefillText: string;
+  prefillEnabled: boolean;
   beautifyTagName: string;
 }
 
@@ -67,6 +68,7 @@ export const DEFAULT_CHAIN_OF_THOUGHT_CONFIG: ChainOfThoughtConfig = {
   style: "prefix",
   placement: "system_message",
   prefillText: "Parsley明白了，先思考：<thinking>",
+  prefillEnabled: false,
   beautifyTagName: "thinking",
 };
 

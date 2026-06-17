@@ -310,6 +310,7 @@ function buildMessages(
   segments: PromptSegment[],
   historyMessages: ChatMessage[],
   cotSystemMessage?: string,
+  cotUserMessage?: string,
   cotPrefill?: string,
   tagName?: string,
 ): ProviderMessage[] {
@@ -327,6 +328,22 @@ function buildMessages(
       content: stripTagContent(stripDetailsHtml(message.content), tagName),
     }),
   );
+
+  // Inject CoT user message before the last user message in history,
+  // preserving strict user/assistant alternation for models like DeepSeek.
+  if (cotUserMessage) {
+    let insertIndex = historyProviderMessages.length;
+    for (let i = historyProviderMessages.length - 1; i >= 0; i--) {
+      if (historyProviderMessages[i].role === "user") {
+        insertIndex = i;
+        break;
+      }
+    }
+    historyProviderMessages.splice(insertIndex, 0, {
+      role: "user",
+      content: cotUserMessage,
+    });
+  }
 
   const result = [...systemMessages, ...historyProviderMessages];
 
@@ -493,6 +510,7 @@ export async function buildHarnessRequest(
 
   // Pre-render CoT template for injection
   let cotSystemMessage: string | undefined;
+  let cotUserMessage: string | undefined;
   let cotPrefill: string | undefined;
   if (input.customChainOfThought?.enabled && input.userInput) {
     const rendered = input.customChainOfThought.template.replace(
@@ -501,8 +519,13 @@ export async function buildHarnessRequest(
     );
     if (input.customChainOfThought.placement === "system_message") {
       cotSystemMessage = rendered;
+    } else if (input.customChainOfThought.placement === "user") {
+      cotUserMessage = rendered;
     }
-    if (input.customChainOfThought.prefillText) {
+    if (
+      input.customChainOfThought.prefillEnabled &&
+      input.customChainOfThought.prefillText
+    ) {
       cotPrefill = input.customChainOfThought.prefillText;
     }
 
@@ -570,6 +593,7 @@ export async function buildHarnessRequest(
       budgeted.segments,
       historyMessages,
       cotSystemMessage,
+      cotUserMessage,
       cotPrefill,
       input.customChainOfThought?.beautifyTagName,
     ),
