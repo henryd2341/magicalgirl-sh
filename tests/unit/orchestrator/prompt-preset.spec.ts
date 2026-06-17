@@ -28,7 +28,7 @@ describe("prompt preset config", () => {
       maxTotalTokens: 1234,
       previewMustacheVariables: true,
       updatedAt: "ignored-by-repository",
-      customChainOfThought: { enabled: false, template: "", style: "prefix", placement: "system_message", prefillText: "", beautifyTagName: "" },
+      customChainOfThought: { enabled: false, template: "", style: "prefix", placement: "system_message", prefillText: "", prefillEnabled: false, beautifyTagName: "" },
     });
 
     await expect(repository.getCurrent()).resolves.toMatchObject({

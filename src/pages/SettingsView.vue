@@ -427,6 +427,7 @@ onMounted(async () => {
                   class="settings-view__text-input"
                 >
                   <option value="system_message">独立系统消息</option>
+                  <option value="user">独立用户消息</option>
                   <option value="replace_user_input">替换用户输入</option>
                 </select>
               </label>
@@ -442,6 +443,18 @@ onMounted(async () => {
               />
             </label>
 
+            <label
+              class="chat-input-box__label settings-view__checkbox-label"
+              for="cot-prefill-enabled"
+            >
+              <input
+                id="cot-prefill-enabled"
+                v-model="form.customChainOfThought.prefillEnabled"
+                type="checkbox"
+              />
+              启用助手预填充
+            </label>
+
             <label class="chat-input-box__label" for="cot-prefill">
               助手预填充（可选，用于引导 AI 回复开头）
               <input
@@ -450,6 +463,7 @@ onMounted(async () => {
                 class="settings-view__text-input"
                 type="text"
                 placeholder="例如：以thinking标签开始：<thinking>"
+                :disabled="!form.customChainOfThought.prefillEnabled"
               />
             </label>
 

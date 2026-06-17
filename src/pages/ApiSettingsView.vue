@@ -12,7 +12,7 @@ import {
   type ProviderSettingsState,
 } from "@/orchestrator/providerSettings";
 import { ENABLE_DEV_TOOLS } from "@/env";
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 defineProps<{ embedded?: boolean }>();
@@ -251,6 +251,15 @@ async function saveSummaryRatio(): Promise<void> {
 }
 
 onMounted(refreshState);
+
+watch(
+  () => form.kind,
+  (newKind) => {
+    if (newKind === "deepseek" && !form.baseURL) {
+      form.baseURL = "https://api.deepseek.com";
+    }
+  },
+);
 </script>
 
 <template>
@@ -309,6 +318,7 @@ onMounted(refreshState);
             >
               <option v-if="ENABLE_DEV_TOOLS" value="fake">Fake</option>
               <option value="openai-compatible">OpenAI-compatible</option>
+              <option value="deepseek">DeepSeek</option>
             </select>
           </label>
         </div>
@@ -390,7 +400,7 @@ onMounted(refreshState);
             流式生成
           </label>
           <label
-            v-if="form.kind === 'openai-compatible'"
+            v-if="form.kind === 'openai-compatible' || form.kind === 'deepseek'"
             class="chat-input-box__label"
             for="api-profile-reasoning-effort"
           >
@@ -408,7 +418,7 @@ onMounted(refreshState);
             </select>
           </label>
           <label
-            v-if="form.kind === 'openai-compatible'"
+            v-if="form.kind === 'openai-compatible' || form.kind === 'deepseek'"
             class="chat-input-box__label settings-view__checkbox-label"
           >
             <input
@@ -419,7 +429,7 @@ onMounted(refreshState);
             深度思考 (Thinking)
           </label>
           <label
-            v-if="form.kind === 'openai-compatible'"
+            v-if="form.kind === 'openai-compatible' || form.kind === 'deepseek'"
             class="chat-input-box__label settings-view__checkbox-label"
           >
             <input
