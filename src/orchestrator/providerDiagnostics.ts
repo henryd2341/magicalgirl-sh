@@ -82,12 +82,34 @@ export async function listProviderModels(
   profile: ProviderProfile,
   dependencies: ProviderDiagnosticDependencies = {},
 ): Promise<ProviderModelsResult> {
-  if (profile.kind !== "openai-compatible" || profile.baseURL.trim() === "") {
+  if (profile.kind === "fake") {
+    return toErrorResult(
+      "missing_config",
+      "Fake provider does not support model listing.",
+    );
+  }
+
+  if (profile.kind === "deepseek" && !profile.apiKey?.trim()) {
+    return toErrorResult(
+      "missing_config",
+      "DeepSeek API Key is required before listing models.",
+    );
+  }
+
+  if (
+    profile.kind === "openai-compatible" &&
+    profile.baseURL.trim() === ""
+  ) {
     return toErrorResult(
       "missing_config",
       "OpenAI-compatible Base URL is required before listing models.",
     );
   }
+
+  const baseURL =
+    profile.kind === "deepseek"
+      ? profile.baseURL.trim() || "https://api.deepseek.com/v1"
+      : profile.baseURL;
 
   try {
     const headers: Record<string, string> = {};
@@ -97,7 +119,7 @@ export async function listProviderModels(
       headers.Authorization = `Bearer ${apiKey}`;
     }
 
-    const response = await getFetch(dependencies)(createModelsUrl(profile.baseURL), {
+    const response = await getFetch(dependencies)(createModelsUrl(baseURL), {
       headers,
     });
 

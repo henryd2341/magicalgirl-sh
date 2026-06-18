@@ -195,8 +195,8 @@ export function createBuiltInFakeProviderProfile(
     baseURL: "",
     model: "",
     apiKey: "",
-    temperature: 0.7,
-    maxOutputTokens: 1024,
+    temperature: 1.0,
+    maxOutputTokens: 32768,
     streamingEnabled: true,
     builtIn: true,
     updatedAt: now,
@@ -211,7 +211,7 @@ export function createDefaultProviderSettingsState(
     profiles: [createBuiltInFakeProviderProfile(now)],
     summaryProfileId: null,
     summaryEnabled: true,
-    summaryTokenThreshold: 4000,
+    summaryTokenThreshold: 48000,
     summaryOldRatio: 0.5,
     toolProfileIds: {},
   };
@@ -323,7 +323,7 @@ function migrateV1Config(
     profiles: [state.profiles[0], migratedProfile],
     summaryProfileId: null,
     summaryEnabled: true,
-    summaryTokenThreshold: 4000,
+    summaryTokenThreshold: 48000,
     summaryOldRatio: 0.5,
     toolProfileIds: {},
   };
@@ -711,6 +711,12 @@ export async function createConfiguredProviderClient(
   if (profile.kind === "openai-compatible" && !profile.baseURL) {
     throw new Error(
       "[PROVIDER_SETTINGS_INVALID] OpenAI-compatible provider requires Base URL.",
+    );
+  }
+
+  if (profile.kind === "deepseek" && !profile.apiKey?.trim()) {
+    throw new Error(
+      "[PROVIDER_SETTINGS_INVALID] DeepSeek provider requires API Key.",
     );
   }
 
