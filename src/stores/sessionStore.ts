@@ -112,6 +112,7 @@ export const useSessionStore = defineStore("session", () => {
   const variableEngine = new VariableEngine();
   const snapshot = ref(gameEngineFacade.getSessionSnapshot());
   const isStoryTurnRunning = ref(false);
+  const summarizationStatus = ref<"idle" | "running" | "done" | "error">("idle");
   const lastPreviousValues = ref<PreviousValueMap>(new Map());
   const variableVersion = ref(0);
 
@@ -1194,34 +1195,41 @@ export const useSessionStore = defineStore("session", () => {
     const chatStore = useChatStore();
     const runtime = chatStore.getActiveChatRuntime();
 
-    await runHistorySummarization(
-      {
-        chatRepository: runtime.repository,
-        createSummaryMessage: (input) =>
-          chatStore.createContextSummaryMessage(input),
-        settingsRepo: getProviderSettingsRepository(),
-        providerClientFactory: async () => {
-          const configured = await createConfiguredSummaryProviderClient();
-          return configured.client;
+    summarizationStatus.value = "running";
+    try {
+      await runHistorySummarization(
+        {
+          chatRepository: runtime.repository,
+          createSummaryMessage: (input) =>
+            chatStore.createContextSummaryMessage(input),
+          settingsRepo: getProviderSettingsRepository(),
+          providerClientFactory: async () => {
+            const configured = await createConfiguredSummaryProviderClient();
+            return configured.client;
+          },
+          getSummaryTokenizerId: async () => {
+            const repo = getProviderSettingsRepository();
+            const state = await repo.getState();
+            if (state.summaryProfileId) {
+              const profile = state.profiles.find(
+                (p) => p.id === state.summaryProfileId,
+              );
+              return profile?.tokenizerId ?? null;
+            }
+            const active = await repo.getActiveProfile();
+            return active.tokenizerId ?? null;
+          },
         },
-        getSummaryTokenizerId: async () => {
-          const repo = getProviderSettingsRepository();
-          const state = await repo.getState();
-          if (state.summaryProfileId) {
-            const profile = state.profiles.find(
-              (p) => p.id === state.summaryProfileId,
-            );
-            return profile?.tokenizerId ?? null;
-          }
-          const active = await repo.getActiveProfile();
-          return active.tokenizerId ?? null;
+        {
+          now: () => new Date().toISOString(),
+          idFactory: () => createStoryTurnId("ctx-summary"),
         },
-      },
-      {
-        now: () => new Date().toISOString(),
-        idFactory: () => createStoryTurnId("ctx-summary"),
-      },
-    );
+      );
+      summarizationStatus.value = "done";
+    } catch (err) {
+      console.warn("[sessionStore] Summarization skipped:", err);
+      summarizationStatus.value = "error";
+    }
   }
 
   async function runStoryTurn(userInput: string) {
@@ -1248,10 +1256,8 @@ export const useSessionStore = defineStore("session", () => {
       variableVersion.value++;
       await persistRuntimeSnapshot();
 
-      // Trigger summarization asynchronously — failure is non-fatal.
-      maybeSummarizeHistory().catch((err) => {
-        console.warn("[sessionStore] Summarization skipped:", err);
-      });
+      // Trigger summarization asynchronously — failure is non-fatal (handled internally).
+      maybeSummarizeHistory();
 
       return result;
     } finally {
@@ -1473,6 +1479,7 @@ export const useSessionStore = defineStore("session", () => {
   return {
     snapshot,
     isStoryTurnRunning,
+    summarizationStatus,
     variableVersion,
     learnedSkills,
     isSkillLearned,

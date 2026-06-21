@@ -364,6 +364,57 @@ describe("buildHarnessRequest", () => {
     });
   });
 
+  it("excludes invalidated (ai_visible:false) context_summary messages from the conversation summary segment", async () => {
+    const chatRepository = new InMemoryChatHistoryRepository();
+    await chatRepository.save(
+      createMessage({
+        id: "ctx-summary-active",
+        role: "system",
+        kind: "context_summary",
+        content: "ACTIVE SUMMARY",
+        user_visible: false,
+        ai_visible: true,
+        finalized: true,
+        created_at: "2026-05-24T00:01:00.000Z",
+      }),
+    );
+    await chatRepository.save(
+      createMessage({
+        id: "ctx-summary-stale",
+        role: "system",
+        kind: "context_summary",
+        content: "STALE SUMMARY THAT SHOULD NOT APPEAR",
+        user_visible: false,
+        ai_visible: false,
+        finalized: true,
+        created_at: "2026-05-24T00:02:00.000Z",
+      }),
+    );
+    await chatRepository.save(
+      createMessage({
+        id: "msg-user-1",
+        content: "玩家做了某事。",
+        created_at: "2026-05-24T00:03:00.000Z",
+      }),
+    );
+
+    const request = await buildHarnessRequest({
+      chatRepository,
+      variableRepository: new InMemoryVariableRepository(),
+      worldInfoRepository: new InMemoryWorldInfoRepository(),
+      systemPrompt: "stable",
+      userInput: "继续。",
+      requestId: "req-summary-ai-visible",
+      contextVersion: 1,
+      now: "2026-05-24T00:04:00.000Z",
+    });
+
+    expect(request.promptText).toContain("ACTIVE SUMMARY");
+    expect(request.promptText).not.toContain(
+      "STALE SUMMARY THAT SHOULD NOT APPEAR",
+    );
+  });
+
   it("injects constant world info before FTS matched entries without cascading matches", async () => {
     const chatRepository = new InMemoryChatHistoryRepository();
     await chatRepository.save(

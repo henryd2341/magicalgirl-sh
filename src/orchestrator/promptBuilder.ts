@@ -105,7 +105,10 @@ function selectHistory(messages: ChatMessage[]): ChatMessage[] {
 function selectConversationSummaries(messages: ChatMessage[]): ChatMessage[] {
   return sortMessagesByCreatedAt(
     messages.filter(
-      (message) => message.kind === "context_summary" && message.finalized,
+      (message) =>
+        message.kind === "context_summary" &&
+        message.finalized &&
+        message.ai_visible,
     ),
   );
 }

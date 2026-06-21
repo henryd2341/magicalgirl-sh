@@ -228,6 +228,7 @@ const summaryForm = reactive({
   profileId: null as string | null,
   tokenThreshold: 4000,
   oldRatio: 0.5,
+  minMessages: 6,
 });
 
 function loadSummaryConfig(settings: ProviderSettingsState): void {
@@ -235,6 +236,7 @@ function loadSummaryConfig(settings: ProviderSettingsState): void {
   summaryForm.profileId = settings.summaryProfileId;
   summaryForm.tokenThreshold = settings.summaryTokenThreshold;
   summaryForm.oldRatio = settings.summaryOldRatio;
+  summaryForm.minMessages = settings.summaryMinMessages ?? 6;
 }
 
 async function saveSummaryEnabled(): Promise<void> {
@@ -254,6 +256,12 @@ async function saveSummaryThreshold(): Promise<void> {
 async function saveSummaryRatio(): Promise<void> {
   await repository.updateSummaryConfig({
     summaryOldRatio: summaryForm.oldRatio,
+  });
+}
+
+async function saveSummaryMinMessages(): Promise<void> {
+  await repository.updateSummaryConfig({
+    summaryMinMessages: summaryForm.minMessages,
   });
 }
 
@@ -639,6 +647,22 @@ watch(
             step="0.05"
             :disabled="!summaryForm.enabled"
             @change="saveSummaryRatio"
+          />
+        </div>
+
+        <div class="settings-view__field">
+          <label for="summary-min-messages">
+            Min Messages: {{ summaryForm.minMessages }}
+          </label>
+          <input
+            id="summary-min-messages"
+            v-model.number="summaryForm.minMessages"
+            type="number"
+            min="3"
+            max="50"
+            step="1"
+            :disabled="!summaryForm.enabled"
+            @change="saveSummaryMinMessages"
           />
         </div>
       </section>

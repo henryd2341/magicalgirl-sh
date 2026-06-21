@@ -135,7 +135,8 @@ export async function maybeSummarizeHistory(
       tokenizerId,
     );
 
-    if (oldMessages.length < 3) {
+    const minMessages = settings.summaryMinMessages ?? 6;
+    if (oldMessages.length < minMessages) {
       return;
     }
 

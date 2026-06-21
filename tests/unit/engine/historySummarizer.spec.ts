@@ -32,6 +32,7 @@ function makeSettings(overrides: Partial<ProviderSettingsState> = {}): ProviderS
     summaryEnabled: true,
     summaryTokenThreshold: 100,
     summaryOldRatio: 0.5,
+    summaryMinMessages: 6,
     toolProfileIds: {},
     ...overrides,
   };
@@ -131,28 +132,69 @@ describe("maybeSummarizeHistory", () => {
     );
     const deps = makeDeps({
       messages,
-      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5 }),
+    settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5, summaryMinMessages: 3 }),
+  });
+
+  await maybeSummarizeHistory(deps);
+
+  expect(deps._createSummaryMessage).toHaveBeenCalledTimes(1);
+  expect(deps._repository.save).toHaveBeenCalled();
+  const savedArgs = deps._repository.save.mock.calls.map((c) => c[0] as ChatMessage);
+  const invalidated = savedArgs.filter((m) => m.ai_visible === false);
+  expect(invalidated.length).toBeGreaterThan(0);
+  expect(deps._createSummaryMessage.mock.calls[0][0].content).toContain("summary");
+});
+
+  it("does nothing when oldMessages has fewer than summaryMinMessages (default 6)", async () => {
+    const veryLongContent = "x".repeat(1000);
+    const messages = Array.from({ length: 10 }, (_, i) =>
+      makeMessage({
+        id: `m${i}`,
+        content: veryLongContent,
+        created_at: `2026-01-01T00:0${i}:00.000Z`,
+      }),
+    );
+    const deps = makeDeps({
+      messages,
+      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5, summaryMinMessages: 6 }),
+    });
+
+    await maybeSummarizeHistory(deps);
+
+    expect(deps._createSummaryMessage).not.toHaveBeenCalled();
+  });
+
+  it("proceeds when oldMessages length meets summaryMinMessages threshold", async () => {
+    const longContent = "x".repeat(200);
+    const messages = Array.from({ length: 20 }, (_, i) =>
+      makeMessage({
+        id: `m${i}`,
+        content: longContent,
+        created_at: `2026-01-01T00:${String(i).padStart(2, "0")}:00.000Z`,
+      }),
+    );
+    const deps = makeDeps({
+      messages,
+      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5, summaryMinMessages: 6 }),
     });
 
     await maybeSummarizeHistory(deps);
 
     expect(deps._createSummaryMessage).toHaveBeenCalledTimes(1);
-    expect(deps._repository.save).toHaveBeenCalled();
-    const savedArgs = deps._repository.save.mock.calls.map((c) => c[0] as ChatMessage);
-    const invalidated = savedArgs.filter((m) => m.ai_visible === false);
-    expect(invalidated.length).toBeGreaterThan(0);
-    expect(deps._createSummaryMessage.mock.calls[0][0].content).toContain("summary");
   });
 
-  it("does nothing when oldMessages has fewer than 3 messages (AC10)", async () => {
-    const veryLongContent = "x".repeat(1000);
-    const messages = [
-      makeMessage({ id: "m1", content: veryLongContent, created_at: "2026-01-01T00:00:00.000Z" }),
-      makeMessage({ id: "m2", content: veryLongContent, created_at: "2026-01-01T00:01:00.000Z" }),
-    ];
+  it("respects custom summaryMinMessages higher than default", async () => {
+    const longContent = "x".repeat(200);
+    const messages = Array.from({ length: 20 }, (_, i) =>
+      makeMessage({
+        id: `m${i}`,
+        content: longContent,
+        created_at: `2026-01-01T00:${String(i).padStart(2, "0")}:00.000Z`,
+      }),
+    );
     const deps = makeDeps({
       messages,
-      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5 }),
+      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5, summaryMinMessages: 15 }),
     });
 
     await maybeSummarizeHistory(deps);
@@ -172,7 +214,7 @@ describe("maybeSummarizeHistory", () => {
     const emptyProvider = new FakeStreamingProviderClient({ textChunks: [""] });
     const deps = makeDeps({
       messages,
-      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5 }),
+      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5, summaryMinMessages: 3 }),
       providerClient: emptyProvider,
     });
 
@@ -222,7 +264,7 @@ describe("maybeSummarizeHistory", () => {
     };
     const deps = makeDeps({
       messages,
-      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5 }),
+      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5, summaryMinMessages: 3 }),
       providerClient,
     });
 
@@ -263,7 +305,7 @@ describe("maybeSummarizeHistory", () => {
     ];
     const deps = makeDeps({
       messages,
-      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5 }),
+      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5, summaryMinMessages: 3 }),
     });
 
     await maybeSummarizeHistory(deps);
@@ -307,7 +349,7 @@ describe("maybeSummarizeHistory", () => {
 
     const deps = makeDeps({
       messages,
-      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5 }),
+      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5, summaryMinMessages: 3 }),
       providerClient: blockedProvider,
     });
 
@@ -338,7 +380,7 @@ describe("maybeSummarizeHistory", () => {
     };
     const deps = makeDeps({
       messages,
-      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5 }),
+      settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5, summaryMinMessages: 3 }),
       providerClient,
     });
 

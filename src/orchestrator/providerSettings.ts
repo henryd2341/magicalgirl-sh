@@ -64,6 +64,7 @@ export interface ProviderSettingsState {
   summaryEnabled: boolean;
   summaryTokenThreshold: number;
   summaryOldRatio: number;
+  summaryMinMessages: number;
   toolProfileIds: Record<string, string>;
 }
 
@@ -94,6 +95,7 @@ export interface ProviderSettingsRepository {
     summaryEnabled?: boolean;
     summaryTokenThreshold?: number;
     summaryOldRatio?: number;
+    summaryMinMessages?: number;
   }): Promise<void>;
   getToolProfile(toolName: string): Promise<ProviderProfile | null>;
   setToolProfile(toolName: string, profileId: string | null): Promise<void>;
@@ -184,6 +186,7 @@ function normalizeState(
     summaryEnabled: state.summaryEnabled ?? true,
     summaryTokenThreshold: state.summaryTokenThreshold ?? 4000,
     summaryOldRatio: state.summaryOldRatio ?? 0.5,
+    summaryMinMessages: state.summaryMinMessages ?? 6,
     toolProfileIds: state.toolProfileIds ?? {},
   };
 }
@@ -216,6 +219,7 @@ export function createDefaultProviderSettingsState(
     summaryEnabled: true,
     summaryTokenThreshold: 48000,
     summaryOldRatio: 0.5,
+    summaryMinMessages: 6,
     toolProfileIds: {},
   };
 }
@@ -331,6 +335,7 @@ function migrateV1Config(
     summaryEnabled: true,
     summaryTokenThreshold: 48000,
     summaryOldRatio: 0.5,
+    summaryMinMessages: 6,
     toolProfileIds: {},
   };
 }
@@ -458,6 +463,7 @@ export class InMemoryProviderSettingsRepository implements ProviderSettingsRepos
     summaryEnabled?: boolean;
     summaryTokenThreshold?: number;
     summaryOldRatio?: number;
+    summaryMinMessages?: number;
   }): Promise<void> {
     const state = await this.getState();
     this.state = {
@@ -466,6 +472,8 @@ export class InMemoryProviderSettingsRepository implements ProviderSettingsRepos
       summaryTokenThreshold:
         patch.summaryTokenThreshold ?? state.summaryTokenThreshold,
       summaryOldRatio: patch.summaryOldRatio ?? state.summaryOldRatio,
+      summaryMinMessages:
+        patch.summaryMinMessages ?? state.summaryMinMessages,
     };
   }
 
@@ -645,6 +653,7 @@ export class LocalStorageProviderSettingsRepository extends InMemoryProviderSett
     summaryEnabled?: boolean;
     summaryTokenThreshold?: number;
     summaryOldRatio?: number;
+    summaryMinMessages?: number;
   }): Promise<void> {
     const state = await this.getState();
     await this.saveState({
@@ -653,6 +662,8 @@ export class LocalStorageProviderSettingsRepository extends InMemoryProviderSett
       summaryTokenThreshold:
         patch.summaryTokenThreshold ?? state.summaryTokenThreshold,
       summaryOldRatio: patch.summaryOldRatio ?? state.summaryOldRatio,
+      summaryMinMessages:
+        patch.summaryMinMessages ?? state.summaryMinMessages,
     });
   }
 
