@@ -57,9 +57,7 @@ export function createDefaultContextBudget(): ContextBudget {
   };
 }
 
-function estimateTokens(content: string): number {
-  return Math.max(1, Math.ceil(content.length / 4));
-}
+import { estimateTokens } from "@/engine/summary/tokenEstimator";
 
 function segment(
   input: Omit<PromptSegment, "tokenEstimate" | "included">,

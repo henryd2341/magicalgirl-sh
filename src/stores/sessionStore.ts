@@ -1,6 +1,6 @@
 import { BattleResultService, type BattleRewards } from "@/engine/battleResultService";
 import { RuntimePersistenceService } from "@/engine/runtimePersistenceService";
-import { ConversationSummarizer } from "@/engine/conversationSummarizer";
+import { maybeSummarizeHistory as runHistorySummarization } from "@/engine/summary/historySummarizer";
 import {
   CombatRefreshRecoveryService,
   type CombatRefreshRecoveryResult,
@@ -1189,71 +1189,24 @@ export const useSessionStore = defineStore("session", () => {
 
   async function maybeSummarizeHistory() {
     const chatStore = useChatStore();
-    const messages = await chatStore.getActiveChatRuntime().repository.list();
-    const visibleMessages = messages.filter(
-      (m) => m.ai_visible && m.finalized && m.kind !== "context_summary",
+    const runtime = chatStore.getActiveChatRuntime();
+
+    await runHistorySummarization(
+      {
+        chatRepository: runtime.repository,
+        createSummaryMessage: (input) =>
+          chatStore.createContextSummaryMessage(input),
+        settingsRepo: getProviderSettingsRepository(),
+        providerClientFactory: async () => {
+          const configured = await createConfiguredSummaryProviderClient();
+          return configured.client;
+        },
+      },
+      {
+        now: () => new Date().toISOString(),
+        idFactory: () => createStoryTurnId("ctx-summary"),
+      },
     );
-
-    const settingsRepo = getProviderSettingsRepository();
-    const settings = await settingsRepo.getState();
-
-    if (!settings.summaryEnabled) {
-      return;
-    }
-
-    const estimatedTokens = visibleMessages.reduce(
-      (total, m) => total + Math.max(1, Math.ceil(m.content.length / 4)),
-      0,
-    );
-
-    if (estimatedTokens < settings.summaryTokenThreshold) {
-      return;
-    }
-
-    const splitIndex = Math.floor(visibleMessages.length * settings.summaryOldRatio);
-    const oldMessages = visibleMessages.slice(0, splitIndex);
-
-    if (oldMessages.length < 3) {
-      return;
-    }
-
-    // Find previous summary if any, for progressive merging.
-    const previousSummary = messages.find(
-      (m) => m.kind === "context_summary" && m.finalized,
-    );
-
-    const configuredProvider = await createConfiguredSummaryProviderClient();
-    const summarizer = new ConversationSummarizer({
-      providerClient: configuredProvider.client,
-    });
-
-    const providerMessages = oldMessages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
-
-    const summary = await summarizer.summarize({
-      messages: providerMessages,
-      previousSummary: previousSummary?.content,
-    });
-
-    if (!summary) {
-      return;
-    }
-
-    // Mark summarized messages as not ai_visible so the summary replaces them in AI context.
-    for (const msg of oldMessages) {
-      await chatStore.getActiveChatRuntime().repository.save({
-        ...msg,
-        ai_visible: false,
-      });
-    }
-
-    await chatStore.createContextSummaryMessage({
-      id: createStoryTurnId("ctx-summary"),
-      content: summary,
-      createdAt: new Date().toISOString(),
-    });
   }
 
   async function runStoryTurn(userInput: string) {

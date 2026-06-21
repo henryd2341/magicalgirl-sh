@@ -23,6 +23,38 @@ const SUMMARIZE_SYSTEM_PROMPT = [
   "If a previous summary is provided, merge it with the new events — the result should be a single progressive summary.",
 ].join("\n");
 
+const MAX_SUMMARY_WORDS = 280;
+
+function generateRequestId(): string {
+  const crypto = globalThis.crypto;
+  if (crypto && typeof crypto.randomUUID === "function") {
+    return `summary-${crypto.randomUUID()}`;
+  }
+  return `summary-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function truncateAtWordLimit(text: string, maxWords: number): string {
+  const words = text.split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) {
+    return text;
+  }
+
+  const truncated = words.slice(0, maxWords).join(" ");
+
+  const lastSentenceEnd = Math.max(
+    truncated.lastIndexOf("。"),
+    truncated.lastIndexOf(". "),
+    truncated.lastIndexOf("! "),
+    truncated.lastIndexOf("? "),
+  );
+
+  if (lastSentenceEnd > maxWords * 0.5) {
+    return truncated.slice(0, lastSentenceEnd + 1);
+  }
+
+  return `${truncated}…`;
+}
+
 export class ConversationSummarizer {
   private readonly providerClient: ProviderClient;
 
@@ -59,7 +91,7 @@ export class ConversationSummarizer {
     // No tools, no multi-step — just a single completion.
     const minimalRequest = {
       metadata: {
-        request_id: `summary-${Date.now().toString(36)}`,
+        request_id: generateRequestId(),
         context_version: 0,
         state_hash: "summary",
         issued_at: new Date().toISOString(),
@@ -77,8 +109,12 @@ export class ConversationSummarizer {
       onTextChunk: async (chunk) => {
         summary += chunk;
       },
+      onReasoningChunk: async (_chunk) => {
+        // Discard reasoning/thinking chunks — they must not pollute the summary.
+      },
     });
 
-    return summary.trim();
+    const trimmed = summary.trim();
+    return truncateAtWordLimit(trimmed, MAX_SUMMARY_WORDS);
   }
 }
