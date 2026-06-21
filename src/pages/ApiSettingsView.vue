@@ -571,7 +571,7 @@ watch(
 
         <div class="settings-view__field">
           <label for="summary-token-threshold">
-            Token Threshold: {{ summaryForm.tokenThreshold }}
+            Token Threshold: 
           </label>
           <input
             id="summary-token-threshold"
