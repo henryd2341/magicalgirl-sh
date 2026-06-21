@@ -1163,6 +1163,8 @@ export const useSessionStore = defineStore("session", () => {
       eventLogRepository: repositories?.eventLogRepository,
       async buildRequest(input) {
         const skillStore = useSkillStore();
+        const settingsRepo = getProviderSettingsRepository();
+        const activeProfile = await settingsRepo.getActiveProfile();
         const request = await buildConfiguredHarnessRequest({
           ...input,
           chatRepository: chatRuntime.repository,
@@ -1175,6 +1177,7 @@ export const useSessionStore = defineStore("session", () => {
             : undefined,
           requestId: options.requestId,
           now: new Date().toISOString(),
+          tokenizerId: activeProfile.tokenizerId ?? null,
         });
         usePromptViewerStore().record(request, configuredProvider.providerInfo);
         return request;
@@ -1200,6 +1203,18 @@ export const useSessionStore = defineStore("session", () => {
         providerClientFactory: async () => {
           const configured = await createConfiguredSummaryProviderClient();
           return configured.client;
+        },
+        getSummaryTokenizerId: async () => {
+          const repo = getProviderSettingsRepository();
+          const state = await repo.getState();
+          if (state.summaryProfileId) {
+            const profile = state.profiles.find(
+              (p) => p.id === state.summaryProfileId,
+            );
+            return profile?.tokenizerId ?? null;
+          }
+          const active = await repo.getActiveProfile();
+          return active.tokenizerId ?? null;
         },
       },
       {

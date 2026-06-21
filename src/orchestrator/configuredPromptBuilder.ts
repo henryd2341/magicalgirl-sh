@@ -9,6 +9,7 @@ export interface BuildConfiguredHarnessRequestInput
   extends Omit<BuildHarnessRequestInput, "systemPrompt" | "budget"> {
   promptPresetRepository: PromptPresetRepository;
   skillMetadata?: SkillMetadata[];
+  tokenizerId?: string | null;
 }
 
 export async function buildConfiguredHarnessRequest(

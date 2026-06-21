@@ -30,6 +30,7 @@ export interface ProviderProfile {
   reasoningEffort?: "none" | "low" | "medium" | "high" | "xhigh" | "max";
   thinkingEnabled?: boolean;
   showReasoning?: boolean;
+  tokenizerId?: string | null;
   builtIn: boolean;
   updatedAt: string;
 }
@@ -53,6 +54,7 @@ export interface ProviderProfileInput {
     | undefined;
   thinkingEnabled?: boolean;
   showReasoning?: boolean;
+  tokenizerId?: string | null;
 }
 
 export interface ProviderSettingsState {
@@ -150,6 +152,7 @@ function normalizeProfile(
     reasoningEffort: profile.reasoningEffort,
     thinkingEnabled: profile.thinkingEnabled,
     showReasoning: profile.showReasoning,
+    tokenizerId: profile.tokenizerId ?? null,
     builtIn: profile.builtIn,
     updatedAt,
   };
@@ -248,6 +251,9 @@ function createProfileFromInput(input: {
       maxOutputTokens: input.profile.maxOutputTokens,
       streamingEnabled: input.profile.streamingEnabled,
       reasoningEffort: input.profile.reasoningEffort,
+      thinkingEnabled: input.profile.thinkingEnabled,
+      showReasoning: input.profile.showReasoning,
+      tokenizerId: input.profile.tokenizerId,
       builtIn: input.builtIn,
       updatedAt: input.updatedAt,
     },

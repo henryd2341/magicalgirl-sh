@@ -41,6 +41,7 @@ export interface BuildHarnessRequestInput {
   skillMetadata?: SkillMetadata[];
   previousValues?: PreviousValueMap;
   customChainOfThought?: ChainOfThoughtConfig;
+  tokenizerId?: string | null;
 }
 
 interface SelectedWorldInfo {
@@ -61,10 +62,11 @@ import { estimateTokens } from "@/engine/summary/tokenEstimator";
 
 function segment(
   input: Omit<PromptSegment, "tokenEstimate" | "included">,
+  tokenizerId?: string | null,
 ): PromptSegment {
   return {
     ...input,
-    tokenEstimate: estimateTokens(input.content),
+    tokenEstimate: estimateTokens(input.content, tokenizerId),
     included: true,
   };
 }
@@ -414,50 +416,53 @@ export async function buildHarnessRequest(
     input.mustacheVariables,
   ).text;
 
+  const seg = (s: Omit<PromptSegment, "tokenEstimate" | "included">) =>
+    segment(s, input.tokenizerId);
+
   const segments: PromptSegment[] = [
-    segment({
+    seg({
       id: "system",
       kind: "system",
       title: "System Prompt",
       content: renderedSystemPrompt,
       source: "systemPrompt",
     }),
-    segment({
+    seg({
       id: "skills",
       kind: "skills",
       title: "Enabled Skills",
       content: renderSkillsMetadata(input.skillMetadata ?? []),
       source: "skillRegistry",
     }),
-    segment({
+    seg({
       id: "constant_world_info",
       kind: "world_info",
       title: "Constant World Info",
       content: renderedConstantWorldInfo,
       source: "worldInfoRepository",
     }),
-    segment({
+    seg({
       id: "matched_world_info",
       kind: "world_info",
       title: "Matched World Info",
       content: renderedMatchedWorldInfo,
       source: "worldInfoRepository",
     }),
-    segment({
+    seg({
       id: "history",
       kind: "history",
       title: "Conversation History",
       content: renderHistory(historyMessages, input.customChainOfThought?.beautifyTagName),
       source: "chatHistoryRepository",
     }),
-    segment({
+    seg({
       id: "tools",
       kind: "tools",
       title: "Available Tools",
       content: renderToolDefinitions(tools),
       source: "toolSchemas",
     }),
-    segment({
+    seg({
       id: "state",
       kind: "state",
       title: "Game State Snapshot",
@@ -476,7 +481,7 @@ export async function buildHarnessRequest(
     segments.splice(
       historyIndex,
       0,
-      segment({
+      seg({
         id: "recent_variable_updates",
         kind: "summary",
         title: "Recent Variable Updates",
@@ -495,7 +500,7 @@ export async function buildHarnessRequest(
       segments.splice(
         historyIndex,
         0,
-        segment({
+        seg({
           id: "conversation_summary",
           kind: "summary",
           title: "Conversation Summary",
@@ -530,7 +535,7 @@ export async function buildHarnessRequest(
     // Inject a trace segment so CoT is visible in Prompt Viewer.
     // MUST be pushed BEFORE applyContextBudget() so it appears in budgeted.segments.
     segments.push(
-      segment({
+      seg({
         id: "cot_injection",
         kind: "summary",
         title: "Custom Chain of Thought",

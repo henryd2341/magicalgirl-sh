@@ -31,6 +31,7 @@ export interface HistorySummarizerDeps {
   ) => Promise<ChatMessage>;
   settingsRepo: HistorySummarizerSettingsRepository;
   providerClientFactory: HistorySummarizerProviderClientFactory;
+  getSummaryTokenizerId?: () => Promise<string | null>;
 }
 
 export interface HistorySummarizerOptions {
@@ -78,12 +79,13 @@ function selectActiveContextSummaries(
 function splitByCumulativeTokens(
   visibleMessages: ChatMessage[],
   targetTokens: number,
+  tokenizerId?: string | null,
 ): ChatMessage[] {
   let acc = 0;
   let splitIndex = 0;
   for (let i = 0; i < visibleMessages.length; i++) {
     if (acc >= targetTokens) break;
-    acc += estimateTokens(visibleMessages[i].content);
+    acc += estimateTokens(visibleMessages[i].content, tokenizerId);
     splitIndex = i + 1;
   }
   return visibleMessages.slice(0, splitIndex);
@@ -111,8 +113,12 @@ export async function maybeSummarizeHistory(
       return;
     }
 
+    const tokenizerId = deps.getSummaryTokenizerId
+      ? await deps.getSummaryTokenizerId()
+      : null;
+
     const estimatedTokens = visibleMessages.reduce(
-      (total, m) => total + estimateTokens(m.content),
+      (total, m) => total + estimateTokens(m.content, tokenizerId),
       0,
     );
 
@@ -123,7 +129,11 @@ export async function maybeSummarizeHistory(
     const targetTokens = Math.floor(
       estimatedTokens * settings.summaryOldRatio,
     );
-    const oldMessages = splitByCumulativeTokens(visibleMessages, targetTokens);
+    const oldMessages = splitByCumulativeTokens(
+      visibleMessages,
+      targetTokens,
+      tokenizerId,
+    );
 
     if (oldMessages.length < 3) {
       return;

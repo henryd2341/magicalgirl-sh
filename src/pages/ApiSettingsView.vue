@@ -11,6 +11,7 @@ import {
   type ProviderProfileKind,
   type ProviderSettingsState,
 } from "@/orchestrator/providerSettings";
+import { AVAILABLE_TOKENIZERS, loadTokenizer } from "@/engine/summary/tokenizerRegistry";
 import { ENABLE_DEV_TOOLS } from "@/env";
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
@@ -43,6 +44,7 @@ const form = reactive({
     | undefined,
   thinkingEnabled: true,
   showReasoning: true,
+  tokenizerId: null as string | null,
   builtIn: true,
 });
 
@@ -57,6 +59,7 @@ const visibleProfiles = computed(() =>
     : state.value.profiles.filter((p) => p.kind !== "fake"),
 );
 const isBuiltInProfile = computed(() => form.builtIn);
+const availableTokenizers = AVAILABLE_TOKENIZERS;
 
 function applyProfile(profile: ProviderProfile): void {
   form.id = profile.id;
@@ -71,6 +74,7 @@ function applyProfile(profile: ProviderProfile): void {
   form.reasoningEffort = profile.reasoningEffort;
   form.thinkingEnabled = profile.thinkingEnabled ?? true;
   form.showReasoning = profile.showReasoning ?? true;
+  form.tokenizerId = profile.tokenizerId ?? null;
   form.builtIn = profile.builtIn;
 }
 
@@ -109,6 +113,7 @@ async function addProfile(): Promise<void> {
     reasoningEffort: "medium",
     thinkingEnabled: true,
     showReasoning: true,
+    tokenizerId: null,
   });
   await repository.setActiveProfile(profile.id);
   statusMessage.value = "Profile 已创建。";
@@ -133,6 +138,7 @@ async function saveCurrentProfile(): Promise<void> {
     reasoningEffort: form.reasoningEffort,
     thinkingEnabled: form.thinkingEnabled,
     showReasoning: form.showReasoning,
+    tokenizerId: form.tokenizerId,
   });
   statusMessage.value = "API Provider 设置已保存。";
   await refreshState();
@@ -169,6 +175,7 @@ function buildCurrentProfile(): ProviderProfile {
     reasoningEffort: form.reasoningEffort,
     thinkingEnabled: form.thinkingEnabled,
     showReasoning: form.showReasoning,
+    tokenizerId: form.tokenizerId,
     builtIn: form.builtIn,
     updatedAt: activeProfile.value?.updatedAt ?? new Date().toISOString(),
   };
@@ -251,6 +258,17 @@ async function saveSummaryRatio(): Promise<void> {
 }
 
 onMounted(refreshState);
+
+watch(
+  () => form.tokenizerId,
+  (newId) => {
+    if (newId) {
+      loadTokenizer(newId).catch((err) => {
+        console.warn(`[ApiSettings] Failed to preload tokenizer "${newId}":`, err);
+      });
+    }
+  },
+);
 
 watch(
   () => form.kind,
@@ -438,6 +456,29 @@ watch(
               :disabled="isBuiltInProfile"
             />
             显示思维链
+          </label>
+          <label
+            v-if="form.kind === 'openai-compatible' || form.kind === 'deepseek'"
+            class="chat-input-box__label"
+            for="api-profile-tokenizer"
+          >
+            Tokenizer
+            <select
+              id="api-profile-tokenizer"
+              v-model="form.tokenizerId"
+              class="settings-view__text-input"
+              :disabled="isBuiltInProfile"
+              @change="saveCurrentProfile"
+            >
+              <option :value="null">Heuristic (默认)</option>
+              <option
+                v-for="tokenizer in availableTokenizers"
+                :key="tokenizer.id"
+                :value="tokenizer.id"
+              >
+                {{ tokenizer.label }}
+              </option>
+            </select>
           </label>
         </div>
 

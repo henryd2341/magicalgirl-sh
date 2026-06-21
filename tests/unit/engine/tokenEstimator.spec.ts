@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { estimateTokens } from "@/engine/summary/tokenEstimator";
+import { estimateTokens, heuristicEstimateTokens } from "@/engine/summary/tokenEstimator";
 
 describe("estimateTokens", () => {
   it("returns at least 1 for empty string", () => {
@@ -60,5 +60,24 @@ describe("estimateTokens", () => {
     const ascii = "abcd";
     const cjk = "中文测试";
     expect(estimateTokens(cjk)).toBeGreaterThan(estimateTokens(ascii));
+  });
+
+  it("falls back to heuristic when tokenizerId is null or undefined", () => {
+    expect(estimateTokens("hello", null)).toBe(heuristicEstimateTokens("hello"));
+    expect(estimateTokens("hello", undefined)).toBe(heuristicEstimateTokens("hello"));
+    expect(estimateTokens("hello")).toBe(heuristicEstimateTokens("hello"));
+  });
+
+  it("falls back to heuristic when tokenizerId is not loaded", () => {
+    expect(estimateTokens("hello", "nonexistent-tokenizer")).toBe(
+      heuristicEstimateTokens("hello"),
+    );
+  });
+});
+
+describe("heuristicEstimateTokens", () => {
+  it("produces same results as estimateTokens without tokenizerId", () => {
+    expect(heuristicEstimateTokens("hello world")).toBe(estimateTokens("hello world"));
+    expect(heuristicEstimateTokens("中文测试")).toBe(estimateTokens("中文测试"));
   });
 });

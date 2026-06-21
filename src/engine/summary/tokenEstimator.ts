@@ -1,3 +1,5 @@
+import { getTokenizer } from "@/engine/summary/tokenizerRegistry";
+
 const ASCII_WEIGHT = 0.25;
 const CJK_WEIGHT = 1.5;
 const OTHER_WEIGHT = 1.0;
@@ -13,7 +15,7 @@ function isCjkCodePoint(cp: number): boolean {
   );
 }
 
-export function estimateTokens(content: string): number {
+export function heuristicEstimateTokens(content: string): number {
   if (!content) {
     return 1;
   }
@@ -35,4 +37,22 @@ export function estimateTokens(content: string): number {
   }
 
   return Math.max(1, Math.ceil(weight));
+}
+
+export function estimateTokens(
+  content: string,
+  tokenizerId?: string | null,
+): number {
+  if (tokenizerId) {
+    const tokenizer = getTokenizer(tokenizerId);
+    if (tokenizer) {
+      try {
+        const tokens = tokenizer.encode(content, true);
+        return Math.max(1, tokens.length);
+      } catch {
+        // fall back to heuristic on encoding error
+      }
+    }
+  }
+  return heuristicEstimateTokens(content);
 }

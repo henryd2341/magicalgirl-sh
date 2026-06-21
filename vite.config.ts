@@ -2,9 +2,10 @@ import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
+import wasm from "vite-plugin-wasm";
 
 export default defineConfig({
-  plugins: [vue(), tailwindcss()],
+  plugins: [wasm(), vue(), tailwindcss()],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
