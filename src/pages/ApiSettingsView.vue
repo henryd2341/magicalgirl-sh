@@ -652,7 +652,7 @@ watch(
 
         <div class="settings-view__field">
           <label for="summary-min-messages">
-            Min Messages: {{ summaryForm.minMessages }}
+            Min Messages: 
           </label>
           <input
             id="summary-min-messages"
