@@ -1197,7 +1197,7 @@ export const useSessionStore = defineStore("session", () => {
 
     summarizationStatus.value = "running";
     try {
-      await runHistorySummarization(
+      const result = await runHistorySummarization(
         {
           chatRepository: runtime.repository,
           createSummaryMessage: (input) =>
@@ -1225,7 +1225,11 @@ export const useSessionStore = defineStore("session", () => {
           idFactory: () => createStoryTurnId("ctx-summary"),
         },
       );
-      summarizationStatus.value = "done";
+      if (result === "summarized") {
+        summarizationStatus.value = "done";
+      } else {
+        summarizationStatus.value = "idle";
+      }
     } catch (err) {
       console.warn("[sessionStore] Summarization skipped:", err);
       summarizationStatus.value = "error";

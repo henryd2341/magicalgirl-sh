@@ -855,6 +855,40 @@ export function createDbWorkerRuntime(
           };
         }
 
+        case "update_chat_messages_visibility": {
+          const database = await ensureSqliteDatabase(state);
+          const { ids, ai_visible } = request.payload;
+          if (ids.length === 0) {
+            return {
+              type: "update_chat_messages_visibility_result",
+              payload: { updatedCount: 0 },
+            };
+          }
+          await database.exec("BEGIN TRANSACTION");
+          try {
+            let updatedCount = 0;
+            for (const id of ids) {
+              const rows = await database.selectAll<{ message_json: string }>(
+                `SELECT message_json FROM chat_history WHERE id = ? LIMIT 1`,
+                [id],
+              );
+              if (rows.length === 0) continue;
+              const message: ChatMessage = JSON.parse(rows[0].message_json);
+              message.ai_visible = ai_visible;
+              await saveChatMessageRow(database, message);
+              updatedCount++;
+            }
+            await database.exec("COMMIT");
+            return {
+              type: "update_chat_messages_visibility_result",
+              payload: { updatedCount },
+            };
+          } catch (err) {
+            await database.exec("ROLLBACK");
+            throw err;
+          }
+        }
+
         case "save_current_variable_value": {
           const database = await ensureSqliteDatabase(state);
           await saveVariableValueRow(database, request.payload);

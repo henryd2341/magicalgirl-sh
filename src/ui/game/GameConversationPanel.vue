@@ -45,6 +45,12 @@ watch(summarizationStatus, (status) => {
     badgeTimer = setTimeout(() => {
       showSummaryBadge.value = false;
     }, 3000);
+  } else {
+    showSummaryBadge.value = false;
+    if (badgeTimer) {
+      clearTimeout(badgeTimer);
+      badgeTimer = null;
+    }
   }
 });
 

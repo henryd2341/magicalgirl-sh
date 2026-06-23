@@ -8,6 +8,7 @@ export interface HistorySummarizerChatRepository {
   list(): Promise<ChatMessage[]>;
   save(message: ChatMessage): Promise<void>;
   getById(id: string): Promise<ChatMessage | null>;
+  bulkUpdateVisibility(ids: string[], aiVisible: boolean): Promise<number>;
 }
 
 export interface HistorySummarizerSettingsRepository {
@@ -91,12 +92,14 @@ function splitByCumulativeTokens(
   return visibleMessages.slice(0, splitIndex);
 }
 
+export type MaybeSummarizeResult = "skipped" | "summarized";
+
 export async function maybeSummarizeHistory(
   deps: HistorySummarizerDeps,
   options: HistorySummarizerOptions = {},
-): Promise<void> {
+): Promise<MaybeSummarizeResult> {
   if (summarizationInFlight) {
-    return;
+    return "skipped";
   }
   summarizationInFlight = true;
 
@@ -110,7 +113,7 @@ export async function maybeSummarizeHistory(
     const settings = await deps.settingsRepo.getState();
 
     if (!settings.summaryEnabled) {
-      return;
+      return "skipped";
     }
 
     const tokenizerId = deps.getSummaryTokenizerId
@@ -123,7 +126,7 @@ export async function maybeSummarizeHistory(
     );
 
     if (estimatedTokens < settings.summaryTokenThreshold) {
-      return;
+      return "skipped";
     }
 
     const targetTokens = Math.floor(
@@ -137,7 +140,7 @@ export async function maybeSummarizeHistory(
 
     const minMessages = settings.summaryMinMessages ?? 6;
     if (oldMessages.length < minMessages) {
-      return;
+      return "skipped";
     }
 
     const previousSummary = selectLatestPreviousSummary(messages);
@@ -156,7 +159,7 @@ export async function maybeSummarizeHistory(
     });
 
     if (!summary) {
-      return;
+      return "skipped";
     }
 
     const idsToInvalidate = [
@@ -164,17 +167,15 @@ export async function maybeSummarizeHistory(
       ...selectActiveContextSummaries(messages).map((m) => m.id),
     ];
 
-    for (const id of idsToInvalidate) {
-      const msg = await deps.chatRepository.getById(id);
-      if (!msg) continue;
-      await deps.chatRepository.save({ ...msg, ai_visible: false });
-    }
+    await deps.chatRepository.bulkUpdateVisibility(idsToInvalidate, false);
 
     await deps.createSummaryMessage({
       id: idFactory(),
       content: summary,
       createdAt: now(),
     });
+
+    return "summarized";
   } finally {
     summarizationInFlight = false;
   }

@@ -50,6 +50,17 @@ function makeDeps(deps: MockDeps) {
     list: vi.fn(async () => deps.messages),
     save: vi.fn(async (msg: ChatMessage) => { /* no-op, void return */ }),
     getById: vi.fn(async (id: string) => deps.messages.find((m) => m.id === id) ?? null),
+    bulkUpdateVisibility: vi.fn(async (ids: string[], _aiVisible: boolean) => {
+      let count = 0;
+      for (const id of ids) {
+        const msg = deps.messages.find((m) => m.id === id);
+        if (msg) {
+          msg.ai_visible = _aiVisible;
+          count++;
+        }
+      }
+      return count;
+    }),
   };
   const createSummaryMessage =
     deps.createSummaryMessage ??
@@ -103,7 +114,7 @@ describe("maybeSummarizeHistory", () => {
     await maybeSummarizeHistory(deps);
 
     expect(deps._createSummaryMessage).not.toHaveBeenCalled();
-    expect(deps._repository.save).not.toHaveBeenCalled();
+    expect(deps._repository.bulkUpdateVisibility).not.toHaveBeenCalled();
   });
 
   it("does nothing when estimated tokens are below threshold (AC9)", async () => {
@@ -115,10 +126,11 @@ describe("maybeSummarizeHistory", () => {
       settings: makeSettings({ summaryTokenThreshold: 10000 }),
     });
 
-    await maybeSummarizeHistory(deps);
+    const result = await maybeSummarizeHistory(deps);
 
     expect(deps._createSummaryMessage).not.toHaveBeenCalled();
     expect(deps._providerClientFactory).not.toHaveBeenCalled();
+    expect(result).toBe("skipped");
   });
 
   it("creates context_summary and invalidates old messages when threshold is exceeded (AC1 happy path)", async () => {
@@ -135,14 +147,15 @@ describe("maybeSummarizeHistory", () => {
     settings: makeSettings({ summaryTokenThreshold: 50, summaryOldRatio: 0.5, summaryMinMessages: 3 }),
   });
 
-  await maybeSummarizeHistory(deps);
+  const result = await maybeSummarizeHistory(deps);
 
   expect(deps._createSummaryMessage).toHaveBeenCalledTimes(1);
-  expect(deps._repository.save).toHaveBeenCalled();
-  const savedArgs = deps._repository.save.mock.calls.map((c) => c[0] as ChatMessage);
-  const invalidated = savedArgs.filter((m) => m.ai_visible === false);
-  expect(invalidated.length).toBeGreaterThan(0);
+  expect(deps._repository.bulkUpdateVisibility).toHaveBeenCalledTimes(1);
+  const bulkCall = deps._repository.bulkUpdateVisibility.mock.calls[0];
+  expect(bulkCall[1]).toBe(false);
+  expect(bulkCall[0].length).toBeGreaterThan(0);
   expect(deps._createSummaryMessage.mock.calls[0][0].content).toContain("summary");
+  expect(result).toBe("summarized");
 });
 
   it("does nothing when oldMessages has fewer than summaryMinMessages (default 6)", async () => {
@@ -221,9 +234,7 @@ describe("maybeSummarizeHistory", () => {
     await maybeSummarizeHistory(deps);
 
     expect(deps._createSummaryMessage).not.toHaveBeenCalled();
-    const saves = deps._repository.save.mock.calls.map((c) => c[0] as ChatMessage);
-    const invalidated = saves.filter((m) => m.ai_visible === false);
-    expect(invalidated).toHaveLength(0);
+    expect(deps._repository.bulkUpdateVisibility).not.toHaveBeenCalled();
   });
 
   it("picks the LATEST context_summary as previousSummary, not the first (AC3)", async () => {
@@ -310,10 +321,12 @@ describe("maybeSummarizeHistory", () => {
 
     await maybeSummarizeHistory(deps);
 
-    const saves = deps._repository.save.mock.calls.map((c) => c[0] as ChatMessage);
-    const prevSummarySaves = saves.filter((s) => s.id === "prev-summary");
-    expect(prevSummarySaves).toHaveLength(1);
-    expect(prevSummarySaves[0].ai_visible).toBe(false);
+    expect(deps._repository.bulkUpdateVisibility).toHaveBeenCalledTimes(1);
+    const bulkCall = deps._repository.bulkUpdateVisibility.mock.calls[0];
+    expect(bulkCall[0]).toContain("prev-summary");
+    expect(bulkCall[1]).toBe(false);
+    const prevSummaryMsg = messages.find((m) => m.id === "prev-summary");
+    expect(prevSummaryMsg?.ai_visible).toBe(false);
   });
 
   it("prevents concurrent execution: only one call proceeds, others skip (AC4)", async () => {
@@ -392,10 +405,9 @@ describe("maybeSummarizeHistory", () => {
     };
     const userPrompt = request.messages.find((m) => m.role === "user");
     expect(userPrompt).toBeDefined();
-    const invalidatedSaves = deps._repository.save.mock.calls
-      .map((c) => c[0] as ChatMessage)
-      .filter((m) => m.ai_visible === false && m.kind === "normal");
-    const invalidatedIds = invalidatedSaves.map((m) => m.id);
+    expect(deps._repository.bulkUpdateVisibility).toHaveBeenCalledTimes(1);
+    const bulkCall = deps._repository.bulkUpdateVisibility.mock.calls[0];
+    const invalidatedIds = bulkCall[0] as string[];
     expect(invalidatedIds).toContain("m1");
     expect(invalidatedIds).toContain("m2");
     expect(invalidatedIds).toContain("m3");

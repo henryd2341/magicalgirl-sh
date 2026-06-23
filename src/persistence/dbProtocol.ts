@@ -84,6 +84,13 @@ export type DbWorkerRequest =
       payload: ChatMessage[];
     }
   | {
+      type: "update_chat_messages_visibility";
+      payload: {
+        ids: string[];
+        ai_visible: boolean;
+      };
+    }
+  | {
       type: "save_current_variable_value";
       payload: VariableValueRecord;
     }
@@ -217,6 +224,12 @@ export type DbWorkerSuccessResponse =
       type: "replace_chat_messages_result";
       payload: {
         replacedCount: number;
+      };
+    }
+  | {
+      type: "update_chat_messages_visibility_result";
+      payload: {
+        updatedCount: number;
       };
     }
   | {

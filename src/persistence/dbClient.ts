@@ -119,6 +119,24 @@ export class DbWorkerClient {
     }
   }
 
+  public async updateChatMessagesVisibility(
+    ids: string[],
+    aiVisible: boolean,
+  ): Promise<number> {
+    const response = await this.dispatch({
+      type: "update_chat_messages_visibility",
+      payload: { ids, ai_visible: aiVisible },
+    });
+
+    if (response.type !== "update_chat_messages_visibility_result") {
+      throw new Error(
+        `Unexpected response type for updateChatMessagesVisibility: ${response.type}`,
+      );
+    }
+
+    return response.payload.updatedCount;
+  }
+
   public async saveCurrentVariableValue(
     record: VariableValueRecord,
   ): Promise<void> {

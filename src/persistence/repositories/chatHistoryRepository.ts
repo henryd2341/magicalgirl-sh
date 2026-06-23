@@ -8,6 +8,7 @@ export interface ChatHistoryRepository {
   getById(id: string): Promise<ChatMessage | null>;
   list(): Promise<ChatMessage[]>;
   replaceAll(messages: ChatMessage[]): Promise<void>;
+  bulkUpdateVisibility(ids: string[], aiVisible: boolean): Promise<number>;
 }
 
 export class InMemoryChatHistoryRepository implements ChatHistoryRepository {
@@ -31,6 +32,20 @@ export class InMemoryChatHistoryRepository implements ChatHistoryRepository {
     for (const message of messages) {
       this.records.set(message.id, { ...message });
     }
+  }
+
+  public async bulkUpdateVisibility(
+    ids: string[],
+    aiVisible: boolean,
+  ): Promise<number> {
+    let updatedCount = 0;
+    for (const id of ids) {
+      const message = this.records.get(id);
+      if (!message) continue;
+      this.records.set(id, { ...message, ai_visible: aiVisible });
+      updatedCount++;
+    }
+    return updatedCount;
   }
 
   public clear(): void {
@@ -59,5 +74,12 @@ export class DbChatHistoryRepository implements ChatHistoryRepository {
 
   public async replaceAll(messages: ChatMessage[]): Promise<void> {
     await this.client.replaceChatMessages(messages);
+  }
+
+  public async bulkUpdateVisibility(
+    ids: string[],
+    aiVisible: boolean,
+  ): Promise<number> {
+    return this.client.updateChatMessagesVisibility(ids, aiVisible);
   }
 }
