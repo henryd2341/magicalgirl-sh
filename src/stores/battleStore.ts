@@ -37,6 +37,7 @@ export const useBattleStore = defineStore("battle", {
     pendingBattle: null as PendingBattleSnapshot | null,
     activeBattle: null as BattleSnapshot | null,
     onItemConsumed: null as ((itemId: string) => void) | null,
+    _currentBattleItems: null as Record<string, number> | null,
   }),
   actions: {
     stagePendingEncounter(input: StagePendingEncounterInput) {
@@ -422,6 +423,9 @@ export const useBattleStore = defineStore("battle", {
       this.pendingBattle = input.pendingBattle ?? null;
       this.activeBattle = input.activeBattle ?? null;
     },
+    setBattleItems(items: Record<string, number>) {
+      this._currentBattleItems = items;
+    },
     rebuildActionMenuForActor(actorId: string) {
       if (this.activeBattle === null) return;
       const actor = this.activeBattle.participants.find(p => p.id === actorId);
@@ -429,7 +433,7 @@ export const useBattleStore = defineStore("battle", {
       const actorSkills = actor.availableSkillIds;
       this.activeBattle.actionMenu = createDefaultBattleCommandMenuTree(
         actorSkills,
-        undefined,
+        this._currentBattleItems ?? undefined,
       );
       // Clear previous actor's action selection state
       this.activeBattle.currentMenuNodeId = null;

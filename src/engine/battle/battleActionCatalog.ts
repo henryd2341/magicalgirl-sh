@@ -177,7 +177,7 @@ export function createDefaultBattleCommandMenuTree(
   const skills = getAllSkills();
   const skillGroup = buildSkillActionNodes(skills, availableSkillIds);
   const itemNodes =
-    battleItems != null ? buildItemMenuNodes(battleItems) : null;
+    battleItems != null ? buildItemMenuNodes(battleItems) : [];
 
   const menu: BattleActionMenuNode[] = [
     {
@@ -195,19 +195,14 @@ export function createDefaultBattleCommandMenuTree(
       label: "Guard",
       description: "进入防御姿态，减少即将受到的伤害。",
     },
-  ];
-
-  if (itemNodes != null && itemNodes.length > 0) {
-    menu.push({
+    {
       id: "item-group",
       kind: "group",
       label: "Item",
-      description: "打开道具列表。",
+      description: itemNodes.length > 0 ? "打开道具列表。" : "无可用道具。",
       children: itemNodes,
-    });
-  }
-
-  menu.push(
+      disabled: itemNodes.length === 0,
+    },
     {
       id: "pass-action",
       kind: "action",
@@ -222,7 +217,7 @@ export function createDefaultBattleCommandMenuTree(
       label: "Swap",
       description: "将任意上场成员换下，并可选地换上后备成员。",
     },
-  );
+  ];
 
   return menu;
 }

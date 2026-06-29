@@ -954,6 +954,7 @@ export const useSessionStore = defineStore("session", () => {
             }
           }
           battleItems = battleMap;
+          battleStore.setBattleItems(battleMap);
         }
       } catch {
         // Variable state unavailable, no battle items
@@ -989,6 +990,7 @@ export const useSessionStore = defineStore("session", () => {
           });
           await variableRepository.saveCurrent(pr.next);
           if (battleStore.activeBattle) {
+            battleStore.setBattleItems(ub);
             const actorId = battleStore.activeBattle.currentActorId;
             const actor = battleStore.activeBattle.participants.find(p => p.id === actorId);
             const actorSkills = actor?.availableSkillIds;
