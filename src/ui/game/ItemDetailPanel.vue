@@ -52,7 +52,7 @@ const typeIcon = computed(() => typeIcons[props.item.type] ?? "fas fa-question")
         <i class="fas fa-coins"></i>
         {{ item.price }}
       </span>
-      <span v-if="sellPrice !== undefined" class="item-detail-panel__sell-price">
+      <span v-if="sellPrice !== undefined" class="item-detail-panel__sell-price" data-content={{ sellPrice }}>
         <i class="fas fa-arrow-down"></i>
         {{ sellPrice }}
       </span>
@@ -163,11 +163,12 @@ const typeIcon = computed(() => typeIcons[props.item.type] ?? "fas fa-question")
   display: flex;
   align-items: center;
   gap: 4px;
-  color: var(--mg-warning);
+  color: var(--mg-text);
   font-family: var(--mg-font-heading);
   font-weight: 700;
 
   i {
+    color: var(--mg-warning);
     font-size: var(--mg-font-xs);
   }
 }
@@ -176,11 +177,12 @@ const typeIcon = computed(() => typeIcons[props.item.type] ?? "fas fa-question")
   display: flex;
   align-items: center;
   gap: 4px;
-  color: var(--mg-success);
+  color: var(--mg-text);
   font-family: var(--mg-font-heading);
   font-weight: 700;
 
   i {
+    color: var(--mg-success);
     font-size: var(--mg-font-xs);
   }
 }

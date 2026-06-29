@@ -403,7 +403,7 @@ function closeOverlay() {
   font-family: var(--mg-font-heading);
   font-size: var(--mg-font-lg);
   font-weight: var(--mg-font-weight-heading);
-  color: var(--mg-warning, #ffd600);
+  color: var(--mg-text);
 }
 
 .shop-overlay__tabs {
@@ -586,6 +586,7 @@ function closeOverlay() {
   font-size: var(--mg-font-sm, 0.8rem);
   font-weight: 700;
   font-family: var(--mg-font-heading);
+  color: var(--mg-text);
   white-space: nowrap;
 
   i {
@@ -593,11 +594,11 @@ function closeOverlay() {
   }
 }
 
-.shop-overlay__item-price--buy {
+.shop-overlay__item-price--buy i {
   color: var(--mg-warning, #ffd600);
 }
 
-.shop-overlay__item-price--sell {
+.shop-overlay__item-price--sell i {
   color: var(--mg-success, #7bed9f);
 }
 
@@ -657,6 +658,7 @@ function closeOverlay() {
   font-family: var(--mg-font-heading);
   font-size: var(--mg-font-base);
   font-weight: 700;
+  color: var(--mg-text);
 
   i {
     font-size: var(--mg-font-xs, 0.7rem);
@@ -665,11 +667,15 @@ function closeOverlay() {
 }
 
 .shop-overlay__total-amount--buy {
-  color: var(--mg-warning, #ffd600);
+  i {
+    color: var(--mg-warning, #ffd600);
+  }
 }
 
 .shop-overlay__total-amount--sell {
-  color: var(--mg-success, #7bed9f);
+  i {
+    color: var(--mg-success, #7bed9f);
+  }
 }
 
 .shop-overlay__btn-sell {
