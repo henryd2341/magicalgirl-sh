@@ -71,7 +71,7 @@ function closeMenu() {
     <!-- Desktop nav -->
     <nav v-if="!isMobile" class="mg-topbar__actions" aria-label="主游戏快捷操作">
       <button class="mg-topbar__btn" title="背包" type="button" @click="$emit('openInventory')">
-        <i class="fas fa-backpack"></i>
+        <i class="fas fa-bag-shopping"></i>
         <span>背包</span>
       </button>
       <span class="mg-topbar__sep" aria-hidden="true">♡</span>
