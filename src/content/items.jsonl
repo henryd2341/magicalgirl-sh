@@ -1,59 +1,59 @@
-{"id": "1", "name": "药草", "description": "常见的草药，可回复少量生命值。", "type": "consumable", "tier": "common", "price": 5, "healHp": 20, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "2", "name": "疗伤药", "description": "经过调制的伤药，回复效果更强。", "type": "consumable", "tier": "common", "price": 15, "healHp": 50, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "3", "name": "灵药", "description": "蕴含灵力的药液，大幅回复生命值。", "type": "consumable", "tier": "uncommon", "price": 40, "healHp": 100, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "4", "name": "仙药", "description": "以仙法炼制的秘药，几乎能治愈一切重伤。", "type": "consumable", "tier": "rare", "price": 120, "healHp": 200, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "5", "name": "圣灵药", "description": "传说中能完全回复生命力的圣药。", "type": "consumable", "tier": "legendary", "price": 500, "healHp": 9999, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "6", "name": "以太液", "description": "基础的魔力恢复液。", "type": "consumable", "tier": "common", "price": 10, "healMp": 15, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "7", "name": "魔力药", "description": "浓缩的魔力药剂，回复效果更佳。", "type": "consumable", "tier": "common", "price": 25, "healMp": 30, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "8", "name": "灵以太", "description": "蕴含灵力的魔力液，大幅回复魔力。", "type": "consumable", "tier": "uncommon", "price": 60, "healMp": 60, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "9", "name": "仙以太", "description": "仙法炼制的魔力秘药，魔力如泉涌。", "type": "consumable", "tier": "rare", "price": 180, "healMp": 120, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "10", "name": "圣灵以太", "description": "传说中能完全回复魔力的圣液。", "type": "consumable", "tier": "legendary", "price": 500, "healMp": 9999, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "11", "name": "复活药", "description": "能唤醒战斗不能者的应急药物。", "type": "consumable", "tier": "uncommon", "price": 80, "revivePercent": 25, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "12", "name": "苏生药", "description": "强力的复苏之药，复活后保有更多体力。", "type": "consumable", "tier": "rare", "price": 200, "revivePercent": 50, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "13", "name": "还魂丹", "description": "传说中的还魂丹药，满状态复活。", "type": "consumable", "tier": "legendary", "price": 600, "revivePercent": 100, "usableInBattle": true, "targetType": "single_ally"}
-{"id": "14", "name": "解毒草", "description": "能中和体内毒素的药草。", "type": "consumable", "tier": "common", "price": 8, "usableInBattle": true, "targetType": "single_ally", "removeStatus": ["poison"]}
-{"id": "15", "name": "解眠药", "description": "刺鼻的气味能驱散睡意。", "type": "consumable", "tier": "common", "price": 8, "usableInBattle": true, "targetType": "single_ally", "removeStatus": ["sleep"]}
-{"id": "16", "name": "解封符", "description": "破除技能封印的灵符。", "type": "consumable", "tier": "common", "price": 8, "usableInBattle": true, "targetType": "single_ally", "removeStatus": ["seal"]}
-{"id": "17", "name": "万能药", "description": "能治愈一切异常状态的万能灵药。", "type": "consumable", "tier": "rare", "price": 100, "usableInBattle": true, "targetType": "single_ally", "removeStatus": ["poison", "sleep", "seal", "blind", "freeze", "paralyze", "burn"]}
-{"id": "18", "name": "力量符", "description": "短时间内激发身体潜能的灵符。", "type": "consumable", "tier": "uncommon", "price": 50, "usableInBattle": true, "targetType": "single_ally", "statusEffects": [{"effectId": "attack_up", "chance": 100}]}
-{"id": "19", "name": "守护符", "description": "在身周形成灵气护盾的灵符。", "type": "consumable", "tier": "uncommon", "price": 50, "usableInBattle": true, "targetType": "single_ally", "statusEffects": [{"effectId": "defense_up", "chance": 100}]}
-{"id": "20", "name": "疾风符", "description": "让身体变得轻如疾风的灵符。", "type": "consumable", "tier": "uncommon", "price": 50, "usableInBattle": true, "targetType": "single_ally", "statusEffects": [{"effectId": "agility_up", "chance": 100}]}
-{"id": "21", "name": "智慧符", "description": "开启心智、提升魔力的灵符。", "type": "consumable", "tier": "uncommon", "price": 50, "usableInBattle": true, "targetType": "single_ally", "statusEffects": [{"effectId": "intelligence_up", "chance": 100}]}
-{"id": "22", "name": "金刚符", "description": "短时间内全方位强化战斗力的灵符。", "type": "consumable", "tier": "rare", "price": 180, "usableInBattle": true, "targetType": "single_ally", "statusEffects": [{"effectId": "attack_up", "chance": 100}, {"effectId": "defense_up", "chance": 100}, {"effectId": "agility_up", "chance": 100}, {"effectId": "intelligence_up", "chance": 100}]}
-{"id": "23", "name": "弱化弹", "description": "击中后削弱敌人力量的投掷弹。", "type": "consumable", "tier": "uncommon", "price": 50, "usableInBattle": true, "targetType": "single_enemy", "statusEffects": [{"effectId": "attack_down", "chance": 100}]}
-{"id": "24", "name": "破甲弹", "description": "击中后削弱敌人防御的投掷弹。", "type": "consumable", "tier": "uncommon", "price": 50, "usableInBattle": true, "targetType": "single_enemy", "statusEffects": [{"effectId": "defense_down", "chance": 100}]}
-{"id": "25", "name": "迟钝弹", "description": "击中后降低敌人速度的投掷弹。", "type": "consumable", "tier": "uncommon", "price": 50, "usableInBattle": true, "targetType": "single_enemy", "statusEffects": [{"effectId": "agility_down", "chance": 100}]}
-{"id": "26", "name": "衰减瓦斯", "description": "释放后全方位弱化敌人的特殊瓦斯。", "type": "consumable", "tier": "rare", "price": 180, "usableInBattle": true, "targetType": "single_enemy", "statusEffects": [{"effectId": "attack_down", "chance": 100}, {"effectId": "defense_down", "chance": 100}, {"effectId": "agility_down", "chance": 100}, {"effectId": "intelligence_down", "chance": 100}]}
-{"id": "27", "name": "火焰瓶", "description": "投掷后爆发出烈焰的小瓶。", "type": "consumable", "tier": "common", "price": 20, "damageFixed": 30, "usableInBattle": true, "targetType": "single_enemy"}
-{"id": "27", "name": "火焰瓶", "description": "投掷后爆发出烈焰的小瓶。", "type": "consumable", "tier": "common", "price": 20, "damageFixed": 30, "element": "Fire", "usableInBattle": true, "targetType": "single_enemy"}
-{"id": "28", "name": "冰霜瓶", "description": "投掷后炸裂出冰晶的小瓶。", "type": "consumable", "tier": "common", "price": 20, "damageFixed": 30, "usableInBattle": true, "targetType": "single_enemy"}
-{"id": "28", "name": "冰霜瓶", "description": "投掷后炸裂出冰晶的小瓶。", "type": "consumable", "tier": "common", "price": 20, "damageFixed": 30, "element": "Ice", "usableInBattle": true, "targetType": "single_enemy"}
-{"id": "29", "name": "雷电瓶", "description": "投掷后释放电流的小瓶。", "type": "consumable", "tier": "common", "price": 20, "damageFixed": 30, "usableInBattle": true, "targetType": "single_enemy"}
-{"id": "29", "name": "雷电瓶", "description": "投掷后释放电流的小瓶。", "type": "consumable", "tier": "common", "price": 20, "damageFixed": 30, "element": "Electric", "usableInBattle": true, "targetType": "single_enemy"}
-{"id": "30", "name": "爆裂弹", "description": "投掷后产生爆炸的铁弹。", "type": "consumable", "tier": "uncommon", "price": 60, "damageFixed": 60, "usableInBattle": true, "targetType": "single_enemy"}
-{"id": "30", "name": "爆裂弹", "description": "投掷后产生爆炸的铁弹。", "type": "consumable", "tier": "uncommon", "price": 60, "damageFixed": 60, "element": "Physical", "usableInBattle": true, "targetType": "single_enemy"}
-{"id": "31", "name": "大爆裂弹", "description": "装填了高威力火药的爆裂弹。", "type": "consumable", "tier": "rare", "price": 150, "damageFixed": 120, "usableInBattle": true, "targetType": "single_enemy"}
-{"id": "31", "name": "大爆裂弹", "description": "装填了高威力火药的爆裂弹。", "type": "consumable", "tier": "rare", "price": 150, "damageFixed": 120, "element": "Physical", "usableInBattle": true, "targetType": "single_enemy"}
-{"id": "32", "name": "力量腕带", "description": "略微增强物理攻击力的腕带。", "type": "accessory", "tier": "common", "price": 50, "modifiers": {"attack": 2}}
-{"id": "33", "name": "力量护腕", "description": "明显增强物理攻击力的护腕。", "type": "accessory", "tier": "uncommon", "price": 150, "modifiers": {"attack": 4}}
-{"id": "34", "name": "力量臂铠", "description": "大幅增强物理攻击力的臂铠。", "type": "accessory", "tier": "rare", "price": 400, "modifiers": {"attack": 6}}
-{"id": "35", "name": "力量神铠", "description": "传说中赋予持有者神力加护的神铠。", "type": "accessory", "tier": "legendary", "price": 1000, "modifiers": {"attack": 8}}
-{"id": "36", "name": "守御指环", "description": "略微提升防御力的指环。", "type": "accessory", "tier": "common", "price": 50, "modifiers": {"defense": 2}}
-{"id": "37", "name": "守御手镯", "description": "明显提升防御力的手镯。", "type": "accessory", "tier": "uncommon", "price": 150, "modifiers": {"defense": 4}}
-{"id": "38", "name": "守御壁障", "description": "大幅提升防御力的护符。", "type": "accessory", "tier": "rare", "price": 400, "modifiers": {"defense": 6}}
-{"id": "39", "name": "守御圣盾", "description": "传说中展开无形障壁的圣盾。", "type": "accessory", "tier": "legendary", "price": 1000, "modifiers": {"defense": 8}}
-{"id": "40", "name": "疾风脚环", "description": "略微提升敏捷的脚环。", "type": "accessory", "tier": "common", "price": 50, "modifiers": {"agility": 2}}
-{"id": "41", "name": "疾风靴", "description": "明显提升敏捷的长靴。", "type": "accessory", "tier": "uncommon", "price": 150, "modifiers": {"agility": 4}}
-{"id": "42", "name": "疾风羽饰", "description": "大幅提升敏捷的羽毛饰品。", "type": "accessory", "tier": "rare", "price": 400, "modifiers": {"agility": 6}}
-{"id": "43", "name": "疾风神翼", "description": "传说中赋予持有者神速的神翼。", "type": "accessory", "tier": "legendary", "price": 1000, "modifiers": {"agility": 8}}
-{"id": "44", "name": "智慧眼镜", "description": "略微提升智力的眼镜。", "type": "accessory", "tier": "common", "price": 50, "modifiers": {"intelligence": 2}}
-{"id": "45", "name": "智慧头饰", "description": "明显提升智力的头饰。", "type": "accessory", "tier": "uncommon", "price": 150, "modifiers": {"intelligence": 4}}
-{"id": "46", "name": "智慧宝珠", "description": "大幅提升智力的宝珠。", "type": "accessory", "tier": "rare", "price": 400, "modifiers": {"intelligence": 6}}
-{"id": "47", "name": "智慧神冠", "description": "传说中赋予持有者睿智的神冠。", "type": "accessory", "tier": "legendary", "price": 1000, "modifiers": {"intelligence": 8}}
-{"id": "48", "name": "战士勋章", "description": "同时增强攻防的战士之证。", "type": "accessory", "tier": "uncommon", "price": 200, "modifiers": {"attack": 2, "defense": 2}}
-{"id": "49", "name": "游侠勋章", "description": "同时增强攻击与速度的游侠之证。", "type": "accessory", "tier": "uncommon", "price": 200, "modifiers": {"attack": 2, "agility": 2}}
-{"id": "50", "name": "贤者勋章", "description": "同时增强防御与魔力的贤者之证。", "type": "accessory", "tier": "uncommon", "price": 200, "modifiers": {"defense": 2, "intelligence": 2}}
-{"id": "51", "name": "全能勋章", "description": "全属性获得小幅加护的稀有勋章。", "type": "accessory", "tier": "rare", "price": 500, "modifiers": {"attack": 1, "defense": 1, "agility": 1, "intelligence": 1}}
+{"id": "1", "name": "药草", "description": "常见的草药，可回复少量生命值。", "type": "consumable", "tier": "common", "price": 50, "healHp": 20, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "2", "name": "疗伤药", "description": "经过调制的伤药，回复效果更强。", "type": "consumable", "tier": "common", "price": 150, "healHp": 50, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "3", "name": "灵药", "description": "蕴含灵力的药液，大幅回复生命值。", "type": "consumable", "tier": "uncommon", "price": 400, "healHp": 100, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "4", "name": "仙药", "description": "以仙法炼制的秘药，几乎能治愈一切重伤。", "type": "consumable", "tier": "rare", "price": 1200, "healHp": 200, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "5", "name": "圣灵药", "description": "传说中能完全回复生命力的圣药。", "type": "consumable", "tier": "legendary", "price": 2500, "healHp": 9999, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "6", "name": "以太液", "description": "基础的魔力恢复液。", "type": "consumable", "tier": "common", "price": 150, "healMp": 15, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "7", "name": "魔力药", "description": "浓缩的魔力药剂，回复效果更佳。", "type": "consumable", "tier": "common", "price": 300, "healMp": 30, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "8", "name": "灵以太", "description": "蕴含灵力的魔力液，大幅回复魔力。", "type": "consumable", "tier": "uncommon", "price": 800, "healMp": 60, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "9", "name": "仙以太", "description": "仙法炼制的魔力秘药，魔力如泉涌。", "type": "consumable", "tier": "rare", "price": 1800, "healMp": 120, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "10", "name": "圣灵以太", "description": "传说中能完全回复魔力的圣液。", "type": "consumable", "tier": "legendary", "price": 3500, "healMp": 9999, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "11", "name": "复活药", "description": "能唤醒战斗不能者的应急药物。", "type": "consumable", "tier": "uncommon", "price": 800, "revivePercent": 25, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "12", "name": "苏生药", "description": "强力的复苏之药，复活后保有更多体力。", "type": "consumable", "tier": "rare", "price": 2000, "revivePercent": 50, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "13", "name": "还魂丹", "description": "传说中的还魂丹药，满状态复活。", "type": "consumable", "tier": "legendary", "price": 3600, "revivePercent": 100, "usableInBattle": true, "targetType": "single_ally"}
+{"id": "14", "name": "解毒草", "description": "能中和体内毒素的药草。", "type": "consumable", "tier": "common", "price": 80, "usableInBattle": true, "targetType": "single_ally", "removeStatus": ["poison"]}
+{"id": "15", "name": "解眠药", "description": "刺鼻的气味能驱散睡意。", "type": "consumable", "tier": "common", "price": 80, "usableInBattle": true, "targetType": "single_ally", "removeStatus": ["sleep"]}
+{"id": "16", "name": "解封符", "description": "破除技能封印的灵符。", "type": "consumable", "tier": "common", "price": 80, "usableInBattle": true, "targetType": "single_ally", "removeStatus": ["seal"]}
+{"id": "17", "name": "万能药", "description": "能治愈一切异常状态的万能灵药。", "type": "consumable", "tier": "rare", "price": 1000, "usableInBattle": true, "targetType": "single_ally", "removeStatus": ["poison", "sleep", "seal", "blind", "freeze", "paralyze", "burn"]}
+{"id": "18", "name": "力量符", "description": "短时间内激发身体潜能的灵符。", "type": "consumable", "tier": "uncommon", "price": 500, "usableInBattle": true, "targetType": "single_ally", "statusEffects": [{"effectId": "attack_up", "chance": 100}]}
+{"id": "19", "name": "守护符", "description": "在身周形成灵气护盾的灵符。", "type": "consumable", "tier": "uncommon", "price": 500, "usableInBattle": true, "targetType": "single_ally", "statusEffects": [{"effectId": "defense_up", "chance": 100}]}
+{"id": "20", "name": "疾风符", "description": "让身体变得轻如疾风的灵符。", "type": "consumable", "tier": "uncommon", "price": 500, "usableInBattle": true, "targetType": "single_ally", "statusEffects": [{"effectId": "agility_up", "chance": 100}]}
+{"id": "21", "name": "智慧符", "description": "开启心智、提升魔力的灵符。", "type": "consumable", "tier": "uncommon", "price": 500, "usableInBattle": true, "targetType": "single_ally", "statusEffects": [{"effectId": "intelligence_up", "chance": 100}]}
+{"id": "22", "name": "金刚符", "description": "短时间内全方位强化战斗力的灵符。", "type": "consumable", "tier": "rare", "price": 1800, "usableInBattle": true, "targetType": "single_ally", "statusEffects": [{"effectId": "attack_up", "chance": 100}, {"effectId": "defense_up", "chance": 100}, {"effectId": "agility_up", "chance": 100}, {"effectId": "intelligence_up", "chance": 100}]}
+{"id": "23", "name": "弱化弹", "description": "击中后削弱敌人力量的投掷弹。", "type": "consumable", "tier": "uncommon", "price": 500, "usableInBattle": true, "targetType": "single_enemy", "statusEffects": [{"effectId": "attack_down", "chance": 100}]}
+{"id": "24", "name": "破甲弹", "description": "击中后削弱敌人防御的投掷弹。", "type": "consumable", "tier": "uncommon", "price": 500, "usableInBattle": true, "targetType": "single_enemy", "statusEffects": [{"effectId": "defense_down", "chance": 100}]}
+{"id": "25", "name": "迟钝弹", "description": "击中后降低敌人速度的投掷弹。", "type": "consumable", "tier": "uncommon", "price": 500, "usableInBattle": true, "targetType": "single_enemy", "statusEffects": [{"effectId": "agility_down", "chance": 100}]}
+{"id": "26", "name": "衰减瓦斯", "description": "释放后全方位弱化敌人的特殊瓦斯。", "type": "consumable", "tier": "rare", "price": 1800, "usableInBattle": true, "targetType": "single_enemy", "statusEffects": [{"effectId": "attack_down", "chance": 100}, {"effectId": "defense_down", "chance": 100}, {"effectId": "agility_down", "chance": 100}, {"effectId": "intelligence_down", "chance": 100}]}
+{"id": "27", "name": "火焰瓶", "description": "投掷后爆发出烈焰的小瓶。", "type": "consumable", "tier": "common", "price": 200, "damageFixed": 30, "usableInBattle": true, "targetType": "single_enemy"}
+{"id": "27", "name": "火焰瓶", "description": "投掷后爆发出烈焰的小瓶。", "type": "consumable", "tier": "common", "price": 200, "damageFixed": 30, "element": "Fire", "usableInBattle": true, "targetType": "single_enemy"}
+{"id": "28", "name": "冰霜瓶", "description": "投掷后炸裂出冰晶的小瓶。", "type": "consumable", "tier": "common", "price": 200, "damageFixed": 30, "usableInBattle": true, "targetType": "single_enemy"}
+{"id": "28", "name": "冰霜瓶", "description": "投掷后炸裂出冰晶的小瓶。", "type": "consumable", "tier": "common", "price": 200, "damageFixed": 30, "element": "Ice", "usableInBattle": true, "targetType": "single_enemy"}
+{"id": "29", "name": "雷电瓶", "description": "投掷后释放电流的小瓶。", "type": "consumable", "tier": "common", "price": 200, "damageFixed": 30, "usableInBattle": true, "targetType": "single_enemy"}
+{"id": "29", "name": "雷电瓶", "description": "投掷后释放电流的小瓶。", "type": "consumable", "tier": "common", "price": 200, "damageFixed": 30, "element": "Electric", "usableInBattle": true, "targetType": "single_enemy"}
+{"id": "30", "name": "爆裂弹", "description": "投掷后产生爆炸的铁弹。", "type": "consumable", "tier": "uncommon", "price": 500, "damageFixed": 60, "usableInBattle": true, "targetType": "single_enemy"}
+{"id": "30", "name": "爆裂弹", "description": "投掷后产生爆炸的铁弹。", "type": "consumable", "tier": "uncommon", "price": 500, "damageFixed": 60, "element": "Physical", "usableInBattle": true, "targetType": "single_enemy"}
+{"id": "31", "name": "大爆裂弹", "description": "装填了高威力火药的爆裂弹。", "type": "consumable", "tier": "rare", "price": 1000, "damageFixed": 120, "usableInBattle": true, "targetType": "single_enemy"}
+{"id": "31", "name": "大爆裂弹", "description": "装填了高威力火药的爆裂弹。", "type": "consumable", "tier": "rare", "price": 1000, "damageFixed": 120, "element": "Physical", "usableInBattle": true, "targetType": "single_enemy"}
+{"id": "32", "name": "力量腕带", "description": "略微增强物理攻击力的腕带。", "type": "accessory", "tier": "common", "price": 500, "modifiers": {"attack": 2}}
+{"id": "33", "name": "力量护腕", "description": "明显增强物理攻击力的护腕。", "type": "accessory", "tier": "uncommon", "price": 1500, "modifiers": {"attack": 4}}
+{"id": "34", "name": "力量臂铠", "description": "大幅增强物理攻击力的臂铠。", "type": "accessory", "tier": "rare", "price": 4000, "modifiers": {"attack": 6}}
+{"id": "35", "name": "力量神铠", "description": "传说中赋予持有者神力加护的神铠。", "type": "accessory", "tier": "legendary", "price": 8000, "modifiers": {"attack": 8}}
+{"id": "36", "name": "守御指环", "description": "略微提升防御力的指环。", "type": "accessory", "tier": "common", "price": 500, "modifiers": {"defense": 2}}
+{"id": "37", "name": "守御手镯", "description": "明显提升防御力的手镯。", "type": "accessory", "tier": "uncommon", "price": 1500, "modifiers": {"defense": 4}}
+{"id": "38", "name": "守御壁障", "description": "大幅提升防御力的护符。", "type": "accessory", "tier": "rare", "price": 4000, "modifiers": {"defense": 6}}
+{"id": "39", "name": "守御圣盾", "description": "传说中展开无形障壁的圣盾。", "type": "accessory", "tier": "legendary", "price": 8000, "modifiers": {"defense": 8}}
+{"id": "40", "name": "疾风脚环", "description": "略微提升敏捷的脚环。", "type": "accessory", "tier": "common", "price": 500, "modifiers": {"agility": 2}}
+{"id": "41", "name": "疾风靴", "description": "明显提升敏捷的长靴。", "type": "accessory", "tier": "uncommon", "price": 1500, "modifiers": {"agility": 4}}
+{"id": "42", "name": "疾风羽饰", "description": "大幅提升敏捷的羽毛饰品。", "type": "accessory", "tier": "rare", "price": 4000, "modifiers": {"agility": 6}}
+{"id": "43", "name": "疾风神翼", "description": "传说中赋予持有者神速的神翼。", "type": "accessory", "tier": "legendary", "price": 8000, "modifiers": {"agility": 8}}
+{"id": "44", "name": "智慧眼镜", "description": "略微提升智力的眼镜。", "type": "accessory", "tier": "common", "price": 500, "modifiers": {"intelligence": 2}}
+{"id": "45", "name": "智慧头饰", "description": "明显提升智力的头饰。", "type": "accessory", "tier": "uncommon", "price": 1500, "modifiers": {"intelligence": 4}}
+{"id": "46", "name": "智慧宝珠", "description": "大幅提升智力的宝珠。", "type": "accessory", "tier": "rare", "price": 4000, "modifiers": {"intelligence": 6}}
+{"id": "47", "name": "智慧神冠", "description": "传说中赋予持有者睿智的神冠。", "type": "accessory", "tier": "legendary", "price": 8000, "modifiers": {"intelligence": 8}}
+{"id": "48", "name": "战士勋章", "description": "同时增强攻防的战士之证。", "type": "accessory", "tier": "uncommon", "price": 1500, "modifiers": {"attack": 2, "defense": 2}}
+{"id": "49", "name": "游侠勋章", "description": "同时增强攻击与速度的游侠之证。", "type": "accessory", "tier": "uncommon", "price": 1500, "modifiers": {"attack": 2, "agility": 2}}
+{"id": "50", "name": "贤者勋章", "description": "同时增强防御与魔力的贤者之证。", "type": "accessory", "tier": "uncommon", "price": 1500, "modifiers": {"defense": 2, "intelligence": 2}}
+{"id": "51", "name": "全能勋章", "description": "全属性获得小幅加护的稀有勋章。", "type": "accessory", "tier": "rare", "price": 3000, "modifiers": {"attack": 1, "defense": 1, "agility": 1, "intelligence": 1}}
 {"id": "52", "name": "强化戒指", "description": "战斗开始时自动获得攻击力·防御力·敏捷提升效果。", "type": "accessory", "tier": "legendary", "price": 0, "accessoryEffects": ["auto_buff_start"]}
 {"id": "53", "name": "无恙戒指", "description": "Miss/无效/反弹/吸收不会导致Press Turn惩罚。", "type": "accessory", "tier": "legendary", "price": 0, "accessoryEffects": ["no_press_penalty"]}
 {"id": "54", "name": "顺延戒指", "description": "Pass行动不消耗Press Turn图标。", "type": "accessory", "tier": "legendary", "price": 0, "accessoryEffects": ["pass_free"]}
@@ -65,6 +65,6 @@
 {"id": "60", "name": "防尘戒指", "description": "使装备者的土属性耐性变为耐性。不会覆盖无效/反弹/吸收。", "type": "accessory", "tier": "rare", "price": 5000, "affinityResist": {"Earth": "resist"}}
 {"id": "61", "name": "遮光戒指", "description": "使装备者的光属性耐性变为耐性。不会覆盖无效/反弹/吸收。", "type": "accessory", "tier": "rare", "price": 5000, "affinityResist": {"Light": "resist"}}
 {"id": "62", "name": "驱暗戒指", "description": "使装备者的暗属性耐性变为耐性。不会覆盖无效/反弹/吸收。", "type": "accessory", "tier": "rare", "price": 5000, "affinityResist": {"Dark": "resist"}}
-{"id": "63", "name": "抗打击戒指", "description": "使装备者的物理属性耐性变为耐性。不会覆盖无效/反弹/吸收。", "type": "accessory", "tier": "rare", "price": 8000, "affinityResist": {"Physical": "resist"}}
-{"id": "64", "name": "药到病除戒指", "description": "使装备者的异常状态耐性变为耐性。不会覆盖无效/反弹/吸收。", "type": "accessory", "tier": "rare", "price": 8000, "affinityResist": {"Ailment": "resist"}}
+{"id": "63", "name": "抗打击戒指", "description": "使装备者的物理属性耐性变为耐性。不会覆盖无效/反弹/吸收。", "type": "accessory", "tier": "rare", "price": 5000, "affinityResist": {"Physical": "resist"}}
+{"id": "64", "name": "药到病除戒指", "description": "使装备者的异常状态耐性变为耐性。不会覆盖无效/反弹/吸收。", "type": "accessory", "tier": "rare", "price": 5000, "affinityResist": {"Ailment": "resist"}}
 {"id": "65", "name": "至高戒指", "description": "使装备者除万能属性以外的属性耐性变为无效。不会覆盖反弹/吸收。", "type": "accessory", "tier": "legendary", "price": 0, "affinityResist": {"Physical": "nullify", "Fire": "nullify", "Ice": "nullify", "Wind": "nullify", "Electric": "nullify", "Earth": "nullify", "Light": "nullify", "Dark": "nullify", "Ailment": "nullify"}}
