@@ -15,7 +15,7 @@ async function enterTitleScreen() {
     <div class="mg-start__card">
       <p class="mg-start__eyebrow">Boot Sequence</p>
       <img src="/logo.png" alt="MagicalGirl SH" class="mg-start__title mg-glitch-hover" />
-      <p class="mg-start__version">v0.8.2 Beta</p>
+      <p class="mg-start__version">v0.8.3 Beta</p>
       <button
         id="start-screen-enter-button"
         class="mg-btn mg-btn--primary mg-btn--lg"

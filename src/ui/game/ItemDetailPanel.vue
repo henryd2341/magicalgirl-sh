@@ -8,13 +8,6 @@ const props = defineProps<{
   sellPrice?: number;
 }>();
 
-const tierClasses: Record<ItemTier, string> = {
-  common: "bg-gray-200 text-gray-700",
-  uncommon: "bg-green-200 text-green-800",
-  rare: "bg-blue-200 text-blue-800",
-  legendary: "bg-purple-200 text-purple-900",
-};
-
 const tierLabels: Record<ItemTier, string> = {
   common: "普通",
   uncommon: "少见",
@@ -33,43 +26,197 @@ const typeIcons: Record<string, string> = {
 };
 
 const effects = computed(() => summarizeItemEffects(props.item));
-const tierClass = computed(() => tierClasses[props.item.tier]);
 const tierLabel = computed(() => tierLabels[props.item.tier]);
 const typeLabel = computed(() => typeLabels[props.item.type] ?? props.item.type);
 const typeIcon = computed(() => typeIcons[props.item.type] ?? "fas fa-question");
 </script>
 
 <template>
-  <div class="item-detail-panel p-4 rounded-lg bg-white/90 backdrop-blur-sm shadow-lg max-w-sm">
-    <div class="flex items-center gap-2 mb-2">
-      <i :class="typeIcon" class="text-lg"></i>
-      <h3 class="text-lg font-bold text-gray-900">{{ item.name }}</h3>
-      <span :class="tierClass" class="px-2 py-0.5 rounded-full text-xs font-semibold">
+  <div class="mg-panel item-detail-panel">
+    <div class="item-detail-panel__header">
+      <i :class="typeIcon" class="item-detail-panel__type-icon" aria-hidden="true"></i>
+      <h3 class="item-detail-panel__name">{{ item.name }}</h3>
+      <span
+        class="item-detail-panel__tier"
+        :class="`item-detail-panel__tier--${item.tier}`"
+      >
         {{ tierLabel }}
       </span>
     </div>
 
-    <p class="text-sm text-gray-600 mb-3">{{ item.description }}</p>
+    <p class="item-detail-panel__desc">{{ item.description }}</p>
 
-    <div class="flex items-center gap-3 mb-3 text-sm">
-      <span class="text-gray-500">{{ typeLabel }}</span>
-      <span class="flex items-center gap-1 text-yellow-700 font-semibold">
-        <i class="fas fa-coins text-xs"></i>
+    <div class="item-detail-panel__meta">
+      <span class="item-detail-panel__type">{{ typeLabel }}</span>
+      <span class="item-detail-panel__price">
+        <i class="fas fa-coins"></i>
         {{ item.price }}
       </span>
-      <span v-if="sellPrice !== undefined" class="flex items-center gap-1 text-green-700 font-semibold">
-        <i class="fas fa-arrow-down text-xs"></i>
+      <span v-if="sellPrice !== undefined" class="item-detail-panel__sell-price">
+        <i class="fas fa-arrow-down"></i>
         {{ sellPrice }}
       </span>
     </div>
 
-    <div class="border-t border-gray-200 pt-2">
-      <h4 class="text-xs font-semibold text-gray-500 uppercase mb-1">效果</h4>
-      <ul class="space-y-0.5">
-        <li v-for="(effect, index) in effects" :key="index" class="text-sm text-gray-800">
+    <div v-if="effects.length > 0" class="item-detail-panel__effects">
+      <h4 class="item-detail-panel__effects-title">
+        <i class="fas fa-magic"></i> 效果
+      </h4>
+      <ul class="item-detail-panel__effects-list">
+        <li
+          v-for="(effect, index) in effects"
+          :key="index"
+          class="item-detail-panel__effect"
+        >
           {{ effect }}
         </li>
       </ul>
     </div>
   </div>
 </template>
+
+<style lang="scss" scoped>
+.item-detail-panel {
+  padding: var(--mg-space-lg, 24px);
+  max-width: 100%;
+}
+
+.item-detail-panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--mg-space-sm, 8px);
+  margin-bottom: var(--mg-space-sm, 8px);
+}
+
+.item-detail-panel__type-icon {
+  font-size: var(--mg-font-lg);
+  color: var(--mg-accent);
+}
+
+.item-detail-panel__name {
+  font-family: var(--mg-font-heading);
+  font-size: var(--mg-font-lg);
+  font-weight: var(--mg-font-weight-heading);
+  color: var(--mg-text);
+  margin: 0;
+  flex: 1;
+}
+
+.item-detail-panel__tier {
+  display: inline-block;
+  font-family: var(--mg-font-heading);
+  font-size: var(--mg-font-xs);
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: var(--mg-radius-pill);
+  border: var(--mg-border-width) solid;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+// Tier colour variants — theme-aware via CSS variables
+.item-detail-panel__tier--common {
+  background: var(--mg-surface-pink);
+  border-color: var(--mg-border-light);
+  color: var(--mg-text-secondary);
+}
+
+.item-detail-panel__tier--uncommon {
+  background: var(--mg-surface-pink);
+  border-color: var(--mg-success);
+  color: var(--mg-success);
+}
+
+.item-detail-panel__tier--rare {
+  background: var(--mg-surface-pink);
+  border-color: var(--mg-info);
+  color: var(--mg-info);
+}
+
+.item-detail-panel__tier--legendary {
+  background: var(--mg-surface-pink);
+  border-color: var(--mg-accent-strong);
+  color: var(--mg-accent-strong);
+  box-shadow: var(--mg-glow-pink);
+}
+
+.item-detail-panel__desc {
+  font-size: var(--mg-font-sm);
+  color: var(--mg-text-secondary);
+  line-height: var(--mg-leading-relaxed);
+  margin: 0 0 var(--mg-space-md, 16px);
+}
+
+.item-detail-panel__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--mg-space-md, 16px);
+  margin-bottom: var(--mg-space-md, 16px);
+  font-size: var(--mg-font-sm);
+}
+
+.item-detail-panel__type {
+  color: var(--mg-text-muted);
+}
+
+.item-detail-panel__price {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--mg-warning);
+  font-family: var(--mg-font-heading);
+  font-weight: 700;
+
+  i {
+    font-size: var(--mg-font-xs);
+  }
+}
+
+.item-detail-panel__sell-price {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--mg-success);
+  font-family: var(--mg-font-heading);
+  font-weight: 700;
+
+  i {
+    font-size: var(--mg-font-xs);
+  }
+}
+
+.item-detail-panel__effects {
+  border-top: var(--mg-border-width) solid var(--mg-border);
+  padding-top: var(--mg-space-md, 16px);
+}
+
+.item-detail-panel__effects-title {
+  font-family: var(--mg-font-heading);
+  font-size: var(--mg-font-xs);
+  font-weight: 700;
+  color: var(--mg-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 var(--mg-space-sm, 8px);
+
+  i {
+    color: var(--mg-accent);
+    margin-right: 4px;
+  }
+}
+
+.item-detail-panel__effects-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.item-detail-panel__effect {
+  font-size: var(--mg-font-sm);
+  color: var(--mg-text);
+  line-height: var(--mg-leading-relaxed);
+}
+</style>

@@ -72,7 +72,7 @@ function navigateTo(routeName: string) {
 
     <!-- ── Hero Header ── -->
     <section class="mg-splash__hero">
-      <p class="mg-splash__eyebrow">AI-Narrative Prototype // v0.8.2 Beta</p>
+      <p class="mg-splash__eyebrow">AI-Narrative Prototype // v0.8.3 Beta</p>
       <div class="mg-splash__logo-wrap">
         <img class="mg-splash__logo mg-glitch-hover" src="/logo.png" alt="MagicalGirl SH" />
       </div>
@@ -109,7 +109,7 @@ function navigateTo(routeName: string) {
     </nav>
 
     <!-- ── Version ── -->
-    <p class="mg-splash__version">v0.8.2 Beta</p>
+    <p class="mg-splash__version">v0.8.3 Beta</p>
 
     <!-- ══════════════════════════════════════════════════════
          MODALS
