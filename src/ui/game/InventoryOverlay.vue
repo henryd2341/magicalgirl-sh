@@ -196,7 +196,7 @@ function closeOverlay() {
 
         <div v-else class="inventory-overlay__panels">
           <!-- Left: item list -->
-          <div class="inventory-overlay__left">
+          <div class="inventory-overlay__left mg-scroll">
             <!-- Consumables -->
             <div v-if="consumables.length > 0" class="inventory-overlay__section">
               <h3 class="inventory-overlay__section-title">
@@ -335,6 +335,7 @@ function closeOverlay() {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .inventory-overlay__empty {
@@ -393,7 +394,7 @@ function closeOverlay() {
 .inventory-overlay__right {
   width: 50%;
   padding: var(--mg-space-md, 16px);
-  overflow-y: auto;
+  
 }
 
 .inventory-overlay__section {

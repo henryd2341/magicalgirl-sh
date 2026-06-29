@@ -222,10 +222,10 @@ function closeOverlay() {
         {{ feedbackMessage }}
       </div>
 
-      <div class="mg-modal__body mg-scroll shop-overlay__body">
+      <div class="mg-modal__body shop-overlay__body">
         <div class="shop-overlay__panels">
           <!-- Left: item list -->
-          <div class="shop-overlay__left">
+          <div class="shop-overlay__left mg-scroll">
             <!-- Buy tab -->
             <div v-if="activeTab === 'buy'">
               <div v-if="buyableItems.length === 0" class="shop-overlay__empty">
@@ -467,6 +467,8 @@ function closeOverlay() {
 .shop-overlay__body {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+  display: flex;
 }
 
 .shop-overlay__panels {
@@ -485,7 +487,6 @@ function closeOverlay() {
 .shop-overlay__right {
   width: 50%;
   padding: var(--mg-space-md, 16px);
-  overflow-y: auto;
 }
 
 .shop-overlay__empty {
