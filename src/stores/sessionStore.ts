@@ -72,6 +72,8 @@ import {
   computeAutoLevelStats,
 } from "@/engine/battle/formulaEngine";
 import { createDefaultBattleCommandMenuTree } from "@/engine/battle/battleActionCatalog";
+import { buyItem as engineBuyItem, sellItem as engineSellItem } from "@/engine/shop/shopTransactionService";
+import { equipAccessory as engineEquipAccessory, unequipAccessory as engineUnequipAccessory } from "@/engine/items/equipmentService";
 
 const POST_COMBAT_CONTINUE_INPUT = "请根据最近的战斗摘要继续剧情。";
 
@@ -336,27 +338,108 @@ export const useSessionStore = defineStore("session", () => {
 
   async function equipAccessory(
     characterId: string,
-    itemId: string | null,
-  ): Promise<"ok"> {
+    itemId: string,
+  ): Promise<{ success: boolean; error?: string; swappedOutItemId?: string }> {
     const varState = await variableRepository.getCurrent();
-    if (!varState) return "ok";
-    const callId = `equip-accessory-${Date.now().toString(36)}`;
-    const result = variableEngine.applyPatchSet({
-      current: varState,
-      envelope: {
-        request_id: `equip-accessory-${characterId}`,
-        context_version: varState.version,
-        state_hash: varState.stateHash,
-        tool_call_id: callId,
-        bypassAllowlist: true,
-        patches: [
-          { path: `characters.${characterId}.equipment.accessory`, value: itemId },
-        ],
-      },
+    if (!varState) return { success: false, error: "no_state" };
+
+    const result = engineEquipAccessory({
+      characterId,
+      itemId,
+      currentVarState: varState,
+      variableEngine,
     });
-    await variableRepository.saveCurrent(result.next);
-    variableVersion.value++;
-    return "ok";
+
+    if (result.success && result.result) {
+      await variableRepository.saveCurrent(result.result.next);
+      variableVersion.value++;
+      snapshot.value = gameEngineFacade.getSessionSnapshot();
+    }
+
+    return {
+      success: result.success,
+      error: result.error,
+      swappedOutItemId: result.swappedOutItemId,
+    };
+  }
+
+  async function unequipAccessory(
+    characterId: string,
+  ): Promise<{ success: boolean; error?: string; unequippedItemId?: string }> {
+    const varState = await variableRepository.getCurrent();
+    if (!varState) return { success: false, error: "no_state" };
+
+    const result = engineUnequipAccessory({
+      characterId,
+      currentVarState: varState,
+      variableEngine,
+    });
+
+    if (result.success && result.result) {
+      await variableRepository.saveCurrent(result.result.next);
+      variableVersion.value++;
+      snapshot.value = gameEngineFacade.getSessionSnapshot();
+    }
+
+    return {
+      success: result.success,
+      error: result.error,
+      unequippedItemId: result.unequippedItemId,
+    };
+  }
+
+  async function shopBuyItem(
+    itemId: string,
+    quantity: number,
+  ): Promise<{ success: boolean; error?: string; totalCost?: number }> {
+    const varState = await variableRepository.getCurrent();
+    if (!varState) return { success: false, error: "no_state" };
+
+    const result = engineBuyItem({
+      itemId,
+      quantity,
+      currentVarState: varState,
+      variableEngine,
+    });
+
+    if (result.success && result.result) {
+      await variableRepository.saveCurrent(result.result.next);
+      variableVersion.value++;
+      snapshot.value = gameEngineFacade.getSessionSnapshot();
+    }
+
+    return {
+      success: result.success,
+      error: result.error,
+      totalCost: result.totalCost,
+    };
+  }
+
+  async function shopSellItem(
+    itemId: string,
+    quantity: number,
+  ): Promise<{ success: boolean; error?: string; totalGain?: number }> {
+    const varState = await variableRepository.getCurrent();
+    if (!varState) return { success: false, error: "no_state" };
+
+    const result = engineSellItem({
+      itemId,
+      quantity,
+      currentVarState: varState,
+      variableEngine,
+    });
+
+    if (result.success && result.result) {
+      await variableRepository.saveCurrent(result.result.next);
+      variableVersion.value++;
+      snapshot.value = gameEngineFacade.getSessionSnapshot();
+    }
+
+    return {
+      success: result.success,
+      error: result.error,
+      totalGain: result.totalGain,
+    };
   }
 
   async function applyBattleRewards(rewards: BattleRewards) {
@@ -1492,6 +1575,9 @@ export const useSessionStore = defineStore("session", () => {
     equipSkill,
     unequipSkill,
     equipAccessory,
+    unequipAccessory,
+    shopBuyItem,
+    shopSellItem,
     applyBattleRewards,
     allocatePoints,
     patchVariables,

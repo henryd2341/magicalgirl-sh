@@ -13,6 +13,8 @@ import type { InPartyCharacter } from "@/stores/formationStore";
 import { useFormationStore } from "@/stores/formationStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import BattleOverlay from "@/ui/battle/BattleOverlay.vue";
+import InventoryOverlay from "@/ui/game/InventoryOverlay.vue";
+import ShopOverlay from "@/ui/game/ShopOverlay.vue";
 import CreditsModal from "@/ui/dev/CreditsModal.vue";
 import PromptViewerDrawer from "@/ui/dev/PromptViewerDrawer.vue";
 import ProviderMetadataModal from "@/ui/dev/ProviderMetadataModal.vue";
@@ -86,6 +88,18 @@ const promptViewerDrawerRef = ref();
 const showStateModal = ref(false);
 const showVariableEditor = ref(false);
 const showProviderMetadataModal = ref(false);
+const showInventoryOverlay = ref(false);
+const showShopOverlay = ref(false);
+
+function openInventoryOverlay() {
+  showShopOverlay.value = false;
+  showInventoryOverlay.value = true;
+}
+
+function openShopOverlay() {
+  showInventoryOverlay.value = false;
+  showShopOverlay.value = true;
+}
 
 // ── Theme & PixiJS settings (read from localStorage, kept reactive for template) ──
 const activeTheme = ref(window.localStorage.getItem("mg-theme") || "e-girl");
@@ -253,6 +267,8 @@ onUnmounted(() => {
       @open-api-settings="showApiSettings = true"
       @open-save-manage="showSaveManage = true"
       @open-system-settings="showSystemSettings = true"
+      @open-inventory="openInventoryOverlay"
+      @open-shop="openShopOverlay"
     />
 
     <!-- ═══ Mobile bottom nav ═══ -->
@@ -438,6 +454,18 @@ onUnmounted(() => {
 
     <!-- ═══ Battle Overlay ═══ -->
     <BattleOverlay v-if="shouldShowBattleOverlay" />
+
+    <!-- ═══ Inventory Overlay ═══ -->
+    <InventoryOverlay
+      v-if="showInventoryOverlay"
+      @close="showInventoryOverlay = false"
+    />
+
+    <!-- ═══ Shop Overlay ═══ -->
+    <ShopOverlay
+      v-if="showShopOverlay"
+      @close="showShopOverlay = false"
+    />
     <PromptViewerDrawer ref="promptViewerDrawerRef" />
 
     <SessionStateModal v-if="showStateModal" @close="showStateModal = false" />

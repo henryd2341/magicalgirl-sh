@@ -583,7 +583,7 @@ export function validateVariablePathPatch(
     if (
       typeof patch.value !== "number" ||
       !Number.isInteger(patch.value) ||
-      patch.value < 1
+      patch.value < 0
     ) {
       throw createVariableError(
         "VARIABLE_POLICY_VIOLATION",
@@ -619,7 +619,7 @@ export function validateGameVariablesRoot(root: GameVariablesRoot): void {
   }
 
   for (const [itemId, quantity] of Object.entries(root.inventory.items)) {
-    if (!Number.isInteger(quantity) || quantity < 1) {
+    if (!Number.isInteger(quantity) || quantity < 0) {
       throw createVariableError(
         "VARIABLE_POLICY_VIOLATION",
         `Inventory item quantity must be a positive integer: inventory.items.${itemId}`,
@@ -628,7 +628,7 @@ export function validateGameVariablesRoot(root: GameVariablesRoot): void {
   }
 
   for (const [itemId, quantity] of Object.entries(root.inventory.battleItems)) {
-    if (!Number.isInteger(quantity) || quantity < 1) {
+    if (!Number.isInteger(quantity) || quantity < 0) {
       throw createVariableError(
         "VARIABLE_POLICY_VIOLATION",
         `Inventory item quantity must be a positive integer: inventory.battleItems.${itemId}`,

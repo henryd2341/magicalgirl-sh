@@ -157,17 +157,7 @@ const itemContentSchema = z.object({
     .optional(),
   affinityResist: z
     .record(
-      z.enum([
-        "Physical",
-        "Fire",
-        "Ice",
-        "Wind",
-        "Electric",
-        "Earth",
-        "Light",
-        "Dark",
-        "Ailment",
-      ]),
+      z.string(),
       z.enum(["resist", "nullify", "reflect", "absorb"]),
     )
     .optional(),

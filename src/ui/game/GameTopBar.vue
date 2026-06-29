@@ -7,6 +7,8 @@ defineEmits<{
   openApiSettings: [];
   openSaveManage: [];
   openSystemSettings: [];
+  openInventory: [];
+  openShop: [];
 }>();
 
 const router = useRouter();
@@ -68,12 +70,12 @@ function closeMenu() {
     <span class="mg-topbar__title" data-text="SWEET HEART">SWEET HEART</span>
     <!-- Desktop nav -->
     <nav v-if="!isMobile" class="mg-topbar__actions" aria-label="主游戏快捷操作">
-      <button class="mg-topbar__btn" title="背包" type="button">
+      <button class="mg-topbar__btn" title="背包" type="button" @click="$emit('openInventory')">
         <i class="fas fa-backpack"></i>
         <span>背包</span>
       </button>
       <span class="mg-topbar__sep" aria-hidden="true">♡</span>
-      <button class="mg-topbar__btn" title="商店" type="button">
+      <button class="mg-topbar__btn" title="商店" type="button" @click="$emit('openShop')">
         <i class="fas fa-store"></i>
         <span>商店</span>
       </button>
@@ -123,10 +125,10 @@ function closeMenu() {
     </button>
     <!-- Mobile dropdown menu -->
     <nav v-if="isMobile && menuOpen" class="mg-topbar__dropdown" aria-label="移动端游戏菜单">
-      <button class="mg-topbar__dropdown-btn" title="背包" type="button" @click="closeMenu">
+      <button class="mg-topbar__dropdown-btn" title="背包" type="button" @click="$emit('openInventory'); closeMenu()">
         <i class="fas fa-backpack"></i> 背包
       </button>
-      <button class="mg-topbar__dropdown-btn" title="商店" type="button" @click="closeMenu">
+      <button class="mg-topbar__dropdown-btn" title="商店" type="button" @click="$emit('openShop'); closeMenu()">
         <i class="fas fa-store"></i> 商店
       </button>
       <button class="mg-topbar__dropdown-btn" title="训练场" type="button" @click="closeMenu">
