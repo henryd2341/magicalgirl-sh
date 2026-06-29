@@ -32,7 +32,7 @@ const setupError = ref<string | null>(null);
 onErrorCaptured((err) => {
   console.error("[InventoryOverlay]", err);
   setupError.value = err instanceof Error ? err.message : String(err);
-  return false; // prevent propagation to parent
+  return false;
 });
 
 onMounted(async () => {
@@ -153,133 +153,395 @@ function closeOverlay() {
 </script>
 
 <template>
-  <section
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+  <div
+    class="mg-modal-overlay"
     role="dialog"
     aria-modal="true"
     aria-label="背包"
     @click.self="closeOverlay"
   >
-    <div v-if="setupError" class="bg-white rounded-lg p-6 max-w-sm">
-      <p class="text-red-600 font-bold">加载失败</p>
-      <p class="text-sm text-gray-600 mt-1">{{ setupError }}</p>
-      <button class="mt-3 px-4 py-2 bg-gray-200 rounded-lg" @click="closeOverlay">关闭</button>
-    </div>
-    <div v-else class="bg-white/95 rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col">
-      <div class="flex items-center justify-between p-4 border-b border-gray-200">
-        <h2 class="text-xl font-bold text-gray-900">
-          <i class="fas fa-backpack mr-2"></i>背包
-        </h2>
-        <button
-          class="text-gray-500 hover:text-gray-700 text-xl"
-          @click="closeOverlay"
-          aria-label="关闭"
-        >
-          <i class="fas fa-times"></i>
+    <!-- Error state -->
+    <div v-if="setupError" class="mg-modal-card inventory-overlay__error">
+      <button class="mg-modal__close" @click="closeOverlay">
+        <i class="fas fa-times"></i>
+      </button>
+      <h2 class="mg-modal__title">
+        <i class="fas fa-exclamation-triangle"></i> 加载失败
+      </h2>
+      <div class="mg-modal__body">
+        <p class="inventory-overlay__error-msg">{{ setupError }}</p>
+        <button class="mg-btn mg-btn--sm mg-btn--primary" @click="closeOverlay">
+          关闭
         </button>
       </div>
+    </div>
 
-      <div class="flex flex-1 overflow-hidden">
-        <div class="w-1/2 overflow-y-auto p-4 border-r border-gray-200">
-          <div v-if="inventoryItems.length === 0" class="text-center text-gray-400 py-8">
-            <i class="fas fa-box-open text-4xl mb-2"></i>
-            <p>背包空空如也</p>
-          </div>
+    <!-- Normal state -->
+    <div v-else class="mg-modal-card mg-modal-card--wide inventory-overlay">
+      <button class="mg-modal__close" @click="closeOverlay">
+        <i class="fas fa-times"></i>
+      </button>
+      <h2 class="mg-modal__title">
+        <i class="fas fa-backpack"></i> 背包
+      </h2>
 
-          <div v-if="consumables.length > 0" class="mb-4">
-            <h3 class="text-sm font-semibold text-gray-500 uppercase mb-2">消耗品</h3>
-            <ul class="space-y-1">
-              <li
-                v-for="entry in consumables"
-                :key="entry.item.id"
-                class="flex items-center justify-between p-2 rounded-lg cursor-pointer transition"
-                :class="selectedItem?.id === entry.item.id ? 'bg-blue-100' : 'hover:bg-gray-100'"
-                @click="selectedItem = entry.item"
-              >
-                <span class="text-sm text-gray-800">{{ entry.item.name }}</span>
-                <span class="text-sm text-gray-500">×{{ entry.count }}</span>
-              </li>
-            </ul>
-          </div>
-
-          <div v-if="accessories.length > 0">
-            <h3 class="text-sm font-semibold text-gray-500 uppercase mb-2">饰品</h3>
-            <ul class="space-y-1">
-              <li
-                v-for="entry in accessories"
-                :key="entry.item.id"
-                class="flex items-center justify-between p-2 rounded-lg cursor-pointer transition"
-                :class="selectedItem?.id === entry.item.id ? 'bg-blue-100' : 'hover:bg-gray-100'"
-                @click="selectedItem = entry.item"
-              >
-                <span class="text-sm text-gray-800">{{ entry.item.name }}</span>
-                <span class="text-sm text-gray-500">×{{ entry.count }}</span>
-              </li>
-            </ul>
-          </div>
+      <div class="mg-modal__body mg-scroll inventory-overlay__body">
+        <div
+          v-if="inventoryItems.length === 0"
+          class="inventory-overlay__empty"
+        >
+          <i class="fas fa-box-open inventory-overlay__empty-icon"></i>
+          <p>背包空空如也</p>
         </div>
 
-        <div class="w-1/2 overflow-y-auto p-4">
-          <div v-if="selectedItem" class="mb-4">
-            <ItemDetailPanel :item="selectedItem" />
+        <div v-else class="inventory-overlay__panels">
+          <!-- Left: item list -->
+          <div class="inventory-overlay__left">
+            <!-- Consumables -->
+            <div v-if="consumables.length > 0" class="inventory-overlay__section">
+              <h3 class="inventory-overlay__section-title">
+                <i class="fas fa-flask"></i> 消耗品
+              </h3>
+              <ul class="inventory-overlay__list">
+                <li
+                  v-for="entry in consumables"
+                  :key="entry.item.id"
+                  class="inventory-overlay__item"
+                  :class="{ 'inventory-overlay__item--active': selectedItem?.id === entry.item.id }"
+                  @click="selectedItem = entry.item"
+                >
+                  <span class="inventory-overlay__item-name">{{ entry.item.name }}</span>
+                  <span class="inventory-overlay__item-count">×{{ entry.count }}</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Accessories -->
+            <div v-if="accessories.length > 0" class="inventory-overlay__section">
+              <h3 class="inventory-overlay__section-title">
+                <i class="fas fa-ring"></i> 饰品
+              </h3>
+              <ul class="inventory-overlay__list">
+                <li
+                  v-for="entry in accessories"
+                  :key="entry.item.id"
+                  class="inventory-overlay__item"
+                  :class="{ 'inventory-overlay__item--active': selectedItem?.id === entry.item.id }"
+                  @click="selectedItem = entry.item"
+                >
+                  <span class="inventory-overlay__item-name">{{ entry.item.name }}</span>
+                  <span class="inventory-overlay__item-count">×{{ entry.count }}</span>
+                </li>
+              </ul>
+            </div>
           </div>
 
-          <div v-if="selectedItem?.type === 'accessory'">
-            <h3 class="text-sm font-semibold text-gray-500 uppercase mb-2">选择装备角色</h3>
-            <ul class="space-y-1">
-              <li
-                v-for="member in partyMembers"
-                :key="member.id"
-                class="flex items-center justify-between p-2 rounded-lg cursor-pointer transition hover:bg-blue-50"
-                @click="onEquipClick(member.id)"
-              >
-                <span class="text-sm text-gray-800">{{ member.name }}</span>
-                <span class="text-xs text-gray-500">
-                  {{ getAccessoryName(member.equippedAccessory) }}
-                  <button
-                    v-if="member.equippedAccessory"
-                    class="ml-2 text-red-400 hover:text-red-600"
-                    @click.stop="onUnequipClick(member.id)"
-                  >
-                    <i class="fas fa-times-circle"></i>
-                  </button>
-                </span>
-              </li>
-            </ul>
-          </div>
+          <!-- Right: detail + party -->
+          <div class="inventory-overlay__right">
+            <div v-if="selectedItem" class="inventory-overlay__detail">
+              <ItemDetailPanel :item="selectedItem" />
+            </div>
 
-          <div v-if="!selectedItem" class="text-center text-gray-400 py-8">
-            <i class="fas fa-hand-pointer text-3xl mb-2"></i>
-            <p>选择一个道具查看详情</p>
+            <div v-if="selectedItem?.type === 'accessory'" class="inventory-overlay__party">
+              <h3 class="inventory-overlay__section-title">
+                <i class="fas fa-user-check"></i> 选择装备角色
+              </h3>
+              <ul class="inventory-overlay__list">
+                <li
+                  v-for="member in partyMembers"
+                  :key="member.id"
+                  class="inventory-overlay__party-member"
+                  @click="onEquipClick(member.id)"
+                >
+                  <span class="inventory-overlay__party-name">{{ member.name }}</span>
+                  <span class="inventory-overlay__party-acc">
+                    {{ getAccessoryName(member.equippedAccessory) }}
+                    <button
+                      v-if="member.equippedAccessory"
+                      class="inventory-overlay__unequip-btn"
+                      @click.stop="onUnequipClick(member.id)"
+                      :title="'卸下 ' + getAccessoryName(member.equippedAccessory)"
+                    >
+                      <i class="fas fa-times-circle"></i>
+                    </button>
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div v-if="!selectedItem" class="inventory-overlay__empty-right">
+              <i class="fas fa-hand-pointer"></i>
+              <p>选择一个道具查看详情</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Swap confirmation dialog -->
     <div
       v-if="showSwapConfirm"
-      class="fixed inset-0 z-60 flex items-center justify-center bg-black/50"
+      class="mg-modal-overlay"
       @click.self="cancelSwap"
     >
-      <div class="bg-white rounded-lg shadow-xl p-6 max-w-sm">
-        <p class="text-gray-800 mb-4">
-          替换 <strong>{{ swapOldItemName }}</strong> 为 <strong>{{ swapNewItemName }}</strong>？
-        </p>
-        <div class="flex gap-3 justify-end">
-          <button
-            class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-            @click="cancelSwap"
-          >
-            取消
-          </button>
-          <button
-            class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-            @click="confirmSwap"
-          >
-            确认
-          </button>
+      <div class="mg-modal-card inventory-overlay__confirm">
+        <h2 class="mg-modal__title">
+          <i class="fas fa-exchange-alt"></i> 替换饰品
+        </h2>
+        <div class="mg-modal__body">
+          <p class="inventory-overlay__confirm-msg">
+            替换 <strong>{{ swapOldItemName }}</strong> 为 <strong>{{ swapNewItemName }}</strong>？
+          </p>
+          <div class="inventory-overlay__confirm-actions">
+            <button
+              class="mg-btn mg-btn--sm mg-btn--ghost"
+              @click="cancelSwap"
+            >
+              取消
+            </button>
+            <button
+              class="mg-btn mg-btn--sm mg-btn--primary"
+              @click="confirmSwap"
+            >
+              确认
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  </section>
+  </div>
 </template>
+
+<style lang="scss" scoped>
+.inventory-overlay {
+  max-width: 720px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.inventory-overlay__error {
+  max-width: 360px;
+}
+
+.inventory-overlay__error-msg {
+  font-size: var(--mg-font-sm);
+  color: var(--mg-text-secondary);
+  margin: 0 0 var(--mg-space-md);
+}
+
+.inventory-overlay__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.inventory-overlay__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--mg-space-2xl, 48px) 0;
+  color: var(--mg-text-muted);
+  font-size: var(--mg-font-base);
+
+  p {
+    margin: var(--mg-space-sm, 8px) 0 0;
+  }
+}
+
+.inventory-overlay__empty-icon {
+  font-size: 2.5rem;
+  opacity: 0.4;
+}
+
+.inventory-overlay__empty-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--mg-space-xl, 32px) 0;
+  color: var(--mg-text-muted);
+  font-size: var(--mg-font-base);
+
+  i {
+    font-size: 1.5rem;
+    margin-bottom: var(--mg-space-sm, 8px);
+    opacity: 0.5;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.inventory-overlay__panels {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+
+.inventory-overlay__left {
+  width: 50%;
+  border-right: var(--mg-border-width, 1px) solid var(--mg-border, rgba(255, 255, 255, 0.1));
+  padding: var(--mg-space-md, 16px);
+  overflow-y: auto;
+}
+
+.inventory-overlay__right {
+  width: 50%;
+  padding: var(--mg-space-md, 16px);
+  overflow-y: auto;
+}
+
+.inventory-overlay__section {
+  margin-bottom: var(--mg-space-md, 16px);
+}
+
+.inventory-overlay__section-title {
+  font-family: var(--mg-font-heading);
+  font-size: var(--mg-font-sm, 0.8rem);
+  font-weight: 700;
+  color: var(--mg-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 var(--mg-space-sm, 8px);
+
+  i {
+    color: var(--mg-accent);
+    margin-right: 6px;
+  }
+}
+
+.inventory-overlay__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inventory-overlay__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--mg-space-sm, 8px) var(--mg-space-md, 12px);
+  border-radius: var(--mg-radius-sm, 8px);
+  background: var(--mg-bg-card);
+  border: var(--mg-border-width, 1px) solid var(--mg-border, rgba(255, 255, 255, 0.1));
+  cursor: pointer;
+  transition:
+    border-color var(--mg-transition-fast, 0.15s ease),
+    background var(--mg-transition-fast, 0.15s ease);
+
+  &:hover {
+    border-color: var(--mg-accent);
+    background: var(--mg-surface-pink, rgba(255, 107, 157, 0.08));
+  }
+}
+
+.inventory-overlay__item--active {
+  border-color: var(--mg-accent);
+  background: var(--mg-surface-pink, rgba(255, 107, 157, 0.12));
+  box-shadow: var(--mg-glow-pink);
+}
+
+.inventory-overlay__item-name {
+  font-size: var(--mg-font-md, 0.9rem);
+  font-weight: 600;
+  color: var(--mg-text);
+}
+
+.inventory-overlay__item-count {
+  font-size: var(--mg-font-sm, 0.8rem);
+  color: var(--mg-text-secondary);
+}
+
+.inventory-overlay__detail {
+  margin-bottom: var(--mg-space-md, 16px);
+}
+
+.inventory-overlay__party {
+  margin-top: var(--mg-space-md, 16px);
+
+  .inventory-overlay__section-title {
+    margin-bottom: var(--mg-space-sm, 8px);
+  }
+}
+
+.inventory-overlay__party-member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--mg-space-sm, 8px) var(--mg-space-md, 12px);
+  border-radius: var(--mg-radius-sm, 8px);
+  background: var(--mg-bg-card);
+  border: var(--mg-border-width, 1px) solid var(--mg-border, rgba(255, 255, 255, 0.1));
+  cursor: pointer;
+  transition:
+    border-color var(--mg-transition-fast, 0.15s ease),
+    background var(--mg-transition-fast, 0.15s ease);
+
+  &:hover {
+    border-color: var(--mg-accent);
+    background: var(--mg-surface-pink, rgba(255, 107, 157, 0.08));
+  }
+}
+
+.inventory-overlay__party-name {
+  font-size: var(--mg-font-md, 0.9rem);
+  font-weight: 600;
+  color: var(--mg-text);
+}
+
+.inventory-overlay__party-acc {
+  display: flex;
+  align-items: center;
+  gap: var(--mg-space-sm, 8px);
+  font-size: var(--mg-font-xs, 0.7rem);
+  color: var(--mg-text-secondary);
+}
+
+.inventory-overlay__unequip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--mg-error, #ff4757);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+  transition: opacity var(--mg-transition-fast, 0.15s ease);
+
+  &:hover {
+    opacity: 0.7;
+  }
+}
+
+.inventory-overlay__confirm {
+  max-width: 360px;
+}
+
+.inventory-overlay__confirm-msg {
+  font-size: var(--mg-font-base);
+  color: var(--mg-text);
+  margin: 0 0 var(--mg-space-md, 16px);
+  line-height: var(--mg-leading-relaxed, 1.7);
+
+  strong {
+    color: var(--mg-accent-strong);
+  }
+}
+
+.inventory-overlay__confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--mg-space-sm, 8px);
+}
+</style>
