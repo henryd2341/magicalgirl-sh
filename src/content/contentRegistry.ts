@@ -436,6 +436,10 @@ export function getSkill(id: string): ResolvedSkillContent {
   return skill;
 }
 
+export function getAllEnemies(): ReadonlyMap<string, ResolvedEnemyContent> {
+  return loadEnemies();
+}
+
 export function getEnemy(id: string): ResolvedEnemyContent {
   const enemies = loadEnemies();
   const enemy = enemies.get(id);

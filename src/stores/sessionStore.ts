@@ -842,6 +842,7 @@ export const useSessionStore = defineStore("session", () => {
       battleStore.stagePendingEncounter({
         encounterId: result.output.encounterId,
         narrativeReason: envelope.input.narrative_reason,
+        source: "story",
         enemies: envelope.input.enemies,
       });
       await markCombatCheckpoint({
@@ -1113,6 +1114,7 @@ export const useSessionStore = defineStore("session", () => {
           battleStore.stagePendingEncounter({
             encounterId: params.encounterId,
             narrativeReason: params.narrativeReason,
+            source: "story",
             enemies: params.enemies,
           });
           console.log("[sessionStore.onTriggerBattle] battleStore.pendingBattle after =", battleStore.pendingBattle);
@@ -1185,6 +1187,7 @@ export const useSessionStore = defineStore("session", () => {
               battleStore.stagePendingEncounter({
                 encounterId: input.encounter_id,
                 narrativeReason: input.narrative_reason,
+                source: "story",
                 enemies: input.enemies,
               });
               await persistRuntimeSnapshot();

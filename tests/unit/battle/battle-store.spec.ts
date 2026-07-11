@@ -10,6 +10,7 @@ function startTestBattle() {
   store.stagePendingEncounter({
     encounterId: "enc-battle-store-tree-001",
     narrativeReason: "树形菜单 target-aware 分流测试。",
+    source: "story",
     enemies: [{ enemy_id: "menu-shadow", count: 2 }],
   });
 
@@ -63,6 +64,7 @@ describe("battleStore", () => {
     store.stagePendingEncounter({
       encounterId: "enc-battle-store-001",
       narrativeReason: "影魔从教学楼背面的玻璃反光里浮出来。",
+      source: "story",
       enemies: [
         {
           enemy_id: "shadow-graffiti",
@@ -75,6 +77,7 @@ describe("battleStore", () => {
       lifecycleState: "PENDING",
       encounterId: "enc-battle-store-001",
       narrativeReason: "影魔从教学楼背面的玻璃反光里浮出来。",
+      source: "story",
       enemies: [
         {
           instanceId: "enemy-1",
@@ -99,6 +102,7 @@ describe("battleStore", () => {
     store.stagePendingEncounter({
       encounterId: "enc-battle-store-002",
       narrativeReason: "测试清理。",
+      source: "story",
       enemies: [{ enemy_id: "cleanup-shadow", count: 1 }],
     });
     store.clearPendingEncounter();
@@ -130,6 +134,7 @@ describe("battleStore", () => {
       lifecycleState: "PENDING",
       encounterId: "enc-battle-store-sync-001",
       narrativeReason: "战斗 store 应自动同步 encounter 信息。",
+      source: "story",
       enemies: [
         {
           instanceId: "enemy-1",
@@ -154,6 +159,7 @@ describe("battleStore", () => {
     store.stagePendingEncounter({
       encounterId: "enc-battle-store-003",
       narrativeReason: "楼顶天线旁的影子扭曲成了战斗姿态。",
+      source: "story",
       enemies: [{ enemy_id: "antenna-shadow", count: 2 }],
     });
 
@@ -848,6 +854,7 @@ describe("battleStore", () => {
     store.stagePendingEncounter({
       encounterId: "enc-battle-store-complete-loop-001",
       narrativeReason: "无 AI 战斗闭环测试。",
+      source: "story",
       enemies: [{ enemy_id: "loop-shadow", count: 1 }],
     });
     store.startBattle([

@@ -187,6 +187,7 @@ async function launchDebugBattleForTestingOnly() {
   battleStore.stagePendingEncounter({
     encounterId: "enc-main-game-debug-battle",
     narrativeReason: "测试用预置战斗入口（使用实际编队数据）。",
+    source: "story",
     enemies: [{ enemy_id: "1", count: 1 }],
   });
   sessionStore.enterCombatPending();

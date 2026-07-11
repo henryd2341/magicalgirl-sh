@@ -1,4 +1,5 @@
 import type { TriggerBattleEnemyInput } from "@/orchestrator/toolEnvelope";
+import type { BattleSource } from "@/types/training";
 
 export const BATTLE_LIFECYCLE_STATES = [
   "PENDING",
@@ -318,12 +319,14 @@ export interface PendingBattleSnapshot {
   encounterId: string;
   narrativeReason: string;
   enemies: BattleEnemyInstance[];
+  source: BattleSource;
 }
 
 export interface BattleSnapshot {
   lifecycleState: BattleLifecycleState;
   phase: BattlePhase;
   encounterId: string;
+  source: BattleSource;
   participants: BattleParticipant[];
   pressTurn: PressTurnState;
   pressTurnAllocation?: PressTurnAllocation;
@@ -351,6 +354,7 @@ export interface CreatePendingBattleSnapshotInput {
   encounterId: string;
   narrativeReason: string;
   enemies: TriggerBattleEnemyInput[];
+  source: BattleSource;
 }
 
 export interface CreateBattleSnapshotFromPendingBattleInput {

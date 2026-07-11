@@ -292,6 +292,7 @@ export function createPendingBattleSnapshot(
     lifecycleState: "PENDING",
     encounterId: input.encounterId,
     narrativeReason: input.narrativeReason,
+    source: input.source,
     enemies: expandTriggerBattleEnemies(input.enemies),
   };
 }
@@ -369,6 +370,7 @@ export function createBattleSnapshotFromPendingBattle(
     lifecycleState: "ACTIVE",
     phase: "PLAYER_COMMAND",
     encounterId: input.pendingBattle.encounterId,
+    source: input.pendingBattle.source,
     participants,
     pressTurn: createPressTurnStateForSide(participants, "player"),
     pressTurnAllocation: {

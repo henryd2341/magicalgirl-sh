@@ -96,6 +96,7 @@ describe("battle types", () => {
     const snapshot = createPendingBattleSnapshot({
       encounterId: "enc-battle-types-002",
       narrativeReason: "自动售货机的玻璃里倒映出了第二双眼睛。",
+      source: "story",
       enemies: [
         {
           enemy_id: "vending-shadow",
@@ -107,6 +108,7 @@ describe("battle types", () => {
     expect(snapshot).toEqual({
       encounterId: "enc-battle-types-002",
       narrativeReason: "自动售货机的玻璃里倒映出了第二双眼睛。",
+      source: "story",
       enemies: [
         {
           instanceId: "enemy-1",
@@ -129,6 +131,7 @@ describe("battle types", () => {
     const pendingBattle = createPendingBattleSnapshot({
       encounterId: "enc-battle-types-active-001",
       narrativeReason: "默认上场状态测试。",
+      source: "story",
       enemies: [{ enemy_id: "default-active-shadow", count: 1 }],
     });
 
