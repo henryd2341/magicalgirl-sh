@@ -1,4 +1,5 @@
 import type { GameVariablesRoot, VariablePathPatch } from "@/types/variables";
+import type { TrainingProgress } from "@/types/training";
 
 function createVariableError(code: string, message: string): Error {
   return new Error(`[${code}] ${message}`);
@@ -277,14 +278,51 @@ export function createDefaultGameVariablesRoot(): GameVariablesRoot {
     inventory: {
       items: {},
       battleItems: {},
-    },
+    },    training: createDefaultTrainingProgress(),
+
   };
 }
 
+export function createDefaultTrainingProgress(): TrainingProgress {
+  return {
+    clearedChallengeIds: [],
+    claimedRewardIds: [],
+    hiddenChallengeDiscovered: false,
+  };
+}
+
+export function getTrainingProgress(root: GameVariablesRoot): TrainingProgress {
+  if (root.training === undefined) return createDefaultTrainingProgress();
+  return {
+    clearedChallengeIds: [...root.training.clearedChallengeIds],
+    claimedRewardIds: [...root.training.claimedRewardIds],
+    hiddenChallengeDiscovered: root.training.hiddenChallengeDiscovered,
+  };
+}
+
+function isUniqueNonEmptyStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) &&
+    value.every((id) => typeof id === "string" && id.length > 0) &&
+    new Set(value).size === value.length;
+}
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function validateTrainingProgress(root: GameVariablesRoot): void {
+  if (
+    root.training !== undefined &&
+    (!isPlainObject(root.training) ||
+      !isUniqueNonEmptyStringArray(root.training.clearedChallengeIds) ||
+      !isUniqueNonEmptyStringArray(root.training.claimedRewardIds) ||
+      typeof root.training.hiddenChallengeDiscovered !== "boolean")
+  ) {
+    throw createVariableError(
+      "VARIABLE_SCHEMA_INVALID",
+      "GameVariablesRoot.training structure is invalid.",
+    );
+  }
+}
 function isAllowedPath(path: string): boolean {
   return (
     [
@@ -594,6 +632,7 @@ export function validateVariablePathPatch(
 }
 
 export function validateGameVariablesRoot(root: GameVariablesRoot): void {
+  validateTrainingProgress(root);
   validateRootSchema(root);
 
   if (root.player.money < 0) {

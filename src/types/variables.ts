@@ -1,3 +1,5 @@
+import type { TrainingProgress } from "@/types/training";
+
 export interface GameVariablesRoot {
   schemaVersion: "4.0.0";
   world: {
@@ -109,6 +111,8 @@ export interface GameVariablesRoot {
     items: Record<string, number>;
     battleItems: Record<string, number>;
   };
+
+  training?: TrainingProgress;
 }
 
 export interface VariablePathPatch {
