@@ -1,6 +1,9 @@
 import { getAllEnemies } from "@/content/contentRegistry";
 import type { PendingBattleSnapshot } from "@/types/battle";
-import type { TrainingChallengeDefinition } from "@/types/training";
+import {
+  BATTLE_SOURCES,
+  type TrainingChallengeDefinition,
+} from "@/types/training";
 
 const CHALLENGE_FIXTURE = [
   { id: "stage-1", order: 1, hidden: false },
@@ -23,6 +26,14 @@ const CHALLENGE_FIXTURE = [
 );
 
 describe("training domain contracts", () => {
+  it("defines the exact supported battle sources", () => {
+    expect(BATTLE_SOURCES).toEqual([
+      "story",
+      "training/free",
+      "training/challenge",
+    ]);
+  });
+
   it("exposes all enemies through a read-only map", () => {
     const enemies: ReadonlyMap<string, ReturnType<typeof getAllEnemies> extends ReadonlyMap<string, infer T> ? T : never> =
       getAllEnemies();

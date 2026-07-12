@@ -111,6 +111,31 @@ describe("battleStore", () => {
     expect(store.activeBattle).toBeNull();
   });
 
+  it("clears active battle resources without clearing pending battle or touching the session FSM", () => {
+    const store = startTestBattle();
+    const sessionStore = useSessionStore();
+
+    store.stagePendingEncounter({
+      encounterId: "enc-battle-store-next-001",
+      narrativeReason: "Keep the next pending battle.",
+      source: "training/free",
+      enemies: [{ enemy_id: "next-shadow", count: 1 }],
+    });
+    store.onItemConsumed = () => undefined;
+    store._currentBattleItems = { herb: 2 };
+
+    const pendingBattleBefore = store.pendingBattle;
+    const sessionSnapshotBefore = JSON.parse(JSON.stringify(sessionStore.snapshot));
+
+    store.clearActiveBattle();
+
+    expect(store.activeBattle).toBeNull();
+    expect(store.onItemConsumed).toBeNull();
+    expect(store._currentBattleItems).toBeNull();
+    expect(store.pendingBattle).toBe(pendingBattleBefore);
+    expect(sessionStore.snapshot).toEqual(sessionSnapshotBefore);
+  });
+
   it("syncs a structured pending battle snapshot into the battle store after sessionStore.executeTriggerBattle succeeds", async () => {
     const battleStore = useBattleStore();
     const sessionStore = useSessionStore();

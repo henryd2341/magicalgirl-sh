@@ -127,6 +127,22 @@ describe("battle types", () => {
     });
   });
 
+  it("preserves a training/free source through pending and active battle setup", () => {
+    const trainingPendingBattle = createPendingBattleSnapshot({
+      encounterId: "enc-battle-types-training-free-001",
+      narrativeReason: "Training source propagation test.",
+      source: "training/free",
+      enemies: [{ enemy_id: "training-shadow", count: 1 }],
+    });
+    const trainingSnapshot = createBattleSnapshotFromPendingBattle({
+      pendingBattle: trainingPendingBattle,
+      playerParty: [],
+    });
+
+    expect(trainingPendingBattle.source).toBe("training/free");
+    expect(trainingSnapshot.source).toBe("training/free");
+  });
+
   it("defaults player and enemy participants to isActive true when starting a battle snapshot", () => {
     const pendingBattle = createPendingBattleSnapshot({
       encounterId: "enc-battle-types-active-001",

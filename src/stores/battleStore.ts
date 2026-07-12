@@ -48,6 +48,11 @@ export const useBattleStore = defineStore("battle", {
     clearPendingEncounter() {
       this.pendingBattle = null;
     },
+    clearActiveBattle() {
+      this.activeBattle = null;
+      this.onItemConsumed = null;
+      this._currentBattleItems = null;
+    },
     startBattle(playerParty: BattleParticipant[]) {
       if (this.pendingBattle === null) {
         throw createPendingBattleRequiredError();
