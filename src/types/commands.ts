@@ -25,6 +25,12 @@ export type DomainCommand =
       type: "MARK_POST_COMBAT_READY";
     }
   | {
+      type: "COMPLETE_TRAINING_COMBAT";
+    }
+  | {
+      type: "ABORT_TRAINING_COMBAT";
+    }
+  | {
       type: "ENTER_ERROR_RECOVERY";
     }
   | {

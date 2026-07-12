@@ -22,6 +22,8 @@ export interface SessionManager {
   enterCombatPending(): void;
   enterCombat(): void;
   markPostCombatReady(): void;
+  completeTrainingCombat(): void;
+  abortTrainingCombat(): void;
   enterErrorRecovery(): void;
   resetToIdle(): void;
   restoreSnapshot(snapshot: SessionSnapshot): void;
@@ -141,6 +143,24 @@ export function createSessionManager(): SessionManager {
         pipelineState: null,
         activeRequestId: null,
       };
+    },
+    completeTrainingCombat() {
+      if (snapshot.sessionState !== "IN_COMBAT") {
+        throw createInvalidTransitionError(
+          `Cannot complete training combat from ${snapshot.sessionState}.`,
+        );
+      }
+
+      snapshot = { ...INITIAL_SNAPSHOT };
+    },
+    abortTrainingCombat() {
+      if (snapshot.sessionState !== "IN_COMBAT") {
+        throw createInvalidTransitionError(
+          `Cannot abort training combat from ${snapshot.sessionState}.`,
+        );
+      }
+
+      snapshot = { ...INITIAL_SNAPSHOT };
     },
     enterErrorRecovery() {
       snapshot = {

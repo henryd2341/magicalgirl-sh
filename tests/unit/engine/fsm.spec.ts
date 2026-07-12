@@ -144,6 +144,67 @@ describe("SessionManager FSM", () => {
     });
   });
 
+  it("completes training combat directly from IN_COMBAT to the initial IDLE snapshot", () => {
+    const manager = createSessionManager();
+
+    manager.enterCombatPending();
+    manager.enterCombat();
+    manager.completeTrainingCombat();
+
+    expect(manager.getSnapshot()).toEqual({
+      sessionState: "IDLE",
+      pipelineState: null,
+      activeRequestId: null,
+    });
+  });
+
+  it("aborts training combat directly from IN_COMBAT to the initial IDLE snapshot", () => {
+    const manager = createSessionManager();
+
+    manager.enterCombatPending();
+    manager.enterCombat();
+    manager.abortTrainingCombat();
+
+    expect(manager.getSnapshot()).toEqual({
+      sessionState: "IDLE",
+      pipelineState: null,
+      activeRequestId: null,
+    });
+  });
+
+  it.each(["IDLE", "COMBAT_PENDING", "POST_COMBAT_READY"] as const)(
+    "rejects completing training combat from %s",
+    (sessionState) => {
+      const manager = createSessionManager();
+
+      if (sessionState !== "IDLE") manager.enterCombatPending();
+      if (sessionState === "POST_COMBAT_READY") {
+        manager.enterCombat();
+        manager.markPostCombatReady();
+      }
+
+      expect(() => manager.completeTrainingCombat()).toThrow(
+        `[SESSION_INVALID_TRANSITION] Cannot complete training combat from ${sessionState}.`,
+      );
+    },
+  );
+
+  it.each(["IDLE", "COMBAT_PENDING", "POST_COMBAT_READY"] as const)(
+    "rejects aborting training combat from %s",
+    (sessionState) => {
+      const manager = createSessionManager();
+
+      if (sessionState !== "IDLE") manager.enterCombatPending();
+      if (sessionState === "POST_COMBAT_READY") {
+        manager.enterCombat();
+        manager.markPostCombatReady();
+      }
+
+      expect(() => manager.abortTrainingCombat()).toThrow(
+        `[SESSION_INVALID_TRANSITION] Cannot abort training combat from ${sessionState}.`,
+      );
+    },
+  );
   it("rejects pipeline advancement when the session is not GENERATING", () => {
     const manager = createSessionManager();
 
@@ -254,4 +315,30 @@ describe("GameEngineFacade", () => {
       activeRequestId: null,
     });
   });
+  it.each(["completeTrainingCombat", "abortTrainingCombat"] as const)(
+    "dispatches %s through the command bus",
+    async (method) => {
+      const facade = new GameEngineFacade(createSessionManager());
+
+      await facade.dispatchCommand({
+        type: "TRIGGER_BATTLE",
+        payload: {
+          request_id: "req-training-exit",
+          context_version: 1,
+          state_hash: "initial",
+          tool_call_id: "tool-training-exit",
+          input: {
+            encounter_id: "enc-training-exit",
+            enemies: [{ enemy_id: "shadow-graffiti", count: 1 }],
+            narrative_reason: "训练战状态机出口测试。",
+          },
+        },
+      });
+      facade.enterCombat();
+
+      facade[method]();
+
+      expect(facade.getSessionSnapshot().sessionState).toBe("IDLE");
+    },
+  );
 });

@@ -105,6 +105,17 @@ export class GameEngineFacade {
     });
   }
 
+  public completeTrainingCombat(): void {
+    this.commandBus.dispatch({
+      type: "COMPLETE_TRAINING_COMBAT",
+    });
+  }
+
+  public abortTrainingCombat(): void {
+    this.commandBus.dispatch({
+      type: "ABORT_TRAINING_COMBAT",
+    });
+  }
   public enterErrorRecovery(): void {
     this.commandBus.dispatch({
       type: "ENTER_ERROR_RECOVERY",
@@ -181,6 +192,12 @@ export class GameEngineFacade {
         break;
       case "MARK_POST_COMBAT_READY":
         this.sessionManager.markPostCombatReady();
+        break;
+      case "COMPLETE_TRAINING_COMBAT":
+        this.sessionManager.completeTrainingCombat();
+        break;
+      case "ABORT_TRAINING_COMBAT":
+        this.sessionManager.abortTrainingCombat();
         break;
       case "ENTER_ERROR_RECOVERY":
         this.sessionManager.enterErrorRecovery();
