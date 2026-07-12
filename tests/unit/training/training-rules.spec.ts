@@ -61,3 +61,74 @@ describe("training domain contracts", () => {
     expect(CHALLENGE_FIXTURE.filter((entry) => entry.hidden)).toHaveLength(1);
   });
 });
+
+import { canRevealHiddenClue, digestTrainingAnswer, isChallengeUnlocked, listFreeTrainingEnemies, normalizeTrainingAnswer, validateFreeTrainingSelection, validateTrainingCatalog } from "@/engine/training/trainingRules";
+import { enabledTrainingCatalogFixture, enabledTrainingPuzzleFixture, trainingProgressFixture } from "../../helpers/trainingFixtures";
+
+describe("training rules", () => {
+  it("filters by level and excludes challenge enemies including disabled hidden entries", () => {
+    const catalog = structuredClone(enabledTrainingCatalogFixture);
+    catalog.challenges.push({ ...catalog.challenges[0]!, id: "reserved", order: 99, enabled: false, hidden: true, enemies: [{ enemy_id: "7", count: 1 }] });
+    const enemies = listFreeTrainingEnemies(30, catalog);
+    expect(enemies.every((enemy) => enemy.baseLevel <= 30)).toBe(true);
+    expect(enemies.map((enemy) => enemy.id)).not.toContain("7");
+    expect(enemies.map((enemy) => enemy.id)).not.toContain("1");
+  });
+
+  it.each([[[], "at least one"], [["7", "7", "7", "7", "7"], "at most four"], [["missing"], "unknown enemy"], [["5"], "above protagonist level"], [["1"], "reserved for a challenge"]])("rejects invalid free selection %#", (selection, message) => {
+    const result = validateFreeTrainingSelection(selection as string[], 20, enabledTrainingCatalogFixture);
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]).toContain(message);
+  });
+
+  it("accepts one to four eligible IDs including duplicates", () => {
+    expect(validateFreeTrainingSelection(["7", "7", "8", "7"], 62, enabledTrainingCatalogFixture)).toEqual({ ok: true, errors: [] });
+  });
+
+  it("accepts a complete enabled catalog and a disabled empty content gate", () => {
+    expect(validateTrainingCatalog(enabledTrainingCatalogFixture, enabledTrainingPuzzleFixture)).toEqual({ ok: true, errors: [] });
+    expect(validateTrainingCatalog({ enabled: false, challenges: [] }, { enabled: false, clueText: "谜题尚未开放", imageUrl: null, answerDigest: null, normalizationVersion: 1 })).toEqual({ ok: true, errors: [] });
+  });
+
+  it.each([
+    [(c: typeof enabledTrainingCatalogFixture) => c.challenges.pop()],
+    [(c: typeof enabledTrainingCatalogFixture) => { c.challenges[1]!.id = c.challenges[0]!.id; }],
+    [(c: typeof enabledTrainingCatalogFixture) => { c.challenges[1]!.order = 1; }],
+    [(c: typeof enabledTrainingCatalogFixture) => { c.challenges[2]!.prerequisiteId = "trial-1"; }],
+    [(c: typeof enabledTrainingCatalogFixture) => { c.challenges[0]!.enemies[0]!.count = 0; }],
+    [(c: typeof enabledTrainingCatalogFixture) => { c.challenges[0]!.firstClearReward.money = -1; }],
+    [(c: typeof enabledTrainingCatalogFixture) => { c.challenges[0]!.firstClearReward.items["1"] = -1; }],
+  ])("rejects malformed enabled catalog %#", (mutate) => {
+    const catalog = structuredClone(enabledTrainingCatalogFixture);
+    mutate(catalog);
+    expect(validateTrainingCatalog(catalog, enabledTrainingPuzzleFixture).ok).toBe(false);
+  });
+
+  it("unlocks normals by prerequisites and hidden only after discovery", () => {
+    const [first, second, , , , hidden] = enabledTrainingCatalogFixture.challenges;
+    expect(isChallengeUnlocked(first!, trainingProgressFixture())).toBe(true);
+    expect(isChallengeUnlocked(second!, trainingProgressFixture())).toBe(false);
+    expect(isChallengeUnlocked(second!, trainingProgressFixture({ clearedChallengeIds: ["trial-1"] }))).toBe(true);
+    expect(isChallengeUnlocked(hidden!, trainingProgressFixture())).toBe(false);
+    expect(isChallengeUnlocked(hidden!, trainingProgressFixture({ hiddenChallengeDiscovered: true }))).toBe(true);
+  });
+
+  it("reveals hidden clue only after all five normals and before discovery", () => {
+    const clearedChallengeIds = [1, 2, 3, 4, 5].map((n) => `trial-${n}`);
+    expect(canRevealHiddenClue(enabledTrainingCatalogFixture, trainingProgressFixture({ clearedChallengeIds }))).toBe(true);
+    expect(canRevealHiddenClue(enabledTrainingCatalogFixture, trainingProgressFixture({ clearedChallengeIds: clearedChallengeIds.slice(0, 4) }))).toBe(false);
+    expect(canRevealHiddenClue(enabledTrainingCatalogFixture, trainingProgressFixture({ clearedChallengeIds, hiddenChallengeDiscovered: true }))).toBe(false);
+  });
+
+  it("normalizes and hashes answers deterministically with SHA-256", async () => {
+    expect(normalizeTrainingAnswer("  MaGiCa  ", 1)).toBe("magica");
+    const digest = await digestTrainingAnswer("  MaGiCa  ", 1);
+    expect(digest).toBe(await digestTrainingAnswer("magica", 1));
+    expect(digest).toBe("2f77b8b18c28646e24676513dbbcc62ae4fd26d07e2bd769dca61e85d1d40cb7");
+  });
+
+  it("rejects incomplete enabled puzzle and permits null disabled fields", () => {
+    for (const puzzle of [{ ...enabledTrainingPuzzleFixture, clueText: "" }, { ...enabledTrainingPuzzleFixture, imageUrl: null }, { ...enabledTrainingPuzzleFixture, answerDigest: null }]) expect(validateTrainingCatalog(enabledTrainingCatalogFixture, puzzle).ok).toBe(false);
+    expect(validateTrainingCatalog({ enabled: false, challenges: [] }, { enabled: false, clueText: "", imageUrl: null, answerDigest: null, normalizationVersion: 1 }).ok).toBe(true);
+  });
+});

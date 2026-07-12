@@ -18,6 +18,10 @@ export interface TrainingChallengeDefinition {
   firstClearReward: TrainingReward;
 }
 
+export interface TrainingCatalog {
+  enabled: boolean;
+  challenges: TrainingChallengeDefinition[];
+}
 export interface TrainingPuzzleDefinition {
   enabled: boolean;
   clueText: string;
