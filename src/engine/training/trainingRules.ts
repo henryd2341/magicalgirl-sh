@@ -1,4 +1,4 @@
-import { getAllEnemies } from "@/content/contentRegistry";
+import { getAllEnemies, getAllItems } from "@/content/contentRegistry";
 import type { ResolvedEnemyContent } from "@/types/content";
 import type {
   TrainingCatalog,
@@ -45,6 +45,8 @@ export function validateTrainingCatalog(
 
   const ids = new Set<string>();
   const orders = new Set<number>();
+  const enemies = getAllEnemies();
+  const items = getAllItems();
   for (const challenge of catalog.challenges) {
     if (challenge.id.trim().length === 0 || ids.has(challenge.id)) errors.push("challenge ids must be non-empty and unique");
     ids.add(challenge.id);
@@ -52,7 +54,9 @@ export function validateTrainingCatalog(
     orders.add(challenge.order);
     if (!challenge.enabled || challenge.name.trim().length === 0) errors.push("enabled catalog challenges must be enabled and named");
     if (challenge.enemies.length === 0 || challenge.enemies.some((enemy) => enemy.enemy_id.trim().length === 0 || !Number.isInteger(enemy.count) || enemy.count < 1)) errors.push("challenge enemies require positive integer counts");
+    if (challenge.enemies.some((enemy) => !enemies.has(enemy.enemy_id))) errors.push("challenge enemies must reference existing enemies");
     if (!Number.isInteger(challenge.firstClearReward.money) || challenge.firstClearReward.money < 0 || Object.entries(challenge.firstClearReward.items).some(([itemId, count]) => itemId.trim().length === 0 || !Number.isInteger(count) || count < 0)) errors.push("challenge rewards require non-negative integer amounts");
+    if (Object.keys(challenge.firstClearReward.items).some((itemId) => !items.has(itemId))) errors.push("challenge rewards must reference existing items");
   }
 
   const orderedNormals = [...normalChallenges].sort((left, right) => left.order - right.order);

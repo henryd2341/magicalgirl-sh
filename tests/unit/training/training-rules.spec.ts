@@ -98,6 +98,8 @@ describe("training rules", () => {
     [(c: typeof enabledTrainingCatalogFixture) => { c.challenges[0]!.enemies[0]!.count = 0; }],
     [(c: typeof enabledTrainingCatalogFixture) => { c.challenges[0]!.firstClearReward.money = -1; }],
     [(c: typeof enabledTrainingCatalogFixture) => { c.challenges[0]!.firstClearReward.items["1"] = -1; }],
+    [(c: typeof enabledTrainingCatalogFixture) => { c.challenges[0]!.enemies[0]!.enemy_id = "missing-enemy"; }],
+    [(c: typeof enabledTrainingCatalogFixture) => { c.challenges[0]!.firstClearReward.items["missing-item"] = 1; }],
   ])("rejects malformed enabled catalog %#", (mutate) => {
     const catalog = structuredClone(enabledTrainingCatalogFixture);
     mutate(catalog);
