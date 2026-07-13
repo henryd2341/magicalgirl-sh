@@ -229,4 +229,81 @@ describe("full save export", () => {
       stateHash: "initial",
     });
   });
+
+  it("exports training progress while removing an active training runtime snapshot", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    const checkpointRepository = new DbCheckpointRepository(client);
+    const eventLogRepository = new DbEventLogRepository(client);
+    const saveMetaRepository = new DbSaveMetaRepository(client);
+    const chatRepository = new DbChatHistoryRepository(client);
+    const variableRepository = new DbVariableRepository(client);
+    const variableChangeLogRepository = new DbVariableChangeLogRepository(client);
+    const worldInfoRepository = new DbWorldInfoRepository(client);
+    const variableValue = new VariableEngine().createInitialState();
+    variableValue.root.training = {
+      clearedChallengeIds: ["trial-1"],
+      claimedRewardIds: ["trial-1"],
+      hiddenChallengeDiscovered: false,
+    };
+    await variableRepository.saveCurrent(variableValue);
+
+    const result = await createFullSaveExport({
+      repositories: {
+        checkpointRepository,
+        eventLogRepository,
+        saveMetaRepository,
+        chatRepository,
+        variableRepository,
+        variableChangeLogRepository,
+        worldInfoRepository,
+      },
+      getSessionSnapshot: () => ({
+        sessionState: "IN_COMBAT",
+        pipelineState: null,
+        activeRequestId: null,
+      }),
+      getPendingBattle: () => null,
+      getActiveBattle: () => ({
+        lifecycleState: "ACTIVE",
+        phase: "PLAYER_TURN",
+        encounterId: "training/challenge/trial-2/export",
+        source: "training/challenge",
+        participants: [],
+        pressTurn: { ownerSide: "player", icons: [] },
+      }),
+      idFactory: {
+        exportId: () => "export-training-progress",
+        checkpointId: () => "checkpoint-training-progress",
+        eventId: () => "event-training-progress",
+        saveMetaId: () => "save-meta-training-progress",
+      },
+      now: () => "2026-07-13T12:30:00.000Z",
+    });
+
+    const parsed = JSON.parse(result.jsonText) as FullSaveExportV2;
+    expect(parsed.data.variableValue?.root.training).toEqual({
+      clearedChallengeIds: ["trial-1"],
+      claimedRewardIds: ["trial-1"],
+      hiddenChallengeDiscovered: false,
+    });
+    const checkpoint = parsed.data.checkpointSnapshots.find(
+      (entry) => entry.id === "checkpoint-training-progress",
+    );
+    expect(checkpoint).toMatchObject({
+      sessionSnapshot: { sessionState: "IDLE" },
+      variableValue: {
+        root: {
+          training: {
+            clearedChallengeIds: ["trial-1"],
+          },
+        },
+      },
+    });
+    expect(checkpoint?.pendingBattle).toBeUndefined();
+    expect(checkpoint?.activeBattle).toBeUndefined();
+  });
+
 });

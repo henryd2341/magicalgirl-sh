@@ -16,6 +16,7 @@ import {
 } from "@/persistence/repositories/variableRepository";
 import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
 import { VariableEngine } from "@/engine/variableEngine";
+import { getTrainingProgress } from "@/engine/variablePolicy";
 import { createDbWorkerRuntime } from "@/workers/db.worker";
 import type { FullSaveExportV1 } from "@/persistence/exportSave";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
@@ -338,4 +339,57 @@ describe("full save import slots", () => {
       stateHash: "hash-current-before-slot-delete",
     });
   });
+
+  it("restores training progress from an imported full save", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    const payload = createImportPayload();
+    const progress = {
+      clearedChallengeIds: ["trial-1", "trial-2"],
+      claimedRewardIds: ["trial-1"],
+      hiddenChallengeDiscovered: false,
+    };
+    payload.data.variableValue!.root.training = progress;
+    payload.data.checkpointSnapshots[0]!.variableValue!.root.training = progress;
+
+    await importFullSaveToSlot({
+      client,
+      jsonText: JSON.stringify(payload),
+      sourceFileName: "training-progress.json",
+      idFactory: { slotId: () => "slot-training-progress" },
+    });
+    await restoreFullSaveSlot({ client, slotId: "slot-training-progress" });
+
+    const restored = await new DbVariableRepository(client).getCurrent();
+    expect(restored?.root.training).toEqual(progress);
+  });
+
+  it("loads a legacy full save without training progress using safe defaults", async () => {
+    const client = new DbWorkerClient(
+      createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
+    );
+    await client.initialize();
+    const payload = createImportPayload();
+    delete payload.data.variableValue!.root.training;
+    delete payload.data.checkpointSnapshots[0]!.variableValue!.root.training;
+
+    await importFullSaveToSlot({
+      client,
+      jsonText: JSON.stringify(payload),
+      sourceFileName: "legacy-without-training.json",
+      idFactory: { slotId: () => "slot-legacy-training" },
+    });
+    await restoreFullSaveSlot({ client, slotId: "slot-legacy-training" });
+
+    const restored = await new DbVariableRepository(client).getCurrent();
+    expect(restored).not.toBeNull();
+    expect(getTrainingProgress(restored!.root)).toEqual({
+      clearedChallengeIds: [],
+      claimedRewardIds: [],
+      hiddenChallengeDiscovered: false,
+    });
+  });
+
 });

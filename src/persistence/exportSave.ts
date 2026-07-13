@@ -1,6 +1,7 @@
 import { createCheckpointManager } from "@/engine/checkpointManager";
 import type { SessionSnapshot } from "@/engine/sessionManager";
 import { ensureVariableState } from "@/engine/variableStateBootstrap";
+import { sanitizeRuntimeSnapshot } from "@/engine/runtimePersistenceService";
 import type { ChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
 import type { CheckpointRepository } from "@/persistence/repositories/checkpointRepository";
 import type { EventLogRepository } from "@/persistence/repositories/eventLogRepository";
@@ -167,14 +168,19 @@ export async function createFullSaveExport(
     now: () => exportedAt,
   });
 
+  const runtimeSnapshot = sanitizeRuntimeSnapshot({
+    sessionSnapshot: input.getSessionSnapshot(),
+    pendingBattle: input.getPendingBattle(),
+    activeBattle: input.getActiveBattle(),
+  });
   const checkpointManager = createCheckpointManager({
     checkpointRepository: input.repositories.checkpointRepository,
     eventLogRepository: input.repositories.eventLogRepository,
     chatRepository: input.repositories.chatRepository,
     variableRepository: input.repositories.variableRepository,
-    getSessionSnapshot: input.getSessionSnapshot,
-    getPendingBattle: input.getPendingBattle,
-    getActiveBattle: input.getActiveBattle,
+    getSessionSnapshot: () => runtimeSnapshot.sessionSnapshot,
+    getPendingBattle: () => runtimeSnapshot.pendingBattle,
+    getActiveBattle: () => runtimeSnapshot.activeBattle,
     idFactory: {
       checkpointId: idFactory.checkpointId,
       eventId: idFactory.eventId,

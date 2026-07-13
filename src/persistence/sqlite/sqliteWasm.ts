@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 
 import sqlite3InitModule from "@sqliteai/sqlite-wasm";
+import sqlite3WasmUrl from "@sqliteai/sqlite-wasm/sqlite3.wasm?url";
 
 export type SqliteBindValue =
   | string
@@ -78,9 +79,17 @@ function detectExtensionCapabilities(db: RawSqliteDatabase) {
 }
 
 async function defaultSqlite3Factory(): Promise<Sqlite3Module> {
+  const isNodeRuntime =
+    typeof process !== "undefined" && process.versions?.node != null;
   return sqlite3InitModule({
     print: () => undefined,
     printErr: () => undefined,
+    ...(isNodeRuntime
+      ? {}
+      : {
+          locateFile: (path: string) =>
+            path.endsWith(".wasm") ? sqlite3WasmUrl : path,
+        }),
   }) as Promise<Sqlite3Module>;
 }
 
