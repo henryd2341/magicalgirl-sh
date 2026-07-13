@@ -1,5 +1,10 @@
 import { BattleResultService, type BattleRewards } from "@/engine/battleResultService";
-import { RuntimePersistenceService } from "@/engine/runtimePersistenceService";
+import {
+  RuntimePersistenceService,
+  sanitizeRuntimeSnapshot,
+} from "@/engine/runtimePersistenceService";
+import { TrainingSessionService } from "@/engine/training/trainingSessionService";
+import { TRAINING_CATALOG, TRAINING_PUZZLE } from "@/content/trainingCatalog";
 import { maybeSummarizeHistory as runHistorySummarization } from "@/engine/summary/historySummarizer";
 import {
   CombatRefreshRecoveryService,
@@ -74,6 +79,10 @@ import {
 import { createDefaultBattleCommandMenuTree } from "@/engine/battle/battleActionCatalog";
 import { buyItem as engineBuyItem, sellItem as engineSellItem } from "@/engine/shop/shopTransactionService";
 import { equipAccessory as engineEquipAccessory, unequipAccessory as engineUnequipAccessory } from "@/engine/items/equipmentService";
+
+type StartTrainingBattleInput =
+  | { mode: "free"; enemyIds: string[] }
+  | { mode: "challenge"; challengeId: string };
 
 const POST_COMBAT_CONTINUE_INPUT = "请根据最近的战斗摘要继续剧情。";
 
@@ -720,10 +729,15 @@ export const useSessionStore = defineStore("session", () => {
     const battleStore = useBattleStore();
 
     if (runtimeSnapshot) {
-      gameEngineFacade.restoreSessionSnapshot(runtimeSnapshot.sessionSnapshot);
+      const restored = sanitizeRuntimeSnapshot({
+        sessionSnapshot: runtimeSnapshot.sessionSnapshot,
+        pendingBattle: runtimeSnapshot.pendingBattle,
+        activeBattle: runtimeSnapshot.activeBattle,
+      });
+      gameEngineFacade.restoreSessionSnapshot(restored.sessionSnapshot);
       battleStore.restoreBattleSnapshot({
-        pendingBattle: runtimeSnapshot.pendingBattle ?? undefined,
-        activeBattle: runtimeSnapshot.activeBattle ?? undefined,
+        pendingBattle: restored.pendingBattle ?? undefined,
+        activeBattle: restored.activeBattle ?? undefined,
       });
     } else {
       gameEngineFacade.restoreSessionSnapshot(currentSnapshot);
@@ -888,10 +902,58 @@ export const useSessionStore = defineStore("session", () => {
     snapshot.value = gameEngineFacade.getSessionSnapshot();
   }
 
+  function createTrainingSessionService(): TrainingSessionService {
+    return new TrainingSessionService({
+      catalog: TRAINING_CATALOG,
+      puzzle: TRAINING_PUZZLE,
+      getCurrent: async () => {
+        const current = await variableRepository.getCurrent();
+        if (current == null) {
+          throw new Error("[TRAINING_VARIABLES_REQUIRED] Missing variable state.");
+        }
+        return current;
+      },
+      saveCurrent: (record) => variableRepository.saveCurrent(record),
+      stageEncounter: async (input) => {
+        const battleStore = useBattleStore();
+        battleStore.stagePendingEncounter(input);
+        enterCombatPending();
+        snapshot.value = gameEngineFacade.getSessionSnapshot();
+        await persistRuntimeSnapshot();
+      },
+      createNextRecord: (root, previous) => ({
+        ...previous,
+        version: previous.version + 1,
+        stateHash: `training-${previous.version + 1}`,
+        updatedAt: new Date().toISOString(),
+        root,
+      }),
+    });
+  }
+
+  async function startTrainingBattle(input: StartTrainingBattleInput) {
+    if (snapshot.value.sessionState !== "IDLE") {
+      throw new Error(
+        `[TRAINING_START_INVALID_STATE] Cannot start training from ${snapshot.value.sessionState}.`,
+      );
+    }
+
+    const service = createTrainingSessionService();
+    return input.mode === "free"
+      ? service.beginFreeTraining(input.enemyIds)
+      : service.beginChallenge(input.challengeId);
+  }
+
   async function startBattle(playerParty: BattleParticipant[]) {
     const battleStore = useBattleStore();
+    const isTrainingBattle =
+      battleStore.pendingBattle?.source === "training/free" ||
+      battleStore.pendingBattle?.source === "training/challenge";
+    const battleParty = isTrainingBattle
+      ? structuredClone(playerParty)
+      : playerParty;
 
-    battleStore.startBattle(playerParty);
+    battleStore.startBattle(battleParty);
 
     // Build availableSkillIds for each player participant
     let battleItems: Record<string, number> | undefined;
@@ -902,7 +964,7 @@ export const useSessionStore = defineStore("session", () => {
 
       let firstPlayerSkills: Set<string> | undefined;
 
-      for (const player of playerParty) {
+      for (const player of battleParty) {
         if (player.side !== "player" || !player.characterId) continue;
 
         // Map "__player__" to "player" for content registry lookups
@@ -961,8 +1023,23 @@ export const useSessionStore = defineStore("session", () => {
         // Variable state unavailable, no battle items
       }
 
-      // Set up item consumption handler
+      // Training consumes only the temporary battle inventory.
       battleStore.onItemConsumed = async (itemId: string) => {
+        if (isTrainingBattle) {
+          const currentItems = battleStore._currentBattleItems ?? {};
+          const nextCount = Math.max(0, (currentItems[itemId] ?? 0) - 1);
+          const nextItems = { ...currentItems };
+          if (nextCount === 0) delete nextItems[itemId];
+          else nextItems[itemId] = nextCount;
+          battleStore.setBattleItems(nextItems);
+          if (battleStore.activeBattle?.currentActorId) {
+            battleStore.rebuildActionMenuForActor(
+              battleStore.activeBattle.currentActorId,
+            );
+          }
+          return;
+        }
+
         try {
           const vs = await variableRepository.getCurrent();
           if (!vs) return;
@@ -1010,10 +1087,12 @@ export const useSessionStore = defineStore("session", () => {
     }
     gameEngineFacade.enterCombat();
     snapshot.value = gameEngineFacade.getSessionSnapshot();
-    await markCombatCheckpoint({
-      reason: "combat_active",
-      encounterId: battleStore.activeBattle?.encounterId,
-    });
+    if (!isTrainingBattle) {
+      await markCombatCheckpoint({
+        reason: "combat_active",
+        encounterId: battleStore.activeBattle?.encounterId,
+      });
+    }
     await persistRuntimeSnapshot();
   }
 
@@ -1032,6 +1111,43 @@ export const useSessionStore = defineStore("session", () => {
     void persistRuntimeSnapshot();
   }
 
+  async function completeTrainingBattle() {
+    const battleStore = useBattleStore();
+    if (battleStore.activeBattle == null) {
+      throw new Error(
+        "[TRAINING_BATTLE_REQUIRED] Cannot complete without an active training battle.",
+      );
+    }
+
+    const result = await createTrainingSessionService().completeTrainingBattle(
+      battleStore.activeBattle,
+    );
+    battleStore.clearActiveBattle();
+    gameEngineFacade.completeTrainingCombat();
+    snapshot.value = gameEngineFacade.getSessionSnapshot();
+    if (result.rewarded) variableVersion.value += 1;
+    await persistRuntimeSnapshot();
+    return result;
+  }
+
+  async function abortTrainingBattle() {
+    const battleStore = useBattleStore();
+    if (battleStore.activeBattle == null) {
+      throw new Error(
+        "[TRAINING_BATTLE_REQUIRED] Cannot abort without an active training battle.",
+      );
+    }
+
+    const result = await createTrainingSessionService().abortTrainingBattle(
+      battleStore.activeBattle,
+    );
+    battleStore.clearActiveBattle();
+    gameEngineFacade.abortTrainingCombat();
+    snapshot.value = gameEngineFacade.getSessionSnapshot();
+    await persistRuntimeSnapshot();
+    return result;
+  }
+
   async function completeActiveBattle() {
     const battleStore = useBattleStore();
     const chatStore = useChatStore();
@@ -1039,6 +1155,11 @@ export const useSessionStore = defineStore("session", () => {
     if (battleStore.activeBattle === null) {
       throw new Error(
         "[BATTLE_RESULT_REQUIRED] Cannot complete battle without an active battle snapshot.",
+      );
+    }
+    if (battleStore.activeBattle.source !== "story") {
+      throw new Error(
+        "[STORY_BATTLE_SOURCE_REQUIRED] Training battles use completeTrainingBattle().",
       );
     }
 
@@ -1592,8 +1713,11 @@ export const useSessionStore = defineStore("session", () => {
     executeUpdateVariables,
     executeTriggerBattle,
     enterCombatPending,
+    startTrainingBattle,
     startBattle,
     cancelPendingBattle,
+    completeTrainingBattle,
+    abortTrainingBattle,
     completeActiveBattle,
     runStoryTurn,
     continuePostCombatStory,

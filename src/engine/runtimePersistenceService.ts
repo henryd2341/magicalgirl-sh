@@ -26,16 +26,47 @@ export class RuntimePersistenceService {
   public saveCurrent(
     input: SaveRuntimeSnapshotInput,
   ): Promise<void> {
+    const sanitized = sanitizeRuntimeSnapshot(input);
     const record: RuntimeSnapshotRecord = {
       id: "current",
       updatedAt: this.now(),
-      sessionSnapshot: input.sessionSnapshot,
-      pendingBattle: toJsonData(input.pendingBattle),
-      activeBattle: toJsonData(input.activeBattle),
+      sessionSnapshot: sanitized.sessionSnapshot,
+      pendingBattle: toJsonData(sanitized.pendingBattle),
+      activeBattle: toJsonData(sanitized.activeBattle),
     };
 
     return this.repository.saveCurrent(record);
   }
+}
+
+function isTrainingSource(
+  battle: PendingBattleSnapshot | BattleSnapshot | null,
+): boolean {
+  return (
+    battle?.source === "training/free" ||
+    battle?.source === "training/challenge"
+  );
+}
+
+export function sanitizeRuntimeSnapshot(
+  input: SaveRuntimeSnapshotInput,
+): SaveRuntimeSnapshotInput {
+  if (
+    !isTrainingSource(input.pendingBattle) &&
+    !isTrainingSource(input.activeBattle)
+  ) {
+    return input;
+  }
+
+  return {
+    sessionSnapshot: {
+      sessionState: "IDLE",
+      pipelineState: null,
+      activeRequestId: null,
+    },
+    pendingBattle: null,
+    activeBattle: null,
+  };
 }
 
 function toJsonData<T>(value: T): T {

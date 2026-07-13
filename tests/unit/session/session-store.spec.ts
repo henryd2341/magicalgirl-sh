@@ -10,10 +10,16 @@ const { getCharacter: _getCharacter, getAllCharacterIds: _getAllIds } =
     getAllCharacterIds: vi.fn(() => ["char1"]),
   }));
 
-vi.mock("@/content/contentRegistry", () => ({
-  getCharacter: _getCharacter,
-  getAllCharacterIds: _getAllIds,
-}));
+vi.mock("@/content/contentRegistry", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/content/contentRegistry")>();
+  return {
+    ...actual,
+    getCharacter: _getCharacter,
+    getCharacterByName: _getCharacter,
+    getAllCharacterIds: _getAllIds,
+  };
+});
 
 const mockVarRepo: VariableRepository = {
   getCurrent: vi.fn(),
@@ -343,4 +349,66 @@ describe("sessionStore", () => {
       "3",
     ]);
   });
+
+  async function enterTrainingCombat() {
+    const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
+    battleStore.stagePendingEncounter({
+      encounterId: "training/free/test",
+      narrativeReason: "自由练习",
+      enemies: [],
+      source: "training/free",
+    });
+    sessionStore.enterCombatPending();
+    await sessionStore.startBattle([]);
+    return { sessionStore, battleStore };
+  }
+
+  it("keeps training item consumption inside the temporary battle inventory", async () => {
+    vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(
+      makeVarState({ inventory: { items: { potion: 2 }, battleItems: { potion: 2 } } }),
+    );
+    const { battleStore } = await enterTrainingCombat();
+    battleStore.setBattleItems({ potion: 2 });
+    await battleStore.onItemConsumed?.("potion");
+
+    expect(battleStore._currentBattleItems).toEqual({ potion: 1 });
+    expect(mockVarRepo.saveCurrent).not.toHaveBeenCalled();
+  });
+
+  it("completes resolved free training directly to IDLE and clears the battle", async () => {
+    const { sessionStore, battleStore } = await enterTrainingCombat();
+    Object.assign(battleStore.activeBattle!, {
+      lifecycleState: "RESOLVED",
+      phase: "RESULT",
+      battleResult: {
+        outcome: "victory",
+        endReason: "all_enemies_down",
+        turnCount: 1,
+      },
+    });
+
+    await expect(sessionStore.completeTrainingBattle()).resolves.toMatchObject({
+      rewarded: false,
+      reason: "free_training",
+    });
+    expect(sessionStore.snapshot.sessionState).toBe("IDLE");
+    expect(battleStore.activeBattle).toBeNull();
+  });
+
+  it("aborts unresolved training directly to IDLE", async () => {
+    const { sessionStore, battleStore } = await enterTrainingCombat();
+
+    await expect(sessionStore.abortTrainingBattle()).resolves.toEqual({ aborted: true });
+    expect(sessionStore.snapshot.sessionState).toBe("IDLE");
+    expect(battleStore.activeBattle).toBeNull();
+  });
+
+  it("prevents the story completion path from handling training battles", async () => {
+    const { sessionStore } = await enterTrainingCombat();
+    await expect(sessionStore.completeActiveBattle()).rejects.toThrow(
+      "[STORY_BATTLE_SOURCE_REQUIRED]",
+    );
+  });
+
 });
