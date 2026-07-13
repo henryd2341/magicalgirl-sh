@@ -3,6 +3,7 @@ import { router } from "@/router";
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useGameDialog } from "@/composables/useGameDialog";
 import {
   fireEvent,
   render,
@@ -12,7 +13,7 @@ import {
 } from "@testing-library/vue";
 import { createPinia, setActivePinia } from "pinia";
 import { nextTick } from "vue";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 async function renderMainGameWithStores() {
   const pinia = createPinia();
@@ -33,6 +34,16 @@ async function waitForActiveBattleOverlay() {
 
 describe("MainGameView battle overlay entrypoint", () => {
   beforeEach(() => {
+    vi.stubGlobal("matchMedia", vi.fn((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(() => false),
+    })));
     setActivePinia(createPinia());
   });
 
@@ -857,4 +868,134 @@ describe("MainGameView battle overlay entrypoint", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it("routes a resolved training result back to idle without opening story post-combat", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
+    await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-training-result",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-training-result",
+      input: {
+        encounter_id: "training/free/result-test",
+        enemies: [{ enemy_id: "training-shadow", count: 1 }],
+        narrative_reason: "训练战结果路由测试。",
+      },
+    });
+    battleStore.pendingBattle!.source = "training/free";
+    await sessionStore.startBattle([
+      {
+        id: "training-player",
+        side: "player",
+        displayName: "训练者",
+        hp: { current: 100, max: 100 },
+        mp: { current: 40, max: 40 },
+        isDown: false,
+        isActive: true,
+      },
+    ]);
+    battleStore.activeBattle = {
+      ...battleStore.activeBattle!,
+      lifecycleState: "RESOLVED",
+      phase: "RESULT",
+      battleResult: {
+        outcome: "victory",
+        winningSide: "player",
+        endReason: "all_enemies_down",
+        turnCount: 1,
+        survivingParticipantIds: ["training-player"],
+        downParticipantIds: ["enemy-1"],
+      },
+      resultSummary: "Training victory",
+    };
+    await nextTick();
+
+    await fireEvent.click(screen.getByRole("button", { name: "完成战斗" }));
+
+    await waitFor(() => {
+      expect(sessionStore.snapshot.sessionState).toBe("IDLE");
+    });
+    expect(battleStore.activeBattle).toBeNull();
+    expect(screen.queryByRole("button", { name: "继续剧情" })).not.toBeInTheDocument();
+  });
+
+  it("confirms before aborting an unresolved training battle", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
+    const dialog = useGameDialog();
+    await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-training-abort",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-training-abort",
+      input: {
+        encounter_id: "training/free/abort-test",
+        enemies: [{ enemy_id: "training-shadow", count: 1 }],
+        narrative_reason: "训练战退出测试。",
+      },
+    });
+    battleStore.pendingBattle!.source = "training/free";
+    await sessionStore.startBattle([
+      {
+        id: "training-player",
+        side: "player",
+        displayName: "训练者",
+        hp: { current: 100, max: 100 },
+        mp: { current: 40, max: 40 },
+        isDown: false,
+        isActive: true,
+      },
+    ]);
+
+    expect(screen.getByRole("button", { name: "退出训练" })).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole("button", { name: "退出训练" }));
+    expect(dialog.state.visible).toBe(true);
+    expect(dialog.state.message).toContain("退出训练");
+    expect(sessionStore.snapshot.sessionState).toBe("IN_COMBAT");
+
+    dialog.handleConfirm();
+    await waitFor(() => {
+      expect(sessionStore.snapshot.sessionState).toBe("IDLE");
+    });
+    expect(battleStore.activeBattle).toBeNull();
+  });
+
+  it("does not expose the training exit action during story combat", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+    await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-story-no-training-exit",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-story-no-training-exit",
+      input: {
+        encounter_id: "story/no-training-exit",
+        enemies: [{ enemy_id: "story-shadow", count: 1 }],
+        narrative_reason: "剧情战不显示训练出口。",
+      },
+    });
+    await sessionStore.startBattle([
+      {
+        id: "story-player",
+        side: "player",
+        displayName: "剧情角色",
+        hp: { current: 100, max: 100 },
+        mp: { current: 40, max: 40 },
+        isDown: false,
+        isActive: true,
+      },
+    ]);
+
+    expect(screen.queryByRole("button", { name: "退出训练" })).not.toBeInTheDocument();
+  });
+
 });

@@ -5,6 +5,7 @@ import {
 } from "@/engine/battle/battleActionCatalog";
 import { getEnemy, getSkill, getStatusEffectMap } from "@/content/contentRegistry";
 import { useBattleStore } from "@/stores/battleStore";
+import { useGameDialog } from "@/composables/useGameDialog";
 import { useSessionStore } from "@/stores/sessionStore";
 import allyIcon from "@/assets/pressTurnIcon/allyIcon.svg";
 import allyIconBright from "@/assets/pressTurnIcon/allyIconBright.svg";
@@ -26,6 +27,7 @@ import { computed, onMounted, ref } from "vue";
 
 const battleStore = useBattleStore();
 const sessionStore = useSessionStore();
+const { confirm } = useGameDialog();
 const { pendingBattle, activeBattle } = storeToRefs(battleStore);
 const transformedAvatars = import.meta.glob(
   "../../assets/avatars/transformed/*.png",
@@ -396,8 +398,30 @@ async function startPendingBattle() {
   await sessionStore.startBattle(playerParty);
 }
 
+const isTrainingBattle = computed(() =>
+  activeBattle.value?.source === "training/free" ||
+  activeBattle.value?.source === "training/challenge",
+);
+
+const canExitTraining = computed(() =>
+  isTrainingBattle.value && activeBattle.value?.phase !== "RESULT",
+);
+
 async function completeBattle() {
+  if (isTrainingBattle.value) {
+    await sessionStore.completeTrainingBattle();
+    return;
+  }
   await sessionStore.completeActiveBattle();
+}
+
+async function exitTraining() {
+  if (!canExitTraining.value) return;
+  const accepted = await confirm(
+    "退出训练将放弃本次训练进度，是否继续？",
+    { confirmText: "退出训练" },
+  );
+  if (accepted) await sessionStore.abortTrainingBattle();
 }
 
 function getEnemySprite(displayName: string): string {
@@ -567,6 +591,14 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
           @click="resolveEnemyTurn"
         >
           结算敌方回合
+        </button>
+        <button
+          v-if="canExitTraining"
+          type="button"
+          class="battle-overlay__phase-action"
+          @click="exitTraining"
+        >
+          退出训练
         </button>
       </div>
 

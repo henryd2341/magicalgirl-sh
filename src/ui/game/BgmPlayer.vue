@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from "vue";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useBattleStore } from "@/stores/battleStore";
+import { TRAINING_CATALOG } from "@/content/trainingCatalog";
 import { storeToRefs } from "pinia";
 import {
   isPlaying,
@@ -14,6 +16,7 @@ import {
   prepareTrack,
   findSceneTrack,
   findBattleTrack,
+  findTrainingBattleTrack,
   cycleNext,
   cyclePrev,
   setPlaylist,
@@ -22,7 +25,9 @@ import {
 } from "@/composables/useAudio";
 
 const sessionStore = useSessionStore();
+const battleStore = useBattleStore();
 const { snapshot } = storeToRefs(sessionStore);
+const { activeBattle } = storeToRefs(battleStore);
 
 // ── UI state ──
 const playlistOpen = ref(false);
@@ -87,7 +92,15 @@ watch(
       // Entering combat: pause scene, play battle music
       const vars = await sessionStore.getVariableSnapshot();
       const level = vars?.root?.player?.combat?.level ?? 1;
-      const track = findBattleTrack(level);
+      const battle = activeBattle.value;
+      const track = battle?.source === "training/free" ||
+        battle?.source === "training/challenge"
+        ? findTrainingBattleTrack(
+            battle.source,
+            battle.encounterId,
+            TRAINING_CATALOG.challenges,
+          )
+        : findBattleTrack(level);
       switchToBattle(track);
       wasInCombat = true;
     } else if (newState !== "IN_COMBAT" && wasInCombat) {

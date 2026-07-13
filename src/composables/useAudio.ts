@@ -234,6 +234,39 @@ export function findBattleTrack(level: number, combatType?: string): string {
 
 // ─── Playback controls ─────────────────────────────────────────────────────────
 
+export interface TrainingChallengeTrackInput {
+  id: string;
+  order: number;
+  hidden: boolean;
+}
+
+export function findTrainingBattleTrack(
+  source: "training/free" | "training/challenge",
+  encounterId: string,
+  challenges: readonly TrainingChallengeTrackInput[],
+): string {
+  if (source === "training/free") return BATTLE_MUSIC_TABLE.training;
+
+  const prefix = "training/challenge/";
+  const encodedChallengeId = encounterId.startsWith(prefix)
+    ? encounterId.slice(prefix.length).split("/")[0]
+    : "";
+  let challengeId = encodedChallengeId;
+  try {
+    challengeId = decodeURIComponent(encodedChallengeId);
+  } catch {
+    // Keep the raw id when a legacy encounter contains invalid encoding.
+  }
+  const challenge = challenges.find((entry) => entry.id === challengeId);
+  if (challenge?.hidden || (challenge?.order ?? 1) > 5) {
+    return BATTLE_MUSIC_TABLE.tower.hiddenBoss;
+  }
+  const order = challenge?.order ?? 1;
+  if (order <= 2) return BATTLE_MUSIC_TABLE.tower.stage1_2;
+  if (order <= 4) return BATTLE_MUSIC_TABLE.tower.stage3_4;
+  return BATTLE_MUSIC_TABLE.tower.finalBoss;
+}
+
 export async function play(): Promise<void> {
   try {
     await audioElement.play();
