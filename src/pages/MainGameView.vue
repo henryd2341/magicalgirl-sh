@@ -12,6 +12,7 @@ import { useChatStore } from "@/stores/chatStore";
 import type { InPartyCharacter } from "@/stores/formationStore";
 import { useFormationStore } from "@/stores/formationStore";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useTrainingStore } from "@/stores/trainingStore";
 import BattleOverlay from "@/ui/battle/BattleOverlay.vue";
 import InventoryOverlay from "@/ui/game/InventoryOverlay.vue";
 import ShopOverlay from "@/ui/game/ShopOverlay.vue";
@@ -30,9 +31,10 @@ import SceneThumbnail from "@/ui/game/SceneThumbnail.vue";
 import WorldInfo from "@/ui/game/WorldInfo.vue";
 import PostCombatPanel from "@/ui/session/PostCombatPanel.vue";
 import PendingBattleBar from "@/ui/session/PendingBattleBar.vue";
+import TrainingGroundOverlay from "@/ui/training/TrainingGroundOverlay.vue";
 import SystemSettingsPanel from "@/ui/settings/SystemSettingsPanel.vue";
 import { storeToRefs } from "pinia";
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import ApiSettingsView from "./ApiSettingsView.vue";
 import SaveExportView from "./SaveExportView.vue";
 import SettingsView from "./SettingsView.vue";
@@ -40,6 +42,7 @@ import SettingsView from "./SettingsView.vue";
 const chatStore = useChatStore();
 const sessionStore = useSessionStore();
 const battleStore = useBattleStore();
+const trainingStore = useTrainingStore();
 const { alert } = useGameDialog();
 const { snapshot } = storeToRefs(sessionStore);
 const { pendingBattle, activeBattle } = storeToRefs(battleStore);
@@ -90,6 +93,35 @@ const showVariableEditor = ref(false);
 const showProviderMetadataModal = ref(false);
 const showInventoryOverlay = ref(false);
 const showShopOverlay = ref(false);
+let trainingTrigger: HTMLElement | null = null;
+
+const trainingDisabledReason = computed(() => {
+  if (sessionStore.isStoryTurnRunning) return "故事回合生成中";
+  switch (snapshot.value.sessionState) {
+    case "IDLE": return "";
+    case "GENERATING": return "内容生成中";
+    case "COMBAT_PENDING": return "存在待处理战斗";
+    case "IN_COMBAT": return "战斗进行中";
+    case "POST_COMBAT_READY": return "请先完成战后流程";
+    case "ERROR_RECOVERY": return "会话正在恢复";
+  }
+});
+const trainingDisabled = computed(() => trainingDisabledReason.value.length > 0);
+
+async function openTrainingGround(trigger?: HTMLElement) {
+  if (trainingDisabled.value) return;
+  trainingTrigger = trigger ?? document.activeElement as HTMLElement | null;
+  showInventoryOverlay.value = false;
+  showShopOverlay.value = false;
+  await trainingStore.open();
+}
+
+async function closeTrainingGround() {
+  trainingStore.close();
+  await nextTick();
+  trainingTrigger?.focus();
+  trainingTrigger = null;
+}
 
 function openInventoryOverlay() {
   showShopOverlay.value = false;
@@ -264,6 +296,9 @@ onUnmounted(() => {
   <main id="main-game-view" class="mg-game" role="main">
     <!-- ═══ Top Bar ═══ -->
     <GameTopBar
+      :training-disabled="trainingDisabled"
+      :training-disabled-reason="trainingDisabledReason"
+      @open-training-ground="openTrainingGround"
       @open-prompt-settings="showSettings = true"
       @open-api-settings="showApiSettings = true"
       @open-save-manage="showSaveManage = true"
@@ -452,6 +487,12 @@ onUnmounted(() => {
     >
       <i class="fas fa-terminal"></i>
     </button>
+
+    <!-- ═══ Training Ground Overlay ═══ -->
+    <TrainingGroundOverlay
+      v-if="trainingStore.isOpen"
+      @close="closeTrainingGround"
+    />
 
     <!-- ═══ Battle Overlay ═══ -->
     <BattleOverlay v-if="shouldShowBattleOverlay" />

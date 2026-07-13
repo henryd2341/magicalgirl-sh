@@ -2,13 +2,22 @@
 import { useRouter } from "vue-router";
 import { ref, onMounted, onUnmounted } from "vue";
 
-defineEmits<{
+withDefaults(defineProps<{
+  trainingDisabled?: boolean;
+  trainingDisabledReason?: string;
+}>(), {
+  trainingDisabled: false,
+  trainingDisabledReason: "",
+});
+
+const emit = defineEmits<{
   openPromptSettings: [];
   openApiSettings: [];
   openSaveManage: [];
   openSystemSettings: [];
   openInventory: [];
   openShop: [];
+  openTrainingGround: [trigger: HTMLElement];
 }>();
 
 const router = useRouter();
@@ -59,6 +68,10 @@ function toggleMenu() {
 function closeMenu() {
   menuOpen.value = false;
 }
+
+function emitTrainingGround(event: MouseEvent) {
+  emit("openTrainingGround", event.currentTarget as HTMLElement);
+}
 </script>
 
 <template>
@@ -80,7 +93,14 @@ function closeMenu() {
         <span>商店</span>
       </button>
       <span class="mg-topbar__sep" aria-hidden="true">♡</span>
-      <button class="mg-topbar__btn" title="训练场" type="button">
+      <button
+        class="mg-topbar__btn"
+        :title="trainingDisabled ? trainingDisabledReason : '训练场'"
+        type="button"
+        :disabled="trainingDisabled"
+        :aria-disabled="trainingDisabled"
+        @click="emitTrainingGround"
+      >
         <i class="fas fa-dumbbell"></i>
         <span>训练场</span>
       </button>
@@ -131,7 +151,14 @@ function closeMenu() {
       <button class="mg-topbar__dropdown-btn" title="商店" type="button" @click="$emit('openShop'); closeMenu()">
         <i class="fas fa-store"></i> 商店
       </button>
-      <button class="mg-topbar__dropdown-btn" title="训练场" type="button" @click="closeMenu">
+      <button
+        class="mg-topbar__dropdown-btn"
+        :title="trainingDisabled ? trainingDisabledReason : '训练场'"
+        type="button"
+        :disabled="trainingDisabled"
+        :aria-disabled="trainingDisabled"
+        @click="emitTrainingGround($event); closeMenu()"
+      >
         <i class="fas fa-dumbbell"></i> 训练场
       </button>
       <hr class="mg-topbar__dropdown-divider" />
@@ -202,11 +229,13 @@ function closeMenu() {
   transition: all var(--mg-transition-fast, 150ms ease);
   white-space: nowrap;
 
-  &:hover {
+  &:hover:not(:disabled) {
     border-color: var(--mg-accent, #ff6b9d);
     color: var(--mg-accent, #ff6b9d);
     box-shadow: var(--mg-glow-pink);
   }
+
+  &:disabled { cursor: not-allowed; opacity: 0.45; }
 
   i { font-size: 0.85rem; }
 }
@@ -280,10 +309,12 @@ function closeMenu() {
   cursor: pointer;
   text-align: left;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--mg-surface-pink, rgba(255, 107, 157, 0.15));
     color: var(--mg-accent);
   }
+
+  &:disabled { cursor: not-allowed; opacity: 0.45; }
 
   i {
     width: 20px;
