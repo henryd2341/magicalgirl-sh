@@ -944,6 +944,15 @@ export const useSessionStore = defineStore("session", () => {
       : service.beginChallenge(input.challengeId);
   }
 
+  async function submitTrainingPuzzleAnswer(answer: string) {
+    const result =
+      await createTrainingSessionService().submitPuzzleAnswer(answer);
+    if (result.discovered && !result.alreadyDiscovered) {
+      variableVersion.value += 1;
+    }
+    return result;
+  }
+
   async function startBattle(playerParty: BattleParticipant[]) {
     const battleStore = useBattleStore();
     const isTrainingBattle =
@@ -1714,6 +1723,7 @@ export const useSessionStore = defineStore("session", () => {
     executeTriggerBattle,
     enterCombatPending,
     startTrainingBattle,
+    submitTrainingPuzzleAnswer,
     startBattle,
     cancelPendingBattle,
     completeTrainingBattle,
