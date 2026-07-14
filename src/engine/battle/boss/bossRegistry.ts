@@ -6,12 +6,26 @@ import type {
   BossUtilityCandidate,
 } from "@/engine/battle/boss/bossTypes";
 
+export const BOSS_INTENT_PRIORITIES = [
+  "hard_defeat",
+  "revival",
+  "phase_transition",
+  "dps",
+  "emergency",
+] as const;
+
+export type BossIntentPriority = (typeof BOSS_INTENT_PRIORITIES)[number];
+
 export interface BossProfile {
   id: string;
   actorEnemyIds: string[];
   initialPhase: string;
   skillIds: string[];
   reduceEvent(context: BossContext, event: BossBattleEvent): BossEffect[];
+  selectPriorityIntent?(
+    context: BossContext,
+    priority: BossIntentPriority,
+  ): BossActionIntent | null;
   selectForcedIntent(context: BossContext): BossActionIntent | null;
   enumerateUtilityCandidates(context: BossContext): BossUtilityCandidate[];
 }
@@ -40,3 +54,4 @@ export function hasBossProfile(id: string): boolean {
 export function clearBossProfilesForTests(): void {
   profiles.clear();
 }
+
