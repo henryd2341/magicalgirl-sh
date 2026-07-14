@@ -22,6 +22,22 @@ export const COMBATANT_SIDES = ["player", "enemy"] as const;
 
 export type CombatantSide = (typeof COMBATANT_SIDES)[number];
 
+export const BATTLE_LOG_KINDS = [
+  "action",
+  "damage",
+  "status",
+  "press_turn",
+  "mechanic",
+  "result",
+  "system",
+] as const;
+
+export type BattleLogKind = (typeof BATTLE_LOG_KINDS)[number];
+
+export const BATTLE_LOG_VISIBILITIES = ["both", "detail"] as const;
+
+export type BattleLogVisibility = (typeof BATTLE_LOG_VISIBILITIES)[number];
+
 export const BATTLE_RESULT_OUTCOMES = ["victory", "defeat", "escape"] as const;
 
 export type BattleResultOutcome = (typeof BATTLE_RESULT_OUTCOMES)[number];
@@ -216,13 +232,21 @@ export interface BattleSummarySet {
 
 export interface BattleLogEntry {
   id: string;
+  sequence: number;
   turnCount: number;
   side: CombatantSide | "system";
+  kind: BattleLogKind;
+  visibility: BattleLogVisibility;
   actorId?: string;
   actionId?: string;
-  targetId?: string;
+  targetIds?: string[];
   summary: string;
+  details?: string[];
 }
+
+export type BattleLogDraft = Omit<BattleLogEntry, "id" | "sequence"> & {
+  id?: string;
+};
 
 export interface PressTurnIcon {
   id: string;
@@ -361,3 +385,4 @@ export interface CreateBattleSnapshotFromPendingBattleInput {
   pendingBattle: PendingBattleSnapshot;
   playerParty: BattleParticipant[];
 }
+

@@ -9,6 +9,8 @@ import {
   expandTriggerBattleEnemies,
 } from "@/engine/battle/battleSetup";
 import {
+  BATTLE_LOG_KINDS,
+  BATTLE_LOG_VISIBILITIES,
   BATTLE_LIFECYCLE_STATES,
   BATTLE_PHASES,
   BATTLE_RESULT_END_REASONS,
@@ -23,6 +25,19 @@ import {
 import { describe, expect, it } from "vitest";
 
 describe("battle types", () => {
+  it("defines structured battle log categories and visibility levels", () => {
+    expect(BATTLE_LOG_KINDS).toEqual([
+      "action",
+      "damage",
+      "status",
+      "press_turn",
+      "mechanic",
+      "result",
+      "system",
+    ]);
+    expect(BATTLE_LOG_VISIBILITIES).toEqual(["both", "detail"]);
+  });
+
   it("defines the MVP battle lifecycle, phase, side unions, and battle result enums for the domain layer", () => {
     expect(BATTLE_LIFECYCLE_STATES).toEqual(["PENDING", "ACTIVE", "RESOLVED"]);
     expect(BATTLE_PHASES).toEqual([
@@ -378,3 +393,4 @@ describe("battle types", () => {
     });
   });
 });
+
