@@ -14,7 +14,10 @@ export const TRAINING_CATALOG: TrainingCatalog = {
       hidden: false,
       prerequisiteId: null,
       enemies: [{ enemy_id: "100", count: 1 }],
-      firstClearReward: { money: 0, items: {} },
+      firstClearReward: {
+        money: 2500,
+        items: { "2": 2, "7": 2, "28": 2, "29": 2 },
+      },
     },
     {
       id: "challenge-2",
@@ -28,7 +31,10 @@ export const TRAINING_CATALOG: TrainingCatalog = {
         { enemy_id: "102", count: 1 },
         { enemy_id: "103", count: 1 },
       ],
-      firstClearReward: { money: 0, items: {} },
+      firstClearReward: {
+        money: 6000,
+        items: { "3": 2, "8": 2, "11": 2, "27": 3 },
+      },
     },
     {
       id: "challenge-3",
@@ -38,7 +44,10 @@ export const TRAINING_CATALOG: TrainingCatalog = {
       hidden: false,
       prerequisiteId: "challenge-2",
       enemies: [{ enemy_id: "104", count: 1 }],
-      firstClearReward: { money: 0, items: {} },
+      firstClearReward: {
+        money: 12000,
+        items: { "17": 3, "26": 2, "52": 1, "53": 1 },
+      },
     },
     {
       id: "challenge-4",
@@ -48,7 +57,10 @@ export const TRAINING_CATALOG: TrainingCatalog = {
       hidden: false,
       prerequisiteId: "challenge-3",
       enemies: [{ enemy_id: "105", count: 1 }],
-      firstClearReward: { money: 0, items: {} },
+      firstClearReward: {
+        money: 25000,
+        items: { "4": 2, "9": 2, "22": 2, "54": 1 },
+      },
     },
     {
       id: "challenge-5",
@@ -58,7 +70,10 @@ export const TRAINING_CATALOG: TrainingCatalog = {
       hidden: false,
       prerequisiteId: "challenge-4",
       enemies: [{ enemy_id: "106", count: 1 }],
-      firstClearReward: { money: 0, items: {} },
+      firstClearReward: {
+        money: 50000,
+        items: { "5": 2, "10": 2, "13": 2, "55": 1 },
+      },
     },
     {
       id: "challenge-hidden",
@@ -71,7 +86,10 @@ export const TRAINING_CATALOG: TrainingCatalog = {
         { enemy_id: "107", count: 1 },
         { enemy_id: "108", count: 1 },
       ],
-      firstClearReward: { money: 0, items: {} },
+      firstClearReward: {
+        money: 100000,
+        items: { "5": 3, "10": 3, "13": 3, "65": 1 },
+      },
     },
   ],
 };

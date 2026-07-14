@@ -73,6 +73,17 @@ function copyRoot(root: GameVariablesRoot): GameVariablesRoot {
   return structuredClone(root);
 }
 
+let rewardCommitQueue: Promise<void> = Promise.resolve();
+
+function serializeRewardCommit<T>(operation: () => Promise<T>): Promise<T> {
+  const result = rewardCommitQueue.then(operation);
+  rewardCommitQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
 function collapseEnemies(enemyIds: string[]): Array<{
   enemy_id: string;
   count: number;
@@ -145,6 +156,14 @@ export class TrainingSessionService {
       return { rewarded: false, reason: "free_training" };
     }
 
+    return serializeRewardCommit(() =>
+      this.completeChallengeBattle(snapshot),
+    );
+  }
+
+  private async completeChallengeBattle(
+    snapshot: BattleSnapshot,
+  ): Promise<CompleteTrainingBattleResult> {
     const challenge = this.challengeForEncounter(snapshot.encounterId);
     if (snapshot.battleResult?.outcome !== "victory") {
       return {

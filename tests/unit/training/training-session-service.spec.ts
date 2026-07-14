@@ -3,6 +3,7 @@ import {
   createDefaultTrainingProgress,
   getTrainingProgress,
 } from '@/engine/variablePolicy';
+import { TRAINING_CATALOG } from '@/content/trainingCatalog';
 import { TrainingSessionService } from '@/engine/training/trainingSessionService';
 import type { BattleSnapshot, CreatePendingBattleSnapshotInput } from '@/types/battle';
 import type { VariableValueRecord } from '@/types/variables';
@@ -109,6 +110,21 @@ function harness(initial = makeRecord()) {
 }
 
 describe('TrainingSessionService', () => {
+  it('publishes the exact first-clear rewards for all challenge stages', () => {
+    expect(
+      Object.fromEntries(
+        TRAINING_CATALOG.challenges.map(challenge => [challenge.id, challenge.firstClearReward]),
+      ),
+    ).toEqual({
+      'challenge-1': { money: 2500, items: { '2': 2, '7': 2, '28': 2, '29': 2 } },
+      'challenge-2': { money: 6000, items: { '3': 2, '8': 2, '11': 2, '27': 3 } },
+      'challenge-3': { money: 12000, items: { '17': 3, '26': 2, '52': 1, '53': 1 } },
+      'challenge-4': { money: 25000, items: { '4': 2, '9': 2, '22': 2, '54': 1 } },
+      'challenge-5': { money: 50000, items: { '5': 2, '10': 2, '13': 2, '55': 1 } },
+      'challenge-hidden': { money: 100000, items: { '5': 3, '10': 3, '13': 3, '65': 1 } },
+    });
+  });
+
   it('rejects reserved free enemies and stages collapsed valid selections', async () => {
     const { service, staged, save } = harness();
     await expect(service.beginFreeTraining(['1'])).rejects.toThrow('reserved');
@@ -213,6 +229,36 @@ describe('TrainingSessionService', () => {
       service.completeTrainingBattle(resolved('training/challenge', begun.encounterId)),
     ).resolves.toMatchObject({ rewarded: true });
     expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  it('serializes concurrent completion so a first-clear reward is committed once', async () => {
+    let current = makeRecord();
+    const save = vi.fn(async (next: VariableValueRecord) => {
+      await new Promise(resolve => setTimeout(resolve, 5));
+      current = next;
+    });
+    const service = new TrainingSessionService({
+      catalog: enabledTrainingCatalogFixture,
+      puzzle: enabledTrainingPuzzleFixture,
+      getCurrent: async () => current,
+      saveCurrent: save,
+      stageEncounter: async () => {},
+      createNextRecord: (root, previous) => ({ ...previous, version: previous.version + 1, stateHash: 'next', root }),
+    });
+    const snapshot = resolved('training/challenge', 'training/challenge/trial-1/1');
+
+    const results = await Promise.all([
+      service.completeTrainingBattle(snapshot),
+      service.completeTrainingBattle(snapshot),
+    ]);
+
+    expect(results).toEqual([
+      { rewarded: true, challengeId: 'trial-1', reward: { money: 100, items: { '1': 1 } } },
+      { rewarded: false, challengeId: 'trial-1', reason: 'already_claimed' },
+    ]);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(current.root.player.money).toBe(100);
+    expect(current.root.inventory.items['1']).toBe(1);
   });
 
   it('handles puzzle mismatch, discovery, and repeat idempotently', async () => {
