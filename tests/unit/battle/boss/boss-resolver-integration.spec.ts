@@ -4,9 +4,11 @@ import {
 } from "@/engine/battle/boss/bossRegistry";
 import {
   createBattleSnapshotFromPendingBattle,
+  createEnemyBattleParticipant,
   createPendingBattleSnapshot,
 } from "@/engine/battle/battleSetup";
 import { resolveEnemyTurn } from "@/engine/battle/battleResolver";
+import { registerChallengeBossProfiles } from "@/engine/battle/boss/profiles/registerChallengeBossProfiles";
 import type { BattleParticipant } from "@/types/battle";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -108,5 +110,28 @@ describe("Boss resolver integration", () => {
     });
     expect(resolved.battleLog?.some((entry) => entry.kind === "action")).toBe(true);
   });
+  it("attributes Boss damage-over-time HP loss to the player's DPS windows", () => {
+    registerChallengeBossProfiles();
+    const pending = createPendingBattleSnapshot({
+      encounterId: "hidden-dot",
+      narrativeReason: "dot attribution",
+      source: "training/challenge",
+      enemies: [{ enemy_id: "107", count: 1 }, { enemy_id: "108", count: 1 }],
+    });
+    let active = createBattleSnapshotFromPendingBattle({ pendingBattle: pending, playerParty: [player] });
+    active.participants = [player, ...pending.enemies.map(createEnemyBattleParticipant)];
+    const sun = active.participants.find(participant => participant.enemyId === "107")!;
+    sun.statusEffects = [{ effectId: "poison", remainingDuration: 2, stacks: 1 }];
+    active = {
+      ...active,
+      phase: "ENEMY_TURN",
+      pressTurn: { ownerSide: "enemy", icons: [{ id: "e1", state: "solid" }] },
+    };
+
+    const resolved = resolveEnemyTurn(active);
+    const pair = resolved.bossRuntime?.mechanicState["hidden:pair"] as { bigWindowDamage: number };
+    expect(pair.bigWindowDamage).toBeGreaterThan(0);
+  });
+
 });
 

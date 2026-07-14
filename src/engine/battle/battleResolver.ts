@@ -80,6 +80,17 @@ import type {
 const GUARD_EFFECT_ID = "guard";
 const GUARD_EFFECT_DURATION = 1;
 
+function statusChanceForTarget(
+  target: BattleParticipant,
+  effectId: string,
+  baseChance: number,
+): number {
+  const priorSuccesses = target.bossAilmentSuccesses?.[effectId];
+  return priorSuccesses == null
+    ? baseChance
+    : Math.max(5, baseChance - 25 * priorSuccesses);
+}
+
 // ── Participant cloning ──
 
 function cloneParticipant(participant: BattleParticipant): BattleParticipant {
@@ -1003,6 +1014,31 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
     };
   });
 
+  let postTickBossState: BattleSnapshot = { ...bossState, participants };
+  const playerDotSourceId = participants.find(
+    (participant) => participant.side === "player" && participant.isActive,
+  )?.id;
+  if (playerDotSourceId != null) {
+    for (const participant of participants) {
+      if (participant.side !== "enemy") continue;
+      const before = bossState.participants.find(
+        (candidate) => candidate.id === participant.id,
+      );
+      const actualDamage = before == null
+        ? 0
+        : Math.max(0, before.hp.current - participant.hp.current);
+      if (actualDamage === 0) continue;
+      postTickBossState = applyBossBattleEvent(postTickBossState, {
+        type: "damage_applied",
+        sourceId: playerDotSourceId,
+        targetId: participant.id,
+        amount: actualDamage,
+        element: BATTLE_ELEMENTS.Ailment,
+        actionCategory: "support",
+      });
+    }
+  }
+
   const allPlayersDefeated = participants
     .filter((p) => p.side === "player")
     .every((p) => p.isDown);
@@ -1010,7 +1046,7 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
   if (allPlayersDefeated) {
     const battleResult = createDefeatBattleResult(participants, turnCount);
     return {
-      ...bossState,
+      ...postTickBossState,
       participants,
       lifecycleState: "RESOLVED",
       phase: "RESULT",
@@ -1031,7 +1067,7 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
   );
 
   const roundEndedBossState = applyBossBattleEvent(
-    { ...bossState, participants },
+    { ...postTickBossState, participants },
     { type: "round_ended", turnCount },
   );
 
@@ -1516,28 +1552,23 @@ export function resolveSelectedBattleActionToResolution(
         };
       }
 
-      // Build status effects to apply
-      const appliedEffects: AppliedStatusEffectPayload[] = [];
       const effectMap = getStatusEffectMap();
 
-      if (skillContent.statusEffects != null) {
-        for (const se of skillContent.statusEffects) {
-          // Apply status_boost passives to base chance
+      // Roll target-specific resistance independently for each target.
+      for (const supportTarget of supportTargets) {
+        const appliedEffects: AppliedStatusEffectPayload[] = [];
+        for (const se of skillContent.statusEffects ?? []) {
           const actorPassives = collectPassives(actor?.passiveEffects);
           const chanceCtx = applyPassivesAtHook(actorPassives, "on_status_chance", {
             chance: se.chance,
           }) as { chance: number };
-          if (Math.random() * 100 < chanceCtx.chance) {
+          if (Math.random() * 100 < statusChanceForTarget(supportTarget, se.effectId, chanceCtx.chance)) {
             const effectContent = effectMap.get(se.effectId);
             const duration = effectContent?.duration ?? 3;
             appliedEffects.push({ effectId: se.effectId, duration });
           }
         }
-      }
-
-      // Apply effects to each target
-      if (appliedEffects.length > 0) {
-        for (const supportTarget of supportTargets) {
+        if (appliedEffects.length > 0) {
           outcomes.push({
             type: "hit" as const,
             tags: [],
@@ -1592,24 +1623,22 @@ export function resolveSelectedBattleActionToResolution(
     const offensiveTargets = resolveTargets(snapshot, actor, skillContent.targetType);
     const outcomes: BattleActionOutcome[] = [];
 
-    // Build status effects to apply (if any)
-    const appliedEffects: AppliedStatusEffectPayload[] = [];
-    if (skillContent.statusEffects != null) {
-      const effectMap = getStatusEffectMap();
-      for (const se of skillContent.statusEffects) {
-        const actorPassives = collectPassives(actor.passiveEffects);
-        const chanceCtx = applyPassivesAtHook(actorPassives, "on_status_chance", {
-          chance: se.chance,
-        }) as { chance: number };
-        if (Math.random() * 100 < chanceCtx.chance) {
-          const effectContent = effectMap.get(se.effectId);
-          const duration = effectContent?.duration ?? 3;
-          appliedEffects.push({ effectId: se.effectId, duration });
+    for (const offenseTarget of offensiveTargets) {
+      const appliedEffects: AppliedStatusEffectPayload[] = [];
+      if (skillContent.statusEffects != null) {
+        const effectMap = getStatusEffectMap();
+        for (const se of skillContent.statusEffects) {
+          const actorPassives = collectPassives(actor.passiveEffects);
+          const chanceCtx = applyPassivesAtHook(actorPassives, "on_status_chance", {
+            chance: se.chance,
+          }) as { chance: number };
+          if (Math.random() * 100 < statusChanceForTarget(offenseTarget, se.effectId, chanceCtx.chance)) {
+            const effectContent = effectMap.get(se.effectId);
+            const duration = effectContent?.duration ?? 3;
+            appliedEffects.push({ effectId: se.effectId, duration });
+          }
         }
       }
-    }
-
-    for (const offenseTarget of offensiveTargets) {
       const targetOutcomes = buildAttackOutcomes({
         actorId,
         actor,
@@ -1838,7 +1867,7 @@ export function resolveSelectedBattleActionToResolution(
       const effectMap = getStatusEffectMap();
 
       for (const se of itemContent.statusEffects) {
-        if (Math.random() * 100 < Math.max(5, se.chance - 25 * (target.bossAilmentSuccesses?.[se.effectId] ?? 0))) {
+        if (Math.random() * 100 < statusChanceForTarget(target, se.effectId, se.chance)) {
           const effectContent = effectMap.get(se.effectId);
           const duration = effectContent?.duration ?? 3;
           appliedEffects.push({ effectId: se.effectId, duration });
@@ -1954,7 +1983,7 @@ export function resolveSelectedBattleActionToResolution(
         const chanceCtx = applyPassivesAtHook(actorPassives, "on_status_chance", {
           chance: se.chance,
         }) as { chance: number };
-        if (Math.random() * 100 < chanceCtx.chance) {
+        if (Math.random() * 100 < statusChanceForTarget(target, se.effectId, chanceCtx.chance)) {
           const effectContent = effectMap.get(se.effectId);
           const duration = effectContent?.duration ?? 3;
           appliedEffects.push({ effectId: se.effectId, duration });
