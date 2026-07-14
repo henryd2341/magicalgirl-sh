@@ -1,4 +1,5 @@
 import { getAllEnemies } from "@/content/contentRegistry";
+import { TRAINING_CATALOG } from "@/content/trainingCatalog";
 import type { PendingBattleSnapshot } from "@/types/battle";
 import {
   BATTLE_SOURCES,
@@ -55,6 +56,18 @@ describe("training domain contracts", () => {
       expect(pending.source).toBe(source);
     },
   );
+
+  it("enables the ordered five-stage challenge and hidden encounter catalog", () => {
+    expect(TRAINING_CATALOG.enabled).toBe(true);
+    expect(TRAINING_CATALOG.challenges).toEqual([
+      expect.objectContaining({ id: "challenge-1", order: 1, hidden: false, prerequisiteId: null, enemies: [{ enemy_id: "100", count: 1 }] }),
+      expect.objectContaining({ id: "challenge-2", order: 2, hidden: false, prerequisiteId: "challenge-1", enemies: [{ enemy_id: "101", count: 1 }, { enemy_id: "102", count: 1 }, { enemy_id: "103", count: 1 }] }),
+      expect.objectContaining({ id: "challenge-3", order: 3, hidden: false, prerequisiteId: "challenge-2", enemies: [{ enemy_id: "104", count: 1 }] }),
+      expect.objectContaining({ id: "challenge-4", order: 4, hidden: false, prerequisiteId: "challenge-3", enemies: [{ enemy_id: "105", count: 1 }] }),
+      expect.objectContaining({ id: "challenge-5", order: 5, hidden: false, prerequisiteId: "challenge-4", enemies: [{ enemy_id: "106", count: 1 }] }),
+      expect.objectContaining({ id: "challenge-hidden", order: 6, hidden: true, prerequisiteId: null, enemies: [{ enemy_id: "107", count: 1 }, { enemy_id: "108", count: 1 }] }),
+    ]);
+  });
 
   it("expresses five normal challenge stages plus one hidden stage", () => {
     expect(CHALLENGE_FIXTURE.filter((entry) => !entry.hidden)).toHaveLength(5);

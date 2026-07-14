@@ -5,6 +5,7 @@ import { router } from "./router";
 import { pinia } from "./stores";
 import { skillRegistry } from "./orchestrator/skillRegistry";
 import { useSkillStore } from "./stores/skillStore";
+import { registerChallengeBossProfiles } from "./engine/battle/boss/profiles/registerChallengeBossProfiles";
 import "./styles/index.scss";
 import "./styles/tailwind.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
@@ -19,6 +20,7 @@ const builtinSkillModules = import.meta.glob<string>(
 );
 
 async function bootstrapApp() {
+  registerChallengeBossProfiles();
   skillRegistry.loadBuiltinSkills(builtinSkillModules);
 
   try {
