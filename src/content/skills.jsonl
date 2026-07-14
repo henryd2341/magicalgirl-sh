@@ -219,3 +219,13 @@
 {"id":"281","name":"逆植王冠","description":"清除减益并转为对应强化。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
 {"id":"282","name":"病花盛放","description":"阶段转换时扩大异常压力。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
 {"id":"283","name":"早熟花期","description":"缩短播种到收割的间隔。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
+{"id":"284","name":"回声刻录","description":"回声猎手专属反制技能。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
+{"id":"285","name":"同调追刃","description":"回声猎手专属反制技能。","category":"magic","element":"Almighty","power":360,"mpCost":0,"targetType":"single_enemy","accuracy":95,"statDriver":"intelligence"}
+{"id":"286","name":"破式猎杀","description":"回声猎手专属反制技能。","category":"physical","element":"Physical","power":360,"mpCost":0,"targetType":"single_enemy","accuracy":95,"statDriver":"attack"}
+{"id":"287","name":"断脉矢","description":"回声猎手专属反制技能。","category":"physical","element":"Gun","power":150,"mpCost":0,"targetType":"single_enemy","accuracy":95,"statDriver":"attack"}
+{"id":"288","name":"净空爪","description":"回声猎手专属反制技能。","category":"magic","element":"Almighty","power":150,"mpCost":0,"targetType":"single_enemy","accuracy":95,"statDriver":"intelligence"}
+{"id":"289","name":"逆咒回声","description":"回声猎手专属反制技能。","category":"magic","element":"Dark","power":150,"mpCost":0,"targetType":"single_enemy","accuracy":95,"statDriver":"intelligence"}
+{"id":"290","name":"守势粉碎","description":"回声猎手专属反制技能。","category":"physical","element":"Physical","power":150,"mpCost":0,"targetType":"all_enemies","accuracy":95,"statDriver":"attack"}
+{"id":"291","name":"锁定猎物","description":"回声猎手专属反制技能。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"single_enemy","accuracy":100,"statDriver":"intelligence"}
+{"id":"292","name":"穿心回响","description":"回声猎手专属反制技能。","category":"physical","element":"Gun","power":360,"mpCost":0,"targetType":"single_enemy","accuracy":90,"statDriver":"attack"}
+{"id":"293","name":"万声归猎","description":"回声猎手专属反制技能。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}

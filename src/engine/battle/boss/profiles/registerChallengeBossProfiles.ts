@@ -1,3 +1,4 @@
+import { echoHunterProfile } from "@/engine/battle/boss/profiles/echoHunterProfile";
 import { corruptedCrownSaintProfile } from "@/engine/battle/boss/profiles/corruptedCrownSaintProfile";
 import { eternalFrostBeastProfile } from "@/engine/battle/boss/profiles/eternalFrostBeastProfile";
 import { moltenCoreSerpentProfile } from "@/engine/battle/boss/profiles/moltenCoreSerpentProfile";
@@ -11,7 +12,7 @@ const PROFILE_DEFINITIONS = [
   moltenCoreSerpentProfile,
   eternalFrostBeastProfile,
   corruptedCrownSaintProfile,
-  { id: "echo-hunter", actorEnemyIds: ["105"], initialPhase: "recording" },
+  echoHunterProfile,
   { id: "chaos-doll", actorEnemyIds: ["106"], initialPhase: "integrity" },
   { id: "hidden-magical-girls", actorEnemyIds: ["107", "108"], initialPhase: "trial" },
 ] as const;
