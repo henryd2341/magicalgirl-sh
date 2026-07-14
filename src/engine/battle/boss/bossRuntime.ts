@@ -160,6 +160,37 @@ export function applyBossEffects(
           }),
         };
         break;
+      case "revive_actor":
+        next = {
+          ...next,
+          participants: next.participants.map((participant) =>
+            participant.id === effect.actorId
+              ? {
+                  ...participant,
+                  hp: { ...participant.hp, current: Math.max(1, Math.floor(participant.hp.max * effect.hpPercent / 100)) },
+                  isDown: false,
+                  canAct: true,
+                }
+              : participant,
+          ),
+        };
+        break;
+      case "increment_ailment_resistance":
+        next = {
+          ...next,
+          participants: next.participants.map((participant) =>
+            participant.id === effect.actorId
+              ? {
+                  ...participant,
+                  bossAilmentSuccesses: {
+                    ...(participant.bossAilmentSuccesses ?? {}),
+                    [effect.effectId]: (participant.bossAilmentSuccesses?.[effect.effectId] ?? 0) + 1,
+                  },
+                }
+              : participant,
+          ),
+        };
+        break;
       case "append_mechanic_log":
         next = {
           ...next,

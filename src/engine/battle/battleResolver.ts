@@ -682,6 +682,7 @@ export function resolveSelectedBattleAction(
     metadata.element,
     resolution.outcomes,
     participants,
+    normalizedSnapshot.participants,
   );
 }
 
@@ -709,6 +710,7 @@ function emitBossActionEvents(
   element: number,
   outcomes: BattleActionOutcome[],
   participants: BattleParticipant[],
+  previousParticipants?: readonly BattleParticipant[],
 ): BattleSnapshot {
   const metadata = resolveBossEventActionMetadata(actionId);
   const targetIds = [
@@ -730,11 +732,16 @@ function emitBossActionEvents(
     if (targetId == null) continue;
 
     if ((outcome.hpDelta ?? 0) < 0) {
+      const previousHp = previousParticipants?.find((participant) => participant.id === targetId)?.hp.current;
+      const currentHp = participants.find((participant) => participant.id === targetId)?.hp.current;
+      const actualDamage = previousHp != null && currentHp != null
+        ? Math.max(0, previousHp - currentHp)
+        : Math.abs(outcome.hpDelta ?? 0);
       next = applyBossBattleEvent(next, {
         type: "damage_applied",
         sourceId: actorId,
         targetId,
-        amount: Math.abs(outcome.hpDelta ?? 0),
+        amount: actualDamage,
         element,
         actionCategory: metadata.actionCategory,
       });
@@ -1818,7 +1825,7 @@ export function resolveSelectedBattleActionToResolution(
       const effectMap = getStatusEffectMap();
 
       for (const se of itemContent.statusEffects) {
-        if (Math.random() * 100 < se.chance) {
+        if (Math.random() * 100 < Math.max(5, se.chance - 25 * (target.bossAilmentSuccesses?.[se.effectId] ?? 0))) {
           const effectContent = effectMap.get(se.effectId);
           const duration = effectContent?.duration ?? 3;
           appliedEffects.push({ effectId: se.effectId, duration });

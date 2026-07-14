@@ -70,6 +70,8 @@ export type BossEffect =
   | { type: "summon_enemy"; enemyId: string; profileId: string; phase: string }
   | { type: "protect_target"; protectorId: string; targetId: string; duration: number }
   | { type: "adjust_hp"; actorId: string; amount: number }
+  | { type: "revive_actor"; actorId: string; hpPercent: number }
+  | { type: "increment_ailment_resistance"; actorId: string; effectId: string }
   | {
       type: "append_mechanic_log";
       summary: string;

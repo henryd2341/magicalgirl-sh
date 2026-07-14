@@ -215,6 +215,7 @@ export interface BattleParticipant {
   endureUsed?: boolean;
   skillIds?: string[];
   availableSkillIds?: Set<string>;
+  bossAilmentSuccesses?: Record<string, number>;
 }
 
 export interface BattleResult {
