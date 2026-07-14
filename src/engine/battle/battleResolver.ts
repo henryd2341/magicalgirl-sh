@@ -38,6 +38,7 @@ import {
   consumeShieldEffect,
   isDisabledByAilment,
   isParalyzed,
+  isStatusEffectImmune,
   tickStatusEffects,
 } from "@/engine/battle/statusEffectEngine";
 import {
@@ -47,6 +48,7 @@ import {
   elementBitToName,
 } from "@/engine/battle/passiveEffectEngine";
 import {
+  getEnemy,
   getFormulaParams,
   getItem,
   getSkill,
@@ -80,11 +82,36 @@ import type {
 const GUARD_EFFECT_ID = "guard";
 const GUARD_EFFECT_DURATION = 1;
 
+function resolveStatusImmunities(
+  participant: BattleParticipant,
+): string[] | undefined {
+  if (participant.statusImmunities != null) {
+    return participant.statusImmunities;
+  }
+  if (participant.enemyId == null) return undefined;
+  try {
+    return getEnemy(participant.enemyId).statusImmunities;
+  } catch {
+    return undefined;
+  }
+}
+
+function participantIsStatusImmune(
+  participant: BattleParticipant,
+  effectId: string,
+): boolean {
+  return isStatusEffectImmune(
+    { statusImmunities: resolveStatusImmunities(participant) },
+    effectId,
+  );
+}
+
 function statusChanceForTarget(
   target: BattleParticipant,
   effectId: string,
   baseChance: number,
 ): number {
+  if (participantIsStatusImmune(target, effectId)) return 0;
   const priorSuccesses = target.bossAilmentSuccesses?.[effectId];
   return priorSuccesses == null
     ? baseChance
@@ -94,11 +121,13 @@ function statusChanceForTarget(
 // ── Participant cloning ──
 
 function cloneParticipant(participant: BattleParticipant): BattleParticipant {
+  const statusImmunities = resolveStatusImmunities(participant);
   const cloned: BattleParticipant = {
     ...participant,
     hp: { ...participant.hp },
     mp: { ...participant.mp },
     statusEffects: (participant.statusEffects ?? []).map((e) => ({ ...e })),
+    ...(statusImmunities == null ? {} : { statusImmunities: [...statusImmunities] }),
     passiveEffects: participant.passiveEffects,
     endureUsed: participant.endureUsed,
   };
@@ -137,6 +166,7 @@ function applyOutcomeToParticipant(
   if (outcome.appliedStatusEffects != null && outcome.appliedStatusEffects.length > 0) {
     const effectMap = getStatusEffectMap();
     for (const payload of outcome.appliedStatusEffects) {
+      if (participantIsStatusImmune(participant, payload.effectId)) continue;
       const content = effectMap.get(payload.effectId);
       if (content != null) {
         const result = applyStatusEffect(statusEffects, payload.effectId, payload.duration, content);
@@ -771,6 +801,8 @@ function emitBossActionEvents(
       });
     }
     for (const status of outcome.appliedStatusEffects ?? []) {
+      const target = participants.find((participant) => participant.id === targetId);
+      if (target != null && participantIsStatusImmune(target, status.effectId)) continue;
       next = applyBossBattleEvent(next, {
         type: "status_applied",
         sourceId: actorId,
@@ -983,7 +1015,10 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
   const effectMap = getStatusEffectMap();
   participants = participants.map((p) => {
     if (p.isDown) return p;
-    const tickResult = tickStatusEffects(p.statusEffects ?? [], p.hp, effectMap);
+    const tickableEffects = (p.statusEffects ?? []).filter(
+      (effect) => !participantIsStatusImmune(p, effect.effectId),
+    );
+    const tickResult = tickStatusEffects(tickableEffects, p.hp, effectMap);
     let nextHp = Math.max(0, Math.min(p.hp.max, p.hp.current + tickResult.hpDelta));
     let nextMp = p.mp.current;
     const updatedEffects = tickResult.updatedEffects;

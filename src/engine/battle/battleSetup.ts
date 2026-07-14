@@ -44,6 +44,7 @@ export function createEnemyBattleParticipant(
   let affinities = { weak: 0, resist: 0, nullify: 0, reflect: 0, absorb: 0 };
 
   let skillIds: string[] | undefined;
+  let statusImmunities: string[] | undefined;
 
   try {
     const enemyDef = getEnemy(enemy.enemyId);
@@ -57,6 +58,9 @@ export function createEnemyBattleParticipant(
     displayName = enemyDef.name;
     affinities = enemyDef.affinities;
     skillIds = enemyDef.skills.length > 0 ? [...enemyDef.skills] : undefined;
+    statusImmunities = enemyDef.statusImmunities == null
+      ? undefined
+      : [...enemyDef.statusImmunities];
   } catch {
     // Enemy not in content registry, use defaults
   }
@@ -91,6 +95,7 @@ export function createEnemyBattleParticipant(
     isDown: false,
     isActive: true,
     statusEffects: [],
+    ...(statusImmunities == null ? {} : { statusImmunities }),
     affinities,
     combatStats: derived,
     skillIds,

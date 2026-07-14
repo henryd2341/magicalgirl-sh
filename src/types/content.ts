@@ -90,6 +90,8 @@ export interface EnemyContent {
   behaviorType?: "conservative" | "aggressive" | "chaotic";
   /** Optional code-owned decision profile for challenge Boss encounters. */
   bossProfileId?: string;
+  /** Status effects that are discarded before application and ticking. */
+  statusImmunities?: string[];
 }
 
 // ── Growth Content (one line in growth.jsonl) ──

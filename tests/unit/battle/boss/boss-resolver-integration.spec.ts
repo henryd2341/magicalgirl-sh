@@ -8,6 +8,7 @@ import {
   createPendingBattleSnapshot,
 } from "@/engine/battle/battleSetup";
 import { resolveEnemyTurn } from "@/engine/battle/battleResolver";
+import { applyBossBattleEvent } from "@/engine/battle/boss/bossRuntime";
 import { registerChallengeBossProfiles } from "@/engine/battle/boss/profiles/registerChallengeBossProfiles";
 import type { BattleParticipant } from "@/types/battle";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -110,6 +111,34 @@ describe("Boss resolver integration", () => {
     });
     expect(resolved.battleLog?.some((entry) => entry.kind === "action")).toBe(true);
   });
+  it("executes the shield commandment at the next enemy action", () => {
+    registerChallengeBossProfiles();
+    const pending = createPendingBattleSnapshot({
+      encounterId: "hidden-shield-commandment",
+      narrativeReason: "shield commandment",
+      source: "training/challenge",
+      enemies: [{ enemy_id: "107", count: 1 }, { enemy_id: "108", count: 1 }],
+    });
+    let active = createBattleSnapshotFromPendingBattle({ pendingBattle: pending, playerParty: [player] });
+    active.participants = [player, ...pending.enemies.map(createEnemyBattleParticipant)];
+    active = applyBossBattleEvent(active, {
+      type: "status_applied",
+      sourceId: player.id,
+      targetId: player.id,
+      effectId: "fire_reflect",
+    });
+
+    const resolved = resolveEnemyTurn({
+      ...active,
+      phase: "ENEMY_TURN",
+      pressTurn: { ownerSide: "enemy", icons: [{ id: "e1", state: "solid" }] },
+    });
+
+    expect(resolved).toMatchObject({ lifecycleState: "RESOLVED", phase: "RESULT", resultSummary: "Defeat" });
+    expect(resolved.participants.filter(participant => participant.side === "player").every(participant => participant.hp.current === 0)).toBe(true);
+    expect(resolved.battleLog?.some(entry => entry.summary.includes("镜壁戒律"))).toBe(true);
+  });
+
   it("attributes Boss damage-over-time HP loss to the player's DPS windows", () => {
     registerChallengeBossProfiles();
     const pending = createPendingBattleSnapshot({

@@ -86,6 +86,93 @@ function createActiveBattleSnapshot(
 
 describe("battleResolver", () => {
   // ── Attack resolution (content-driven via "attack" skill) ──
+  it("does not apply instant death to a status-immune participant", () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    const snapshot = createActiveBattleSnapshot({
+      selectedActionId: "basic-skill",
+      selectedContentId: "102",
+      selectedTargetId: "enemy-1",
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 99,
+          hp: { current: 120, max: 120 },
+          mp: { current: 99, max: 99 },
+          attack: 5,
+          defense: 5,
+          agility: 5,
+          intelligence: 99,
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          enemyId: "107",
+          side: "enemy",
+          displayName: "阳炎的魔法少女",
+          level: 99,
+          hp: { current: 30000, max: 30000 },
+          mp: { current: 999, max: 999 },
+          attack: 110,
+          defense: 95,
+          agility: 120,
+          intelligence: 105,
+          isDown: false,
+          isActive: true,
+          statusEffects: [{ effectId: "sleep", remainingDuration: 2, stacks: 1 }],
+        },
+      ],
+    });
+
+    const resolved = resolveSelectedBattleAction(snapshot);
+
+    expect(resolved.participants[1]!.statusEffects).toEqual([
+      { effectId: "sleep", remainingDuration: 2, stacks: 1 },
+    ]);
+    randomSpy.mockRestore();
+  });
+
+  it("removes an immune instant-death effect before round-boundary ticking", () => {
+    const snapshot = createActiveBattleSnapshot({
+      phase: "ENEMY_TURN",
+      currentActorId: null,
+      pressTurn: { ownerSide: "enemy", icons: [{ id: "enemy-turn", state: "solid" }] },
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          hp: { current: 120, max: 120 },
+          mp: { current: 48, max: 48 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          enemyId: "107",
+          side: "enemy",
+          displayName: "阳炎的魔法少女",
+          hp: { current: 30000, max: 30000 },
+          mp: { current: 999, max: 999 },
+          isDown: false,
+          isActive: true,
+          statusEffects: [{ effectId: "instant_death", remainingDuration: 1, stacks: 1 }],
+        },
+      ],
+    });
+
+    const resolved = resolveEnemyTurn(snapshot);
+    const boss = resolved.participants.find((participant) => participant.id === "enemy-1")!;
+
+    expect(boss.hp.current).toBeGreaterThan(0);
+    expect(boss.statusEffects).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ effectId: "instant_death" })]),
+    );
+  });
 
   it("resolves attack through the skill pipeline and damages the enemy", () => {
     const snapshot = createActiveBattleSnapshot();

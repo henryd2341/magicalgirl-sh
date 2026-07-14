@@ -208,6 +208,7 @@ export interface BattleParticipant {
   isDown: boolean;
   isActive: boolean;
   statusEffects?: ActiveStatusEffect[];
+  statusImmunities?: string[];
   affinities?: BattleAffinityProfile;
   combatStats?: BattleParticipantCombatStats;
   canAct?: boolean;

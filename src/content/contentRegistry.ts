@@ -125,6 +125,7 @@ const enemyContentSchema = z.object({
   moneyReward: z.number().int().min(0),
   behaviorType: z.enum(["conservative", "aggressive", "chaotic"]).optional(),
   bossProfileId: z.string().min(1).optional(),
+  statusImmunities: z.array(z.string().min(1)).optional(),
 });
 
 const growthStatsSchema = z.object({

@@ -1,4 +1,5 @@
 import { getStatusEffectMap } from "@/content/contentRegistry";
+import { isShieldStatusEffect } from "@/engine/battle/statusEffectEngine";
 import type { BossProfile } from "@/engine/battle/boss/bossRegistry";
 import type { BossActionIntent, BossContext, BossEffect, BossUtilityCandidate } from "@/engine/battle/boss/bossTypes";
 import { BATTLE_ELEMENTS } from "@/types/battle";
@@ -49,6 +50,12 @@ export const hiddenMagicalGirlsProfile: BossProfile = {
     }
     if (event.type === "status_applied") {
       const target = context.snapshot.participants.find((p) => p.id === event.targetId);
+      if (target?.side === "player" && isPlayer(context, event.sourceId) && isShieldStatusEffect(event.effectId)) {
+        return [
+          { type: "set_flag", key: "hidden:shieldCommandmentFailed", value: true },
+          { type: "append_mechanic_log", summary: "镜壁戒律触发", details: ["下一次敌方行动将执行万能处决"] },
+        ];
+      }
       if (target?.side === "player" && positiveStageSum(context, target.id) >= 6) return queueIfEmpty(context, bossByEnemy(context, "108")?.id, "325", "盈满之戒触发");
       if (target?.enemyId === "107" || target?.enemyId === "108") { value.ailmentSuccesses[target.id] ??= {}; value.ailmentSuccesses[target.id]![event.effectId] = (value.ailmentSuccesses[target.id]![event.effectId] ?? 0) + 1; return [stateEffect(value), { type: "increment_ailment_resistance", actorId: target.id, effectId: event.effectId }]; }
     }
@@ -65,6 +72,7 @@ export const hiddenMagicalGirlsProfile: BossProfile = {
   },
   selectPriorityIntent(context, priority) {
     const value = pair(context); const actor = context.snapshot.participants.find((p) => p.id === context.actorId);
+    if (priority === "hard_defeat" && context.runtime.flags["hidden:shieldCommandmentFailed"]) return { type: "force_defeat", skillId: "317", reason: "镜壁戒律：玩家方使用护盾" };
     if (priority === "hard_defeat" && (context.runtime.flags["hidden:bigDpsFailed"] || context.runtime.flags["hidden:finalFailed"])) return { type: "force_defeat", skillId: context.runtime.flags["hidden:bigDpsFailed"] ? "317" : "316", reason: "隐藏挑战硬性检定失败" };
     if (priority === "revival" && value.reviveTargetActorId && actor && !actor.isDown) return useSkill(actor.id, "324", [value.reviveTargetActorId], "强制复活优先");
     if (priority === "emergency" && actor?.enemyId === "108") { const wounded = bosses(context).filter((boss) => !boss.isDown).sort((a, b) => a.hp.current / a.hp.max - b.hp.current / b.hp.max)[0]; if (wounded && wounded.hp.current / wounded.hp.max < 0.5) return useSkill(actor.id, "321", [wounded.id], "大地恩泽紧急恢复"); if (bosses(context).some((boss) => (boss.statusEffects ?? []).length > 0)) return useSkill(actor.id, "322", bosses(context).map((boss) => boss.id), "岩庭净化"); }

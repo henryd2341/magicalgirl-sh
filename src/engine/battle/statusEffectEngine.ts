@@ -51,6 +51,17 @@ function getShieldEffectMap(): Record<string, ShieldEntry> {
   return _shieldEffectMap;
 }
 
+export function isShieldStatusEffect(effectId: string): boolean {
+  return getShieldEffectMap()[effectId] != null;
+}
+
+export function isStatusEffectImmune(
+  participant: Pick<BattleParticipant, "statusImmunities">,
+  effectId: string,
+): boolean {
+  return participant.statusImmunities?.includes(effectId) ?? false;
+}
+
 // ── Shield check ──
 
 export interface ShieldCheckResult {
