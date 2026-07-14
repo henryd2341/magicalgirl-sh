@@ -51,7 +51,20 @@ export function hasBossProfile(id: string): boolean {
   return profiles.has(id);
 }
 
+export function findBossProfileByEnemyId(
+  enemyId: string,
+): BossProfile | null {
+  const matches = [...profiles.values()].filter((profile) =>
+    profile.actorEnemyIds.includes(enemyId),
+  );
+  if (matches.length > 1) {
+    throw new Error(`Multiple Boss profiles claim enemy "${enemyId}"`);
+  }
+  return matches[0] ?? null;
+}
+
 export function clearBossProfilesForTests(): void {
   profiles.clear();
 }
+
 

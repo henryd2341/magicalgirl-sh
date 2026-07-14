@@ -21,6 +21,11 @@ import {
   createPressTurnStateForSide,
 } from "@/engine/battle/pressTurn";
 import { resolvePassiveEffects } from "@/engine/battle/passiveEffectEngine";
+import {
+  findBossProfileByEnemyId,
+  getBossProfile,
+} from "@/engine/battle/boss/bossRegistry";
+import { createEmptyBossRuntimeState } from "@/engine/battle/boss/bossTypes";
 
 /**
  * Build a BattleParticipant from content data for an enemy.
@@ -67,6 +72,7 @@ export function createEnemyBattleParticipant(
 
   return {
     id: enemy.instanceId,
+    enemyId: enemy.enemyId,
     side: "enemy",
     displayName,
     level,
@@ -327,6 +333,7 @@ export function createBattleSnapshotFromPendingBattle(
   const enemyParticipants: BattleParticipant[] =
     input.pendingBattle.enemies.map((enemy) => ({
       id: enemy.instanceId,
+      enemyId: enemy.enemyId,
       side: "enemy",
       displayName: enemy.displayName,
       level: 1,
@@ -357,6 +364,33 @@ export function createBattleSnapshotFromPendingBattle(
     }));
 
   const participants = [...playerParticipants, ...enemyParticipants];
+  const bossRuntime = createEmptyBossRuntimeState();
+  for (const enemy of enemyParticipants) {
+    if (enemy.enemyId == null) continue;
+
+    let profile = findBossProfileByEnemyId(enemy.enemyId);
+    try {
+      const explicitProfileId = getEnemy(enemy.enemyId).bossProfileId;
+      if (explicitProfileId != null) {
+        profile = getBossProfile(explicitProfileId);
+      }
+    } catch (error) {
+      if (profile == null && enemy.enemyId.match(/^[0-9]+$/)) {
+        throw error;
+      }
+    }
+
+    if (profile == null) continue;
+    if (!profile.actorEnemyIds.includes(enemy.enemyId)) {
+      throw new Error(
+        `Boss profile "${profile.id}" does not claim enemy "${enemy.enemyId}"`,
+      );
+    }
+    bossRuntime.profileIds[enemy.id] = profile.id;
+    bossRuntime.phaseByActorId[enemy.id] = profile.initialPhase;
+    bossRuntime.queuedCounters[enemy.id] = null;
+  }
+  const hasBossRuntime = Object.keys(bossRuntime.profileIds).length > 0;
   const playerActingParticipantIds = playerParticipants
     .filter(
       (participant) =>
@@ -387,6 +421,8 @@ export function createBattleSnapshotFromPendingBattle(
     actionMenu: createDefaultBattleCommandMenuTree(),
     battleResult: undefined,
     battleLog: [],
+    ...(hasBossRuntime ? { bossRuntime } : {}),
     swapPhase: "idle",
   };
 }
+

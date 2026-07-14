@@ -84,7 +84,7 @@ function buildBasicAttack(): EnemyAction {
   };
 }
 
-function buildSkillAction(skillId: string): EnemyAction | null {
+export function buildEnemySkillAction(skillId: string): EnemyAction | null {
   try {
     const skill = getSkill(skillId);
     // Skip passive skills (enemies don't "use" passives as actions)
@@ -109,7 +109,7 @@ function buildEnemyActions(actor: BattleParticipant): EnemyAction[] {
 
   if (actor.skillIds != null) {
     for (const skillId of actor.skillIds) {
-      const action = buildSkillAction(skillId);
+      const action = buildEnemySkillAction(skillId);
       if (action != null) actions.push(action);
     }
   }
@@ -276,3 +276,4 @@ export function selectEnemyAction(
 }
 
 export { BEHAVIOR_WEIGHTS };
+
