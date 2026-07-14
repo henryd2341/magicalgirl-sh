@@ -89,6 +89,41 @@ export function applyBossEffects(
       case "set_list":
         runtime.lists[effect.key] = [...effect.values];
         break;
+      case "set_mechanic_state":
+        runtime.mechanicState[effect.key] = structuredClone(effect.value);
+        break;
+      case "set_affinities":
+        next = {
+          ...next,
+          participants: next.participants.map((participant) =>
+            participant.id === effect.actorId
+              ? { ...participant, affinities: { ...effect.affinities } }
+              : participant,
+          ),
+        };
+        break;
+      case "apply_status":
+        next = {
+          ...next,
+          participants: next.participants.map((participant) =>
+            participant.id === effect.actorId
+              ? {
+                  ...participant,
+                  statusEffects: [
+                    ...(participant.statusEffects ?? []).filter(
+                      (status) => status.effectId !== effect.effectId,
+                    ),
+                    {
+                      effectId: effect.effectId,
+                      remainingDuration: effect.duration,
+                      stacks: effect.stacks ?? 1,
+                    },
+                  ],
+                }
+              : participant,
+          ),
+        };
+        break;
       case "append_mechanic_log":
         next = {
           ...next,

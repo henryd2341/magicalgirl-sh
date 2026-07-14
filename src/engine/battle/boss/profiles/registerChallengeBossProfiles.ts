@@ -1,3 +1,4 @@
+import { moltenCoreSerpentProfile } from "@/engine/battle/boss/profiles/moltenCoreSerpentProfile";
 import {
   hasBossProfile,
   registerBossProfile,
@@ -5,7 +6,7 @@ import {
 } from "@/engine/battle/boss/bossRegistry";
 
 const PROFILE_DEFINITIONS = [
-  { id: "molten-core-serpent", actorEnemyIds: ["100"], initialPhase: "molten" },
+  moltenCoreSerpentProfile,
   { id: "eternal-frost-beast", actorEnemyIds: ["101", "102", "103"], initialPhase: "fortified" },
   { id: "corrupted-crown-saint", actorEnemyIds: ["104"], initialPhase: "sowing" },
   { id: "echo-hunter", actorEnemyIds: ["105"], initialPhase: "recording" },
@@ -16,6 +17,7 @@ const PROFILE_DEFINITIONS = [
 function createProfile(
   definition: (typeof PROFILE_DEFINITIONS)[number],
 ): BossProfile {
+  if ("reduceEvent" in definition) return definition;
   return {
     ...definition,
     actorEnemyIds: [...definition.actorEnemyIds],

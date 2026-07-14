@@ -63,6 +63,9 @@ export type BossEffect =
   | { type: "enqueue_counter"; actorId: string; skillId: string | null }
   | { type: "set_cooldown"; key: string; turns: number }
   | { type: "set_list"; key: string; values: string[] }
+  | { type: "set_mechanic_state"; key: string; value: unknown }
+  | { type: "set_affinities"; actorId: string; affinities: import("@/types/battle").BattleAffinityProfile }
+  | { type: "apply_status"; actorId: string; effectId: string; duration: number; stacks?: number }
   | {
       type: "append_mechanic_log";
       summary: string;
