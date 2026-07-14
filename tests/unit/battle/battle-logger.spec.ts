@@ -1,12 +1,15 @@
 import {
+  MAX_BATTLE_LOG_ENTRIES,
   appendBattleLogs,
   createBattleResultLogEntry,
   createEnemyAttackLogEntry,
+  createMechanicLogDraft,
   createPlayerActionLogEntry,
   createPlayerRoundStartLogEntry,
 } from "@/engine/battle/battleLogger";
 import type {
   BattleActionResolution,
+  BattleLogDraft,
   BattleParticipant,
   BattleResult,
   BattleSnapshot,
@@ -14,7 +17,7 @@ import type {
 import { describe, expect, it } from "vitest";
 
 describe("battleLogger", () => {
-  it("appends new log entries without mutating the source battle snapshot", () => {
+  it("normalizes legacy entries and assigns monotonic sequences without mutating the snapshot", () => {
     const snapshot = {
       battleLog: [
         {
@@ -27,6 +30,7 @@ describe("battleLogger", () => {
     } as BattleSnapshot;
 
     const nextLogs = appendBattleLogs(snapshot, [
+      createMechanicLogDraft(2, "阶段变化", ["进入第二阶段"]),
       createPlayerRoundStartLogEntry(2),
     ]);
 
@@ -34,27 +38,61 @@ describe("battleLogger", () => {
     expect(nextLogs).toEqual([
       {
         id: "turn-1-battle-start",
+        sequence: 1,
         turnCount: 1,
         side: "system",
+        kind: "system",
+        visibility: "both",
         summary: "Battle started.",
       },
       {
-        id: "turn-2-player-round-start",
+        id: "battle-log-2",
+        sequence: 2,
         turnCount: 2,
         side: "system",
+        kind: "mechanic",
+        visibility: "both",
+        summary: "阶段变化",
+        details: ["进入第二阶段"],
+      },
+      {
+        id: "battle-log-3",
+        sequence: 3,
+        turnCount: 2,
+        side: "system",
+        kind: "system",
+        visibility: "both",
         summary: "Player turn 2 started.",
       },
     ]);
   });
 
-  it("creates stable player action, enemy attack, and battle result log entries", () => {
+  it("keeps IDs unique and retains only the newest 1000 entries", () => {
+    const drafts = Array.from({ length: MAX_BATTLE_LOG_ENTRIES + 1 }, (_, index) => ({
+      id: "duplicate-id",
+      turnCount: index + 1,
+      side: "system" as const,
+      kind: "system" as const,
+      visibility: "both" as const,
+      summary: `Entry ${index + 1}`,
+    })) satisfies BattleLogDraft[];
+
+    const logs = appendBattleLogs({ battleLog: [] } as BattleSnapshot, drafts);
+
+    expect(logs).toHaveLength(MAX_BATTLE_LOG_ENTRIES);
+    expect(logs[0]?.sequence).toBe(2);
+    expect(logs.at(-1)?.sequence).toBe(MAX_BATTLE_LOG_ENTRIES + 1);
+    expect(new Set(logs.map((entry) => entry.id)).size).toBe(logs.length);
+  });
+
+  it("creates structured action, enemy attack, mechanic, and result drafts", () => {
     const resolution: BattleActionResolution = {
       ok: true,
       actorId: "player-heroine-1",
       actionId: "attack",
       intendedTargetId: "enemy-1",
       outcomes: [],
-      verboseLog: [],
+      verboseLog: ["enemy-1 took 2 damage"],
       summaryLog: ["Attack hit"],
     };
     const enemy: BattleParticipant = {
@@ -85,28 +123,41 @@ describe("battleLogger", () => {
     };
 
     expect(createPlayerActionLogEntry(resolution, 1)).toEqual({
-      id: "turn-1-player-heroine-1-attack-enemy-1",
       turnCount: 1,
       side: "player",
+      kind: "action",
+      visibility: "both",
       actorId: "player-heroine-1",
       actionId: "attack",
-      targetId: "enemy-1",
+      targetIds: ["enemy-1"],
       summary: "Attack hit",
+      details: ["enemy-1 took 2 damage"],
     });
     expect(createEnemyAttackLogEntry(1, enemy, target, 1)).toEqual({
-      id: "turn-1-enemy-1-attack-player-heroine-1",
       turnCount: 1,
       side: "enemy",
+      kind: "action",
+      visibility: "both",
       actorId: "enemy-1",
       actionId: "enemy_attack",
-      targetId: "player-heroine-1",
+      targetIds: ["player-heroine-1"],
       summary: "loop-shadow attacked 鹿目真昼 for 1 damage.",
+      details: ["鹿目真昼 took 1 damage."],
     });
     expect(createBattleResultLogEntry(battleResult)).toEqual({
-      id: "turn-2-result-victory",
       turnCount: 2,
       side: "system",
+      kind: "result",
+      visibility: "both",
       summary: "Victory: all enemies are down.",
+    });
+    expect(createMechanicLogDraft(2, "DPS检测失败")).toEqual({
+      turnCount: 2,
+      side: "system",
+      kind: "mechanic",
+      visibility: "both",
+      summary: "DPS检测失败",
+      details: [],
     });
   });
 });

@@ -1,31 +1,116 @@
 import type {
   BattleActionOutcome,
   BattleActionResolution,
+  BattleLogDraft,
   BattleLogEntry,
+  BattleLogKind,
+  BattleLogVisibility,
   BattleParticipant,
   BattleResult,
   BattleSnapshot,
+  CombatantSide,
 } from "@/types/battle";
+
+export const MAX_BATTLE_LOG_ENTRIES = 1000;
+
+interface LegacyBattleLogEntry {
+  id: string;
+  sequence?: number;
+  turnCount: number;
+  side: CombatantSide | "system";
+  kind?: BattleLogKind;
+  visibility?: BattleLogVisibility;
+  actorId?: string;
+  actionId?: string;
+  targetId?: string;
+  targetIds?: string[];
+  summary: string;
+  details?: string[];
+}
+
+function normalizeLegacyBattleLogEntry(
+  entry: BattleLogEntry | LegacyBattleLogEntry,
+  index: number,
+): BattleLogEntry {
+  const legacyEntry = entry as LegacyBattleLogEntry;
+  const targetIds =
+    legacyEntry.targetIds ??
+    (legacyEntry.targetId == null ? undefined : [legacyEntry.targetId]);
+
+  return {
+    id: legacyEntry.id,
+    sequence: legacyEntry.sequence ?? index + 1,
+    turnCount: legacyEntry.turnCount,
+    side: legacyEntry.side,
+    kind: legacyEntry.kind ?? "system",
+    visibility: legacyEntry.visibility ?? "both",
+    ...(legacyEntry.actorId == null ? {} : { actorId: legacyEntry.actorId }),
+    ...(legacyEntry.actionId == null ? {} : { actionId: legacyEntry.actionId }),
+    ...(targetIds == null ? {} : { targetIds }),
+    summary: legacyEntry.summary,
+    ...(legacyEntry.details == null ? {} : { details: legacyEntry.details }),
+  };
+}
 
 export function appendBattleLogs(
   snapshot: BattleSnapshot,
-  entries: BattleLogEntry[],
+  drafts: BattleLogDraft[],
 ): BattleLogEntry[] {
-  return [...(snapshot.battleLog ?? []), ...entries];
+  const existing = (snapshot.battleLog ?? []).map((entry, index) =>
+    normalizeLegacyBattleLogEntry(entry, index),
+  );
+  let sequence = existing.at(-1)?.sequence ?? 0;
+  const usedIds = new Set(existing.map((entry) => entry.id));
+
+  const appended = drafts.map((draft) => {
+    sequence += 1;
+    const preferredId = draft.id ?? `battle-log-${sequence}`;
+    const id = usedIds.has(preferredId)
+      ? `${preferredId}-${sequence}`
+      : preferredId;
+    usedIds.add(id);
+
+    const { id: _draftId, ...fields } = draft;
+    return {
+      ...fields,
+      sequence,
+      id,
+    } satisfies BattleLogEntry;
+  });
+
+  return [...existing, ...appended].slice(-MAX_BATTLE_LOG_ENTRIES);
+}
+
+export function createMechanicLogDraft(
+  turnCount: number,
+  summary: string,
+  details: string[] = [],
+): BattleLogDraft {
+  return {
+    turnCount,
+    side: "system",
+    kind: "mechanic",
+    visibility: "both",
+    summary,
+    details,
+  };
 }
 
 export function createBattleResultLogEntry(
   battleResult: BattleResult,
-): BattleLogEntry {
+): BattleLogDraft {
   const summary =
     battleResult.outcome === "victory"
       ? "Victory: all enemies are down."
-      : "Defeat: all players are down.";
+      : battleResult.outcome === "defeat"
+        ? "Defeat: all players are down."
+        : "Battle ended by escape.";
 
   return {
-    id: `turn-${battleResult.turnCount}-result-${battleResult.outcome}`,
     turnCount: battleResult.turnCount,
     side: "system",
+    kind: "result",
+    visibility: "both",
     summary,
   };
 }
@@ -33,15 +118,21 @@ export function createBattleResultLogEntry(
 export function createPlayerActionLogEntry(
   resolution: BattleActionResolution,
   turnCount: number,
-): BattleLogEntry {
+): BattleLogDraft {
   return {
-    id: `turn-${turnCount}-${resolution.actorId}-${resolution.actionId}-${resolution.intendedTargetId ?? "none"}`,
     turnCount,
     side: "player",
+    kind: "action",
+    visibility: "both",
     actorId: resolution.actorId,
     actionId: resolution.actionId,
-    targetId: resolution.intendedTargetId ?? undefined,
+    ...(resolution.intendedTargetId == null
+      ? {}
+      : { targetIds: [resolution.intendedTargetId] }),
     summary: resolution.summaryLog[0] ?? `${resolution.actionId} used`,
+    ...(resolution.verboseLog.length === 0
+      ? {}
+      : { details: resolution.verboseLog }),
   };
 }
 
@@ -50,16 +141,28 @@ export function createEnemyAttackLogEntry(
   actor: BattleParticipant,
   target: BattleParticipant,
   damage: number,
-): BattleLogEntry {
+): BattleLogDraft {
   return {
-    id: `turn-${turnCount}-${actor.id}-attack-${target.id}`,
     turnCount,
     side: "enemy",
+    kind: "action",
+    visibility: "both",
     actorId: actor.id,
     actionId: "enemy_attack",
-    targetId: target.id,
+    targetIds: [target.id],
     summary: `${actor.displayName} attacked ${target.displayName} for ${damage} damage.`,
+    details: [`${target.displayName} took ${damage} damage.`],
   };
+}
+
+function describeEnemySkillOutcomes(outcomes: BattleActionOutcome[]): string[] {
+  return outcomes.map((outcome) => {
+    const target = outcome.finalTargetId ?? outcome.primaryTargetId ?? "target";
+    if (outcome.type === "hit") {
+      return `${target} took ${Math.abs(outcome.hpDelta ?? 0)} damage.`;
+    }
+    return `${target}: ${outcome.type}.`;
+  });
 }
 
 export function createEnemySkillLogEntry(
@@ -68,13 +171,16 @@ export function createEnemySkillLogEntry(
   target: BattleParticipant,
   skillName: string,
   outcomes: BattleActionOutcome[],
-): BattleLogEntry {
+): BattleLogDraft {
   const totalDmg = outcomes
-    .filter((o) => o.type === "hit")
-    .reduce((sum, o) => sum + Math.abs(o.hpDelta ?? 0), 0);
-  const missCount = outcomes.filter((o) => o.type === "miss").length;
+    .filter((outcome) => outcome.type === "hit")
+    .reduce((sum, outcome) => sum + Math.abs(outcome.hpDelta ?? 0), 0);
+  const missCount = outcomes.filter((outcome) => outcome.type === "miss").length;
   const blockCount = outcomes.filter(
-    (o) => o.type === "block" || o.type === "reflect" || o.type === "absorb",
+    (outcome) =>
+      outcome.type === "block" ||
+      outcome.type === "reflect" ||
+      outcome.type === "absorb",
   ).length;
 
   const parts: string[] = [];
@@ -83,23 +189,27 @@ export function createEnemySkillLogEntry(
   if (blockCount > 0) parts.push(`${blockCount} blocked`);
 
   return {
-    id: `turn-${turnCount}-${actor.id}-skill-${target.id}`,
     turnCount,
     side: "enemy",
+    kind: "action",
+    visibility: "both",
     actorId: actor.id,
     actionId: "enemy_skill",
-    targetId: target.id,
+    targetIds: [target.id],
     summary: `${actor.displayName} used ${skillName} on ${target.displayName}${parts.length > 0 ? ` (${parts.join(", ")})` : ""}.`,
+    details: describeEnemySkillOutcomes(outcomes),
   };
 }
 
 export function createPlayerRoundStartLogEntry(
   turnCount: number,
-): BattleLogEntry {
+): BattleLogDraft {
   return {
-    id: `turn-${turnCount}-player-round-start`,
     turnCount,
     side: "system",
+    kind: "system",
+    visibility: "both",
     summary: `Player turn ${turnCount} started.`,
   };
 }
+

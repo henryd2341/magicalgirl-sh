@@ -37,10 +37,16 @@ function formatParticipantStatus(participant: BattleParticipant): string {
 }
 
 function formatVerboseLogEntry(entry: BattleLogEntry, index: number): string {
+  const legacyTargetId = (entry as BattleLogEntry & { targetId?: string })
+    .targetId;
+  const targetIds =
+    entry.targetIds ?? (legacyTargetId == null ? undefined : [legacyTargetId]);
   const details = [
     entry.actorId,
     entry.actionId,
-    entry.targetId == null ? undefined : `-> ${entry.targetId}`,
+    targetIds == null || targetIds.length === 0
+      ? undefined
+      : `-> ${targetIds.join(",")}`,
   ].filter((item): item is string => item != null && item.length > 0);
   const detailText = details.length > 0 ? `${details.join(" ")}: ` : "";
 
@@ -148,3 +154,5 @@ export function createBattleSummaries(
     minimal: createMinimalSummary(snapshot),
   };
 }
+
+

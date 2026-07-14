@@ -58,7 +58,7 @@ import type {
   AppliedStatusEffectPayload,
   BattleActionOutcome,
   BattleActionResolution,
-  BattleLogEntry,
+  BattleLogDraft,
   BattleParticipant,
   BattleResult,
   BattleSnapshot,
@@ -694,7 +694,7 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
   }
 
   let participants = snapshot.participants.map(cloneParticipant);
-  const logs: BattleLogEntry[] = [];
+  const logs: BattleLogDraft[] = [];
   const attackCount = Math.max(
     1,
     snapshot.pressTurn.ownerSide === "enemy"
@@ -1792,3 +1792,4 @@ export function resolveSelectedBattleActionToResolution(
     summaryLog: [`${skillContent.name} used`],
   };
 }
+
