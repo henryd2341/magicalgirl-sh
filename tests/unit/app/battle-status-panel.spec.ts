@@ -50,4 +50,30 @@ describe("BattleStatusPanel", () => {
     expect(screen.getByLabelText("solid press turn icon")).toBeInTheDocument();
     expect(screen.getByLabelText("blinking press turn icon")).toBeInTheDocument();
   });
+  it("shows only the current actionable Boss signals", () => {
+    render(BattleStatusPanel, {
+      props: {
+        selectedTarget: selectedEnemy,
+        turnCount: 8,
+        pressTurnIcons,
+        ownerSide: "player",
+        iconAssets: {
+          player: { solid: "allyIcon.svg", bright: "allyIconBright.svg" },
+          enemy: { solid: "enemyIcon.svg", bright: "enemyIconBright.svg" },
+        },
+        bossSignals: [
+          { id: "phase:enemy-1", label: "当前阶段", value: "终末地平", urgency: "normal" },
+          { id: "dps:big", label: "大 DPS 检定", value: "1450 / 2000 · 剩余 1 回合", urgency: "warning" },
+          { id: "revive", label: "复苏脉动", value: "下一实际行动", urgency: "danger" },
+        ],
+      },
+    });
+
+    const signals = screen.getByLabelText("Boss 公开机制");
+    expect(signals).toHaveTextContent("当前阶段终末地平");
+    expect(signals).toHaveTextContent("大 DPS 检定1450 / 2000 · 剩余 1 回合");
+    expect(signals).toHaveTextContent("复苏脉动下一实际行动");
+    expect(signals).not.toHaveTextContent("天地交灼");
+  });
+
 });

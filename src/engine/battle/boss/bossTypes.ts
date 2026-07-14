@@ -44,6 +44,13 @@ export type BossActionIntent =
   | { type: "pass"; actorId: string; reason: string }
   | { type: "force_defeat"; skillId: string; reason: string };
 
+export interface BossPublicSignal {
+  id: string;
+  label: string;
+  value: string;
+  urgency: "normal" | "warning" | "danger";
+}
+
 export interface BossBattleRuntimeState {
   profileIds: Record<string, string>;
   phaseByActorId: Record<string, string>;

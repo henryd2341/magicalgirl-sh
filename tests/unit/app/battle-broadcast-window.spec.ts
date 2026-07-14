@@ -209,5 +209,31 @@ describe("BattleBroadcastWindow", () => {
 
     expect(windowElement).toHaveStyle({ width: "280px", height: "180px" });
   });
+  it("keeps Boss mechanic history in the compact broadcast", () => {
+    const mechanicEntries: BattleLogEntry[] = [
+      "天地交灼",
+      "寒霜棱晶开始蓄能",
+      "回声档案已公开",
+      "部件完整度变化",
+      "终景倒计时启动",
+    ].map((summary, index) => ({
+      id: `mechanic-${index}`,
+      sequence: index + 1,
+      turnCount: index + 1,
+      side: "system",
+      kind: "mechanic",
+      visibility: "both",
+      summary,
+    }));
+
+    render(BattleBroadcastWindow, {
+      props: { entries: mechanicEntries, turnCount: 5 },
+    });
+
+    for (const entry of mechanicEntries) {
+      expect(screen.getByText(entry.summary)).toBeInTheDocument();
+    }
+  });
+
 });
 

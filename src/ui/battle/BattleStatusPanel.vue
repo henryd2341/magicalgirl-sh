@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { BossPublicSignal } from "@/engine/battle/boss/bossTypes";
 import type { BattleParticipant, CombatantSide, PressTurnIcon } from "@/types/battle";
 
 defineProps<{
@@ -7,6 +8,7 @@ defineProps<{
   pressTurnIcons: PressTurnIcon[];
   ownerSide: CombatantSide;
   iconAssets: Record<string, { solid: string; bright: string }>;
+  bossSignals?: BossPublicSignal[];
 }>();
 </script>
 
@@ -28,6 +30,23 @@ defineProps<{
         />
       </template>
       <p v-else class="battle-status-panel__empty">No target</p>
+    </section>
+
+    <section
+      v-if="bossSignals?.length"
+      class="battle-status-panel__boss-signals"
+      aria-label="Boss 公开机制"
+    >
+      <p class="battle-status-panel__label">Boss Signals</p>
+      <ul>
+        <li
+          v-for="signal in bossSignals"
+          :key="signal.id"
+          :class="`battle-status-panel__boss-signal--${signal.urgency}`"
+        >
+          <strong>{{ signal.label }}</strong><span>{{ signal.value }}</span>
+        </li>
+      </ul>
     </section>
 
     <section class="battle-status-panel__turn" aria-label="回合与 Press Turn 区域">
@@ -60,3 +79,12 @@ defineProps<{
     </section>
   </div>
 </template>
+
+
+<style scoped>
+.battle-status-panel__boss-signals { min-width: 14rem; padding: .35rem .7rem; }
+.battle-status-panel__boss-signals ul { display: grid; gap: .2rem; margin: 0; padding: 0; list-style: none; }
+.battle-status-panel__boss-signals li { display: flex; justify-content: space-between; gap: .75rem; font-size: .75rem; }
+.battle-status-panel__boss-signal--warning { color: #ffd88a; }
+.battle-status-panel__boss-signal--danger { color: #ff9d9d; }
+</style>

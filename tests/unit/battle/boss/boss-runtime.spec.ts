@@ -1,6 +1,7 @@
 import {
   applyBossBattleEvent,
   applyBossEffects,
+  deriveBossSignals,
 } from "@/engine/battle/boss/bossRuntime";
 import {
   clearBossProfilesForTests,
@@ -71,4 +72,26 @@ describe("bossRuntime", () => {
       ]),
     ).toThrow(/phase transition/i);
   });
+  it("derives only active public signals from Boss runtime state", () => {
+    const current = snapshot();
+    current.turnCount = 7;
+    current.participants = [{ id: "enemy-1", displayName: "Boss" } as never];
+    current.bossRuntime!.queuedCounters["enemy-1"] = "317";
+    current.bossRuntime!.mechanicState["hidden:pair"] = {
+      bigWindowStartRound: 1,
+      bigWindowDamage: 1450,
+      smallWindow: null,
+      reviveTargetActorId: "enemy-2",
+      finalPlayerRoundsRemaining: 4,
+    };
+
+    expect(deriveBossSignals(current)).toEqual(expect.arrayContaining([
+      { id: "boss:phase", label: "当前阶段", value: "phase-1", urgency: "normal" },
+      { id: "boss:counter:enemy-1", label: "Boss反制", value: "技能 317 已就绪", urgency: "warning" },
+      { id: "hidden:big-dps", label: "大 DPS 检定", value: "1450 / 2000 · 剩余 1 回合", urgency: "danger" },
+      { id: "hidden:revive", label: "复苏脉动", value: "下一实际行动", urgency: "danger" },
+      { id: "hidden:final", label: "终景倒计时", value: "4 回合", urgency: "danger" },
+    ]));
+  });
+
 });

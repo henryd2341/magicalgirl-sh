@@ -6,6 +6,7 @@ import type {
   BossBattleEvent,
   BossContext,
   BossEffect,
+  BossPublicSignal,
 } from "@/engine/battle/boss/bossTypes";
 import { appendBattleLogs, createMechanicLogDraft } from "@/engine/battle/battleLogger";
 import type { BattleSnapshot } from "@/types/battle";
@@ -241,4 +242,70 @@ export function applyBossBattleEvent(
   }
 
   return applyBossEffects(prepared, effects);
+}
+
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function deriveBossSignals(snapshot: BattleSnapshot): BossPublicSignal[] {
+  const runtime = snapshot.bossRuntime;
+  if (runtime == null) return [];
+  const signals: BossPublicSignal[] = [];
+  const phaseEntries = Object.entries(runtime.phaseByActorId);
+  const phases = [...new Set(phaseEntries.map(([, phase]) => phase))];
+  if (phases.length > 0) {
+    signals.push({ id: "boss:phase", label: "当前阶段", value: phases.join(" / "), urgency: "normal" });
+  }
+
+  for (const [actorId, skillId] of Object.entries(runtime.queuedCounters)) {
+    if (skillId == null) continue;
+    const actor = snapshot.participants.find(participant => participant.id === actorId);
+    signals.push({
+      id: `boss:counter:${actorId}`,
+      label: `${actor?.displayName ?? "Boss"}反制`,
+      value: `技能 ${skillId} 已就绪`,
+      urgency: "warning",
+    });
+  }
+
+  const crystalCharge = runtime.counters["frost:crystalCharge"];
+  if (crystalCharge != null && crystalCharge > 0) {
+    signals.push({ id: "frost:charge", label: "寒霜棱晶蓄能", value: `${crystalCharge} / 2`, urgency: crystalCharge >= 2 ? "danger" : "warning" });
+  }
+  const seedCount = runtime.counters["crown:seedCount"];
+  if (seedCount != null && seedCount > 0) {
+    signals.push({ id: "crown:seeds", label: "腐种", value: `${seedCount} 个待收割`, urgency: "warning" });
+  }
+  const finalRounds = runtime.counters["doll:finalRounds"];
+  if (finalRounds != null) {
+    signals.push({ id: "doll:final", label: "坍缩倒计时", value: `${finalRounds} 回合`, urgency: "danger" });
+  }
+  const integrity = runtime.mechanicState["doll:integrity"];
+  if (isRecord(integrity)) {
+    signals.push({ id: "doll:integrity", label: "部件完整度", value: `刃肢 ${integrity.blade ?? "-"} · 咒眼 ${integrity.eye ?? "-"} · 缝合核 ${integrity.core ?? "-"}`, urgency: "normal" });
+  }
+  const archives = runtime.mechanicState["echo:archives"];
+  if (Array.isArray(archives) && archives.length > 0 && isRecord(archives.at(-1))) {
+    const latest = archives.at(-1)!;
+    signals.push({ id: "echo:archive", label: "当前回声档案", value: `属性 ${latest.element ?? "无"} · 行动 ${latest.actionCategory ?? "无"} · 剩余 ${latest.remainingRounds ?? 0} 回合`, urgency: "warning" });
+  }
+  const pair = runtime.mechanicState["hidden:pair"];
+  if (isRecord(pair)) {
+    const damage = typeof pair.bigWindowDamage === "number" ? pair.bigWindowDamage : 0;
+    const start = typeof pair.bigWindowStartRound === "number" ? pair.bigWindowStartRound : 1;
+    const elapsed = Math.max(0, (snapshot.turnCount ?? 1) - start + 1);
+    signals.push({ id: "hidden:big-dps", label: "大 DPS 检定", value: `${damage} / 2000 · 剩余 ${Math.max(0, 8 - elapsed)} 回合`, urgency: elapsed >= 6 ? "danger" : "warning" });
+    if (isRecord(pair.smallWindow)) {
+      signals.push({ id: "hidden:small-dps", label: "小 DPS 检定", value: `${pair.smallWindow.damage ?? 0} / 800 · 剩余 ${pair.smallWindow.remainingPlayerRounds ?? 0} 回合`, urgency: "danger" });
+    }
+    if (typeof pair.reviveTargetActorId === "string") {
+      signals.push({ id: "hidden:revive", label: "复苏脉动", value: "下一实际行动", urgency: "danger" });
+    }
+    if (typeof pair.finalPlayerRoundsRemaining === "number") {
+      signals.push({ id: "hidden:final", label: "终景倒计时", value: `${pair.finalPlayerRoundsRemaining} 回合`, urgency: "danger" });
+    }
+  }
+  return signals;
 }
