@@ -62,10 +62,16 @@ describe("training domain contracts", () => {
   });
 });
 
+import { isChallengeEnemyId } from "@/content/contentRegistry";
 import { canRevealHiddenClue, digestTrainingAnswer, isChallengeUnlocked, listFreeTrainingEnemies, normalizeTrainingAnswer, validateFreeTrainingSelection, validateTrainingCatalog } from "@/engine/training/trainingRules";
 import { enabledTrainingCatalogFixture, enabledTrainingPuzzleFixture, trainingProgressFixture } from "../../helpers/trainingFixtures";
 
 describe("training rules", () => {
+  it("recognizes the reserved challenge enemy range", () => {
+    expect(isChallengeEnemyId("100")).toBe(true);
+    expect(isChallengeEnemyId("099")).toBe(false);
+  });
+
   it("filters by level and excludes challenge enemies including disabled hidden entries", () => {
     const catalog = structuredClone(enabledTrainingCatalogFixture);
     catalog.challenges.push({ ...catalog.challenges[0]!, id: "reserved", order: 99, enabled: false, hidden: true, enemies: [{ enemy_id: "7", count: 1 }] });
@@ -134,3 +140,4 @@ describe("training rules", () => {
     expect(validateTrainingCatalog({ enabled: false, challenges: [] }, { enabled: false, clueText: "", imageUrl: null, answerDigest: null, normalizationVersion: 1 }).ok).toBe(true);
   });
 });
+

@@ -88,6 +88,8 @@ export interface EnemyContent {
   moneyReward: number;
   /** AI behavior type override. Defaults to "aggressive" if not set. */
   behaviorType?: "conservative" | "aggressive" | "chaotic";
+  /** Optional code-owned decision profile for challenge Boss encounters. */
+  bossProfileId?: string;
 }
 
 // ── Growth Content (one line in growth.jsonl) ──
@@ -286,3 +288,4 @@ export interface CharacterContent {
   innateSkills: string[];
   skillTree: SkillTreeNode[];
 }
+

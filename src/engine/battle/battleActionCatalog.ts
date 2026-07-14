@@ -1,4 +1,8 @@
-import { getAllItems, getAllSkills } from "@/content/contentRegistry";
+import {
+  getAllItems,
+  getAllSkills,
+  isEnemyExclusiveSkillId,
+} from "@/content/contentRegistry";
 import type {
   BattleActionDefinition,
   BattleActionId,
@@ -72,6 +76,7 @@ function buildSkillActionNodes(
 ): BattleActionMenuNode[] {
   const children: BattleActionMenuNode[] = [];
   for (const skill of skills.values()) {
+    if (isEnemyExclusiveSkillId(skill.id)) continue;
     if (skill.category === "passive") continue;
     if (availableSkillIds && !availableSkillIds.has(skill.id)) continue;
     if (skill.id === "0" || skill.id === "130") continue;
@@ -242,3 +247,5 @@ export function findBattleActionMenuNodeById(
 
   return null;
 }
+
+

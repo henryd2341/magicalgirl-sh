@@ -1,4 +1,8 @@
-import { getAllEnemies, getAllItems } from "@/content/contentRegistry";
+import {
+  getAllEnemies,
+  getAllItems,
+  isChallengeEnemyId,
+} from "@/content/contentRegistry";
 import type { ResolvedEnemyContent } from "@/types/content";
 import type {
   TrainingCatalog,
@@ -75,7 +79,9 @@ export function validateTrainingCatalog(
 
 export function listFreeTrainingEnemies(protagonistLevel: number, catalog: TrainingCatalog): ResolvedEnemyContent[] {
   const reservedEnemyIds = collectReservedEnemyIds(catalog);
-  return [...getAllEnemies().values()].filter((enemy) => enemy.baseLevel <= protagonistLevel && !reservedEnemyIds.has(enemy.id));
+  return [...getAllEnemies().values()].filter((enemy) => enemy.baseLevel <= protagonistLevel &&
+      !isChallengeEnemyId(enemy.id) &&
+      !reservedEnemyIds.has(enemy.id));
 }
 
 export function validateFreeTrainingSelection(enemyIds: string[], protagonistLevel: number, catalog: TrainingCatalog): TrainingValidationResult {
@@ -88,6 +94,7 @@ export function validateFreeTrainingSelection(enemyIds: string[], protagonistLev
     const enemy = enemies.get(enemyId);
     if (enemy == null) { errors.push(`unknown enemy: ${enemyId}`); continue; }
     if (enemy.baseLevel > protagonistLevel) errors.push(`enemy above protagonist level: ${enemyId}`);
+    if (isChallengeEnemyId(enemyId)) errors.push(`enemy reserved for challenge mode: ${enemyId}`);
     if (reservedEnemyIds.has(enemyId)) errors.push(`enemy reserved for a challenge: ${enemyId}`);
   }
   return validationResult(errors);

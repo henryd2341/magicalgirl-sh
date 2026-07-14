@@ -10,6 +10,27 @@ import type {
 } from "@/types/content";
 import { z } from "zod";
 
+export function isChallengeEnemyId(id: string): boolean {
+  return /^[0-9]+$/.test(id) && Number(id) >= 100;
+}
+
+export function isEnemyExclusiveSkillId(id: string): boolean {
+  return /^[0-9]+$/.test(id) && Number(id) >= 255;
+}
+
+export function assertUniqueContentIds<T extends { id: string }>(
+  records: T[],
+  label: string,
+): void {
+  const ids = new Set<string>();
+  for (const record of records) {
+    if (ids.has(record.id)) {
+      throw new Error(`[${label}] Duplicate content id "${record.id}"`);
+    }
+    ids.add(record.id);
+  }
+}
+
 // ── Zod schemas for raw content ──
 
 const statusEffectPayloadSchema = z.object({
@@ -103,6 +124,7 @@ const enemyContentSchema = z.object({
   expReward: z.number().int().min(0),
   moneyReward: z.number().int().min(0),
   behaviorType: z.enum(["conservative", "aggressive", "chaotic"]).optional(),
+  bossProfileId: z.string().min(1).optional(),
 });
 
 const growthStatsSchema = z.object({
@@ -323,6 +345,7 @@ function loadSkills(): Map<string, ResolvedSkillContent> {
     skillContentSchema,
     "skills.jsonl",
   );
+  assertUniqueContentIds(raw, "skills.jsonl");
   _skills = new Map();
   for (const skill of raw) {
     _skills.set(skill.id, {
@@ -340,6 +363,7 @@ function loadEnemies(): Map<string, ResolvedEnemyContent> {
     enemyContentSchema,
     "enemies.jsonl",
   );
+  assertUniqueContentIds(raw, "enemies.jsonl");
   _enemies = new Map();
   for (const enemy of raw) {
     _enemies.set(enemy.id, {
@@ -558,3 +582,6 @@ export function getCharacterByName(name: string): CharacterContent {
   if (id != null) return getCharacter(id);
   return getCharacter(name); // fallback to direct ID lookup
 }
+
+
+
