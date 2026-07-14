@@ -1,5 +1,6 @@
 import type { TriggerBattleEnemyInput } from "@/orchestrator/toolEnvelope";
 import type { BattleSource } from "@/types/training";
+import type { BossBattleRuntimeState } from "@/engine/battle/boss/bossTypes";
 
 export const BATTLE_LIFECYCLE_STATES = [
   "PENDING",
@@ -187,6 +188,7 @@ export interface ActiveStatusEffect {
 
 export interface BattleParticipant {
   id: string;
+  enemyId?: string;
   side: CombatantSide;
   displayName: string;
   characterId?: string;
@@ -366,6 +368,7 @@ export interface BattleSnapshot {
   battleResult?: BattleResult;
   resultSummary?: string;
   battleLog?: BattleLogEntry[];
+  bossRuntime?: BossBattleRuntimeState;
   /** Transient: set after item use, consumed by store layer */
   consumedItemId?: string | null;
   /** Swap UI phase: idle, selecting swap-out target, or selecting swap-in target */
@@ -385,4 +388,5 @@ export interface CreateBattleSnapshotFromPendingBattleInput {
   pendingBattle: PendingBattleSnapshot;
   playerParty: BattleParticipant[];
 }
+
 
