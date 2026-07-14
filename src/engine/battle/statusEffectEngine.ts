@@ -35,7 +35,7 @@ function buildShieldMap(): Record<string, ShieldEntry> {
     elementMask: 4 | 8 | 16 | 32 | 64, // Fire | Ice | Electric | Wind | Earth
     kind: "nullify",
   };
-  map["physical_null"] = { elementMask: 1, kind: "nullify" };
+  map["physical_null"] = { elementMask: 1 | 2, kind: "nullify" };
   map["physical_reflect"] = { elementMask: 1, kind: "reflect" };
   map["physical_absorb"] = { elementMask: 1, kind: "absorb" };
 
