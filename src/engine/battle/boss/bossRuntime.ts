@@ -150,6 +150,16 @@ export function applyBossEffects(
           ),
         };
         break;
+      case "adjust_hp":
+        next = {
+          ...next,
+          participants: next.participants.map((participant) => {
+            if (participant.id !== effect.actorId) return participant;
+            const current = Math.max(0, Math.min(participant.hp.max, participant.hp.current + effect.amount));
+            return { ...participant, hp: { ...participant.hp, current }, isDown: current === 0 };
+          }),
+        };
+        break;
       case "append_mechanic_log":
         next = {
           ...next,

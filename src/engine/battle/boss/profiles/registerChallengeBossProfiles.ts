@@ -1,3 +1,4 @@
+import { corruptedCrownSaintProfile } from "@/engine/battle/boss/profiles/corruptedCrownSaintProfile";
 import { eternalFrostBeastProfile } from "@/engine/battle/boss/profiles/eternalFrostBeastProfile";
 import { moltenCoreSerpentProfile } from "@/engine/battle/boss/profiles/moltenCoreSerpentProfile";
 import {
@@ -9,7 +10,7 @@ import {
 const PROFILE_DEFINITIONS = [
   moltenCoreSerpentProfile,
   eternalFrostBeastProfile,
-  { id: "corrupted-crown-saint", actorEnemyIds: ["104"], initialPhase: "sowing" },
+  corruptedCrownSaintProfile,
   { id: "echo-hunter", actorEnemyIds: ["105"], initialPhase: "recording" },
   { id: "chaos-doll", actorEnemyIds: ["106"], initialPhase: "integrity" },
   { id: "hidden-magical-girls", actorEnemyIds: ["107", "108"], initialPhase: "trial" },
