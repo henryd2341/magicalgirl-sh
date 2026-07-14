@@ -63,6 +63,7 @@ vi.mock("@/content/trainingCatalog", () => ({
 
 vi.mock("@/content/contentRegistry", () => ({
   getAllEnemies: () => fixtures.enemies,
+  isChallengeEnemyId: (enemyId: string) => /^\d+$/.test(enemyId) && Number(enemyId) >= 100,
 }));
 
 vi.mock("@/stores/sessionStore", () => ({
