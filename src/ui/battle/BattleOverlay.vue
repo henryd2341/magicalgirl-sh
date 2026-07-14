@@ -18,6 +18,7 @@ import type {
   BattleEnemyInstance,
   BattleParticipant,
 } from "@/types/battle";
+import BattleBroadcastWindow from "@/ui/battle/BattleBroadcastWindow.vue";
 import BattleCommandMenu from "@/ui/battle/BattleCommandMenu.vue";
 import BattleStatusPanel from "@/ui/battle/BattleStatusPanel.vue";
 import { useFormationStore } from "@/stores/formationStore";
@@ -777,5 +778,13 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
         </div>
       </div>
     </div>
+
+    <BattleBroadcastWindow
+      v-if="activeBattle"
+      :entries="activeBattle.battleLog ?? []"
+      :turn-count="activeBattle.turnCount ?? 1"
+    />
   </section>
 </template>
+
+

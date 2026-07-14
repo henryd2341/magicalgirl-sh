@@ -92,6 +92,9 @@ describe("MainGameView battle overlay entrypoint", () => {
       await screen.findByRole("heading", { name: "战斗进行中" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Battle Active")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("complementary", { name: "战斗播报" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("enc-main-game-overlay-001")).toBeInTheDocument();
     expect(screen.getByLabelText("敌人状态栏")).toBeInTheDocument();
     expect(screen.getByLabelText("回合与 Press Turn 区域")).toBeInTheDocument();
@@ -109,6 +112,12 @@ describe("MainGameView battle overlay entrypoint", () => {
     expect(screen.getByRole("button", { name: "Swap" })).toBeInTheDocument();
     expect(screen.getAllByAltText("school-shadow sprite")).toHaveLength(2);
     expect(screen.getByAltText("鹿目真昼 avatar")).toBeInTheDocument();
+
+    battleStore.clearActiveBattle();
+    await nextTick();
+    expect(
+      screen.queryByRole("complementary", { name: "战斗播报" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders pending encounters in the unified full-screen battle HUD shell", async () => {
@@ -142,6 +151,9 @@ describe("MainGameView battle overlay entrypoint", () => {
     );
     expect(screen.getAllByAltText("pending-shadow sprite")).toHaveLength(2);
     expect(screen.getByText("影子正在聚集，等待玩家进入战斗。")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("complementary", { name: "战斗播报" }),
+    ).not.toBeInTheDocument();
   });
 
   it("cancels a pending encounter and returns the session to idle", async () => {
@@ -810,6 +822,10 @@ describe("MainGameView battle overlay entrypoint", () => {
     await waitForActiveBattleOverlay();
 
     const battleStore = useBattleStore();
+    expect(
+      await screen.findByRole("complementary", { name: "战斗播报" }),
+    ).toBeInTheDocument();
+
     battleStore.activeBattle = {
       ...battleStore.activeBattle!,
       lifecycleState: "RESOLVED",
@@ -898,6 +914,10 @@ describe("MainGameView battle overlay entrypoint", () => {
         isActive: true,
       },
     ]);
+    expect(
+      await screen.findByRole("complementary", { name: "战斗播报" }),
+    ).toBeInTheDocument();
+
     battleStore.activeBattle = {
       ...battleStore.activeBattle!,
       lifecycleState: "RESOLVED",
@@ -913,6 +933,9 @@ describe("MainGameView battle overlay entrypoint", () => {
       resultSummary: "Training victory",
     };
     await nextTick();
+    expect(
+      screen.getByRole("complementary", { name: "战斗播报" }),
+    ).toBeInTheDocument();
 
     await fireEvent.click(screen.getByRole("button", { name: "完成战斗" }));
 
@@ -920,6 +943,9 @@ describe("MainGameView battle overlay entrypoint", () => {
       expect(sessionStore.snapshot.sessionState).toBe("IDLE");
     });
     expect(battleStore.activeBattle).toBeNull();
+    expect(
+      screen.queryByRole("complementary", { name: "战斗播报" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "继续剧情" })).not.toBeInTheDocument();
   });
 
@@ -999,3 +1025,4 @@ describe("MainGameView battle overlay entrypoint", () => {
   });
 
 });
+
