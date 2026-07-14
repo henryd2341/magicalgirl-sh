@@ -1,7 +1,16 @@
-import { RuntimePersistenceService, sanitizeRuntimeSnapshot } from "@/engine/runtimePersistenceService";
+import {
+  RuntimePersistenceService,
+  sanitizeRuntimeSnapshot,
+  validateBossRuntimeSnapshot,
+} from "@/engine/runtimePersistenceService";
+import {
+  clearBossProfilesForTests,
+  registerBossProfile,
+} from "@/engine/battle/boss/bossRegistry";
+import { createEmptyBossRuntimeState } from "@/engine/battle/boss/bossTypes";
 import { InMemoryRuntimeSnapshotRepository } from "@/persistence/repositories/runtimeSnapshotRepository";
 import type { BattleSnapshot, PendingBattleSnapshot } from "@/types/battle";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 const idle = {
   sessionState: "IDLE" as const,
@@ -31,6 +40,10 @@ function active(source: BattleSnapshot["source"]): BattleSnapshot {
 }
 
 describe("RuntimePersistenceService", () => {
+  beforeEach(() => {
+    clearBossProfilesForTests();
+  });
+
   it.each(["training/free", "training/challenge"] as const)(
     "drops %s temporary combat and persists a stable idle snapshot",
     async (source) => {
@@ -70,6 +83,83 @@ describe("RuntimePersistenceService", () => {
     };
 
     expect(sanitizeRuntimeSnapshot(input)).toBe(input);
+  });
+
+  it("round-trips valid Boss runtime and accepts legacy snapshots", () => {
+    registerBossProfile({
+      id: "persisted-boss",
+      actorEnemyIds: ["100"],
+      initialPhase: "phase-1",
+      skillIds: ["255"],
+      reduceEvent: () => [],
+      selectForcedIntent: () => null,
+      enumerateUtilityCandidates: () => [],
+    });
+    const snapshot = active("story");
+    snapshot.participants = [
+      {
+        id: "enemy-1",
+        enemyId: "100",
+        side: "enemy",
+        displayName: "Boss",
+        hp: { current: 1, max: 1 },
+        mp: { current: 0, max: 0 },
+        isDown: false,
+        isActive: true,
+      },
+    ];
+    snapshot.bossRuntime = {
+      ...createEmptyBossRuntimeState(),
+      profileIds: { "enemy-1": "persisted-boss" },
+      phaseByActorId: { "enemy-1": "phase-1" },
+    };
+
+    expect(validateBossRuntimeSnapshot(snapshot)).toBe(true);
+    expect(
+      validateBossRuntimeSnapshot(
+        JSON.parse(JSON.stringify(snapshot)) as BattleSnapshot,
+      ),
+    ).toBe(true);
+    expect(validateBossRuntimeSnapshot(active("story"))).toBe(true);
+  });
+
+  it("rejects corrupt story Boss runtime and discards corrupt training runtime", () => {
+    const corrupt = active("story");
+    corrupt.bossRuntime = {
+      ...createEmptyBossRuntimeState(),
+      profileIds: { missing: "unknown-profile" },
+      decisionSteps: 999,
+    };
+
+    expect(validateBossRuntimeSnapshot(corrupt)).toBe(false);
+    expect(() =>
+      sanitizeRuntimeSnapshot({
+        sessionSnapshot: {
+          sessionState: "IN_COMBAT",
+          pipelineState: null,
+          activeRequestId: null,
+        },
+        pendingBattle: null,
+        activeBattle: corrupt,
+      }),
+    ).toThrow(/BOSS_RUNTIME_INVALID/);
+
+    corrupt.source = "training/challenge";
+    expect(
+      sanitizeRuntimeSnapshot({
+        sessionSnapshot: {
+          sessionState: "IN_COMBAT",
+          pipelineState: null,
+          activeRequestId: null,
+        },
+        pendingBattle: null,
+        activeBattle: corrupt,
+      }),
+    ).toEqual({
+      sessionSnapshot: idle,
+      pendingBattle: null,
+      activeBattle: null,
+    });
   });
 
   it("sanitizes legacy snapshots when either battle is training sourced", () => {
