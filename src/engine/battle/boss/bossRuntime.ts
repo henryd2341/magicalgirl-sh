@@ -1,3 +1,4 @@
+import { createSummonedEnemyParticipant } from "@/engine/battle/battleSetup";
 import {
   getBossProfile,
 } from "@/engine/battle/boss/bossRegistry";
@@ -118,6 +119,31 @@ export function applyBossEffects(
                       remainingDuration: effect.duration,
                       stacks: effect.stacks ?? 1,
                     },
+                  ],
+                }
+              : participant,
+          ),
+        };
+        break;
+      case "summon_enemy": {
+        const summoned = createSummonedEnemyParticipant(effect.enemyId, next.participants);
+        next = { ...next, participants: [...next.participants, summoned] };
+        runtime.profileIds[summoned.id] = effect.profileId;
+        runtime.phaseByActorId[summoned.id] = effect.phase;
+        runtime.queuedCounters[summoned.id] = null;
+        break;
+      }
+      case "protect_target":
+        runtime.mechanicState[`protection:${effect.targetId}`] = effect.protectorId;
+        next = {
+          ...next,
+          participants: next.participants.map((participant) =>
+            participant.id === effect.targetId
+              ? {
+                  ...participant,
+                  statusEffects: [
+                    ...(participant.statusEffects ?? []).filter((status) => status.effectId !== "defense_up"),
+                    { effectId: "defense_up", remainingDuration: effect.duration, stacks: 1 },
                   ],
                 }
               : participant,

@@ -1,3 +1,4 @@
+import { eternalFrostBeastProfile } from "@/engine/battle/boss/profiles/eternalFrostBeastProfile";
 import { moltenCoreSerpentProfile } from "@/engine/battle/boss/profiles/moltenCoreSerpentProfile";
 import {
   hasBossProfile,
@@ -7,7 +8,7 @@ import {
 
 const PROFILE_DEFINITIONS = [
   moltenCoreSerpentProfile,
-  { id: "eternal-frost-beast", actorEnemyIds: ["101", "102", "103"], initialPhase: "fortified" },
+  eternalFrostBeastProfile,
   { id: "corrupted-crown-saint", actorEnemyIds: ["104"], initialPhase: "sowing" },
   { id: "echo-hunter", actorEnemyIds: ["105"], initialPhase: "recording" },
   { id: "chaos-doll", actorEnemyIds: ["106"], initialPhase: "integrity" },

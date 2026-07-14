@@ -199,3 +199,13 @@
 {"id":"261","name":"雾障","description":"提升闪避并获得一回合冰水无效。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence","statusEffects":[{"effectId":"agility_up","chance":100},{"effectId":"ice_null","chance":100}]}
 {"id":"262","name":"雷鸣崩解","description":"雷弱点命中后的崩解事件。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
 {"id":"263","name":"熔核爆裂","description":"蓄力一回合后对全体敌人造成高威力火焰伤害。","category":"magic","element":"Fire","power":240,"mpCost":0,"targetType":"all_enemies","accuracy":90,"statDriver":"intelligence"}
+{"id":"264","name":"永冻结踏","description":"对单体造成物理重击。","category":"physical","element":"Physical","power":160,"mpCost":0,"targetType":"single_enemy","accuracy":95,"statDriver":"attack"}
+{"id":"265","name":"冰狱吐息","description":"对全体造成冰水伤害并可能冻结。","category":"magic","element":"Ice","power":160,"mpCost":0,"targetType":"all_enemies","accuracy":95,"statDriver":"intelligence","statusEffects":[{"effectId":"freeze","chance":50}]}
+{"id":"266","name":"寒潮咆哮","description":"群体攻击并降低攻击与智力。","category":"magic","element":"Ice","power":100,"mpCost":0,"targetType":"all_enemies","accuracy":95,"statDriver":"intelligence","statusEffects":[{"effectId":"attack_down","chance":50}]}
+{"id":"267","name":"冰川护体","description":"随从存活时获得额外减伤。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
+{"id":"268","name":"再结晶","description":"按首个击破类型召回一种随从。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
+{"id":"269","name":"霜晶蓄能","description":"为极寒棱爆蓄力。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
+{"id":"270","name":"极寒棱爆","description":"对全体造成高威力冰水伤害。","category":"magic","element":"Ice","power":320,"mpCost":0,"targetType":"all_enemies","accuracy":90,"statDriver":"intelligence"}
+{"id":"271","name":"冻甲护卫","description":"保护低生命单位并提高防御。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"single_ally","accuracy":100,"statDriver":"intelligence","statusEffects":[{"effectId":"defense_up","chance":100}]}
+{"id":"272","name":"霜牙反击","description":"反击攻击棱晶的角色。","category":"physical","element":"Physical","power":160,"mpCost":0,"targetType":"single_enemy","accuracy":95,"statDriver":"attack"}
+{"id":"273","name":"永冻狂怒","description":"第八回合后永久强化攻势。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"attack","statusEffects":[{"effectId":"attack_up","chance":100}]}

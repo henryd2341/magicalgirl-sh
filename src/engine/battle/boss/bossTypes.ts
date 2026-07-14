@@ -66,6 +66,8 @@ export type BossEffect =
   | { type: "set_mechanic_state"; key: string; value: unknown }
   | { type: "set_affinities"; actorId: string; affinities: import("@/types/battle").BattleAffinityProfile }
   | { type: "apply_status"; actorId: string; effectId: string; duration: number; stacks?: number }
+  | { type: "summon_enemy"; enemyId: string; profileId: string; phase: string }
+  | { type: "protect_target"; protectorId: string; targetId: string; duration: number }
   | {
       type: "append_mechanic_log";
       summary: string;

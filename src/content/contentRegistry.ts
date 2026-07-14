@@ -98,7 +98,7 @@ const skillContentSchema = z.object({
 });
 
 const combatStatsSchema = z.object({
-  hp: z.number().int().min(1).max(999),
+  hp: z.number().int().min(1).max(99999),
   mp: z.number().int().min(0).max(999),
   attack: z.number().int().min(0),
   defense: z.number().int().min(0),

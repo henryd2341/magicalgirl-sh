@@ -99,6 +99,25 @@ export function createEnemyBattleParticipant(
   };
 }
 
+export function createSummonedEnemyParticipant(
+  enemyId: string,
+  participants: readonly BattleParticipant[],
+): BattleParticipant {
+  const usedIds = new Set(participants.map((participant) => participant.id));
+  let sequence = 1;
+  let instanceId = `boss-summon-${enemyId}-${sequence}`;
+  while (usedIds.has(instanceId)) {
+    sequence += 1;
+    instanceId = `boss-summon-${enemyId}-${sequence}`;
+  }
+  return createEnemyBattleParticipant({
+    instanceId,
+    enemyId,
+    displayName: `召回 ${enemyId}`,
+    side: "enemy",
+  });
+}
+
 /**
  * Build a BattleParticipant for a player character using their growth table
  * and manually allocated stat points.
