@@ -746,6 +746,19 @@ function emitBossActionEvents(
         actionCategory: metadata.actionCategory,
       });
     }
+    if ((outcome.hpDelta ?? 0) > 0) {
+      const previousHp = previousParticipants?.find((participant) => participant.id === targetId)?.hp.current;
+      const currentHp = participants.find((participant) => participant.id === targetId)?.hp.current;
+      const actualHealing = previousHp != null && currentHp != null
+        ? Math.max(0, currentHp - previousHp)
+        : Math.max(0, outcome.hpDelta ?? 0);
+      next = applyBossBattleEvent(next, {
+        type: "healing_applied",
+        sourceId: actorId,
+        targetId,
+        amount: actualHealing,
+      });
+    }
     for (const status of outcome.appliedStatusEffects ?? []) {
       next = applyBossBattleEvent(next, {
         type: "status_applied",
