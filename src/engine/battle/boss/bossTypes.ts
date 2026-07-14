@@ -15,6 +15,7 @@ export type BossBattleEvent =
       targetId: string;
       amount: number;
       element: number;
+      actionCategory?: "physical" | "magic" | "heal" | "support" | "passive";
     }
   | {
       type: "status_applied";

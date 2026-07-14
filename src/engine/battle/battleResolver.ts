@@ -673,10 +673,34 @@ export function resolveSelectedBattleAction(
     nextSnapshot.resultSummary = normalizedSnapshot.resultSummary;
   }
 
-  return nextSnapshot;
+  const actionId = resolution.contentId ?? resolution.actionId;
+  const metadata = resolveBossEventActionMetadata(actionId);
+  return emitBossActionEvents(
+    nextSnapshot,
+    resolution.actorId,
+    actionId,
+    metadata.element,
+    resolution.outcomes,
+    participants,
+  );
 }
 
 // ── Enemy turn resolver ──
+
+function resolveBossEventActionMetadata(actionId: string): {
+  element: number;
+  actionCategory?: "physical" | "magic" | "heal" | "support" | "passive";
+} {
+  try {
+    const skill = getSkill(actionId);
+    return { element: skill.element, actionCategory: skill.category };
+  } catch {
+    return {
+      element: actionId === "attack" ? BATTLE_ELEMENTS.Physical : BATTLE_ELEMENTS.None,
+      ...(actionId === "attack" ? { actionCategory: "physical" as const } : {}),
+    };
+  }
+}
 
 function emitBossActionEvents(
   snapshot: BattleSnapshot,
@@ -686,6 +710,7 @@ function emitBossActionEvents(
   outcomes: BattleActionOutcome[],
   participants: BattleParticipant[],
 ): BattleSnapshot {
+  const metadata = resolveBossEventActionMetadata(actionId);
   const targetIds = [
     ...new Set(
       outcomes
@@ -711,6 +736,7 @@ function emitBossActionEvents(
         targetId,
         amount: Math.abs(outcome.hpDelta ?? 0),
         element,
+        actionCategory: metadata.actionCategory,
       });
     }
     for (const status of outcome.appliedStatusEffects ?? []) {

@@ -1,3 +1,4 @@
+import { chaosDollProfile } from "@/engine/battle/boss/profiles/chaosDollProfile";
 import { echoHunterProfile } from "@/engine/battle/boss/profiles/echoHunterProfile";
 import { corruptedCrownSaintProfile } from "@/engine/battle/boss/profiles/corruptedCrownSaintProfile";
 import { eternalFrostBeastProfile } from "@/engine/battle/boss/profiles/eternalFrostBeastProfile";
@@ -13,7 +14,7 @@ const PROFILE_DEFINITIONS = [
   eternalFrostBeastProfile,
   corruptedCrownSaintProfile,
   echoHunterProfile,
-  { id: "chaos-doll", actorEnemyIds: ["106"], initialPhase: "integrity" },
+  chaosDollProfile,
   { id: "hidden-magical-girls", actorEnemyIds: ["107", "108"], initialPhase: "trial" },
 ] as const;
 

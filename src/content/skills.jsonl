@@ -229,3 +229,15 @@
 {"id":"291","name":"锁定猎物","description":"回声猎手专属反制技能。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"single_enemy","accuracy":100,"statDriver":"intelligence"}
 {"id":"292","name":"穿心回响","description":"回声猎手专属反制技能。","category":"physical","element":"Gun","power":360,"mpCost":0,"targetType":"single_enemy","accuracy":90,"statDriver":"attack"}
 {"id":"293","name":"万声归猎","description":"回声猎手专属反制技能。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
+{"id":"294","name":"拼接审视","description":"混乱玩偶拼凑体专属机制技能。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
+{"id":"295","name":"刃肢乱舞","description":"混乱玩偶拼凑体专属机制技能。","category":"physical","element":"Physical","power":300,"mpCost":0,"targetType":"single_enemy","accuracy":95,"statDriver":"attack"}
+{"id":"296","name":"咒眼凝视","description":"混乱玩偶拼凑体专属机制技能。","category":"magic","element":"Dark","power":300,"mpCost":0,"targetType":"all_enemies","accuracy":95,"statDriver":"intelligence"}
+{"id":"297","name":"缝合修复","description":"混乱玩偶拼凑体专属机制技能。","category":"heal","element":"Heal","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
+{"id":"298","name":"部件崩坏","description":"混乱玩偶拼凑体专属机制技能。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
+{"id":"299","name":"混乱重组","description":"混乱玩偶拼凑体专属机制技能。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
+{"id":"300","name":"刃咒灾变","description":"混乱玩偶拼凑体专属机制技能。","category":"magic","element":"Almighty","power":450,"mpCost":0,"targetType":"all_enemies","accuracy":90,"statDriver":"intelligence"}
+{"id":"301","name":"咒核灾变","description":"混乱玩偶拼凑体专属机制技能。","category":"magic","element":"Dark","power":450,"mpCost":0,"targetType":"all_enemies","accuracy":90,"statDriver":"intelligence"}
+{"id":"302","name":"核刃灾变","description":"混乱玩偶拼凑体专属机制技能。","category":"physical","element":"Physical","power":450,"mpCost":0,"targetType":"single_enemy","accuracy":90,"statDriver":"attack"}
+{"id":"303","name":"坍缩序曲","description":"混乱玩偶拼凑体专属机制技能。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
+{"id":"304","name":"解体脉冲","description":"混乱玩偶拼凑体专属机制技能。","category":"magic","element":"Almighty","power":300,"mpCost":0,"targetType":"all_enemies","accuracy":95,"statDriver":"intelligence"}
+{"id":"305","name":"混沌归零","description":"混乱玩偶拼凑体专属机制技能。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"all_enemies","accuracy":100,"statDriver":"intelligence"}
