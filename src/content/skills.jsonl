@@ -241,7 +241,7 @@
 {"id":"303","name":"坍缩序曲","description":"混乱玩偶拼凑体专属机制技能。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence"}
 {"id":"304","name":"解体脉冲","description":"混乱玩偶拼凑体专属机制技能。","category":"magic","element":"Almighty","power":300,"mpCost":0,"targetType":"all_enemies","accuracy":95,"statDriver":"intelligence"}
 {"id":"305","name":"混沌归零","description":"混乱玩偶拼凑体专属机制技能。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"all_enemies","accuracy":100,"statDriver":"intelligence"}
-{"id":"306","name":"阳炎连刃","description":"单体多段火焰攻击。","category":"physical","element":"Fire","power":170,"mpCost":0,"targetType":"single_enemy","accuracy":95,"statDriver":"attack","hitCount":3}
+{"id":"306","name":"阳炎连射","description":"单体多段火焰攻击。","category":"physical","element":"Fire","power":170,"mpCost":0,"targetType":"single_enemy","accuracy":95,"statDriver":"attack","hitCount":3}
 {"id":"307","name":"灼界轮舞","description":"群体火焰伤害与燃烧。","category":"magic","element":"Fire","power":340,"mpCost":0,"targetType":"all_enemies","accuracy":95,"statDriver":"intelligence","statusEffects":[{"effectId":"burn","chance":50}]}
 {"id":"308","name":"余烬追猎","description":"追猎带减益或异常的角色。","category":"physical","element":"Fire","power":500,"mpCost":0,"targetType":"single_enemy","accuracy":95,"statDriver":"attack"}
 {"id":"309","name":"蜃景闪身","description":"提升敏捷与闪避。","category":"support","element":"None","power":0,"mpCost":0,"targetType":"self","accuracy":100,"statDriver":"intelligence","statusEffects":[{"effectId":"agility_up","chance":100}]}
