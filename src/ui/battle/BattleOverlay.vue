@@ -19,6 +19,7 @@ import type {
   BattleParticipant,
 } from "@/types/battle";
 import BattleBroadcastWindow from "@/ui/battle/BattleBroadcastWindow.vue";
+import { getChallengeBossSprite } from "@/ui/battle/battleEnemySprites";
 import BattleCommandMenu from "@/ui/battle/BattleCommandMenu.vue";
 import BattleStatusPanel from "@/ui/battle/BattleStatusPanel.vue";
 import { useFormationStore } from "@/stores/formationStore";
@@ -454,6 +455,11 @@ function getPartyAvatar(player: BattleParticipant): string {
 }
 
 function getPendingEnemySprite(enemy: BattleEnemyInstance): string {
+  const challengeSprite = getChallengeBossSprite(enemy.enemyId);
+  if (challengeSprite !== "") {
+    return challengeSprite;
+  }
+
   // BattleEnemyInstance.displayName is the enemyId, not the real name.
   // Look up the enemy definition from the content registry for creature matching.
   try {
@@ -465,7 +471,9 @@ function getPendingEnemySprite(enemy: BattleEnemyInstance): string {
 }
 
 function getActiveEnemySprite(enemy: BattleParticipant): string {
-  return getEnemySprite(enemy.displayName);
+  return (
+    getChallengeBossSprite(enemy.enemyId) || getEnemySprite(enemy.displayName)
+  );
 }
 
 function findBattleActionMenuNodeByActionId(
