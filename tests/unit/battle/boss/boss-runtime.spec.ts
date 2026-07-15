@@ -10,6 +10,7 @@ import {
 import { createEmptyBossRuntimeState } from "@/engine/battle/boss/bossTypes";
 import type { BattleSnapshot } from "@/types/battle";
 import { beforeEach, describe, expect, it } from "vitest";
+import { reactive } from "vue";
 
 function snapshot(): BattleSnapshot {
   return {
@@ -61,6 +62,22 @@ describe("bossRuntime", () => {
     expect(next.battleLog?.at(-1)).toMatchObject({
       kind: "mechanic",
       summary: "阶段检测",
+    });
+  });
+
+  it("clones reactive Boss runtime state without throwing DataCloneError", () => {
+    const reactiveSnapshot = reactive(snapshot()) as BattleSnapshot;
+    reactiveSnapshot.bossRuntime!.mechanicState.nested = {
+      values: [1, { active: true }],
+    };
+
+    const next = applyBossEffects(reactiveSnapshot, [
+      { type: "set_counter", key: "actions", value: 1 },
+    ]);
+
+    expect(next.bossRuntime?.counters.actions).toBe(1);
+    expect(next.bossRuntime?.mechanicState.nested).toEqual({
+      values: [1, { active: true }],
     });
   });
 

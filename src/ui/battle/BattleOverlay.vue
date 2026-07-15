@@ -19,7 +19,6 @@ import type {
   BattleParticipant,
 } from "@/types/battle";
 import BattleBroadcastWindow from "@/ui/battle/BattleBroadcastWindow.vue";
-import { deriveBossSignals } from "@/engine/battle/boss/bossRuntime";
 import BattleCommandMenu from "@/ui/battle/BattleCommandMenu.vue";
 import BattleStatusPanel from "@/ui/battle/BattleStatusPanel.vue";
 import { useFormationStore } from "@/stores/formationStore";
@@ -187,10 +186,6 @@ const selectedTarget = computed(() => {
 
   return fallback;
 });
-
-const bossSignals = computed(() =>
-  activeBattle.value == null ? [] : deriveBossSignals(activeBattle.value),
-);
 
 const selectedEnemyTarget = computed(() => {
   return (
@@ -578,7 +573,6 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
           :press-turn-icons="activeBattle?.pressTurn.icons ?? []"
           :owner-side="activeBattle?.pressTurn.ownerSide ?? 'player'"
           :icon-assets="pressTurnIconAssets"
-          :boss-signals="bossSignals"
         />
       </div>
 
@@ -792,5 +786,3 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
     />
   </section>
 </template>
-
-

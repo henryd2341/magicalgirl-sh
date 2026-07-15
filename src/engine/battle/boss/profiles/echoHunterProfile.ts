@@ -1,11 +1,12 @@
 import { getSkill } from "@/content/contentRegistry";
+import { cloneBossStateValue } from "@/engine/battle/boss/bossStateClone";
 import type { BossProfile } from "@/engine/battle/boss/bossRegistry";
 import type { BossActionIntent, BossContext, BossEffect, BossUtilityCandidate } from "@/engine/battle/boss/bossTypes";
 
 interface EchoArchive { element?: number; actionCategory?: string; favoredParticipantId?: string; remainingRounds: number }
 interface PendingEcho { elements: number[]; categories: string[]; targets: string[] }
 function hunter(context: BossContext) { return context.snapshot.participants.find((participant) => participant.enemyId === "105"); }
-function pending(context: BossContext): PendingEcho { return structuredClone((context.runtime.mechanicState["echo:pending"] as PendingEcho | undefined) ?? { elements: [], categories: [], targets: [] }); }
+function pending(context: BossContext): PendingEcho { return cloneBossStateValue((context.runtime.mechanicState["echo:pending"] as PendingEcho | undefined) ?? { elements: [], categories: [], targets: [] }); }
 function mostFrequent<T>(values: T[]): T | undefined { let best: T | undefined; let bestCount = 0; for (const value of values) { const count = values.filter((candidate) => candidate === value).length; if (count > bestCount) { best = value; bestCount = count; } } return best; }
 function category(actionId: string): string {
   if (actionId === "guard" || actionId === "pass") return actionId;

@@ -20,6 +20,7 @@ type PointerInteraction =
   | {
       kind: "drag";
       pointerId: number;
+      captureTarget: HTMLElement;
       startClientX: number;
       startClientY: number;
       startX: number;
@@ -28,6 +29,7 @@ type PointerInteraction =
   | {
       kind: "resize";
       pointerId: number;
+      captureTarget: HTMLElement;
       startClientX: number;
       startClientY: number;
       startWidth: number;
@@ -66,10 +68,14 @@ function currentViewport(): BattleBroadcastViewport {
   };
 }
 
-function capturePointer(event: PointerEvent): number {
+function capturePointer(event: PointerEvent): {
+  pointerId: number;
+  captureTarget: HTMLElement;
+} {
   const pointerId = event.pointerId ?? 0;
-  (event.currentTarget as HTMLElement).setPointerCapture?.(pointerId);
-  return pointerId;
+  const captureTarget = event.currentTarget as HTMLElement;
+  captureTarget.setPointerCapture?.(pointerId);
+  return { pointerId, captureTarget };
 }
 
 function startDrag(event: PointerEvent): void {
@@ -77,9 +83,10 @@ function startDrag(event: PointerEvent): void {
     return;
   }
 
+  event.preventDefault();
   pointerInteraction.value = {
     kind: "drag",
-    pointerId: capturePointer(event),
+    ...capturePointer(event),
     startClientX: event.clientX,
     startClientY: event.clientY,
     startX: preferences.value.x,
@@ -111,9 +118,10 @@ function startResize(event: PointerEvent): void {
   }
 
   event.stopPropagation();
+  event.preventDefault();
   pointerInteraction.value = {
     kind: "resize",
-    pointerId: capturePointer(event),
+    ...capturePointer(event),
     startClientX: event.clientX,
     startClientY: event.clientY,
     startWidth: preferences.value.width,
@@ -141,6 +149,14 @@ function moveResize(event: PointerEvent): void {
   );
 }
 
+function movePointerInteraction(event: PointerEvent): void {
+  if (pointerInteraction.value?.kind === "drag") {
+    moveDrag(event);
+  } else if (pointerInteraction.value?.kind === "resize") {
+    moveResize(event);
+  }
+}
+
 function endPointerInteraction(event: PointerEvent): void {
   const interaction = pointerInteraction.value;
   if (
@@ -150,9 +166,7 @@ function endPointerInteraction(event: PointerEvent): void {
     return;
   }
 
-  (event.currentTarget as HTMLElement).releasePointerCapture?.(
-    interaction.pointerId,
-  );
+  interaction.captureTarget.releasePointerCapture?.(interaction.pointerId);
   pointerInteraction.value = null;
 }
 
@@ -233,10 +247,16 @@ watch(
 
 onMounted(() => {
   window.addEventListener("resize", clampToViewport);
+  window.addEventListener("pointermove", movePointerInteraction);
+  window.addEventListener("pointerup", endPointerInteraction);
+  window.addEventListener("pointercancel", endPointerInteraction);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("resize", clampToViewport);
+  window.removeEventListener("pointermove", movePointerInteraction);
+  window.removeEventListener("pointerup", endPointerInteraction);
+  window.removeEventListener("pointercancel", endPointerInteraction);
 });
 </script>
 
@@ -269,9 +289,6 @@ onBeforeUnmount(() => {
         aria-label="拖动战斗播报窗口"
         tabindex="0"
         @pointerdown="startDrag"
-        @pointermove="moveDrag"
-        @pointerup="endPointerInteraction"
-        @pointercancel="endPointerInteraction"
         @keydown="moveFromKeyboard"
       >
         <span class="battle-broadcast__title">
@@ -357,9 +374,6 @@ onBeforeUnmount(() => {
         class="battle-broadcast__resize"
         aria-label="调整战斗播报窗口尺寸"
         @pointerdown="startResize"
-        @pointermove="moveResize"
-        @pointerup="endPointerInteraction"
-        @pointercancel="endPointerInteraction"
       />
     </aside>
 
@@ -383,17 +397,14 @@ onBeforeUnmount(() => {
   min-width: 280px;
   min-height: 180px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--mg-accent, #cf8cff) 52%, transparent);
+  border: 1px solid var(--mg-border-light, rgba(207, 140, 255, 0.52));
   border-radius: var(--mg-radius-lg, 16px);
-  background: rgba(24, 18, 38, 0.92);
   background: color-mix(
     in srgb,
-    var(--mg-surface, #241c36) 82%,
+    var(--mg-bg-card, #241c36) 88%,
     transparent
   );
-  box-shadow:
-    0 18px 48px rgba(0, 0, 0, 0.34),
-    inset 0 1px rgba(255, 255, 255, 0.08);
+  box-shadow: var(--mg-shadow-card, 0 18px 48px rgba(0, 0, 0, 0.34));
   backdrop-filter: blur(10px);
 }
 
@@ -404,11 +415,11 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 8px;
   padding: 6px 8px 6px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid var(--mg-border-light, rgba(255, 255, 255, 0.12));
   background: color-mix(
     in srgb,
     var(--mg-accent, #cf8cff) 16%,
-    transparent
+    var(--mg-bg-card, #241c36)
   );
   cursor: grab;
   touch-action: none;
@@ -449,9 +460,9 @@ onBeforeUnmount(() => {
 .battle-broadcast-icon {
   min-width: 44px;
   min-height: 44px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--mg-border-light, rgba(255, 255, 255, 0.16));
   color: inherit;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--mg-surface-pink, rgba(255, 255, 255, 0.08));
   cursor: pointer;
 }
 
@@ -464,7 +475,7 @@ onBeforeUnmount(() => {
 
 .battle-broadcast button:hover,
 .battle-broadcast-icon:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--mg-surface-hover, rgba(255, 255, 255, 0.16));
 }
 
 .battle-broadcast__log {
@@ -487,7 +498,7 @@ onBeforeUnmount(() => {
   grid-template-columns: 3ch minmax(0, 1fr);
   gap: 10px;
   padding: 8px 2px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--mg-border-light, rgba(255, 255, 255, 0.08));
   font-size: 0.875rem;
   line-height: 1.5;
 }
@@ -532,7 +543,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 8px;
   padding: 4px 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--mg-border-light, rgba(255, 255, 255, 0.1));
   color: var(--mg-text-muted, #c5b9d7);
   font-size: 0.75rem;
 }
@@ -558,7 +569,7 @@ onBeforeUnmount(() => {
     linear-gradient(
       135deg,
       transparent 48%,
-      rgba(255, 255, 255, 0.48) 50%,
+      var(--mg-text-muted, rgba(255, 255, 255, 0.48)) 50%,
       transparent 54%
     )
     14px 14px / 22px 22px no-repeat;
@@ -570,7 +581,11 @@ onBeforeUnmount(() => {
   width: 52px;
   height: 52px;
   border-radius: 16px;
-  background: rgba(24, 18, 38, 0.9);
+  background: color-mix(
+    in srgb,
+    var(--mg-bg-card, #241c36) 90%,
+    transparent
+  );
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
   font-size: 0.7rem;

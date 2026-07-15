@@ -1,4 +1,5 @@
 import BattleBroadcastWindow from "@/ui/battle/BattleBroadcastWindow.vue";
+import battleBroadcastSource from "@/ui/battle/BattleBroadcastWindow.vue?raw";
 import type { BattleLogEntry } from "@/types/battle";
 import { cleanup, fireEvent, render, screen } from "@testing-library/vue";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -158,12 +159,12 @@ describe("BattleBroadcastWindow", () => {
       clientX: 20,
       clientY: 20,
     });
-    await fireEvent.pointerMove(header, {
+    await fireEvent.pointerMove(window, {
       pointerId: 2,
       clientX: 60,
       clientY: 50,
     });
-    await fireEvent.pointerUp(header, { pointerId: 2 });
+    await fireEvent.pointerUp(window, { pointerId: 2 });
     expect(windowElement).toHaveStyle({ left: "64px", top: "54px" });
 
     await fireEvent.keyDown(header, { key: "ArrowRight" });
@@ -209,6 +210,12 @@ describe("BattleBroadcastWindow", () => {
 
     expect(windowElement).toHaveStyle({ width: "280px", height: "180px" });
   });
+  it("uses theme surface tokens instead of a fixed dark palette", () => {
+    expect(battleBroadcastSource).toContain("var(--mg-bg-card");
+    expect(battleBroadcastSource).toContain("var(--mg-border-light");
+    expect(battleBroadcastSource).not.toContain("rgba(24, 18, 38");
+  });
+
   it("keeps Boss mechanic history in the compact broadcast", () => {
     const mechanicEntries: BattleLogEntry[] = [
       "天地交灼",

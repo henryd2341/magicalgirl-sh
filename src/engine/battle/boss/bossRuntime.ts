@@ -1,4 +1,5 @@
 import { createSummonedEnemyParticipant } from "@/engine/battle/battleSetup";
+import { cloneBossStateValue } from "@/engine/battle/boss/bossStateClone";
 import {
   getBossProfile,
 } from "@/engine/battle/boss/bossRegistry";
@@ -27,7 +28,7 @@ function cloneRuntime(snapshot: BattleSnapshot): NonNullable<BattleSnapshot["bos
     lists: Object.fromEntries(
       Object.entries(runtime.lists).map(([key, value]) => [key, [...value]]),
     ),
-    mechanicState: structuredClone(runtime.mechanicState),
+    mechanicState: cloneBossStateValue(runtime.mechanicState),
     decisionSteps: runtime.decisionSteps,
   };
 }
@@ -92,7 +93,7 @@ export function applyBossEffects(
         runtime.lists[effect.key] = [...effect.values];
         break;
       case "set_mechanic_state":
-        runtime.mechanicState[effect.key] = structuredClone(effect.value);
+        runtime.mechanicState[effect.key] = cloneBossStateValue(effect.value);
         break;
       case "set_affinities":
         next = {

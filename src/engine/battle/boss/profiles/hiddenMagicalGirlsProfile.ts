@@ -1,4 +1,5 @@
 import { getStatusEffectMap } from "@/content/contentRegistry";
+import { cloneBossStateValue } from "@/engine/battle/boss/bossStateClone";
 import { isShieldStatusEffect } from "@/engine/battle/statusEffectEngine";
 import type { BossProfile } from "@/engine/battle/boss/bossRegistry";
 import type { BossActionIntent, BossContext, BossEffect, BossUtilityCandidate } from "@/engine/battle/boss/bossTypes";
@@ -10,8 +11,8 @@ export interface HiddenPairState { phase: "trial" | "confluence" | "horizon"; co
 interface CommandmentState { skillUses: Record<string, number>; guardOrPassActors: string[]; partyHealing: number; }
 const INITIAL: HiddenPairState = { phase: "trial", confluenceRounds: 0, bigWindowStartRound: 1, bigWindowDamage: 0, smallWindow: null, crisisEntered: { "107": false, "108": false }, finalPlayerRoundsRemaining: null, reviveTargetActorId: null, ailmentSuccesses: {} };
 const EMPTY_COMMANDMENTS: CommandmentState = { skillUses: {}, guardOrPassActors: [], partyHealing: 0 };
-function pair(context: BossContext): HiddenPairState { return structuredClone((context.runtime.mechanicState["hidden:pair"] as HiddenPairState | undefined) ?? INITIAL); }
-function commandments(context: BossContext): CommandmentState { return structuredClone((context.runtime.mechanicState["hidden:commandments"] as CommandmentState | undefined) ?? EMPTY_COMMANDMENTS); }
+function pair(context: BossContext): HiddenPairState { return cloneBossStateValue((context.runtime.mechanicState["hidden:pair"] as HiddenPairState | undefined) ?? INITIAL); }
+function commandments(context: BossContext): CommandmentState { return cloneBossStateValue((context.runtime.mechanicState["hidden:commandments"] as CommandmentState | undefined) ?? EMPTY_COMMANDMENTS); }
 function bosses(context: BossContext) { return context.snapshot.participants.filter((p) => p.enemyId === "107" || p.enemyId === "108"); }
 function bossByEnemy(context: BossContext, enemyId: "107" | "108") { return bosses(context).find((p) => p.enemyId === enemyId); }
 function livingPlayerObjects(context: BossContext) { return context.snapshot.participants.filter((p) => p.side === "player" && p.isActive && !p.isDown); }

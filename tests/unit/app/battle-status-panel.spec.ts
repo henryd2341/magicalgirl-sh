@@ -50,7 +50,7 @@ describe("BattleStatusPanel", () => {
     expect(screen.getByLabelText("solid press turn icon")).toBeInTheDocument();
     expect(screen.getByLabelText("blinking press turn icon")).toBeInTheDocument();
   });
-  it("shows only the current actionable Boss signals", () => {
+  it("does not render the redundant legacy Boss signals region", () => {
     render(BattleStatusPanel, {
       props: {
         selectedTarget: selectedEnemy,
@@ -69,11 +69,7 @@ describe("BattleStatusPanel", () => {
       },
     });
 
-    const signals = screen.getByLabelText("Boss 公开机制");
-    expect(signals).toHaveTextContent("当前阶段终末地平");
-    expect(signals).toHaveTextContent("大 DPS 检定1450 / 2000 · 剩余 1 回合");
-    expect(signals).toHaveTextContent("复苏脉动下一实际行动");
-    expect(signals).not.toHaveTextContent("天地交灼");
+    expect(screen.queryByLabelText("Boss 公开机制")).not.toBeInTheDocument();
   });
 
 });
