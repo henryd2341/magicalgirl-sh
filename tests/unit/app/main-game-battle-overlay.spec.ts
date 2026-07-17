@@ -95,7 +95,6 @@ describe("MainGameView battle overlay entrypoint", () => {
     expect(
       await screen.findByRole("complementary", { name: "战斗播报" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("enc-main-game-overlay-001")).toBeInTheDocument();
     expect(screen.getByLabelText("敌人状态栏")).toBeInTheDocument();
     expect(screen.getByLabelText("回合与 Press Turn 区域")).toBeInTheDocument();
     expect(screen.getByLabelText("敌人区域")).toHaveClass(
@@ -111,6 +110,7 @@ describe("MainGameView battle overlay entrypoint", () => {
     expect(screen.getByRole("button", { name: "Pass" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Swap" })).toBeInTheDocument();
     expect(screen.getAllByAltText("school-shadow sprite")).toHaveLength(2);
+    expect(within(screen.getByLabelText("敌人区域")).getAllByText("HP 5/5")).toHaveLength(2);
     expect(screen.getByAltText("鹿目真昼 avatar")).toBeInTheDocument();
 
     battleStore.clearActiveBattle();

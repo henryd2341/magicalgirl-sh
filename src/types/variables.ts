@@ -59,6 +59,7 @@ export interface GameVariablesRoot {
         intelligence: number;
       };
       unspentPoints: number;
+      permanentBonuses?: { attack: number; defense: number; agility: number; intelligence: number };
     };
     money: number;
     equipment: {
@@ -99,6 +100,7 @@ export interface GameVariablesRoot {
           intelligence: number;
         };
         unspentPoints: number;
+        permanentBonuses?: { attack: number; defense: number; agility: number; intelligence: number };
       } | null;
       inParty?: boolean;
       isVanguard?: boolean;

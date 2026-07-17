@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateDamage,
+  calculateSkillPowerBase,
   calculateHitChance,
   calculateCritChance,
   calculateExpToNextLevel,
@@ -18,12 +19,12 @@ import type { FormulaParams } from "@/types/content";
 
 function makeParams(overrides?: Partial<FormulaParams>): FormulaParams {
   return {
-    damage: { varianceMin: 0.95, varianceMax: 1.05, levelInfluence: 0.01, minDamage: 1 },
+    damage: { varianceMin: 0.95, varianceMax: 1.05, levelInfluence: 0.01, minDamage: 1, statRatioExponent: 0.75, powerReference: 80, powerExponent: 0.83 },
     affinity: { weak: 1.5, resist: 0.5, nullify: 0, normal: 1.0 },
     hitRate: { agilityInfluence: 0.2, minHitRate: 5, maxHitRate: 95 },
-    critRate: { base: 5, agilityBonus: 0.1, max: 50 },
+    critRate: { base: 5, agilityBonus: 0.1, max: 50, damageMultiplier: 1.5 },
     exp: { baseExpToNext: 50, levelExponent: 1.5 },
-    guard: { damageReduction: 1 },
+    guard: { damageMultiplier: 0.5 },
     ...overrides,
   };
 }
@@ -49,6 +50,14 @@ describe("calculateDamage", () => {
     expect(high).toBeGreaterThan(low);
   });
 
+  it("keeps a meaningful gap between attack 30 and attack 99", () => {
+    const deterministic = { ...params, varianceMin: 1, varianceMax: 1 };
+    const attack30 = calculateDamage(30, 30, 30, 100, 1, deterministic);
+    const attack99 = calculateDamage(99, 30, 30, 100, 1, deterministic);
+
+    expect(attack99 / attack30).toBeGreaterThan(2.2);
+  });
+
   it("decreases with higher defense", () => {
     const lowDef = calculateDamage(10, 1, 5, 10, 1.0, { ...params, varianceMin: 1, varianceMax: 1 });
     const highDef = calculateDamage(10, 1, 20, 10, 1.0, { ...params, varianceMin: 1, varianceMax: 1 });
@@ -70,6 +79,27 @@ describe("calculateDamage", () => {
     const lv1 = calculateDamage(10, 1, 5, 10, 1.0, { ...params, varianceMin: 1, varianceMax: 1 });
     const lv50 = calculateDamage(10, 50, 5, 10, 1.0, { ...params, varianceMin: 1, varianceMax: 1 });
     expect(lv50).toBeGreaterThan(lv1);
+  });
+
+  it("uses the configured high-power curve without moving the power 80 anchor", () => {
+    const base = calculateSkillPowerBase(80, params);
+    const expectedRatios = [
+      [80, 1],
+      [100, 1.2],
+      [150, 1.68],
+      [200, 2.14],
+      [300, 3],
+      [500, 4.58],
+      [700, 6.05],
+    ] as const;
+
+    expect(base).toBe(Math.sqrt(160));
+    for (const [power, expectedRatio] of expectedRatios) {
+      expect(calculateSkillPowerBase(power, params) / base).toBeCloseTo(
+        expectedRatio,
+        2,
+      );
+    }
   });
 });
 
@@ -312,15 +342,15 @@ describe("resolveAffinityOutcomeType", () => {
 describe("calculateGuardReduction", () => {
   const params = makeParams().guard;
 
-  it("reduces damage by guard amount", () => {
-    expect(calculateGuardReduction(5, params)).toBe(4);
+  it("reduces damage by the configured multiplier", () => {
+    expect(calculateGuardReduction(5, params)).toBe(2);
   });
 
   it("never goes below 0", () => {
     expect(calculateGuardReduction(0, params)).toBe(0);
   });
 
-  it("handles damage less than reduction", () => {
-    expect(calculateGuardReduction(1, { damageReduction: 3 })).toBe(0);
+  it("keeps positive guarded damage at the formula minimum", () => {
+    expect(calculateGuardReduction(1, { damageMultiplier: 0.5 })).toBe(1);
   });
 });

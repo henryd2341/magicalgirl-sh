@@ -630,13 +630,16 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
             :src="getActiveEnemySprite(enemy)"
             :alt="`${enemy.displayName} sprite`"
           />
-          <span class="battle-enemy-card__level">LV {{ enemy.level ?? 1 }}</span>
-          <span class="battle-enemy-card__name">{{ enemy.displayName }}</span>
+          <span class="battle-enemy-card__name">
+            <span class="battle-enemy-card__level">LV {{ enemy.level ?? 1 }}</span>
+            {{ enemy.displayName }}
+          </span>
           <progress
             class="battle-enemy-card__hp"
             :value="enemy.hp.current"
             :max="enemy.hp.max"
           />
+          <span class="battle-enemy-card__hp-nums">HP {{ enemy.hp.current }}/{{ enemy.hp.max }}</span>
         </button>
       </section>
 

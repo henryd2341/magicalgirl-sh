@@ -228,8 +228,7 @@ function applyTurnStartEffect(
       break;
     }
     case "mp_regen": {
-      const regen = Math.round(ctx.mpMax * p.value / 100);
-      ctx.mpCurrent = Math.min(ctx.mpMax, ctx.mpCurrent + regen);
+      ctx.mpCurrent = Math.min(ctx.mpMax, ctx.mpCurrent + p.value);
       break;
     }
   }

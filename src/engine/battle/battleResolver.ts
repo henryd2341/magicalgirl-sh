@@ -309,8 +309,12 @@ function selectEnemyTurnTarget(
     }, undefined);
 }
 
-function hasGuardStatus(participant: BattleParticipant): boolean {
-  return (participant.statusEffects ?? []).some((e) => e.effectId === GUARD_EFFECT_ID);
+function triggersEnemyTurnInterruption(
+  target: BattleParticipant,
+  outcomes: readonly BattleActionOutcome[],
+): boolean {
+  return target.accessoryEffects?.includes("miss_consume_all") === true
+    && outcomes.some((outcome) => outcome.type === "miss" || outcome.type === "block");
 }
 
 // ── Core attack outcome builder ──
@@ -366,11 +370,13 @@ export function buildAttackOutcomes(
       }
     }
 
-    // Hit check
+    // Effective stats (with buffs/debuffs). Hit chance consumes agility once.
+    const effectiveStats = computeEffectiveStats(actor, actor.statusEffects ?? [], effectMap);
+    const effectiveTargetStats = computeEffectiveStats(target, target.statusEffects ?? [], effectMap);
     const hitChance = calculateHitChance(
       skillAccuracy,
-      actor.combatStats?.accuracy ?? 90,
-      target.combatStats?.evasion ?? 80,
+      effectiveStats.agility ?? 5,
+      effectiveTargetStats.agility ?? 5,
       params.hitRate,
     );
 
@@ -406,16 +412,14 @@ export function buildAttackOutcomes(
       break;
     }
 
-    // Affinity multiplier (using merged affinities for passive resist)
-    const affinityMult = resolveAffinityMultiplier(
-      mergedAffinities,
-      skillElement,
-      params.affinity,
+    const isGuarding = (target.statusEffects ?? []).some(
+      (effect) => effect.effectId === GUARD_EFFECT_ID,
     );
-
-    // Effective stats (with buffs/debuffs)
-    const effectiveStats = computeEffectiveStats(actor, actor.statusEffects ?? [], effectMap);
-    const effectiveTargetStats = computeEffectiveStats(target, target.statusEffects ?? [], effectMap);
+    const affinityResult = resolveAffinityResult(mergedAffinities, skillElement);
+    // Guard masks weakness but preserves stronger native defenses.
+    const affinityMult = isGuarding && affinityResult === "weak"
+      ? params.affinity.normal
+      : resolveAffinityMultiplier(mergedAffinities, skillElement, params.affinity);
 
     // Damage
     const driverStat = (statDriver === "attack" ? effectiveStats.attack : effectiveStats.intelligence) ?? 5;
@@ -465,17 +469,21 @@ export function buildAttackOutcomes(
       actorHpPercent,
     }) as { damage: number; element: string; actorHpPercent: number };
     damage = dmgCtx.damage;
+    if (isGuarding) {
+      damage = calculateGuardReduction(damage, params.guard);
+    }
 
     // Crit check
     const baseCrit = actor.combatStats?.critRate ?? 5;
     const critChance = guaranteedCrit ? 100 : Math.min(params.critRate.max, Math.max(0, baseCrit + (input.skillCritRate ?? 0)));
     const isCrit = rollCrit(critChance);
+    if (isCrit) {
+      damage = Math.floor(damage * params.critRate.damageMultiplier);
+    }
 
     // Determine tags
     const tags: BattleActionResolution["outcomes"][0]["tags"] = [];
-    const affinityResult = resolveAffinityResult(mergedAffinities, skillElement);
-
-    if (affinityResult === "weak") tags.push("weak");
+    if (affinityResult === "weak" && !isGuarding) tags.push("weak");
     if (isCrit) tags.push("critical");
 
     outcomes.push({
@@ -588,6 +596,15 @@ export function createPressTurnResolutionForOutcomes(
   outcomes: BattleActionOutcome[],
 ): BattleActionResolution {
   const aggregatedOutcome = aggregatePressTurnOutcome(outcomes);
+  const actor = snapshot.participants.find(
+    (participant) => participant.id === snapshot.currentActorId,
+  );
+  const ignoresPenalty = actor?.accessoryEffects?.includes("no_press_penalty") === true;
+  const settledOutcome = ignoresPenalty && aggregatedOutcome != null && [
+    "miss", "block", "reflect", "absorb",
+  ].includes(aggregatedOutcome.outcomeType)
+    ? { outcomeType: "hit" as const, tags: [] }
+    : aggregatedOutcome;
   return {
     ok: true,
     actorId: snapshot.currentActorId ?? "unknown-actor",
@@ -595,12 +612,12 @@ export function createPressTurnResolutionForOutcomes(
     intendedTargetId: snapshot.selectedTargetId,
     outcomes,
     pressTurnResult:
-      aggregatedOutcome == null
+      settledOutcome == null
         ? undefined
         : settlePressTurnResultByOutcome(
             snapshot.pressTurn,
-            aggregatedOutcome.outcomeType,
-            aggregatedOutcome.tags,
+            settledOutcome.outcomeType,
+            settledOutcome.tags,
           ),
     verboseLog: [],
     summaryLog: [],
@@ -671,7 +688,7 @@ export function resolveSelectedBattleAction(
     : allPlayersDefeated
       ? createDefeatBattleResult(participants, turnCount)
       : normalizedSnapshot.battleResult;
-  const actionLog = createPlayerActionLogEntry(resolution, turnCount);
+  const actionLog = createPlayerActionLogEntry(resolution, turnCount, participants);
   const resultLog =
     battleResult != null && (allEnemiesDefeated || allPlayersDefeated)
       ? [createBattleResultLogEntry(battleResult)]
@@ -832,7 +849,11 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
       p.side === "enemy" && p.isActive && !p.isDown && p.canAct !== false,
   );
 
-  if (enemyActors.length === 0) {
+  const livingEnemies = snapshot.participants.filter(
+    (p) => p.side === "enemy" && p.isActive && !p.isDown,
+  );
+
+  if (livingEnemies.length === 0) {
     const battleResult = createVictoryBattleResult(snapshot.participants, turnCount);
     return {
       ...snapshot,
@@ -853,6 +874,7 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
     { ...snapshot, participants },
     { type: "round_started", turnCount },
   );
+  let enemyTurnInterrupted = false;
   const attackCount = Math.max(
     1,
     snapshot.pressTurn.ownerSide === "enemy"
@@ -963,9 +985,10 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
             applyOutcomeToParticipant(p, outcome),
           );
         }
+        enemyTurnInterrupted ||= triggersEnemyTurnInterruption(t, outcomes);
         logs.push(
           createEnemySkillLogEntry(
-            turnCount, actor, t, action.name, outcomes,
+            turnCount, actor, t, action.name, outcomes, participants,
           ),
         );
         bossState = emitBossActionEvents(
@@ -995,9 +1018,10 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
           applyOutcomeToParticipant(p, outcome),
         );
       }
+      enemyTurnInterrupted ||= triggersEnemyTurnInterruption(targetParticipant, outcomes);
       logs.push(
         createEnemySkillLogEntry(
-          turnCount, actor, targetParticipant, action.name, outcomes,
+          turnCount, actor, targetParticipant, action.name, outcomes, participants,
         ),
       );
       bossState = emitBossActionEvents(
@@ -1009,10 +1033,12 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
         participants,
       );
     }
+    if (enemyTurnInterrupted) break;
   }
 
   // Tick status effects at round boundary
   const effectMap = getStatusEffectMap();
+  const participantsBeforeTick = participants.map(cloneParticipant);
   participants = participants.map((p) => {
     if (p.isDown) return p;
     const tickableEffects = (p.statusEffects ?? []).filter(
@@ -1045,9 +1071,24 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
       hp: { ...p.hp, current: nextHp },
       mp: { ...p.mp, current: nextMp },
       isDown: nextHp === 0,
-      canAct: disabled ? false : (p.canAct ?? true),
+      canAct: !disabled,
     };
   });
+
+  for (const participant of participants) {
+    const before = participantsBeforeTick.find((candidate) => candidate.id === participant.id);
+    if (before == null) continue;
+    const hpChange = participant.hp.current - before.hp.current;
+    const mpChange = participant.mp.current - before.mp.current;
+    if (hpChange < 0) {
+      logs.push(createMechanicLogDraft(turnCount, `${participant.displayName}受到 ${Math.abs(hpChange)} 点持续伤害`, [`HP ${participant.hp.current}/${participant.hp.max}`]));
+    } else if (hpChange > 0) {
+      logs.push(createMechanicLogDraft(turnCount, `${participant.displayName}每回合恢复 ${hpChange} HP`, [`HP ${participant.hp.current}/${participant.hp.max}`]));
+    }
+    if (mpChange > 0) {
+      logs.push(createMechanicLogDraft(turnCount, `${participant.displayName}每回合恢复 ${mpChange} MP`, [`MP ${participant.mp.current}/${participant.mp.max}`]));
+    }
+  }
 
   let postTickBossState: BattleSnapshot = { ...bossState, participants };
   const playerDotSourceId = participants.find(
@@ -1209,13 +1250,22 @@ export function resolveSelectedBattleActionToResolution(
 
   // Pass
   if (definition.resolutionKind === "pass") {
+    const actor = snapshot.participants.find((participant) => participant.id === actorId);
+    const passResult = actor?.accessoryEffects?.includes("pass_free") === true
+      ? {
+          kind: "no_change" as const,
+          reason: "pass" as const,
+          before: { ...snapshot.pressTurn, icons: snapshot.pressTurn.icons.map((icon) => ({ ...icon })) },
+          after: { ...snapshot.pressTurn, icons: snapshot.pressTurn.icons.map((icon) => ({ ...icon })) },
+        }
+      : settlePassPressTurn(snapshot.pressTurn);
     return {
       ok: true,
       actorId,
       actionId: definition.id,
       intendedTargetId: snapshot.selectedTargetId,
       outcomes: [],
-      pressTurnResult: settlePassPressTurn(snapshot.pressTurn),
+      pressTurnResult: passResult,
       verboseLog: [`${actorId} passed the turn.`],
       summaryLog: ["Pass used"],
     };
@@ -1679,7 +1729,7 @@ export function resolveSelectedBattleActionToResolution(
         actor,
         targetId: offenseTarget.id,
         target: offenseTarget,
-        skillPower: skillContent.power,
+        skillPower: skillContent.mpDrainAmount != null ? 1 : skillContent.power,
         skillElement: skillContent.element,
         skillAccuracy: skillContent.accuracy,
         statDriver: skillContent.statDriver,
@@ -1688,7 +1738,58 @@ export function resolveSelectedBattleActionToResolution(
         hitCountMax: skillContent.hitCountMax,
         skillCategory: skillContent.category,
       });
+
+      if (skillContent.mpDrainAmount != null) {
+        const landed = targetOutcomes.some(
+          (outcome) => outcome.type === "hit" && (outcome.hpDelta ?? 0) < 0,
+        );
+        outcomes.push(...targetOutcomes.filter((outcome) => (outcome.hpDelta ?? 0) >= 0));
+        if (landed) {
+          const casterMpAfterCost = Math.max(0, actor.mp.current - skillContent.mpCost);
+          const transfer = Math.min(
+            skillContent.mpDrainAmount,
+            offenseTarget.mp.current,
+            Math.max(0, actor.mp.max - casterMpAfterCost),
+          );
+          if (transfer > 0) {
+            outcomes.push(
+              {
+                type: "hit", tags: [], actorId,
+                primaryTargetId: offenseTarget.id, finalTargetId: offenseTarget.id,
+                mpDelta: -transfer,
+              },
+              {
+                type: "hit", tags: [], actorId,
+                primaryTargetId: actorId, finalTargetId: actorId,
+                mpDelta: transfer,
+              },
+            );
+          }
+        }
+        continue;
+      }
+
       outcomes.push(...targetOutcomes);
+      if (skillContent.hpDrainPercent != null) {
+        const actualDamage = Math.min(
+          offenseTarget.hp.current,
+          targetOutcomes.reduce(
+            (total, outcome) => total + Math.max(0, -(outcome.hpDelta ?? 0)),
+            0,
+          ),
+        );
+        const healing = Math.min(
+          Math.max(0, actor.hp.max - actor.hp.current),
+          Math.floor(actualDamage * skillContent.hpDrainPercent / 100),
+        );
+        if (healing > 0) {
+          outcomes.push({
+            type: "hit", tags: [], actorId,
+            primaryTargetId: actorId, finalTargetId: actorId,
+            hpDelta: healing,
+          });
+        }
+      }
 
       // Apply status effects if the target was damaged
       if (appliedEffects.length > 0 && !offenseTarget.isDown) {

@@ -16,7 +16,7 @@ export const TRAINING_CATALOG: TrainingCatalog = {
       enemies: [{ enemy_id: "100", count: 1 }],
       firstClearReward: {
         money: 2500,
-        items: { "2": 2, "7": 2, "28": 2, "29": 2 },
+        items: { "2": 2, "7": 2, "28": 2, "29": 2, "66": 1, "69": 1 },
       },
     },
     {
@@ -33,7 +33,7 @@ export const TRAINING_CATALOG: TrainingCatalog = {
       ],
       firstClearReward: {
         money: 6000,
-        items: { "3": 2, "8": 2, "11": 2, "27": 3 },
+        items: { "3": 2, "8": 2, "11": 2, "27": 3, "67": 1, "68": 1 },
       },
     },
     {
@@ -46,7 +46,7 @@ export const TRAINING_CATALOG: TrainingCatalog = {
       enemies: [{ enemy_id: "104", count: 1 }],
       firstClearReward: {
         money: 12000,
-        items: { "17": 3, "26": 2, "52": 1, "53": 1 },
+        items: { "17": 3, "26": 2, "52": 1, "53": 1, "66": 1, "67": 1, "68": 1, "69": 1 },
       },
     },
     {
@@ -59,7 +59,7 @@ export const TRAINING_CATALOG: TrainingCatalog = {
       enemies: [{ enemy_id: "105", count: 1 }],
       firstClearReward: {
         money: 25000,
-        items: { "4": 2, "9": 2, "22": 2, "54": 1 },
+        items: { "4": 2, "9": 2, "22": 2, "54": 1, "66": 2, "67": 2, "68": 2, "69": 2 },
       },
     },
     {
@@ -72,7 +72,7 @@ export const TRAINING_CATALOG: TrainingCatalog = {
       enemies: [{ enemy_id: "106", count: 1 }],
       firstClearReward: {
         money: 50000,
-        items: { "5": 2, "10": 2, "13": 2, "55": 1 },
+        items: { "5": 2, "10": 2, "13": 2, "55": 1, "66": 3, "67": 3, "68": 3, "69": 3 },
       },
     },
     {
@@ -88,7 +88,7 @@ export const TRAINING_CATALOG: TrainingCatalog = {
       ],
       firstClearReward: {
         money: 100000,
-        items: { "5": 3, "10": 3, "13": 3, "65": 1 },
+        items: { "5": 3, "10": 3, "13": 3, "65": 1, "66": 5, "67": 5, "68": 5, "69": 5 },
       },
     },
   ],

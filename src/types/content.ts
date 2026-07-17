@@ -55,6 +55,8 @@ export interface SkillContent {
   statusEffects?: StatusEffectPayload[];
   healPercent?: number; // if set, heal uses percentage of target max HP instead of raw power
   revives?: boolean; // can this heal skill revive a downed target
+  hpDrainPercent?: number; // heal caster by this percentage of actual HP damage
+  mpDrainAmount?: number; // transfer up to this much MP from target to caster
   passiveEffects?: PassiveEffectDef[]; // passive skill effects
 }
 
@@ -149,6 +151,7 @@ export interface ItemContent {
   element?: string;
   statusEffects?: StatusEffectPayload[];
   targetType?: SkillTargetType;
+  permanentStatBonus?: { stat: "attack" | "defense" | "agility" | "intelligence"; amount: number };
   // accessory
   modifiers?: AccessoryModifiers;
   accessoryEffects?: ItemAccessoryEffect[];
@@ -163,6 +166,9 @@ export interface FormulaParams {
     varianceMax: number;
     levelInfluence: number;
     minDamage: number;
+    statRatioExponent: number;
+    powerReference: number;
+    powerExponent: number;
   };
   affinity: {
     weak: number;
@@ -179,13 +185,14 @@ export interface FormulaParams {
     base: number;
     agilityBonus: number;
     max: number;
+    damageMultiplier: number;
   };
   exp: {
     baseExpToNext: number;
     levelExponent: number;
   };
   guard: {
-    damageReduction: number;
+    damageMultiplier: number;
   };
 }
 

@@ -68,3 +68,7 @@
 {"id": "63", "name": "抗打击戒指", "description": "使装备者的物理属性耐性变为耐性。不会覆盖无效/反弹/吸收。", "type": "accessory", "tier": "rare", "price": 5000, "affinityResist": {"Physical": "resist"}}
 {"id": "64", "name": "药到病除戒指", "description": "使装备者的异常状态耐性变为耐性。不会覆盖无效/反弹/吸收。", "type": "accessory", "tier": "rare", "price": 5000, "affinityResist": {"Ailment": "resist"}}
 {"id": "65", "name": "至高戒指", "description": "使装备者除万能属性以外的属性耐性变为无效。不会覆盖反弹/吸收。", "type": "accessory", "tier": "legendary", "price": 0, "affinityResist": {"Physical": "nullify", "Fire": "nullify", "Ice": "nullify", "Wind": "nullify", "Electric": "nullify", "Earth": "nullify", "Light": "nullify", "Dark": "nullify", "Ailment": "nullify"}}
+{"id": "66", "name": "力量之香", "description": "使一名角色的攻击永久提升1点，永久面板属性上限为99。", "type": "consumable", "tier": "legendary", "price": 20000, "usableInBattle": false, "permanentStatBonus": {"stat": "attack", "amount": 1}}
+{"id": "67", "name": "守护之香", "description": "使一名角色的防御永久提升1点，永久面板属性上限为99。", "type": "consumable", "tier": "legendary", "price": 20000, "usableInBattle": false, "permanentStatBonus": {"stat": "defense", "amount": 1}}
+{"id": "68", "name": "疾风之香", "description": "使一名角色的敏捷永久提升1点，永久面板属性上限为99。", "type": "consumable", "tier": "legendary", "price": 20000, "usableInBattle": false, "permanentStatBonus": {"stat": "agility", "amount": 1}}
+{"id": "69", "name": "智慧之香", "description": "使一名角色的智力永久提升1点，永久面板属性上限为99。", "type": "consumable", "tier": "legendary", "price": 20000, "usableInBattle": false, "permanentStatBonus": {"stat": "intelligence", "amount": 1}}

@@ -1,10 +1,12 @@
 import { createDefaultBattleCommandMenuTree } from "@/engine/battle/battleActionCatalog";
 import {
+  buildAttackOutcomes,
+  createPressTurnResolutionForOutcomes,
   resolveEnemyTurn,
   resolveSelectedBattleAction,
   resolveSelectedBattleActionToResolution,
 } from "@/engine/battle/battleResolver";
-import type { BattleSnapshot } from "@/types/battle";
+import { BATTLE_ELEMENTS, type BattleSnapshot } from "@/types/battle";
 import { describe, expect, it } from "vitest";
 import { vi } from "vitest";
 
@@ -175,8 +177,10 @@ describe("battleResolver", () => {
   });
 
   it("resolves attack through the skill pipeline and damages the enemy", () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
     const snapshot = createActiveBattleSnapshot();
     const resolved = resolveSelectedBattleAction(snapshot);
+    random.mockRestore();
 
     // Enemy took damage
     const enemy = resolved.participants.find((p) => p.id === "enemy-1")!;
@@ -240,6 +244,7 @@ describe("battleResolver", () => {
   // ── BattleResult on enemy defeat ──
 
   it("produces a victory battleResult when the attack kills the final enemy", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
     const snapshot = createActiveBattleSnapshot({
       participants: [
         {
@@ -288,6 +293,7 @@ describe("battleResolver", () => {
       endReason: "all_enemies_down",
       turnCount: 3,
     });
+    vi.restoreAllMocks();
   });
 
   it("produces a defeat battleResult when all players are already down", () => {
@@ -469,6 +475,90 @@ describe("battleResolver", () => {
 
     // Guard status is cleared after enemy turn
     expect(player.statusEffects).toEqual([]);
+  });
+
+  it("halves incoming damage and suppresses weakness while guarding", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const actor = createActiveBattleSnapshot().participants[1]!;
+    const baseTarget = {
+      ...createActiveBattleSnapshot().participants[0]!,
+      hp: { current: 100, max: 100 },
+      affinities: { weak: BATTLE_ELEMENTS.Fire, resist: 0, nullify: 0, reflect: 0, absorb: 0 },
+    };
+    const normal = buildAttackOutcomes({
+      actorId: actor.id, actor, targetId: baseTarget.id, target: baseTarget,
+      skillPower: 100, skillElement: BATTLE_ELEMENTS.Fire, skillAccuracy: 200, statDriver: "attack",
+    })[0]!;
+    const guarded = buildAttackOutcomes({
+      actorId: actor.id, actor, targetId: baseTarget.id,
+      target: { ...baseTarget, statusEffects: [{ effectId: "guard", remainingDuration: 1, stacks: 1 }] },
+      skillPower: 100, skillElement: BATTLE_ELEMENTS.Fire, skillAccuracy: 200, statDriver: "attack",
+    })[0]!;
+
+    expect(Math.abs(guarded.hpDelta ?? 0)).toBe(Math.floor(Math.abs(normal.hpDelta ?? 0) / 3));
+    expect(guarded.tags).not.toContain("weak");
+    vi.restoreAllMocks();
+  });
+
+  it("multiplies critical hit damage by 1.5 while retaining the critical tag", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const base = createActiveBattleSnapshot();
+    const actor = {
+      ...base.participants[0]!,
+      combatStats: { accuracy: 100, evasion: 0, critRate: 0 },
+    };
+    const target = {
+      ...base.participants[1]!,
+      hp: { current: 1000, max: 1000 },
+    };
+    const normal = buildAttackOutcomes({
+      actorId: actor.id,
+      actor,
+      targetId: target.id,
+      target,
+      skillPower: 80,
+      skillElement: BATTLE_ELEMENTS.Physical,
+      skillAccuracy: 200,
+      skillCritRate: 0,
+      statDriver: "attack",
+    }).find((outcome) => outcome.hpDelta != null)!;
+    const critical = buildAttackOutcomes({
+      actorId: actor.id,
+      actor,
+      targetId: target.id,
+      target,
+      skillPower: 80,
+      skillElement: BATTLE_ELEMENTS.Physical,
+      skillAccuracy: 200,
+      skillCritRate: 50,
+      statDriver: "attack",
+    }).find((outcome) => outcome.hpDelta != null)!;
+
+    expect(critical.tags).toContain("critical");
+    expect(Math.abs(critical.hpDelta!)).toBe(
+      Math.floor(Math.abs(normal.hpDelta!) * 1.5),
+    );
+    vi.restoreAllMocks();
+  });
+
+  it("ends the enemy action sequence when miss_consume_all triggers", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+    const base = createActiveBattleSnapshot();
+    const snapshot = createActiveBattleSnapshot({
+      phase: "ENEMY_TURN", currentActorId: null, selectedActionId: null, selectedTargetId: null,
+      participants: base.participants.map((participant) => participant.side === "player"
+        ? { ...participant, agility: 99, accessoryEffects: ["miss_consume_all"] }
+        : { ...participant, agility: 1 }),
+      pressTurn: { ownerSide: "enemy", icons: [
+        { id: "enemy-1", state: "solid" }, { id: "enemy-2", state: "solid" },
+      ] },
+    });
+
+    const resolved = resolveEnemyTurn(snapshot);
+    const enemyActions = resolved.battleLog?.filter((entry) => entry.side === "enemy") ?? [];
+    expect(enemyActions).toHaveLength(1);
+    expect(enemyActions[0]?.summary).toContain("Miss");
+    vi.restoreAllMocks();
   });
 
   it("resolves defeat during enemy turn when the final active player is down", () => {
@@ -918,6 +1008,48 @@ describe("battleResolver", () => {
     expect(mpOutcome!.mpDelta).toBe(-5);
   });
 
+  it("heals the caster for the actual HP damage dealt by 吸血", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const snapshot = createActiveBattleSnapshot({
+      selectedActionId: "basic-skill",
+      selectedContentId: "179",
+      participants: [
+        { ...createActiveBattleSnapshot().participants[0]!, hp: { current: 40, max: 120 }, mp: { current: 20, max: 48 }, intelligence: 30 },
+        { ...createActiveBattleSnapshot().participants[1]!, hp: { current: 20, max: 20 }, defense: 10 },
+      ],
+    });
+
+    const resolution = resolveSelectedBattleActionToResolution(snapshot);
+    const damage = resolution.outcomes.find((o) => o.finalTargetId === "enemy-1" && (o.hpDelta ?? 0) < 0);
+    const healing = resolution.outcomes.find((o) => o.finalTargetId === "player-heroine-1" && (o.hpDelta ?? 0) > 0);
+
+    expect(damage).toBeDefined();
+    expect(healing?.hpDelta).toBe(Math.min(20, Math.abs(damage!.hpDelta!)));
+    vi.restoreAllMocks();
+  });
+
+  it("transfers up to 10 MP with 吸魔 without dealing HP damage", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const snapshot = createActiveBattleSnapshot({
+      selectedActionId: "basic-skill",
+      selectedContentId: "180",
+      participants: [
+        { ...createActiveBattleSnapshot().participants[0]!, mp: { current: 5, max: 20 }, intelligence: 30 },
+        { ...createActiveBattleSnapshot().participants[1]!, mp: { current: 14, max: 14 } },
+      ],
+    });
+
+    const resolution = resolveSelectedBattleActionToResolution(snapshot);
+
+    expect(resolution.outcomes.some((o) => (o.hpDelta ?? 0) !== 0)).toBe(false);
+    expect(resolution.outcomes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ finalTargetId: "enemy-1", mpDelta: -10 }),
+      expect.objectContaining({ finalTargetId: "player-heroine-1", mpDelta: 10 }),
+      expect.objectContaining({ finalTargetId: "player-heroine-1", mpDelta: -2 }),
+    ]));
+    vi.restoreAllMocks();
+  });
+
   it("returns validation error for skill contentId not found", () => {
     const snapshot = createActiveBattleSnapshot({
       selectedActionId: "basic-skill",
@@ -986,6 +1118,25 @@ describe("battleResolver", () => {
   });
 
   // ── Pass ──
+
+  it("keeps Press Turn icons unchanged when pass_free is equipped", () => {
+    const snapshot = createActiveBattleSnapshot({ selectedActionId: "pass" });
+    snapshot.participants[0]!.accessoryEffects = ["pass_free"];
+    const resolution = resolveSelectedBattleActionToResolution(snapshot);
+
+    expect(resolution.pressTurnResult?.kind).toBe("no_change");
+    expect(resolution.pressTurnResult?.after.icons).toEqual(snapshot.pressTurn.icons);
+  });
+
+  it("turns affinity failures into normal icon consumption with no_press_penalty", () => {
+    const snapshot = createActiveBattleSnapshot();
+    snapshot.participants[0]!.accessoryEffects = ["no_press_penalty"];
+    const resolution = createPressTurnResolutionForOutcomes(snapshot, [{
+      type: "reflect", tags: [], actorId: "player-heroine-1", finalTargetId: "enemy-1",
+    }]);
+
+    expect(resolution.pressTurnResult?.kind).toBe("consume_one");
+  });
 
   it("settles pass once and rotates to the next eligible actor", () => {
     const snapshot = createActiveBattleSnapshot({
@@ -1168,6 +1319,7 @@ describe("battleResolver", () => {
   // ── Multi-press-turn ──
 
   it("keeps the battle in PLAYER_COMMAND when press turn icons remain after attack", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
     const snapshot = createActiveBattleSnapshot({
       pressTurn: {
         ownerSide: "player",
@@ -1241,8 +1393,64 @@ describe("battleResolver", () => {
     const enemy = resolved.participants.find((p) => p.id === "enemy-1")!;
     expect(enemy.hp.current).toBeLessThan(20);
     expect(enemy.isDown).toBe(false);
+    vi.restoreAllMocks();
   });
 
+  it("skips the enemy turn instead of declaring victory when a living enemy cannot act", () => {
+    const snapshot = createActiveBattleSnapshot({
+      phase: "ENEMY_TURN",
+      currentActorId: null,
+      selectedActionId: null,
+      selectedTargetId: null,
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          level: 1,
+          hp: { current: 120, max: 120 },
+          mp: { current: 48, max: 48 },
+          attack: 5,
+          defense: 5,
+          agility: 5,
+          intelligence: 5,
+          isDown: false,
+          isActive: true,
+          canAct: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "熔核幻蛇",
+          level: 1,
+          hp: { current: 1105, max: 1600 },
+          mp: { current: 0, max: 0 },
+          attack: 5,
+          defense: 5,
+          agility: 5,
+          intelligence: 5,
+          isDown: false,
+          isActive: true,
+          canAct: false,
+          statusEffects: [],
+        },
+      ],
+      turnCount: 5,
+    });
+
+    const resolved = resolveEnemyTurn(snapshot);
+
+    expect(resolved.lifecycleState).toBe("ACTIVE");
+    expect(resolved.phase).toBe("PLAYER_COMMAND");
+    expect(resolved.battleResult).toBeUndefined();
+    expect(resolved.turnCount).toBe(6);
+    expect(resolved.participants.find((p) => p.id === "enemy-1")).toMatchObject({
+      hp: { current: 1105, max: 1600 },
+      isDown: false,
+      canAct: true,
+    });
+  });
   // ── Enemy turn: victory on empty enemy actors ──
 
   it("resolves victory when enemy turn has no active enemies", () => {
@@ -1346,6 +1554,7 @@ describe("battleResolver", () => {
   // ── Multi-hit ──
 
   it("resolves a fixed 2-hit skill producing two damage outcomes", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
     const snapshot = createActiveBattleSnapshot({
       selectedActionId: "basic-skill",
       selectedContentId: "6",
@@ -1398,6 +1607,7 @@ describe("battleResolver", () => {
     for (const outcome of hitOutcomes) {
       expect(outcome.hpDelta).toBeLessThan(0);
     }
+    vi.restoreAllMocks();
   });
 
   it("random multi-hit skill produces hits within the declared range", () => {
@@ -1484,16 +1694,16 @@ describe("battleResolver", () => {
           mp: { current: 0, max: 0 },
           attack: 5,
           defense: 5,
-          agility: 5,
+          agility: 999,
           isDown: false,
           isActive: true,
-          combatStats: { accuracy: 80, evasion: 999, critRate: 5 },
+          combatStats: { accuracy: 80, evasion: 95, critRate: 5 },
           statusEffects: [],
         },
       ],
     });
 
-    // With evasion=999, most hits should miss
+    // With effective agility=999, hit chance is clamped to the minimum
     // Run 10 times, at least once should have miss (with no hits after it)
     let sawMiss = false;
     for (let run = 0; run < 10; run++) {

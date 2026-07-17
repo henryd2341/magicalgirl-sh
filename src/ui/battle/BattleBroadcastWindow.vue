@@ -25,6 +25,8 @@ type PointerInteraction =
       startClientY: number;
       startX: number;
       startY: number;
+      activationThreshold: number;
+      didMove: boolean;
     }
   | {
       kind: "resize";
@@ -37,6 +39,7 @@ type PointerInteraction =
     };
 
 const pointerInteraction = ref<PointerInteraction | null>(null);
+const suppressMinimizedRestoreClick = ref(false);
 
 const visibleEntries = computed(() =>
   preferences.value.density === "detail"
@@ -78,7 +81,7 @@ function capturePointer(event: PointerEvent): {
   return { pointerId, captureTarget };
 }
 
-function startDrag(event: PointerEvent): void {
+function startDrag(event: PointerEvent, activationThreshold = 0): void {
   if (event.button !== 0 && event.button !== -1) {
     return;
   }
@@ -91,7 +94,14 @@ function startDrag(event: PointerEvent): void {
     startClientY: event.clientY,
     startX: preferences.value.x,
     startY: preferences.value.y,
+    activationThreshold,
+    didMove: false,
   };
+}
+
+function startMinimizedDrag(event: PointerEvent): void {
+  suppressMinimizedRestoreClick.value = false;
+  startDrag(event, 5);
 }
 
 function moveDrag(event: PointerEvent): void {
@@ -103,10 +113,17 @@ function moveDrag(event: PointerEvent): void {
     return;
   }
 
+  const deltaX = event.clientX - interaction.startClientX;
+  const deltaY = event.clientY - interaction.startClientY;
+  if (Math.hypot(deltaX, deltaY) < interaction.activationThreshold) {
+    return;
+  }
+
+  interaction.didMove = true;
   updatePreferences(
     {
-      x: interaction.startX + event.clientX - interaction.startClientX,
-      y: interaction.startY + event.clientY - interaction.startClientY,
+      x: interaction.startX + deltaX,
+      y: interaction.startY + deltaY,
     },
     currentViewport(),
   );
@@ -167,6 +184,13 @@ function endPointerInteraction(event: PointerEvent): void {
   }
 
   interaction.captureTarget.releasePointerCapture?.(interaction.pointerId);
+  if (
+    interaction.kind === "drag" &&
+    interaction.activationThreshold > 0 &&
+    interaction.didMove
+  ) {
+    suppressMinimizedRestoreClick.value = true;
+  }
   pointerInteraction.value = null;
 }
 
@@ -207,6 +231,16 @@ function minimize(): void {
 
 function restore(): void {
   updatePreferences({ minimized: false });
+}
+
+function restoreFromMinimizedClick(event: MouseEvent): void {
+  if (suppressMinimizedRestoreClick.value) {
+    event.preventDefault();
+    suppressMinimizedRestoreClick.value = false;
+    return;
+  }
+
+  restore();
 }
 
 function updateScrollPosition(): void {
@@ -268,7 +302,8 @@ onBeforeUnmount(() => {
       class="battle-broadcast-icon"
       :style="iconStyle"
       aria-label="恢复战斗播报"
-      @click="restore"
+      @pointerdown="startMinimizedDrag"
+      @click="restoreFromMinimizedClick"
     >
       <span aria-hidden="true">LOG</span>
       <span v-if="unreadCount > 0" class="battle-broadcast-icon__badge">
@@ -282,6 +317,7 @@ onBeforeUnmount(() => {
       :style="windowStyle"
       role="complementary"
       aria-label="战斗播报"
+      draggable="true"
     >
       <header
         class="battle-broadcast__header"
@@ -591,6 +627,13 @@ onBeforeUnmount(() => {
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.08em;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.battle-broadcast-icon:active {
+  cursor: grabbing;
 }
 
 .battle-broadcast-icon__badge {

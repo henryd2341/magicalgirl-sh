@@ -1144,6 +1144,13 @@
   text-align: center;
 }
 
+.battle-enemy-card__hp-nums {
+  color: var(--mg-text-muted);
+  font-family: var(--mg-font-mono);
+  font-size: clamp(0.58rem, 1cqh, 0.76rem);
+  font-variant-numeric: tabular-nums;
+}
+
 .battle-hud__top .battle-status-panel {
   display: grid;
   grid-template-columns: minmax(220px, 0.88fr) minmax(240px, 0.72fr);

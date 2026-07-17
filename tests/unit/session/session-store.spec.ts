@@ -411,4 +411,106 @@ describe("sessionStore", () => {
     );
   });
 
+
+  it("uses a permanent-stat incense atomically and persists the bonus with item consumption", async () => {
+    const sessionStore = useSessionStore();
+    vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(
+      makeVarState({ inventory: { items: { "66": 2 } } }),
+    );
+    vi.mocked(mockVarRepo.saveCurrent).mockResolvedValue(undefined);
+
+    await expect(sessionStore.usePermanentStatItem("66", "__player__")).resolves.toMatchObject({
+      success: true,
+    });
+
+    expect(mockVarRepo.saveCurrent).toHaveBeenCalledTimes(1);
+    const savedState = vi.mocked(mockVarRepo.saveCurrent).mock.calls[0][0];
+    expect(savedState.root.player.combat.permanentBonuses).toEqual({
+      attack: 1,
+      defense: 0,
+      agility: 0,
+      intelligence: 0,
+    });
+    expect(savedState.root.inventory.items["66"]).toBe(1);
+  });
+
+  it("does not consume incense when the permanent panel stat is capped", async () => {
+    const sessionStore = useSessionStore();
+    vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(
+      makeVarState({
+        player: {
+          combat: {
+            allocatedPoints: { attack: 99, defense: 0, agility: 0, intelligence: 0 },
+          },
+        },
+        inventory: { items: { "66": 1 } },
+      }),
+    );
+
+    await expect(sessionStore.usePermanentStatItem("66", "__player__")).resolves.toEqual({
+      success: false,
+      reason: "stat_capped",
+    });
+    expect(mockVarRepo.saveCurrent).not.toHaveBeenCalled();
+  });
+  it("rejects permanent-stat incense targets outside the active party", async () => {
+    const sessionStore = useSessionStore();
+    vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(
+      makeVarState({
+        characters: {
+          char1: {
+            displayName: "Test",
+            inParty: false,
+            combat: {
+              level: 10,
+              exp: 0,
+              hp: { current: 100, max: 100 },
+              mp: { current: 50, max: 50 },
+              attack: 5,
+              defense: 5,
+              agility: 5,
+              intelligence: 5,
+              allocatedPoints: { attack: 0, defense: 0, agility: 0, intelligence: 0 },
+              unspentPoints: 0,
+            },
+          },
+        },
+        inventory: { items: { "66": 1 } },
+      }),
+    );
+
+    await expect(sessionStore.usePermanentStatItem("66", "char1")).resolves.toEqual({
+      success: false,
+      reason: "character_not_in_party",
+    });
+    expect(mockVarRepo.saveCurrent).not.toHaveBeenCalled();
+  });
+  it("rehydrates learned skills after restoring a save checkpoint", async () => {
+    const sessionStore = useSessionStore();
+    const restoredVariables = makeVarState({
+      player: {
+        learnedSkills: { char1: ["10"] },
+        equippedSkills: ["10"],
+      },
+    });
+    vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(restoredVariables);
+    vi.mocked(mockVarRepo.saveCurrent).mockResolvedValue(undefined);
+
+    await sessionStore.restoreFromCheckpointSnapshot({
+      id: "checkpoint-with-skills",
+      kind: "save_checkpoint",
+      snapshotVersion: 1,
+      createdAt: "2026-07-17T00:00:00.000Z",
+      reason: "load save",
+      sessionSnapshot: {
+        sessionState: "IDLE",
+        pipelineState: null,
+        activeRequestId: null,
+      },
+      variableValue: restoredVariables,
+      chatMessages: [],
+    });
+
+    expect(sessionStore.isSkillLearned("char1", "10")).toBe(true);
+  });
 });

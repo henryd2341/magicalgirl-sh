@@ -61,6 +61,8 @@ const skillContentSchema = z.object({
   statusEffects: z.array(statusEffectPayloadSchema).optional(),
   healPercent: z.number().int().min(0).max(100).optional(),
   revives: z.boolean().optional(),
+  hpDrainPercent: z.number().min(0).max(100).optional(),
+  mpDrainAmount: z.number().int().min(0).optional(),
   passiveEffects: z
     .array(
       z.object({
@@ -167,6 +169,10 @@ const itemContentSchema = z.object({
   element: z.string().min(1).optional(),
   statusEffects: z.array(statusEffectPayloadSchema).optional(),
   targetType: z.enum(["single_enemy", "all_enemies", "single_ally", "all_allies", "self"]).optional(),
+  permanentStatBonus: z.object({
+    stat: z.enum(["attack", "defense", "agility", "intelligence"]),
+    amount: z.number().int().min(1),
+  }).optional(),
   modifiers: accessoryModifiersSchema.optional(),
   accessoryEffects: z
     .array(
@@ -208,6 +214,9 @@ const formulaParamsSchema = z.object({
     varianceMax: z.number(),
     levelInfluence: z.number(),
     minDamage: z.number().int().min(1),
+    statRatioExponent: z.number().positive(),
+    powerReference: z.number().positive(),
+    powerExponent: z.number().positive(),
   }),
   affinity: z.object({
     weak: z.number(),
@@ -224,13 +233,14 @@ const formulaParamsSchema = z.object({
     base: z.number(),
     agilityBonus: z.number(),
     max: z.number(),
+    damageMultiplier: z.number().positive(),
   }),
   exp: z.object({
     baseExpToNext: z.number().int().min(1),
     levelExponent: z.number(),
   }),
   guard: z.object({
-    damageReduction: z.number().int().min(0),
+    damageMultiplier: z.number().min(0).max(1),
   }),
 });
 

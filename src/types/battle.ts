@@ -213,6 +213,7 @@ export interface BattleParticipant {
   combatStats?: BattleParticipantCombatStats;
   canAct?: boolean;
   passiveEffects?: import("@/types/content").PassiveEffectDef[];
+  accessoryEffects?: import("@/types/content").ItemAccessoryEffect[];
   endureUsed?: boolean;
   skillIds?: string[];
   availableSkillIds?: Set<string>;

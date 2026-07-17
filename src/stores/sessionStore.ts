@@ -67,7 +67,8 @@ import { ref } from "vue";
 import type { PreviousValueMap, VariablePathPatch } from "@/types/variables";
 import { getCharacter, getCharacterByName } from "@/content/contentRegistry";
 import { getAllCharacterIds, getGrowth } from "@/content/contentRegistry";
-import { getAllItems } from "@/content/contentRegistry";
+import { getAllItems, getItem } from "@/content/contentRegistry";
+import { applyPermanentStatBonus } from "@/engine/items/permanentStatService";
 import { VariableEngine } from "@/engine/variableEngine";
 import type { CharacterContent, GrowthContent, SkillTreeNode } from "@/types/content";
 import {
@@ -582,6 +583,79 @@ export const useSessionStore = defineStore("session", () => {
     return "ok";
   }
 
+  async function usePermanentStatItem(
+    itemId: string,
+    characterId: string | null,
+  ): Promise<{ success: true; value: number } | { success: false; reason: "item_not_found" | "not_permanent_stat_item" | "insufficient_item" | "character_not_found" | "character_not_in_party" | "stat_capped" }> {
+    const current = await variableRepository.getCurrent();
+    if (!current) return { success: false, reason: "character_not_found" };
+
+    let item;
+    try {
+      item = getItem(itemId);
+    } catch {
+      return { success: false, reason: "item_not_found" };
+    }
+    if (item.permanentStatBonus == null) {
+      return { success: false, reason: "not_permanent_stat_item" };
+    }
+    if ((current.root.inventory.items[itemId] ?? 0) <= 0) {
+      return { success: false, reason: "insufficient_item" };
+    }
+
+    const target = characterId == null || characterId === "__player__"
+      ? current.root.player
+      : current.root.characters[characterId];
+    if (target?.combat == null) {
+      return { success: false, reason: "character_not_found" };
+    }
+    if (
+      characterId != null
+      && characterId !== "__player__"
+      && current.root.characters[characterId]?.inParty !== true
+    ) {
+      return { success: false, reason: "character_not_in_party" };
+    }
+
+    let growthId = "player";
+    if (characterId != null && characterId !== "__player__") {
+      try { growthId = getCharacter(characterId).growthId; } catch { growthId = "player"; }
+    }
+    const growth = getGrowth(growthId);
+    const baseValue = statsAtLevel(growth.base, growth.perLevel, target.combat.level)[item.permanentStatBonus.stat];
+    const applied = applyPermanentStatBonus(
+      target.combat,
+      baseValue,
+      item.permanentStatBonus,
+    );
+    if (!applied.ok) return { success: false, reason: applied.reason };
+
+    const targetPath = characterId == null || characterId === "__player__"
+      ? "player"
+      : `characters.${characterId}`;
+    const nextItems = { ...current.root.inventory.items };
+    const nextCount = nextItems[itemId]! - 1;
+    if (nextCount <= 0) delete nextItems[itemId]; else nextItems[itemId] = nextCount;
+
+    const result = variableEngine.applyPatchSet({
+      current,
+      envelope: {
+        request_id: `use-permanent-stat-${itemId}`,
+        context_version: current.version,
+        state_hash: current.stateHash,
+        tool_call_id: `use-permanent-stat-${Date.now().toString(36)}`,
+        bypassAllowlist: true,
+        patches: [
+          { path: `${targetPath}.combat.permanentBonuses`, value: applied.permanentBonuses },
+          { path: "inventory.items", value: nextItems },
+        ],
+      },
+    });
+    await variableRepository.saveCurrent(result.next);
+    variableVersion.value++;
+    return { success: true, value: applied.value };
+  }
+
   async function patchVariables(
     patches: VariablePathPatch[],
     requestId?: string,
@@ -746,6 +820,8 @@ export const useSessionStore = defineStore("session", () => {
     toolExecutor = new ToolExecutor(gameEngineFacade);
     snapshot.value = gameEngineFacade.getSessionSnapshot();
     lastPreviousValues.value = new Map();
+    await loadLearnedSkills();
+    variableVersion.value++;
   }
 
   async function persistRuntimeSnapshot() {
@@ -1651,6 +1727,8 @@ export const useSessionStore = defineStore("session", () => {
       activeBattle: checkpoint.activeBattle,
     });
     snapshot.value = gameEngineFacade.getSessionSnapshot();
+    await loadLearnedSkills();
+    variableVersion.value++;
     await persistRuntimeSnapshot();
   }
 
@@ -1715,6 +1793,7 @@ export const useSessionStore = defineStore("session", () => {
     shopSellItem,
     applyBattleRewards,
     allocatePoints,
+    usePermanentStatItem,
     patchVariables,
     setCharacterInParty,
     configurePersistence,

@@ -51,6 +51,18 @@ function clamp(value: number, min: number, max: number): number {
 
 // ── Damage calculation ──
 
+export function calculateSkillPowerBase(
+  skillPower: number,
+  params: Pick<FormulaParams["damage"], "powerReference" | "powerExponent">,
+): number {
+  if (skillPower <= params.powerReference) {
+    return Math.sqrt(skillPower * 2);
+  }
+
+  return Math.sqrt(params.powerReference * 2)
+    * Math.pow(skillPower / params.powerReference, params.powerExponent);
+}
+
 export function calculateDamage(
   attackerAtk: number,
   attackerLevel: number,
@@ -63,9 +75,10 @@ export function calculateDamage(
     return 0;
   }
 
-  const base = Math.sqrt(skillPower * 2);
-  const statRatio = Math.sqrt(
+  const base = calculateSkillPowerBase(skillPower, params);
+  const statRatio = Math.pow(
     attackerAtk / Math.max(1, defenderDef),
+    params.statRatioExponent,
   );
   const levelMod = 1 + attackerLevel * params.levelInfluence;
   const variance = randomInRange(params.varianceMin, params.varianceMax);
@@ -241,7 +254,8 @@ export function calculateGuardReduction(
   baseDamage: number,
   params: FormulaParams["guard"],
 ): number {
-  return Math.max(0, baseDamage - params.damageReduction);
+  if (baseDamage <= 0) return 0;
+  return Math.max(1, Math.floor(baseDamage * params.damageMultiplier));
 }
 
 // ── Status effect tick ──

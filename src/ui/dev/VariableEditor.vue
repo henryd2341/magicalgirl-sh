@@ -133,7 +133,7 @@ function visibleChildren(parent: TreeNode): TreeNode[] {
 function startEdit(node: TreeNode) {
   node.editing = true;
   if (node.type === "boolean") {
-    node.editValue = String(!node.value);
+    node.editValue = String(node.value);
   } else if (node.type === "null") {
     node.editValue = "";
   } else if (node.type === "array") {

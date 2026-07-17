@@ -936,7 +936,7 @@ describe("battleStore", () => {
       store.activeBattle?.battleLog?.map((entry) => entry.summary),
     ).toEqual([
       expect.stringContaining("used"),
-      expect.stringMatching(/loop-shadow attacked 鹿目真昼 for \d+ damage\./),
+      expect.stringMatching(/loop-shadow使用攻击：造成 \d+ 点伤害/),
       expect.stringContaining("down"),
     ]);
   });

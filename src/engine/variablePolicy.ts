@@ -592,6 +592,22 @@ export function validateVariablePathPatch(
     return;
   }
 
+  if (patch.path.endsWith(".combat.permanentBonuses")) {
+    const value = patch.value as Record<string, unknown>;
+    if (
+      !isPlainObject(value) ||
+      ["attack", "defense", "agility", "intelligence"].some(
+        (stat) => typeof value[stat] !== "number" || !Number.isInteger(value[stat]) || (value[stat] as number) < 0,
+      )
+    ) {
+      throw createVariableError(
+        "VARIABLE_SCHEMA_INVALID",
+        `Permanent bonuses must contain non-negative integer stats: ${patch.path}`,
+      );
+    }
+    return;
+  }
+
   // Character combat.allocatedPoints object validation
   if (patch.path.endsWith(".combat.allocatedPoints")) {
     if (

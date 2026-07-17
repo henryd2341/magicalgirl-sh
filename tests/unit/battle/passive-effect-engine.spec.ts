@@ -127,6 +127,17 @@ describe("applyPassivesAtHook", () => {
     expect((ctx as { hpCurrent: number }).hpCurrent).toBe(110); // 100 + 5% of 200
   });
 
+  it("applies mp_regen as a fixed amount", () => {
+    const passives = [pe("on_turn_start", "mp_regen", { value: 5 })];
+    const ctx = applyPassivesAtHook(passives, "on_turn_start", {
+      hpMax: 200,
+      mpMax: 800,
+      hpCurrent: 100,
+      mpCurrent: 50,
+    });
+    expect((ctx as { mpCurrent: number }).mpCurrent).toBe(55);
+  });
+
   it("hp_regen does not exceed max", () => {
     const passives = [pe("on_turn_start", "hp_regen", { value: 50 })];
     const ctx = applyPassivesAtHook(passives, "on_turn_start", {

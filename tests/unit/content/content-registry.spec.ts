@@ -1,5 +1,7 @@
 import {
   assertUniqueContentIds,
+  getItem,
+  getSkill,
   isChallengeEnemyId,
   isEnemyExclusiveSkillId,
 } from "@/content/contentRegistry";
@@ -22,4 +24,15 @@ describe("challenge content ID boundaries", () => {
       ),
     ).toThrow(/Duplicate content id "100"/);
   });
-});
+
+  it("loads drain metadata and permanent-stat incense definitions", () => {
+    expect(getSkill("179").hpDrainPercent).toBe(100);
+    expect(getSkill("180").mpDrainAmount).toBe(10);
+
+    expect(["66", "67", "68", "69"].map((id) => getItem(id))).toMatchObject([
+      { name: "力量之香", price: 20000, usableInBattle: false, permanentStatBonus: { stat: "attack", amount: 1 } },
+      { name: "守护之香", price: 20000, usableInBattle: false, permanentStatBonus: { stat: "defense", amount: 1 } },
+      { name: "疾风之香", price: 20000, usableInBattle: false, permanentStatBonus: { stat: "agility", amount: 1 } },
+      { name: "智慧之香", price: 20000, usableInBattle: false, permanentStatBonus: { stat: "intelligence", amount: 1 } },
+    ]);
+  });});

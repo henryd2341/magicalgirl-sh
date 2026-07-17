@@ -1,3 +1,4 @@
+import { getStatusEffectMap } from "@/content/contentRegistry";
 import type {
   BattleActionOutcome,
   BattleActionResolution,
@@ -115,10 +116,125 @@ export function createBattleResultLogEntry(
   };
 }
 
+function participantName(
+  participantId: string | null | undefined,
+  participants: readonly BattleParticipant[],
+): string {
+  if (participantId == null) return "目标";
+  return participants.find((participant) => participant.id === participantId)?.displayName
+    ?? participantId;
+}
+
+function outcomeTargetId(outcome: BattleActionOutcome): string | null | undefined {
+  return outcome.finalTargetId ?? outcome.primaryTargetId;
+}
+
+function statusEffectName(effectId: string): string {
+  return getStatusEffectMap().get(effectId)?.name ?? effectId;
+}
+
+function formatActionOutcomes(
+  outcomes: readonly BattleActionOutcome[],
+  participants: readonly BattleParticipant[],
+): { summaryParts: string[]; details: string[] } {
+  const summaryParts: string[] = [];
+  const details: string[] = [];
+  const damageByTarget = new Map<string, { damage: number; tags: Set<string> }>();
+
+  for (const outcome of outcomes) {
+    const targetId = outcomeTargetId(outcome);
+    if (outcome.type === "hit" && (outcome.hpDelta ?? 0) < 0 && targetId != null) {
+      const aggregate = damageByTarget.get(targetId) ?? { damage: 0, tags: new Set<string>() };
+      aggregate.damage += Math.abs(outcome.hpDelta ?? 0);
+      for (const tag of outcome.tags) aggregate.tags.add(tag);
+      damageByTarget.set(targetId, aggregate);
+    }
+  }
+
+  const totalDamage = [...damageByTarget.values()].reduce((sum, value) => sum + value.damage, 0);
+  if (totalDamage > 0) summaryParts.push(`造成 ${totalDamage} 点伤害`);
+
+  for (const [targetId, aggregate] of damageByTarget) {
+    const participant = participants.find((candidate) => candidate.id === targetId);
+    const hpText = participant == null ? "" : `（HP ${participant.hp.current}/${participant.hp.max}）`;
+    const tags = [
+      ...(aggregate.tags.has("weak") ? ["【弱点】"] : []),
+      ...(aggregate.tags.has("critical") ? ["【暴击】"] : []),
+      ...(aggregate.tags.has("resisted") ? ["【耐性】"] : []),
+    ].join("");
+    details.push(`${participantName(targetId, participants)}受到 ${aggregate.damage} 点伤害${hpText}${tags}`);
+  }
+
+  for (const outcome of outcomes) {
+    if (outcome.type !== "hit") continue;
+    const targetId = outcomeTargetId(outcome);
+    if (targetId == null) continue;
+    const target = participants.find((candidate) => candidate.id === targetId);
+    if ((outcome.hpDelta ?? 0) > 0) {
+      const amount = outcome.hpDelta!;
+      summaryParts.push(`恢复 ${amount} HP`);
+      details.push(`${participantName(targetId, participants)}恢复 ${amount} HP${target == null ? "" : `（HP ${target.hp.current}/${target.hp.max}）`}`);
+    }
+    if ((outcome.mpDelta ?? 0) > 0) {
+      const amount = outcome.mpDelta!;
+      summaryParts.push(`恢复 ${amount} MP`);
+      details.push(`${participantName(targetId, participants)}恢复 ${amount} MP${target == null ? "" : `（MP ${target.mp.current}/${target.mp.max}）`}`);
+    } else if ((outcome.mpDelta ?? 0) < 0) {
+      const amount = Math.abs(outcome.mpDelta!);
+      const action = targetId === outcome.actorId ? "消耗" : "失去";
+      details.push(`${participantName(targetId, participants)}${action} ${amount} MP${target == null ? "" : `（MP ${target.mp.current}/${target.mp.max}）`}`);
+    }
+  }
+
+  const resultLabels: Partial<Record<BattleActionOutcome["type"], string>> = {
+    miss: "Miss", block: "无效", reflect: "反弹", absorb: "吸收", status_no_effect: "状态无效",
+  };
+  for (const outcome of outcomes) {
+    const label = resultLabels[outcome.type];
+    if (label != null) {
+      if (!summaryParts.includes(label)) summaryParts.push(label);
+      details.push(`${participantName(outcomeTargetId(outcome), participants)}：${label}`);
+    }
+  }
+
+  const allTags = new Set(outcomes.flatMap((outcome) => outcome.tags));
+  if (allTags.has("weak")) summaryParts.push("弱点");
+  if (allTags.has("critical")) summaryParts.push("暴击");
+  if (allTags.has("resisted")) summaryParts.push("耐性");
+
+  let hasStatusChange = false;
+  for (const outcome of outcomes) {
+    const targetName = participantName(outcomeTargetId(outcome), participants);
+    for (const effect of outcome.appliedStatusEffects ?? []) {
+      hasStatusChange = true;
+      details.push(`${targetName}获得 ${statusEffectName(effect.effectId)}（${effect.duration}回合）`);
+    }
+    for (const effectId of outcome.removedStatusEffectIds ?? []) {
+      hasStatusChange = true;
+      details.push(`${targetName}解除 ${statusEffectName(effectId)}`);
+    }
+  }
+  if (hasStatusChange) summaryParts.push("状态变化");
+
+  return { summaryParts, details };
+}
+
 export function createPlayerActionLogEntry(
   resolution: BattleActionResolution,
   turnCount: number,
+  participants: readonly BattleParticipant[] = [],
 ): BattleLogDraft {
+  const formatted = formatActionOutcomes(resolution.outcomes, participants);
+  const baseSummary = resolution.summaryLog[0] ?? `${resolution.actionId} used`;
+  const targetIds = [...new Set(
+    resolution.outcomes
+      .map(outcomeTargetId)
+      .filter((id): id is string => id != null),
+  )];
+  if (targetIds.length === 0 && resolution.intendedTargetId != null) {
+    targetIds.push(resolution.intendedTargetId);
+  }
+
   return {
     turnCount,
     side: "player",
@@ -126,13 +242,15 @@ export function createPlayerActionLogEntry(
     visibility: "both",
     actorId: resolution.actorId,
     actionId: resolution.actionId,
-    ...(resolution.intendedTargetId == null
-      ? {}
-      : { targetIds: [resolution.intendedTargetId] }),
-    summary: resolution.summaryLog[0] ?? `${resolution.actionId} used`,
-    ...(resolution.verboseLog.length === 0
-      ? {}
-      : { details: resolution.verboseLog }),
+    ...(targetIds.length === 0 ? {} : { targetIds }),
+    summary: formatted.summaryParts.length === 0
+      ? baseSummary
+      : `${baseSummary}：${formatted.summaryParts.join(" · ")}`,
+    ...(formatted.details.length > 0
+      ? { details: formatted.details }
+      : resolution.verboseLog.length > 0
+        ? { details: resolution.verboseLog }
+        : {}),
   };
 }
 
@@ -143,26 +261,11 @@ export function createEnemyAttackLogEntry(
   damage: number,
 ): BattleLogDraft {
   return {
-    turnCount,
-    side: "enemy",
-    kind: "action",
-    visibility: "both",
-    actorId: actor.id,
-    actionId: "enemy_attack",
-    targetIds: [target.id],
+    turnCount, side: "enemy", kind: "action", visibility: "both",
+    actorId: actor.id, actionId: "enemy_attack", targetIds: [target.id],
     summary: `${actor.displayName} attacked ${target.displayName} for ${damage} damage.`,
     details: [`${target.displayName} took ${damage} damage.`],
   };
-}
-
-function describeEnemySkillOutcomes(outcomes: BattleActionOutcome[]): string[] {
-  return outcomes.map((outcome) => {
-    const target = outcome.finalTargetId ?? outcome.primaryTargetId ?? "target";
-    if (outcome.type === "hit") {
-      return `${target} took ${Math.abs(outcome.hpDelta ?? 0)} damage.`;
-    }
-    return `${target}: ${outcome.type}.`;
-  });
 }
 
 export function createEnemySkillLogEntry(
@@ -171,33 +274,15 @@ export function createEnemySkillLogEntry(
   target: BattleParticipant,
   skillName: string,
   outcomes: BattleActionOutcome[],
+  participants: readonly BattleParticipant[] = [target],
 ): BattleLogDraft {
-  const totalDmg = outcomes
-    .filter((outcome) => outcome.type === "hit")
-    .reduce((sum, outcome) => sum + Math.abs(outcome.hpDelta ?? 0), 0);
-  const missCount = outcomes.filter((outcome) => outcome.type === "miss").length;
-  const blockCount = outcomes.filter(
-    (outcome) =>
-      outcome.type === "block" ||
-      outcome.type === "reflect" ||
-      outcome.type === "absorb",
-  ).length;
-
-  const parts: string[] = [];
-  if (totalDmg > 0) parts.push(`${totalDmg} damage`);
-  if (missCount > 0) parts.push(`${missCount} miss`);
-  if (blockCount > 0) parts.push(`${blockCount} blocked`);
-
+  const formatted = formatActionOutcomes(outcomes, participants);
   return {
-    turnCount,
-    side: "enemy",
-    kind: "action",
-    visibility: "both",
-    actorId: actor.id,
-    actionId: "enemy_skill",
-    targetIds: [target.id],
-    summary: `${actor.displayName} used ${skillName} on ${target.displayName}${parts.length > 0 ? ` (${parts.join(", ")})` : ""}.`,
-    details: describeEnemySkillOutcomes(outcomes),
+    turnCount, side: "enemy", kind: "action", visibility: "both",
+    actorId: actor.id, actionId: "enemy_skill",
+    targetIds: [...new Set(outcomes.map(outcomeTargetId).filter((id): id is string => id != null))],
+    summary: `${actor.displayName}使用${skillName}${formatted.summaryParts.length > 0 ? `：${formatted.summaryParts.join(" · ")}` : ""}`,
+    ...(formatted.details.length > 0 ? { details: formatted.details } : {}),
   };
 }
 

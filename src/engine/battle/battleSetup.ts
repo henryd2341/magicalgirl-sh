@@ -1,11 +1,13 @@
-import { getEnemy, getEnemySkillIds, getFormulaParams, getGrowth } from "@/content/contentRegistry";
+import { getCharacter, getEnemy, getFormulaParams, getGrowth, getItem } from "@/content/contentRegistry";
 import {
   computeDerivedCombatStats,
   computeGrowthStats,
   statsAtLevel,
   type AllocatedPoints,
 } from "@/engine/battle/formulaEngine";
+import { BATTLE_ELEMENTS } from "@/types/battle";
 import type {
+  BattleAffinityProfile,
   BattleEnemyInstance,
   BattleParticipant,
   BattleSnapshot,
@@ -14,6 +16,7 @@ import type {
   PendingBattleSnapshot,
 } from "@/types/battle";
 import type { TriggerBattleEnemyInput } from "@/orchestrator/toolEnvelope";
+import type { ItemAccessoryEffect, ItemContent } from "@/types/content";
 import {
   createDefaultBattleCommandMenuTree,
 } from "@/engine/battle/battleActionCatalog";
@@ -123,6 +126,64 @@ export function createSummonedEnemyParticipant(
   });
 }
 
+interface PlayerParticipantOptions {
+  hp?: BattleParticipant["hp"];
+  mp?: BattleParticipant["mp"];
+  affinities?: BattleAffinityProfile;
+  accessoryEffects?: ItemAccessoryEffect[];
+  permanentBonuses?: AllocatedPoints;
+}
+
+function affinityMaskFromNames(names: readonly string[]): number {
+  return names.reduce((mask, name) => {
+    const bit = BATTLE_ELEMENTS[name as keyof typeof BATTLE_ELEMENTS] ?? 0;
+    return mask | bit;
+  }, 0);
+}
+
+function characterAffinities(characterId: string): BattleAffinityProfile {
+  try {
+    const raw = getCharacter(characterId).affinities;
+    return {
+      weak: affinityMaskFromNames(raw.weak),
+      resist: affinityMaskFromNames(raw.resist),
+      nullify: affinityMaskFromNames(raw.nullify),
+      reflect: affinityMaskFromNames(raw.reflect),
+      absorb: affinityMaskFromNames(raw.absorb),
+    };
+  } catch {
+    return { weak: 0, resist: 0, nullify: 0, reflect: 0, absorb: 0 };
+  }
+}
+
+function applyAccessoryAffinity(
+  base: BattleAffinityProfile,
+  item?: ItemContent,
+): BattleAffinityProfile {
+  const next = { ...base };
+  for (const [elementName, affinity] of Object.entries(item?.affinityResist ?? {})) {
+    const bit = BATTLE_ELEMENTS[elementName as keyof typeof BATTLE_ELEMENTS] ?? 0;
+    if (bit === 0 || affinity == null) continue;
+    next.weak &= ~bit;
+    next.resist &= ~bit;
+    next.nullify &= ~bit;
+    next.reflect &= ~bit;
+    next.absorb &= ~bit;
+    next[affinity] |= bit;
+  }
+  return next;
+}
+
+function equippedAccessory(itemId: string | null | undefined): ItemContent | undefined {
+  if (itemId == null) return undefined;
+  try {
+    const item = getItem(itemId);
+    return item.type === "accessory" ? item : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Build a BattleParticipant for a player character using their growth table
  * and manually allocated stat points.
@@ -139,6 +200,7 @@ export function createPlayerBattleParticipant(
   characterId?: string,
   accessoryModifiers?: Partial<Pick<BattleParticipant, "attack" | "defense" | "agility" | "intelligence">>,
   skillIds?: string[],
+  options: PlayerParticipantOptions = {},
 ): BattleParticipant {
   const growth = getGrowth(growthId);
   const params = getFormulaParams();
@@ -149,10 +211,11 @@ export function createPlayerBattleParticipant(
   // atk/def/agi/int = base + allocated + accessory
   const stats = computeGrowthStats(growth.base, allocatedPoints);
 
-  const attack = stats.attack + (accessoryModifiers?.attack ?? 0);
-  const defense = stats.defense + (accessoryModifiers?.defense ?? 0);
-  const agility = stats.agility + (accessoryModifiers?.agility ?? 0);
-  const intelligence = stats.intelligence + (accessoryModifiers?.intelligence ?? 0);
+  const permanent = options.permanentBonuses ?? { attack: 0, defense: 0, agility: 0, intelligence: 0 };
+  const attack = Math.min(99, stats.attack + permanent.attack) + (accessoryModifiers?.attack ?? 0);
+  const defense = Math.min(99, stats.defense + permanent.defense) + (accessoryModifiers?.defense ?? 0);
+  const agility = Math.min(99, stats.agility + permanent.agility) + (accessoryModifiers?.agility ?? 0);
+  const intelligence = Math.min(99, stats.intelligence + permanent.intelligence) + (accessoryModifiers?.intelligence ?? 0);
 
   const derived = computeDerivedCombatStats(
     agility,
@@ -180,11 +243,11 @@ export function createPlayerBattleParticipant(
     displayName,
     characterId,
     level,
-    hp: {
+    hp: options.hp ?? {
       current: hpMp.hp.current,
       max: hpMp.hp.max,
     },
-    mp: {
+    mp: options.mp ?? {
       current: hpMp.mp.current,
       max: hpMp.mp.max,
     },
@@ -194,17 +257,20 @@ export function createPlayerBattleParticipant(
     intelligence,
     isDown: false,
     isActive: true,
-    statusEffects: [],
-    affinities: {
-      weak: 0,
-      resist: 0,
-      nullify: 0,
-      reflect: 0,
-      absorb: 0,
+    statusEffects: options.accessoryEffects?.includes("auto_buff_start")
+      ? [
+          { effectId: "attack_up", remainingDuration: 3, stacks: 1 },
+          { effectId: "defense_up", remainingDuration: 3, stacks: 1 },
+          { effectId: "agility_up", remainingDuration: 3, stacks: 1 },
+        ]
+      : [],
+    affinities: options.affinities ?? {
+      weak: 0, resist: 0, nullify: 0, reflect: 0, absorb: 0,
     },
     combatStats,
     skillIds,
     passiveEffects: passiveEffects.length > 0 ? passiveEffects : undefined,
+    accessoryEffects: options.accessoryEffects,
     canAct: true,
   };
 }
@@ -217,44 +283,25 @@ import type { GameVariablesRoot } from "@/types/variables";
 export function createProtagonistBattleParticipant(
   vars: GameVariablesRoot,
 ): BattleParticipant {
-  const playerCombat = vars.player.combat;
-  const growth = getGrowth("player");
-  const params = getFormulaParams();
-  const derived = computeDerivedCombatStats(
-    playerCombat.agility,
-    params.hitRate,
-    params.critRate,
+  const combat = vars.player.combat;
+  const accessory = equippedAccessory(vars.player.equipment.accessory);
+  return createPlayerBattleParticipant(
+    "player-heroine-1",
+    vars.player.profile.name || "主角",
+    combat.level,
+    "player",
+    combat.allocatedPoints,
+    "__player__",
+    accessory?.modifiers,
+    vars.player.equippedSkills ?? [],
+    {
+      hp: { ...combat.hp },
+      mp: { ...combat.mp },
+      affinities: applyAccessoryAffinity(characterAffinities("player"), accessory),
+      accessoryEffects: accessory?.accessoryEffects,
+      permanentBonuses: combat.permanentBonuses,
+    },
   );
-
-  const displayName = vars.player.profile.name || "主角";
-
-  return {
-    id: "player-heroine-1",
-    side: "player",
-    displayName,
-    characterId: "__player__",
-    level: playerCombat.level,
-    hp: {
-      current: playerCombat.hp.current,
-      max: playerCombat.hp.max,
-    },
-    mp: {
-      current: playerCombat.mp.current,
-      max: playerCombat.mp.max,
-    },
-    attack: playerCombat.attack,
-    defense: playerCombat.defense,
-    agility: playerCombat.agility,
-    intelligence: playerCombat.intelligence,
-    isDown: false,
-    isActive: true,
-    statusEffects: [],
-    affinities: { weak: 0, resist: 0, nullify: 0, reflect: 0, absorb: 0 },
-    combatStats: derived,
-    skillIds: vars.player.equippedSkills ?? [],
-    passiveEffects: undefined,
-    canAct: true,
-  };
 }
 
 /**
@@ -278,6 +325,7 @@ export function buildPlayerPartyFromFormation(
     if (!charData?.combat) continue;
 
     const growthId = growthIdOverrides?.[charId] ?? "player";
+    const accessory = equippedAccessory(charData.equipment?.accessory);
     const participant = createPlayerBattleParticipant(
       charId,
       charData.displayName,
@@ -285,8 +333,15 @@ export function buildPlayerPartyFromFormation(
       growthId,
       charData.combat.allocatedPoints ?? { attack: 0, defense: 0, agility: 0, intelligence: 0 },
       charId,
-      undefined,
+      accessory?.modifiers,
       charData.equippedSkills ?? [],
+      {
+        hp: { ...charData.combat.hp },
+        mp: { ...charData.combat.mp },
+        affinities: applyAccessoryAffinity(characterAffinities(charId), accessory),
+        accessoryEffects: accessory?.accessoryEffects,
+        permanentBonuses: charData.combat.permanentBonuses,
+      },
     );
     party.push(participant);
   }

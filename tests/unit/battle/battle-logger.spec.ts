@@ -91,8 +91,11 @@ describe("battleLogger", () => {
       actorId: "player-heroine-1",
       actionId: "attack",
       intendedTargetId: "enemy-1",
-      outcomes: [],
-      verboseLog: ["enemy-1 took 2 damage"],
+      outcomes: [{
+        type: "hit", tags: ["weak", "critical"], actorId: "player-heroine-1",
+        primaryTargetId: "enemy-1", finalTargetId: "enemy-1", hpDelta: -1,
+      }],
+      verboseLog: ["enemy-1 took 1 damage"],
       summaryLog: ["Attack hit"],
     };
     const enemy: BattleParticipant = {
@@ -122,7 +125,7 @@ describe("battleLogger", () => {
       downParticipantIds: ["enemy-1"],
     };
 
-    expect(createPlayerActionLogEntry(resolution, 1)).toEqual({
+    expect(createPlayerActionLogEntry(resolution, 1, [target, enemy])).toEqual({
       turnCount: 1,
       side: "player",
       kind: "action",
@@ -130,8 +133,8 @@ describe("battleLogger", () => {
       actorId: "player-heroine-1",
       actionId: "attack",
       targetIds: ["enemy-1"],
-      summary: "Attack hit",
-      details: ["enemy-1 took 2 damage"],
+      summary: "Attack hit：造成 1 点伤害 · 弱点 · 暴击",
+      details: ["loop-shadow受到 1 点伤害（HP 1/1）【弱点】【暴击】"],
     });
     expect(createEnemyAttackLogEntry(1, enemy, target, 1)).toEqual({
       turnCount: 1,
@@ -160,4 +163,65 @@ describe("battleLogger", () => {
       details: [],
     });
   });
-});
+
+  it("reports miss, nullify, reflect, absorb, and status changes with display names", () => {
+    const participants: BattleParticipant[] = [
+      { id: "hero", side: "player", displayName: "主角", hp: { current: 100, max: 100 }, mp: { current: 20, max: 20 }, isDown: false, isActive: true },
+      { id: "enemy", side: "enemy", displayName: "测试敌人", hp: { current: 80, max: 100 }, mp: { current: 0, max: 0 }, isDown: false, isActive: true },
+    ];
+    const resolution: BattleActionResolution = {
+      ok: true, actorId: "hero", actionId: "basic-skill", intendedTargetId: "enemy",
+      outcomes: [
+        { type: "miss", tags: [], actorId: "hero", finalTargetId: "enemy" },
+        { type: "block", tags: [], actorId: "hero", finalTargetId: "enemy", preventedBy: "nullify" },
+        { type: "reflect", tags: [], actorId: "hero", finalTargetId: "enemy", preventedBy: "reflect" },
+        { type: "absorb", tags: [], actorId: "hero", finalTargetId: "enemy", preventedBy: "absorb" },
+        { type: "hit", tags: [], actorId: "hero", finalTargetId: "enemy", appliedStatusEffects: [{ effectId: "defense_down", duration: 3 }] },
+      ],
+      verboseLog: [], summaryLog: ["破甲击 used"],
+    };
+
+    expect(createPlayerActionLogEntry(resolution, 2, participants)).toMatchObject({
+      summary: "破甲击 used：Miss · 无效 · 反弹 · 吸收 · 状态变化",
+      details: [
+        "测试敌人：Miss",
+        "测试敌人：无效",
+        "测试敌人：反弹",
+        "测试敌人：吸收",
+        "测试敌人获得 防御力下降（3回合）",
+      ],
+    });
+  });
+
+  it("reports HP and MP drain transfers with final resource values", () => {
+    const participants: BattleParticipant[] = [
+      { id: "hero", side: "player", displayName: "主角", hp: { current: 50, max: 100 }, mp: { current: 18, max: 20 }, isDown: false, isActive: true },
+      { id: "enemy", side: "enemy", displayName: "测试敌人", hp: { current: 80, max: 100 }, mp: { current: 4, max: 14 }, isDown: false, isActive: true },
+    ];
+    const resolution: BattleActionResolution = {
+      ok: true,
+      actorId: "hero",
+      actionId: "drain-skill",
+      intendedTargetId: "enemy",
+      outcomes: [
+        { type: "hit", tags: [], actorId: "hero", finalTargetId: "enemy", hpDelta: -10 },
+        { type: "hit", tags: [], actorId: "hero", finalTargetId: "hero", hpDelta: 10 },
+        { type: "hit", tags: [], actorId: "hero", finalTargetId: "enemy", mpDelta: -10 },
+        { type: "hit", tags: [], actorId: "hero", finalTargetId: "hero", mpDelta: 10 },
+        { type: "hit", tags: [], actorId: "hero", finalTargetId: "hero", mpDelta: -2 },
+      ],
+      verboseLog: [],
+      summaryLog: ["吸收发动"],
+    };
+
+    expect(createPlayerActionLogEntry(resolution, 3, participants)).toMatchObject({
+      summary: "吸收发动：造成 10 点伤害 · 恢复 10 HP · 恢复 10 MP",
+      details: [
+        "测试敌人受到 10 点伤害（HP 80/100）",
+        "主角恢复 10 HP（HP 50/100）",
+        "测试敌人失去 10 MP（MP 4/14）",
+        "主角恢复 10 MP（MP 18/20）",
+        "主角消耗 2 MP（MP 18/20）",
+      ],
+    });
+  });});

@@ -116,12 +116,12 @@ describe('TrainingSessionService', () => {
         TRAINING_CATALOG.challenges.map(challenge => [challenge.id, challenge.firstClearReward]),
       ),
     ).toEqual({
-      'challenge-1': { money: 2500, items: { '2': 2, '7': 2, '28': 2, '29': 2 } },
-      'challenge-2': { money: 6000, items: { '3': 2, '8': 2, '11': 2, '27': 3 } },
-      'challenge-3': { money: 12000, items: { '17': 3, '26': 2, '52': 1, '53': 1 } },
-      'challenge-4': { money: 25000, items: { '4': 2, '9': 2, '22': 2, '54': 1 } },
-      'challenge-5': { money: 50000, items: { '5': 2, '10': 2, '13': 2, '55': 1 } },
-      'challenge-hidden': { money: 100000, items: { '5': 3, '10': 3, '13': 3, '65': 1 } },
+      'challenge-1': { money: 2500, items: { '2': 2, '7': 2, '28': 2, '29': 2, '66': 1, '69': 1 } },
+      'challenge-2': { money: 6000, items: { '3': 2, '8': 2, '11': 2, '27': 3, '67': 1, '68': 1 } },
+      'challenge-3': { money: 12000, items: { '17': 3, '26': 2, '52': 1, '53': 1, '66': 1, '67': 1, '68': 1, '69': 1 } },
+      'challenge-4': { money: 25000, items: { '4': 2, '9': 2, '22': 2, '54': 1, '66': 2, '67': 2, '68': 2, '69': 2 } },
+      'challenge-5': { money: 50000, items: { '5': 2, '10': 2, '13': 2, '55': 1, '66': 3, '67': 3, '68': 3, '69': 3 } },
+      'challenge-hidden': { money: 100000, items: { '5': 3, '10': 3, '13': 3, '65': 1, '66': 5, '67': 5, '68': 5, '69': 5 } },
     });
   });
 

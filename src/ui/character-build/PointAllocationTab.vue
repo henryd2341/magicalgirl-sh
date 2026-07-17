@@ -19,6 +19,7 @@ const confirmMsg = ref<string | null>(null);
 // Mutated directly in memory before confirm
 const localAllocated = ref({ attack: 0, defense: 0, agility: 0, intelligence: 0 });
 const localUnspent = ref(0);
+const localPermanent = ref({ attack: 0, defense: 0, agility: 0, intelligence: 0 });
 
 // ── Load data ──
 
@@ -60,6 +61,13 @@ function readFromVars(varState: VariableValueRecord | null) {
     intelligence: alloc?.intelligence ?? 0,
   };
   localUnspent.value = unspent ?? 0;
+  const permanent = isPlayer ? varState.root.player.combat.permanentBonuses : varState.root.characters[props.characterId]?.combat?.permanentBonuses;
+  localPermanent.value = {
+    attack: permanent?.attack ?? 0,
+    defense: permanent?.defense ?? 0,
+    agility: permanent?.agility ?? 0,
+    intelligence: permanent?.intelligence ?? 0,
+  };
 }
 
 function getIsPlayer(varState?: VariableValueRecord | null): boolean {
@@ -106,10 +114,10 @@ const baseStats = computed(() => {
 const totalStats = computed(() => {
   if (!baseStats.value) return null;
   return {
-    attack: baseStats.value.attack + localAllocated.value.attack,
-    defense: baseStats.value.defense + localAllocated.value.defense,
-    agility: baseStats.value.agility + localAllocated.value.agility,
-    intelligence: baseStats.value.intelligence + localAllocated.value.intelligence,
+    attack: Math.min(99, baseStats.value.attack + localAllocated.value.attack + localPermanent.value.attack),
+    defense: Math.min(99, baseStats.value.defense + localAllocated.value.defense + localPermanent.value.defense),
+    agility: Math.min(99, baseStats.value.agility + localAllocated.value.agility + localPermanent.value.agility),
+    intelligence: Math.min(99, baseStats.value.intelligence + localAllocated.value.intelligence + localPermanent.value.intelligence),
   };
 });
 
@@ -117,7 +125,7 @@ const totalStats = computed(() => {
 
 function adjustStat(stat: "attack" | "defense" | "agility" | "intelligence", delta: number) {
   const current = localAllocated.value[stat];
-  if (delta > 0 && localUnspent.value <= 0) return; // No points left
+  if (delta > 0 && (localUnspent.value <= 0 || (totalStats.value?.[stat] ?? 99) >= 99)) return;
   if (delta < 0 && current <= 0) return; // Can't go below 0
   if (delta < 0 && current + delta < 0) return;
 
@@ -176,7 +184,7 @@ watch(() => props.characterId, () => loadState());
           <div class="points-tab__stat-values">
             <span class="points-tab__stat-base">{{ baseStats?.attack ?? 0 }}</span>
             <span class="points-tab__stat-plus">+</span>
-            <span class="points-tab__stat-alloc">{{ localAllocated.attack }}</span>
+            <span class="points-tab__stat-alloc">{{ localAllocated.attack }} + 永久{{ localPermanent.attack }}</span>
             <span class="points-tab__stat-eq">=</span>
             <span class="points-tab__stat-total">{{ totalStats?.attack ?? 0 }}</span>
           </div>
@@ -188,7 +196,7 @@ watch(() => props.characterId, () => loadState());
             >-</button>
             <button
               class="points-tab__btn points-tab__btn--plus"
-              :disabled="localUnspent <= 0"
+              :disabled="localUnspent <= 0 || (totalStats?.attack ?? 99) >= 99"
               @click="adjustStat('attack', 1)"
             >+</button>
           </div>
@@ -199,7 +207,7 @@ watch(() => props.characterId, () => loadState());
           <div class="points-tab__stat-values">
             <span class="points-tab__stat-base">{{ baseStats?.defense ?? 0 }}</span>
             <span class="points-tab__stat-plus">+</span>
-            <span class="points-tab__stat-alloc">{{ localAllocated.defense }}</span>
+            <span class="points-tab__stat-alloc">{{ localAllocated.defense }} + 永久{{ localPermanent.defense }}</span>
             <span class="points-tab__stat-eq">=</span>
             <span class="points-tab__stat-total">{{ totalStats?.defense ?? 0 }}</span>
           </div>
@@ -211,7 +219,7 @@ watch(() => props.characterId, () => loadState());
             >-</button>
             <button
               class="points-tab__btn points-tab__btn--plus"
-              :disabled="localUnspent <= 0"
+              :disabled="localUnspent <= 0 || (totalStats?.defense ?? 99) >= 99"
               @click="adjustStat('defense', 1)"
             >+</button>
           </div>
@@ -222,7 +230,7 @@ watch(() => props.characterId, () => loadState());
           <div class="points-tab__stat-values">
             <span class="points-tab__stat-base">{{ baseStats?.agility ?? 0 }}</span>
             <span class="points-tab__stat-plus">+</span>
-            <span class="points-tab__stat-alloc">{{ localAllocated.agility }}</span>
+            <span class="points-tab__stat-alloc">{{ localAllocated.agility }} + 永久{{ localPermanent.agility }}</span>
             <span class="points-tab__stat-eq">=</span>
             <span class="points-tab__stat-total">{{ totalStats?.agility ?? 0 }}</span>
           </div>
@@ -234,7 +242,7 @@ watch(() => props.characterId, () => loadState());
             >-</button>
             <button
               class="points-tab__btn points-tab__btn--plus"
-              :disabled="localUnspent <= 0"
+              :disabled="localUnspent <= 0 || (totalStats?.agility ?? 99) >= 99"
               @click="adjustStat('agility', 1)"
             >+</button>
           </div>
@@ -245,7 +253,7 @@ watch(() => props.characterId, () => loadState());
           <div class="points-tab__stat-values">
             <span class="points-tab__stat-base">{{ baseStats?.intelligence ?? 0 }}</span>
             <span class="points-tab__stat-plus">+</span>
-            <span class="points-tab__stat-alloc">{{ localAllocated.intelligence }}</span>
+            <span class="points-tab__stat-alloc">{{ localAllocated.intelligence }} + 永久{{ localPermanent.intelligence }}</span>
             <span class="points-tab__stat-eq">=</span>
             <span class="points-tab__stat-total">{{ totalStats?.intelligence ?? 0 }}</span>
           </div>
@@ -257,7 +265,7 @@ watch(() => props.characterId, () => loadState());
             >-</button>
             <button
               class="points-tab__btn points-tab__btn--plus"
-              :disabled="localUnspent <= 0"
+              :disabled="localUnspent <= 0 || (totalStats?.intelligence ?? 99) >= 99"
               @click="adjustStat('intelligence', 1)"
             >+</button>
           </div>

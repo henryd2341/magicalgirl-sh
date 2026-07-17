@@ -181,6 +181,52 @@ describe("BattleBroadcastWindow", () => {
     ).toBeInTheDocument();
   });
 
+  it("drags the minimized icon without restoring and still restores on a click", async () => {
+    render(BattleBroadcastWindow, {
+      props: {
+        entries,
+        turnCount: 1,
+      },
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "最小化战斗播报" }));
+    const icon = screen.getByRole("button", { name: "恢复战斗播报" });
+
+    await fireEvent.pointerDown(icon, {
+      pointerId: 4,
+      clientX: 100,
+      clientY: 100,
+    });
+    await fireEvent.pointerMove(window, {
+      pointerId: 4,
+      clientX: 140,
+      clientY: 130,
+    });
+    await fireEvent.pointerUp(window, { pointerId: 4 });
+
+    expect(icon).toHaveStyle({ left: "64px", top: "54px" });
+
+    // The click synthesized after a drag must not restore the full window.
+    await fireEvent.click(icon);
+    expect(screen.getByRole("button", { name: "恢复战斗播报" })).toBeInTheDocument();
+
+    // Movement below the threshold keeps the original click-to-restore behavior.
+    await fireEvent.pointerDown(icon, {
+      pointerId: 5,
+      clientX: 200,
+      clientY: 200,
+    });
+    await fireEvent.pointerMove(window, {
+      pointerId: 5,
+      clientX: 203,
+      clientY: 202,
+    });
+    await fireEvent.pointerUp(window, { pointerId: 5 });
+    await fireEvent.click(icon);
+
+    expect(screen.getByRole("complementary", { name: "战斗播报" })).toBeInTheDocument();
+  });
+
   it("resizes within viewport bounds", async () => {
     render(BattleBroadcastWindow, {
       props: {

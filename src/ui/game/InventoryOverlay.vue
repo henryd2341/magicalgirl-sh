@@ -2,9 +2,10 @@
 import { ref, computed, watch, onMounted, onErrorCaptured } from "vue";
 import type { VariableValueRecord } from "@/types/variables";
 import { useSessionStore } from "@/stores/sessionStore";
-import { getAllItems } from "@/content/contentRegistry";
+import { getAllItems, getCharacter, getGrowth } from "@/content/contentRegistry";
 import type { ItemContent } from "@/types/content";
 import ItemDetailPanel from "@/ui/game/ItemDetailPanel.vue";
+import { statsAtLevel } from "@/engine/battle/formulaEngine";
 
 const emit = defineEmits<{ close: [] }>();
 
@@ -95,6 +96,47 @@ const partyMembers = computed(() => {
 
   return members;
 });
+
+const permanentStatTargets = computed(() => {
+  const bonus = selectedItem.value?.permanentStatBonus;
+  const root = varState.value?.root;
+  if (bonus == null || root == null) return [];
+
+  const targetRows: Array<{ id: string; name: string; value: number; capped: boolean }> = [];
+  const appendTarget = (
+    id: string,
+    name: string,
+    combat: NonNullable<typeof root.player.combat>,
+    growthId: string,
+  ) => {
+    const stat = bonus.stat;
+    const value = Math.min(
+      99,
+      statsAtLevel(getGrowth(growthId).base, getGrowth(growthId).perLevel, combat.level)[stat] + combat.allocatedPoints[stat] + (combat.permanentBonuses?.[stat] ?? 0),
+    );
+    targetRows.push({ id, name, value, capped: value >= 99 });
+  };
+
+  appendTarget("__player__", root.player.profile.name, root.player.combat, "player");
+  for (const [id, character] of Object.entries(root.characters)) {
+    if (character.inParty !== true || character.combat == null) continue;
+    let growthId = "player";
+    try { growthId = getCharacter(id).growthId; } catch { growthId = "player"; }
+    appendTarget(id, character.displayName, character.combat as NonNullable<typeof root.player.combat>, growthId);
+  }
+  return targetRows;
+});
+
+async function usePermanentStatItem(characterId: string): Promise<void> {
+  const item = selectedItem.value;
+  if (item?.permanentStatBonus == null) return;
+  const result = await sessionStore.usePermanentStatItem(item.id, characterId);
+  if (result.success) {
+    const refreshed = await sessionStore.getVariableSnapshot();
+    varState.value = refreshed;
+    if (refreshed != null && (refreshed.root.inventory.items[item.id] ?? 0) <= 0) selectedItem.value = null;
+  }
+}
 
 function getAccessoryName(id: string | null): string {
   if (!id) return "无";
@@ -237,9 +279,29 @@ function closeOverlay() {
           </div>
 
           <!-- Right: detail + party -->
-          <div class="inventory-overlay__right">
+          <div class="inventory-overlay__right mg-scroll">
             <div v-if="selectedItem" class="inventory-overlay__detail">
               <ItemDetailPanel :item="selectedItem" />
+            </div>
+
+            <div v-if="selectedItem?.permanentStatBonus" class="inventory-overlay__party">
+              <h3 class="inventory-overlay__section-title">
+                <i class="fas fa-sparkles"></i> 选择强化角色
+              </h3>
+              <ul class="inventory-overlay__list">
+                <li v-for="target in permanentStatTargets" :key="target.id" class="inventory-overlay__party-member">
+                  <span class="inventory-overlay__party-name">{{ target.name }}</span>
+                  <button
+                    type="button"
+                    class="mg-btn mg-btn--sm"
+                    :disabled="target.capped"
+                    :aria-label="`对${target.name}使用${selectedItem.name}`"
+                    @click="usePermanentStatItem(target.id)"
+                  >
+                    {{ target.value }}/99<span v-if="!target.capped"> +1</span>
+                  </button>
+                </li>
+              </ul>
             </div>
 
             <div v-if="selectedItem?.type === 'accessory'" class="inventory-overlay__party">

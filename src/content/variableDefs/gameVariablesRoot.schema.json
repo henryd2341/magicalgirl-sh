@@ -353,6 +353,16 @@
           "minimum": 0,
           "x-aiContext": false,
           "description": "升级获得但尚未分配的自由点数。"
+        },
+        "permanentBonuses": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "attack": { "type": "integer", "minimum": 0 },
+            "defense": { "type": "integer", "minimum": 0 },
+            "agility": { "type": "integer", "minimum": 0 },
+            "intelligence": { "type": "integer", "minimum": 0 }
+          }
         }
       }
     },
