@@ -10,7 +10,12 @@ import { getSkill } from "@/content/contentRegistry";
 import { calculateDamage } from "@/engine/battle/formulaEngine";
 import { getFormulaParams } from "@/content/contentRegistry";
 import type { BattleParticipant } from "@/types/battle";
-import type { SkillTargetType } from "@/types/content";
+import type {
+  CleansableStatusEffectType,
+  SkillCategory,
+  SkillTargetType,
+  StatusEffectPayload,
+} from "@/types/content";
 import { BATTLE_ELEMENTS } from "@/types/battle";
 
 // ── Behavior types ──
@@ -61,7 +66,11 @@ export interface EnemyAction {
   element: number;
   accuracy: number;
   statDriver: "attack" | "intelligence";
+  category: SkillCategory;
+  statusEffects?: StatusEffectPayload[];
   healPercent?: number;
+  revives?: boolean;
+  cleanses?: CleansableStatusEffectType[];
 }
 
 export interface ScoredAction {
@@ -81,6 +90,7 @@ function buildBasicAttack(): EnemyAction {
     element: BATTLE_ELEMENTS.Physical,
     accuracy: 100,
     statDriver: "attack",
+    category: "physical",
   };
 }
 
@@ -97,7 +107,11 @@ export function buildEnemySkillAction(skillId: string): EnemyAction | null {
       element: skill.element,
       accuracy: skill.accuracy,
       statDriver: skill.statDriver,
+      category: skill.category,
+      statusEffects: skill.statusEffects,
       healPercent: skill.healPercent,
+      revives: skill.revives,
+      cleanses: skill.cleanses,
     };
   } catch {
     return null;
@@ -125,6 +139,8 @@ function filterTargetsByScope(
   allParticipants: BattleParticipant[],
 ): BattleParticipant[] {
   const alive = (p: BattleParticipant) => !p.isDown;
+  const eligibleAlly = (p: BattleParticipant) =>
+    action.revives === true ? p.isDown : alive(p);
 
   switch (action.targetType) {
     case "single_enemy":
@@ -135,7 +151,7 @@ function filterTargetsByScope(
     case "single_ally":
     case "all_allies":
       return allParticipants.filter(
-        (p) => p.side === actor.side && p.isActive && alive(p),
+        (p) => p.side === actor.side && p.isActive && eligibleAlly(p),
       );
     case "self":
       return [actor];
@@ -155,6 +171,7 @@ function estimateDamage(
   target: BattleParticipant,
   action: EnemyAction,
 ): number {
+  if (action.category !== "physical" && action.category !== "magic") return 0;
   const params = getFormulaParams();
   const driverStat =
     action.statDriver === "attack"
@@ -276,4 +293,3 @@ export function selectEnemyAction(
 }
 
 export { BEHAVIOR_WEIGHTS };
-

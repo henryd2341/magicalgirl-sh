@@ -43,13 +43,14 @@ vi.mock("@/content/trainingCatalog", () => ({
   TRAINING_PUZZLE: {
     enabled: true,
     clueText: "寻找隐藏图片",
-    imageUrl: "/assets/puzzle-secret.png",
+    imageUrl: "/puzzle.png",
     answerDigest: "0".repeat(64),
     normalizationVersion: 1,
   },
 }));
 vi.mock("@/content/contentRegistry", () => ({
   getAllEnemies: () => fixture.enemies,
+  isChallengeEnemyId: () => false,
 }));
 vi.mock("@/stores/sessionStore", () => ({
   useSessionStore: () => ({
@@ -118,7 +119,8 @@ describe("TrainingGroundOverlay", () => {
 
     const input = screen.getByLabelText("谜题答案");
     const form = input.closest("form")!;
-    expect(form.getAttribute("data-puzzle-resource")).toBe("/assets/puzzle-secret.png");
+    expect(form.getAttribute("data-puzzle-resource")).toBe("/puzzle.png");
+    expect(screen.getByText(/Elements/).textContent).not.toContain("/hiddenchallenge");
     await fireEvent.update(input, "  MaGiC  ");
     await fireEvent.submit(form);
     expect(fixture.submit).toHaveBeenCalledWith("  MaGiC  ");

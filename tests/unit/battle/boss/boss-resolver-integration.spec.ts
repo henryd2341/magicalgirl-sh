@@ -162,5 +162,92 @@ describe("Boss resolver integration", () => {
     expect(pair.bigWindowDamage).toBeGreaterThan(0);
   });
 
-});
 
+  function resolveForcedHiddenSkill(
+    skillId: string,
+    configure?: (participants: BattleParticipant[]) => void,
+  ) {
+    registerBossProfile({
+      id: `forced-hidden-${skillId}`,
+      actorEnemyIds: ["107", "108"],
+      initialPhase: "test",
+      skillIds: [skillId],
+      reduceEvent: () => [],
+      selectForcedIntent: (context) => ({
+        type: "use_skill",
+        actorId: context.actorId!,
+        skillId,
+        targetIds: context.snapshot.participants
+          .filter((participant) => participant.side === "enemy")
+          .map((participant) => participant.id),
+        reason: "resolver regression test",
+      }),
+      enumerateUtilityCandidates: () => [],
+    });
+
+    const pending = createPendingBattleSnapshot({
+      encounterId: `forced-hidden-${skillId}`,
+      narrativeReason: "enemy ally skill resolution",
+      source: "training/challenge",
+      enemies: [{ enemy_id: "107", count: 1 }, { enemy_id: "108", count: 1 }],
+    });
+    const active = createBattleSnapshotFromPendingBattle({
+      pendingBattle: pending,
+      playerParty: [player],
+    });
+    configure?.(active.participants);
+
+    return resolveEnemyTurn({
+      ...active,
+      phase: "ENEMY_TURN",
+      pressTurn: { ownerSide: "enemy", icons: [{ id: "e1", state: "solid" }] },
+    });
+  }
+
+  it("resolves enemy all_allies healing against every living ally", () => {
+    const startingHp = new Map<string, number>();
+    const resolved = resolveForcedHiddenSkill("321", (participants) => {
+      for (const participant of participants.filter((entry) => entry.side === "enemy")) {
+        participant.hp.current = Math.floor(participant.hp.max / 2);
+        startingHp.set(participant.id, participant.hp.current);
+      }
+    });
+
+    expect(resolved.participants.find((entry) => entry.side === "player")?.hp.current).toBe(200);
+    for (const enemy of resolved.participants.filter((entry) => entry.side === "enemy")) {
+      expect(enemy.hp.current).toBe(
+        Math.min(enemy.hp.max, startingHp.get(enemy.id)! + Math.round(enemy.hp.max * 0.2)),
+      );
+    }
+  });
+
+  it("resolves enemy all_allies support effects against every living ally", () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    const resolved = resolveForcedHiddenSkill("320");
+
+    expect(resolved.participants.find((entry) => entry.side === "player")?.hp.current).toBe(200);
+    for (const enemy of resolved.participants.filter((entry) => entry.side === "enemy")) {
+      expect(enemy.statusEffects).toEqual(
+        expect.arrayContaining([expect.objectContaining({ effectId: "defense_up" })]),
+      );
+    }
+    randomSpy.mockRestore();
+  });
+
+  it("resolves enemy all_allies cleansing for debuffs and ailments", () => {
+    const resolved = resolveForcedHiddenSkill("322", (participants) => {
+      for (const participant of participants.filter((entry) => entry.side === "enemy")) {
+        participant.statusEffects = [
+          { effectId: "attack_down", remainingDuration: 3, stacks: 1 },
+          { effectId: "poison", remainingDuration: 3, stacks: 1 },
+          { effectId: "attack_up", remainingDuration: 3, stacks: 1 },
+        ];
+      }
+    });
+
+    for (const enemy of resolved.participants.filter((entry) => entry.side === "enemy")) {
+      expect(enemy.statusEffects?.map((effect) => effect.effectId)).toEqual(["attack_up"]);
+    }
+  });
+
+});

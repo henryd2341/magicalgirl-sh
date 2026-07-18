@@ -1,5 +1,5 @@
 import { getAllEnemies } from "@/content/contentRegistry";
-import { TRAINING_CATALOG } from "@/content/trainingCatalog";
+import { TRAINING_CATALOG, TRAINING_PUZZLE } from "@/content/trainingCatalog";
 import type { PendingBattleSnapshot } from "@/types/battle";
 import {
   BATTLE_SOURCES,
@@ -67,6 +67,23 @@ describe("training domain contracts", () => {
       expect.objectContaining({ id: "challenge-5", order: 5, hidden: false, prerequisiteId: "challenge-4", enemies: [{ enemy_id: "106", count: 1 }] }),
       expect.objectContaining({ id: "challenge-hidden", order: 6, hidden: true, prerequisiteId: null, enemies: [{ enemy_id: "107", count: 1 }, { enemy_id: "108", count: 1 }] }),
     ]);
+  });
+
+  it("configures the production puzzle for OUR MEMORIALS", async () => {
+    expect(TRAINING_PUZZLE).toEqual({
+      enabled: true,
+      clueText: expect.stringContaining("页面本身"),
+      imageUrl: "/puzzle.png",
+      answerDigest: "60956c648459ec2cfae4cbda4bf29c0fe13c288d5cf1d71739c8ddb0c5bc0c4b",
+      normalizationVersion: 1,
+    });
+    expect(validateTrainingCatalog(TRAINING_CATALOG, TRAINING_PUZZLE)).toEqual({
+      ok: true,
+      errors: [],
+    });
+    expect(await digestTrainingAnswer("  OUR MEMORIALS  ", 1)).toBe(
+      TRAINING_PUZZLE.answerDigest,
+    );
   });
 
   it("expresses five normal challenge stages plus one hidden stage", () => {

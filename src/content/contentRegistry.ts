@@ -61,6 +61,7 @@ const skillContentSchema = z.object({
   statusEffects: z.array(statusEffectPayloadSchema).optional(),
   healPercent: z.number().int().min(0).max(100).optional(),
   revives: z.boolean().optional(),
+  cleanses: z.array(z.enum(["debuff", "dot", "ailment"])).optional(),
   hpDrainPercent: z.number().min(0).max(100).optional(),
   mpDrainAmount: z.number().int().min(0).optional(),
   passiveEffects: z
@@ -593,6 +594,3 @@ export function getCharacterByName(name: string): CharacterContent {
   if (id != null) return getCharacter(id);
   return getCharacter(name); // fallback to direct ID lookup
 }
-
-
-

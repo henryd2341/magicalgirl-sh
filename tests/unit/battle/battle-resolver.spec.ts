@@ -1774,4 +1774,80 @@ describe("battleResolver", () => {
     const hpOutcomes = resolution.outcomes.filter((o) => o.hpDelta != null);
     expect(hpOutcomes.length).toBe(0);
   });
-});
+
+  it("生命之源泉 heals all living allies by 50 percent and removes debuffs", () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+    const snapshot = createActiveBattleSnapshot({
+      selectedActionId: "basic-skill",
+      selectedContentId: "167",
+      selectedTargetId: "player-heroine-1",
+      participants: [
+        {
+          id: "player-heroine-1", side: "player", displayName: "鹿目真昼",
+          level: 99, hp: { current: 20, max: 120 }, mp: { current: 99, max: 99 },
+          attack: 5, defense: 5, agility: 5, intelligence: 99,
+          isDown: false, isActive: true,
+          statusEffects: [{ effectId: "attack_down", remainingDuration: 3, stacks: 1 }],
+        },
+        {
+          id: "player-heroine-2", side: "player", displayName: "同伴",
+          level: 99, hp: { current: 50, max: 200 }, mp: { current: 99, max: 99 },
+          attack: 5, defense: 5, agility: 5, intelligence: 99,
+          isDown: false, isActive: true,
+          statusEffects: [{ effectId: "defense_down", remainingDuration: 3, stacks: 1 }],
+        },
+        {
+          id: "enemy-1", side: "enemy", displayName: "敌人",
+          level: 1, hp: { current: 100, max: 100 }, mp: { current: 0, max: 0 },
+          attack: 5, defense: 5, agility: 5, intelligence: 5,
+          isDown: false, isActive: true, statusEffects: [],
+        },
+      ],
+    });
+
+    const resolved = resolveSelectedBattleAction(snapshot);
+    const allies = resolved.participants.filter((participant) => participant.side === "player");
+    expect(allies.map((ally) => ally.hp.current)).toEqual([80, 150]);
+    expect(allies.every((ally) =>
+      !(ally.statusEffects ?? []).some((status) => status.effectId.endsWith("_down"))
+    )).toBe(true);
+    randomSpy.mockRestore();
+  });
+
+  it("弱化破灭 removes debuffs from all living allies and preserves buffs", () => {
+    const snapshot = createActiveBattleSnapshot({
+      selectedActionId: "basic-skill",
+      selectedContentId: "188",
+      selectedTargetId: "player-heroine-1",
+      participants: [
+        {
+          id: "player-heroine-1", side: "player", displayName: "鹿目真昼",
+          level: 99, hp: { current: 120, max: 120 }, mp: { current: 99, max: 99 },
+          attack: 5, defense: 5, agility: 5, intelligence: 99,
+          isDown: false, isActive: true,
+          statusEffects: [
+            { effectId: "attack_down", remainingDuration: 3, stacks: 1 },
+            { effectId: "attack_up", remainingDuration: 3, stacks: 1 },
+          ],
+        },
+        {
+          id: "player-heroine-2", side: "player", displayName: "同伴",
+          level: 99, hp: { current: 120, max: 120 }, mp: { current: 99, max: 99 },
+          attack: 5, defense: 5, agility: 5, intelligence: 99,
+          isDown: false, isActive: true,
+          statusEffects: [{ effectId: "defense_down", remainingDuration: 3, stacks: 1 }],
+        },
+        {
+          id: "enemy-1", side: "enemy", displayName: "敌人",
+          level: 1, hp: { current: 100, max: 100 }, mp: { current: 0, max: 0 },
+          attack: 5, defense: 5, agility: 5, intelligence: 5,
+          isDown: false, isActive: true, statusEffects: [],
+        },
+      ],
+    });
+
+    const resolved = resolveSelectedBattleAction(snapshot);
+    expect(resolved.participants[0]?.statusEffects?.map((status) => status.effectId))
+      .toEqual(["attack_up"]);
+    expect(resolved.participants[1]?.statusEffects).toEqual([]);
+  });});

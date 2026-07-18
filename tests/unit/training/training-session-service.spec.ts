@@ -3,7 +3,7 @@ import {
   createDefaultTrainingProgress,
   getTrainingProgress,
 } from '@/engine/variablePolicy';
-import { TRAINING_CATALOG } from '@/content/trainingCatalog';
+import { TRAINING_CATALOG, TRAINING_PUZZLE } from '@/content/trainingCatalog';
 import { TrainingSessionService } from '@/engine/training/trainingSessionService';
 import type { BattleSnapshot, CreatePendingBattleSnapshotInput } from '@/types/battle';
 import type { VariableValueRecord } from '@/types/variables';
@@ -259,6 +259,44 @@ describe('TrainingSessionService', () => {
     expect(save).toHaveBeenCalledTimes(1);
     expect(current.root.player.money).toBe(100);
     expect(current.root.inventory.items['1']).toBe(1);
+  });
+
+  it('persists the production OUR MEMORIALS answer through the real digest path', async () => {
+    let current = makeRecord();
+    current.root.training = {
+      clearedChallengeIds: [
+        'challenge-1',
+        'challenge-2',
+        'challenge-3',
+        'challenge-4',
+        'challenge-5',
+      ],
+      claimedRewardIds: [],
+      hiddenChallengeDiscovered: false,
+    };
+    const save = vi.fn(async (next: VariableValueRecord) => {
+      current = next;
+    });
+    const service = new TrainingSessionService({
+      catalog: TRAINING_CATALOG,
+      puzzle: TRAINING_PUZZLE,
+      getCurrent: async () => current,
+      saveCurrent: save,
+      stageEncounter: async () => {},
+      createNextRecord: (root, previous) => ({
+        ...previous,
+        version: previous.version + 1,
+        stateHash: 'next',
+        root,
+      }),
+    });
+
+    await expect(service.submitPuzzleAnswer('  Our Memorials  ')).resolves.toEqual({
+      discovered: true,
+      alreadyDiscovered: false,
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(current.root.training?.hiddenChallengeDiscovered).toBe(true);
   });
 
   it('handles puzzle mismatch, discovery, and repeat idempotently', async () => {

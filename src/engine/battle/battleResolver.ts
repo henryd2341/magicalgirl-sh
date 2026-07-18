@@ -57,6 +57,7 @@ import {
 import {
   buildEnemySkillAction,
   selectEnemyAction,
+  type EnemyAction,
   type EnemyBehaviorType,
   type ScoredAction,
 } from "@/engine/battle/enemyUtility";
@@ -66,6 +67,7 @@ import {
   applyBossEffects,
 } from "@/engine/battle/boss/bossRuntime";
 import { BATTLE_ELEMENTS } from "@/types/battle";
+import type { CleansableStatusEffectType } from "@/types/content";
 import type {
   ActiveStatusEffect,
   AppliedStatusEffectPayload,
@@ -76,6 +78,7 @@ import type {
   BattleResult,
   BattleSnapshot,
 } from "@/types/battle";
+
 
 // ── Guard status effect ID (from content) ──
 
@@ -106,6 +109,20 @@ function participantIsStatusImmune(
   );
 }
 
+function resolveCleansedStatusEffectIds(
+  target: BattleParticipant,
+  cleanseTypes: readonly CleansableStatusEffectType[] | undefined,
+): string[] {
+  if (cleanseTypes == null || cleanseTypes.length === 0) return [];
+  const types = new Set(cleanseTypes);
+  const effectMap = getStatusEffectMap();
+  return (target.statusEffects ?? [])
+    .filter((status) => {
+      const type = effectMap.get(status.effectId)?.type;
+      return type != null && cleanseTypes.some((cleanseType) => cleanseType === type);
+    })
+    .map((status) => status.effectId);
+}
 function statusChanceForTarget(
   target: BattleParticipant,
   effectId: string,
@@ -838,6 +855,79 @@ function emitBossActionEvents(
   return next;
 }
 
+function resolveEnemyActionTargets(
+  participants: readonly BattleParticipant[],
+  actor: BattleParticipant,
+  action: EnemyAction,
+  selectedTarget: BattleParticipant,
+): BattleParticipant[] {
+  const isEligibleAlly = (participant: BattleParticipant) =>
+    participant.side === actor.side &&
+    participant.isActive &&
+    (action.revives === true ? participant.isDown : !participant.isDown);
+  const isEligibleEnemy = (participant: BattleParticipant) =>
+    participant.side !== actor.side && participant.isActive && !participant.isDown;
+
+  switch (action.targetType) {
+    case "all_allies":
+      return participants.filter(isEligibleAlly);
+    case "all_enemies":
+      return participants.filter(isEligibleEnemy);
+    case "single_ally":
+      return isEligibleAlly(selectedTarget) ? [selectedTarget] : [];
+    case "single_enemy":
+      return isEligibleEnemy(selectedTarget) ? [selectedTarget] : [];
+    case "self":
+      return actor.isActive && !actor.isDown ? [actor] : [];
+  }
+}
+
+function buildEnemyRecoveryOutcomes(
+  actor: BattleParticipant,
+  target: BattleParticipant,
+  action: EnemyAction,
+): BattleActionOutcome[] {
+  const effectMap = getStatusEffectMap();
+  const appliedStatusEffects: AppliedStatusEffectPayload[] = [];
+
+  for (const status of action.statusEffects ?? []) {
+    const chanceContext = applyPassivesAtHook(
+      collectPassives(actor.passiveEffects),
+      "on_status_chance",
+      { chance: status.chance },
+    ) as { chance: number };
+    if (
+      Math.random() * 100 <
+      statusChanceForTarget(target, status.effectId, chanceContext.chance)
+    ) {
+      appliedStatusEffects.push({
+        effectId: status.effectId,
+        duration: effectMap.get(status.effectId)?.duration ?? 3,
+      });
+    }
+  }
+
+  const removedStatusEffectIds = resolveCleansedStatusEffectIds(target, action.cleanses);
+
+  let hpDelta: number | undefined;
+  if (action.category === "heal") {
+    const healAmount = action.healPercent != null
+      ? Math.round(target.hp.max * action.healPercent / 100)
+      : action.basePower;
+    hpDelta = Math.min(healAmount, target.hp.max - target.hp.current);
+  }
+
+  return [{
+    type: "hit",
+    tags: [],
+    actorId: actor.id,
+    primaryTargetId: target.id,
+    finalTargetId: target.id,
+    ...(hpDelta == null ? {} : { hpDelta }),
+    ...(appliedStatusEffects.length === 0 ? {} : { appliedStatusEffects }),
+    ...(removedStatusEffectIds.length === 0 ? {} : { removedStatusEffectIds }),
+  }];
+}
 export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
   if (snapshot.phase !== "ENEMY_TURN") {
     return snapshot;
@@ -964,64 +1054,45 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
 
     const { action, target } = scored;
 
-    if (action.targetType === "all_enemies" || action.targetType === "all_allies") {
-      // Multi-target: resolve against each valid target
-      const allTargets = participants.filter(
-        (p) => p.side !== actor.side && p.isActive && !p.isDown,
-      );
-      for (const t of allTargets) {
-        const outcomes = buildAttackOutcomes({
-          actorId: actor.id,
-          actor,
-          targetId: t.id,
-          target: t,
-          skillPower: action.basePower,
-          skillElement: action.element,
-          skillAccuracy: action.accuracy,
-          statDriver: action.statDriver,
-        });
-        for (const outcome of outcomes) {
-          participants = participants.map((p) =>
-            applyOutcomeToParticipant(p, outcome),
-          );
-        }
-        enemyTurnInterrupted ||= triggersEnemyTurnInterruption(t, outcomes);
-        logs.push(
-          createEnemySkillLogEntry(
-            turnCount, actor, t, action.name, outcomes, participants,
-          ),
-        );
-        bossState = emitBossActionEvents(
-          { ...bossState, participants },
-          actor.id,
-          action.skillId ?? "enemy_attack",
-          action.element,
-          outcomes,
-          participants,
-        );
-      }
-    } else {
-      // Single-target
-      const targetParticipant = participants.find((p) => p.id === target.id) ?? target;
-      const outcomes = buildAttackOutcomes({
-        actorId: actor.id,
-        actor,
-        targetId: targetParticipant.id,
-        target: targetParticipant,
-        skillPower: action.basePower,
-        skillElement: action.element,
-        skillAccuracy: action.accuracy,
-        statDriver: action.statDriver,
-      });
+    const actionTargets = resolveEnemyActionTargets(
+      participants,
+      actor,
+      action,
+      target,
+    );
+
+    for (const actionTarget of actionTargets) {
+      const participantsBeforeAction = participants;
+      const outcomes = action.category === "heal" || action.category === "support"
+        ? buildEnemyRecoveryOutcomes(actor, actionTarget, action)
+        : buildAttackOutcomes({
+            actorId: actor.id,
+            actor,
+            targetId: actionTarget.id,
+            target: actionTarget,
+            skillPower: action.basePower,
+            skillElement: action.element,
+            skillAccuracy: action.accuracy,
+            statDriver: action.statDriver,
+          });
+
       for (const outcome of outcomes) {
-        participants = participants.map((p) =>
-          applyOutcomeToParticipant(p, outcome),
+        participants = participants.map((participant) =>
+          applyOutcomeToParticipant(participant, outcome),
         );
       }
-      enemyTurnInterrupted ||= triggersEnemyTurnInterruption(targetParticipant, outcomes);
+
+      if (action.category === "physical" || action.category === "magic") {
+        enemyTurnInterrupted ||= triggersEnemyTurnInterruption(actionTarget, outcomes);
+      }
       logs.push(
         createEnemySkillLogEntry(
-          turnCount, actor, targetParticipant, action.name, outcomes, participants,
+          turnCount,
+          actor,
+          actionTarget,
+          action.name,
+          outcomes,
+          participants,
         ),
       );
       bossState = emitBossActionEvents(
@@ -1031,7 +1102,10 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
         action.element,
         outcomes,
         participants,
+        participantsBeforeAction,
       );
+
+      if (enemyTurnInterrupted) break;
     }
     if (enemyTurnInterrupted) break;
   }
@@ -1532,6 +1606,10 @@ export function resolveSelectedBattleActionToResolution(
           reviveHp = healAmount;
         }
 
+        const removedStatusEffectIds = resolveCleansedStatusEffectIds(
+          healTarget,
+          skillContent.cleanses,
+        );
         outcomes.push({
           type: "hit" as const,
           tags: [],
@@ -1539,6 +1617,7 @@ export function resolveSelectedBattleActionToResolution(
           primaryTargetId: healTarget.id,
           finalTargetId: healTarget.id,
           hpDelta: reviveHp > 0 ? reviveHp : healAmount,
+          ...(removedStatusEffectIds.length === 0 ? {} : { removedStatusEffectIds }),
         });
       }
 
@@ -1653,14 +1732,19 @@ export function resolveSelectedBattleActionToResolution(
             appliedEffects.push({ effectId: se.effectId, duration });
           }
         }
-        if (appliedEffects.length > 0) {
+        const removedStatusEffectIds = resolveCleansedStatusEffectIds(
+          supportTarget,
+          skillContent.cleanses,
+        );
+        if (appliedEffects.length > 0 || removedStatusEffectIds.length > 0) {
           outcomes.push({
             type: "hit" as const,
             tags: [],
             actorId,
             primaryTargetId: supportTarget.id,
             finalTargetId: supportTarget.id,
-            appliedStatusEffects: appliedEffects,
+            ...(appliedEffects.length === 0 ? {} : { appliedStatusEffects: appliedEffects }),
+            ...(removedStatusEffectIds.length === 0 ? {} : { removedStatusEffectIds }),
           });
         }
       }
@@ -2161,7 +2245,3 @@ export function resolveSelectedBattleActionToResolution(
     summaryLog: [`${skillContent.name} used`],
   };
 }
-
-
-
-

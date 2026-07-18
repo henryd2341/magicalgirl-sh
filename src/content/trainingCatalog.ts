@@ -95,9 +95,9 @@ export const TRAINING_CATALOG: TrainingCatalog = {
 };
 
 export const TRAINING_PUZZLE: TrainingPuzzleDefinition = {
-  enabled: false,
-  clueText: "谜题尚未开放",
-  imageUrl: null,
-  answerDigest: null,
+  enabled: true,
+  clueText: "元素中似乎隐藏着什么",
+  imageUrl: "/puzzle.png",
+  answerDigest: "60956c648459ec2cfae4cbda4bf29c0fe13c288d5cf1d71739c8ddb0c5bc0c4b",
   normalizationVersion: 1,
 };

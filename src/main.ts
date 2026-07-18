@@ -6,9 +6,12 @@ import { pinia } from "./stores";
 import { skillRegistry } from "./orchestrator/skillRegistry";
 import { useSkillStore } from "./stores/skillStore";
 import { registerChallengeBossProfiles } from "./engine/battle/boss/profiles/registerChallengeBossProfiles";
+import { handleHiddenChallengeDownload } from "./app/hiddenChallengeDownload";
 import "./styles/index.scss";
 import "./styles/tailwind.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
+
+handleHiddenChallengeDownload();
 
 // Initialize theme from localStorage (default: e-girl)
 const savedTheme = localStorage.getItem("mg-theme") || "e-girl";

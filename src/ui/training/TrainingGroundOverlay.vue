@@ -73,7 +73,7 @@ onMounted(async () => {
         <button id="training-tab-challenge" role="tab" :aria-selected="store.activeTab === 'challenge'" aria-controls="training-panel-challenge" @click="store.setTab('challenge')">挑战模式</button>
       </div>
 
-      <div class="training-body">
+      <div class="training-body mg-scroll">
         <div v-if="store.activeTab === 'free'" id="training-panel-free" role="tabpanel" aria-labelledby="training-tab-free">
           <FreeTrainingPanel
             :enemies="store.eligibleEnemies"

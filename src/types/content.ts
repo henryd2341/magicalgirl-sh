@@ -38,6 +38,8 @@ export interface StatusEffectPayload {
   chance: number; // 0–200
 }
 
+export type CleansableStatusEffectType = "debuff" | "dot" | "ailment";
+
 export interface SkillContent {
   id: string;
   name: string;
@@ -55,6 +57,7 @@ export interface SkillContent {
   statusEffects?: StatusEffectPayload[];
   healPercent?: number; // if set, heal uses percentage of target max HP instead of raw power
   revives?: boolean; // can this heal skill revive a downed target
+  cleanses?: CleansableStatusEffectType[]; // status-effect categories removed from each target
   hpDrainPercent?: number; // heal caster by this percentage of actual HP damage
   mpDrainAmount?: number; // transfer up to this much MP from target to caster
   passiveEffects?: PassiveEffectDef[]; // passive skill effects
@@ -297,4 +300,3 @@ export interface CharacterContent {
   innateSkills: string[];
   skillTree: SkillTreeNode[];
 }
-
