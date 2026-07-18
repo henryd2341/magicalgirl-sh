@@ -21,7 +21,7 @@ function wait(delayMs: number): Promise<void> {
 export function useProgressiveEnemyTurn(
   options: ProgressiveEnemyTurnOptions,
 ): { cancel: () => void } {
-  const delayMs = options.delayMs ?? 600;
+  const delayMs = options.delayMs ?? 1000;
   let running = false;
   let generation = 0;
 
