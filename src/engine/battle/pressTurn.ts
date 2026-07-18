@@ -139,7 +139,7 @@ export function settlePressTurnByOutcome(
   }
 
   if (outcomeType === "status_no_effect") {
-    return state;
+    return consumeTwoIcons(state);
   }
 
   if (
@@ -177,7 +177,7 @@ export function settlePressTurnResultByOutcome(
 
   if (outcomeType === "status_no_effect") {
     return createSettlementResult(
-      "no_change",
+      "consume_two",
       "status_no_effect",
       state,
       after,

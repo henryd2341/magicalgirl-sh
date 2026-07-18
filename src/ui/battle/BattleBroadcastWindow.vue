@@ -360,7 +360,7 @@ onBeforeUnmount(() => {
         role="log"
         aria-label="战斗播报记录"
         aria-live="off"
-        class="battle-broadcast__log"
+        class="battle-broadcast__log mg-scroll"
         @scroll="updateScrollPosition"
       >
         <ol v-if="visibleEntries.length > 0">

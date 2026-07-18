@@ -77,6 +77,7 @@ import type {
   BattleParticipant,
   BattleResult,
   BattleSnapshot,
+  CombatantSide,
 } from "@/types/battle";
 
 
@@ -641,6 +642,23 @@ export function createPressTurnResolutionForOutcomes(
   };
 }
 
+function initializeTurnForSide(
+  snapshot: BattleSnapshot,
+  participants: BattleParticipant[],
+  side: CombatantSide,
+): BattleSnapshot {
+  const participantIds = getActingParticipantIdsForSide(participants, side);
+  return {
+    ...snapshot,
+    participants,
+    pressTurn: createPressTurnStateForSide(participants, side),
+    pressTurnAllocation: {
+      participantIds,
+      initialIconCount: participantIds.length,
+    },
+    currentActorId: participantIds[0] ?? null,
+  };
+}
 // ── Main action resolver ──
 
 export function resolveSelectedBattleAction(
@@ -748,9 +766,29 @@ export function resolveSelectedBattleAction(
     nextSnapshot.resultSummary = normalizedSnapshot.resultSummary;
   }
 
+  if (
+    nextSnapshot.phase === "ENEMY_TURN" &&
+    nextSnapshot.lifecycleState === "ACTIVE"
+  ) {
+    Object.assign(
+      nextSnapshot,
+      initializeTurnForSide(nextSnapshot, participants, "enemy"),
+      {
+        selectedActionId: null,
+        selectedContentId: null,
+        selectedTargetId: null,
+        currentMenuNodeId: null,
+        selectedSwapOutParticipantId: null,
+        selectedSwapInParticipantId: null,
+        swapPhase: "idle",
+        _targetTypeHint: null,
+      },
+    );
+  }
+
   const actionId = resolution.contentId ?? resolution.actionId;
   const metadata = resolveBossEventActionMetadata(actionId);
-  return emitBossActionEvents(
+  const emittedSnapshot = emitBossActionEvents(
     nextSnapshot,
     resolution.actorId,
     actionId,
@@ -759,8 +797,15 @@ export function resolveSelectedBattleAction(
     participants,
     normalizedSnapshot.participants,
   );
-}
 
+  return emittedSnapshot.phase === "ENEMY_TURN" &&
+    emittedSnapshot.lifecycleState === "ACTIVE"
+    ? applyBossBattleEvent(emittedSnapshot, {
+        type: "round_started",
+        turnCount,
+      })
+    : emittedSnapshot;
+}
 // ── Enemy turn resolver ──
 
 function resolveBossEventActionMetadata(actionId: string): {
@@ -928,188 +973,11 @@ function buildEnemyRecoveryOutcomes(
     ...(removedStatusEffectIds.length === 0 ? {} : { removedStatusEffectIds }),
   }];
 }
-export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
-  if (snapshot.phase !== "ENEMY_TURN") {
-    return snapshot;
-  }
-
+function finishEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
   const turnCount = snapshot.turnCount ?? 1;
-  const enemyActors = snapshot.participants.filter(
-    (p) =>
-      p.side === "enemy" && p.isActive && !p.isDown && p.canAct !== false,
-  );
-
-  const livingEnemies = snapshot.participants.filter(
-    (p) => p.side === "enemy" && p.isActive && !p.isDown,
-  );
-
-  if (livingEnemies.length === 0) {
-    const battleResult = createVictoryBattleResult(snapshot.participants, turnCount);
-    return {
-      ...snapshot,
-      lifecycleState: "RESOLVED",
-      phase: "RESULT",
-      currentActorId: null,
-      battleResult,
-      resultSummary: "Victory",
-      battleLog: appendBattleLogs(snapshot, [
-        createBattleResultLogEntry(battleResult),
-      ]),
-    };
-  }
-
   let participants = snapshot.participants.map(cloneParticipant);
   const logs: BattleLogDraft[] = [];
-  let bossState = applyBossBattleEvent(
-    { ...snapshot, participants },
-    { type: "round_started", turnCount },
-  );
-  let enemyTurnInterrupted = false;
-  const attackCount = Math.max(
-    1,
-    snapshot.pressTurn.ownerSide === "enemy"
-      ? snapshot.pressTurn.icons.length
-      : enemyActors.length,
-  );
-
-  for (let index = 0; index < attackCount; index += 1) {
-    const actor = enemyActors[index % enemyActors.length];
-    if (actor == null) break;
-
-    bossState = applyBossBattleEvent(
-      { ...bossState, participants },
-      { type: "before_enemy_action", actorId: actor.id },
-    );
-
-    const bossIntent = selectBossActionIntent(
-      { ...bossState, participants },
-      actor.id,
-      Math.random,
-    );
-    if (bossIntent?.type === "force_defeat") {
-      participants = participants.map((participant) =>
-        participant.side === "player"
-          ? {
-              ...participant,
-              hp: { ...participant.hp, current: 0 },
-              isDown: true,
-            }
-          : participant,
-      );
-      const battleResult = createDefeatBattleResult(participants, turnCount);
-      const defeatBase = {
-        ...bossState,
-        participants,
-        battleLog: appendBattleLogs(bossState, [
-          ...logs,
-          createMechanicLogDraft(
-            turnCount,
-            bossIntent.reason,
-            [`Skill ${bossIntent.skillId}: 9999 damage to all players.`],
-          ),
-        ]),
-      };
-      return {
-        ...defeatBase,
-        lifecycleState: "RESOLVED",
-        phase: "RESULT",
-        currentActorId: null,
-        battleResult,
-        resultSummary: "Defeat",
-        battleLog: appendBattleLogs(defeatBase, [
-          createBattleResultLogEntry(battleResult),
-        ]),
-      };
-    }
-    if (bossIntent?.type === "pass") {
-      continue;
-    }
-    if (
-      bossIntent?.type === "use_skill" &&
-      bossIntent.reason === "queued counter"
-    ) {
-      bossState = applyBossEffects(bossState, [
-        { type: "enqueue_counter", actorId: actor.id, skillId: null },
-      ]);
-    }
-
-    let scored: ScoredAction | null;
-    if (bossIntent?.type === "use_skill") {
-      const action = buildEnemySkillAction(bossIntent.skillId);
-      const target = participants.find(
-        (participant) => participant.id === bossIntent.targetIds[0],
-      );
-      scored =
-        action == null || target == null
-          ? null
-          : { action, target, score: Number.POSITIVE_INFINITY };
-    } else {
-      scored = selectEnemyAction(
-        actor,
-        participants,
-        "aggressive",
-      );
-    }
-    if (scored == null) break;
-
-    const { action, target } = scored;
-
-    const actionTargets = resolveEnemyActionTargets(
-      participants,
-      actor,
-      action,
-      target,
-    );
-
-    for (const actionTarget of actionTargets) {
-      const participantsBeforeAction = participants;
-      const outcomes = action.category === "heal" || action.category === "support"
-        ? buildEnemyRecoveryOutcomes(actor, actionTarget, action)
-        : buildAttackOutcomes({
-            actorId: actor.id,
-            actor,
-            targetId: actionTarget.id,
-            target: actionTarget,
-            skillPower: action.basePower,
-            skillElement: action.element,
-            skillAccuracy: action.accuracy,
-            statDriver: action.statDriver,
-          });
-
-      for (const outcome of outcomes) {
-        participants = participants.map((participant) =>
-          applyOutcomeToParticipant(participant, outcome),
-        );
-      }
-
-      if (action.category === "physical" || action.category === "magic") {
-        enemyTurnInterrupted ||= triggersEnemyTurnInterruption(actionTarget, outcomes);
-      }
-      logs.push(
-        createEnemySkillLogEntry(
-          turnCount,
-          actor,
-          actionTarget,
-          action.name,
-          outcomes,
-          participants,
-        ),
-      );
-      bossState = emitBossActionEvents(
-        { ...bossState, participants },
-        actor.id,
-        action.skillId ?? "enemy_attack",
-        action.element,
-        outcomes,
-        participants,
-        participantsBeforeAction,
-      );
-
-      if (enemyTurnInterrupted) break;
-    }
-    if (enemyTurnInterrupted) break;
-  }
-
+  const bossState = snapshot;
   // Tick status effects at round boundary
   const effectMap = getStatusEffectMap();
   const participantsBeforeTick = participants.map(cloneParticipant);
@@ -1242,6 +1110,284 @@ export function resolveEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
       createPlayerRoundStartLogEntry(nextTurnCount),
     ]),
   };
+}
+
+function ensureEnemyTurnInitialized(snapshot: BattleSnapshot): BattleSnapshot {
+  if (snapshot.phase !== "ENEMY_TURN") return snapshot;
+
+  const allocation = snapshot.pressTurnAllocation?.participantIds ?? [];
+  const hasEnemyAllocation = snapshot.pressTurnAllocation != null
+    && allocation.every((participantId) =>
+      snapshot.participants.some(
+        (participant) =>
+          participant.id === participantId && participant.side === "enemy",
+      ),
+    );
+  if (snapshot.pressTurn.ownerSide === "enemy" && hasEnemyAllocation) {
+    return snapshot;
+  }
+
+  const initialized = initializeTurnForSide(
+    snapshot,
+    snapshot.participants.map(cloneParticipant),
+    "enemy",
+  );
+  return applyBossBattleEvent(
+    { ...initialized, phase: "ENEMY_TURN" },
+    { type: "round_started", turnCount: snapshot.turnCount ?? 1 },
+  );
+}
+
+function createImmediateEnemyResult(
+  snapshot: BattleSnapshot,
+  outcome: "victory" | "defeat",
+): BattleSnapshot {
+  const turnCount = snapshot.turnCount ?? 1;
+  const battleResult = outcome === "victory"
+    ? createVictoryBattleResult(snapshot.participants, turnCount)
+    : createDefeatBattleResult(snapshot.participants, turnCount);
+  return {
+    ...snapshot,
+    lifecycleState: "RESOLVED",
+    phase: "RESULT",
+    currentActorId: null,
+    battleResult,
+    resultSummary: outcome === "victory" ? "Victory" : "Defeat",
+    battleLog: appendBattleLogs(snapshot, [
+      createBattleResultLogEntry(battleResult),
+    ]),
+  };
+}
+
+function settleEnemyPass(
+  snapshot: BattleSnapshot,
+  actor: BattleParticipant,
+): BattleSnapshot {
+  const settlement = settlePassPressTurn(snapshot.pressTurn);
+  const next = {
+    ...snapshot,
+    pressTurn: settlement.after,
+    battleLog: appendBattleLogs(snapshot, [{
+      turnCount: snapshot.turnCount ?? 1,
+      side: "enemy",
+      kind: "action",
+      visibility: "both",
+      actorId: actor.id,
+      actionId: "pass",
+      targetIds: [actor.id],
+      summary: actor.displayName + "传递了行动。",
+    }]),
+  };
+  if (isPressTurnExhausted(next.pressTurn)) {
+    return finishEnemyTurn(next);
+  }
+
+  const queue = next.pressTurnAllocation?.participantIds ?? [];
+  const nextActorId = findNextEligibleActorId(
+    queue,
+    next.participants,
+    actor.id,
+  );
+  return nextActorId == null
+    ? finishEnemyTurn(next)
+    : { ...next, currentActorId: nextActorId };
+}
+
+export function resolveNextEnemyAction(
+  snapshot: BattleSnapshot,
+): BattleSnapshot {
+  if (snapshot.phase !== "ENEMY_TURN") return snapshot;
+
+  let working = ensureEnemyTurnInitialized(snapshot);
+  const livingEnemies = working.participants.filter(
+    (participant) =>
+      participant.side === "enemy" &&
+      participant.isActive &&
+      !participant.isDown,
+  );
+  if (livingEnemies.length === 0) {
+    return createImmediateEnemyResult(working, "victory");
+  }
+  if (isPressTurnExhausted(working.pressTurn)) {
+    return finishEnemyTurn(working);
+  }
+
+  const queue = working.pressTurnAllocation?.participantIds ?? [];
+  const actorId = normalizeCurrentActorId(
+    queue,
+    working.participants,
+    working.currentActorId,
+  );
+  if (actorId == null) {
+    return finishEnemyTurn(working);
+  }
+
+  working = applyBossBattleEvent(working, {
+    type: "before_enemy_action",
+    actorId,
+  });
+  let participants = working.participants.map(cloneParticipant);
+  const actor = participants.find(
+    (participant) => participant.id === actorId,
+  );
+  if (actor == null || actor.isDown || actor.canAct === false) {
+    return finishEnemyTurn({ ...working, participants });
+  }
+
+  const bossIntent = selectBossActionIntent(working, actor.id, Math.random);
+  if (bossIntent?.type === "force_defeat") {
+    participants = participants.map((participant) =>
+      participant.side === "player"
+        ? {
+            ...participant,
+            hp: { ...participant.hp, current: 0 },
+            isDown: true,
+          }
+        : participant,
+    );
+    const defeatBase: BattleSnapshot = {
+      ...working,
+      participants,
+      battleLog: appendBattleLogs(working, [
+        createMechanicLogDraft(
+          working.turnCount ?? 1,
+          bossIntent.reason,
+          ["Skill " + bossIntent.skillId + ": 9999 damage to all players."],
+        ),
+      ]),
+    };
+    return createImmediateEnemyResult(defeatBase, "defeat");
+  }
+  if (bossIntent?.type === "pass") {
+    return settleEnemyPass({ ...working, participants }, actor);
+  }
+  if (
+    bossIntent?.type === "use_skill" &&
+    bossIntent.reason === "queued counter"
+  ) {
+    working = applyBossEffects(working, [
+      { type: "enqueue_counter", actorId: actor.id, skillId: null },
+    ]);
+  }
+
+  let scored: ScoredAction | null;
+  if (bossIntent?.type === "use_skill") {
+    const action = buildEnemySkillAction(bossIntent.skillId);
+    const target = participants.find(
+      (participant) => participant.id === bossIntent.targetIds[0],
+    );
+    scored = action == null || target == null
+      ? null
+      : { action, target, score: Number.POSITIVE_INFINITY };
+  } else {
+    scored = selectEnemyAction(actor, participants, "aggressive");
+  }
+  if (scored == null) {
+    return settleEnemyPass({ ...working, participants }, actor);
+  }
+
+  const { action, target } = scored;
+  const actionTargets = resolveEnemyActionTargets(
+    participants,
+    actor,
+    action,
+    target,
+  );
+  if (actionTargets.length === 0) {
+    return settleEnemyPass({ ...working, participants }, actor);
+  }
+
+  const participantsBeforeAction = participants.map(cloneParticipant);
+  const actionOutcomes: BattleActionOutcome[] = [];
+  for (const actionTarget of actionTargets) {
+    const outcomes = action.category === "heal" || action.category === "support"
+      ? buildEnemyRecoveryOutcomes(actor, actionTarget, action)
+      : buildAttackOutcomes({
+          actorId: actor.id,
+          actor,
+          targetId: actionTarget.id,
+          target: actionTarget,
+          skillPower: action.basePower,
+          skillElement: action.element,
+          skillAccuracy: action.accuracy,
+          statDriver: action.statDriver,
+        });
+    actionOutcomes.push(...outcomes);
+    for (const outcome of outcomes) {
+      participants = participants.map((participant) =>
+        applyOutcomeToParticipant(participant, outcome),
+      );
+    }
+  }
+
+  const actionLog = createEnemySkillLogEntry(
+    working.turnCount ?? 1,
+    actor,
+    actionTargets[0]!,
+    action.name,
+    actionOutcomes,
+    participants,
+  );
+  let actionSnapshot: BattleSnapshot = {
+    ...working,
+    participants,
+    battleLog: appendBattleLogs(working, [actionLog]),
+  };
+  actionSnapshot = emitBossActionEvents(
+    actionSnapshot,
+    actor.id,
+    action.skillId ?? "enemy_attack",
+    action.element,
+    actionOutcomes,
+    participants,
+    participantsBeforeAction,
+  );
+  participants = actionSnapshot.participants.map(cloneParticipant);
+  actionSnapshot = { ...actionSnapshot, participants };
+
+  const allPlayersDefeated = participants
+    .filter((participant) => participant.side === "player")
+    .every((participant) => participant.isDown);
+  if (allPlayersDefeated) {
+    return createImmediateEnemyResult(actionSnapshot, "defeat");
+  }
+  const allEnemiesDefeated = participants
+    .filter((participant) => participant.side === "enemy")
+    .every((participant) => participant.isDown);
+  if (allEnemiesDefeated) {
+    return createImmediateEnemyResult(actionSnapshot, "victory");
+  }
+
+  const aggregate = aggregatePressTurnOutcome(actionOutcomes) ?? {
+    outcomeType: "hit" as const,
+    tags: [],
+  };
+  const settlement = settlePressTurnResultByOutcome(
+    actionSnapshot.pressTurn,
+    aggregate.outcomeType,
+    aggregate.tags,
+  );
+  const settledSnapshot = {
+    ...actionSnapshot,
+    pressTurn: settlement.after,
+  };
+  if (isPressTurnExhausted(settledSnapshot.pressTurn)) {
+    return finishEnemyTurn(settledSnapshot);
+  }
+
+  const nextActorId = findNextEligibleActorId(
+    queue,
+    participants,
+    actor.id,
+  );
+  return nextActorId == null
+    ? finishEnemyTurn(settledSnapshot)
+    : {
+        ...settledSnapshot,
+        lifecycleState: "ACTIVE",
+        phase: "ENEMY_TURN",
+        currentActorId: nextActorId,
+      };
 }
 
 // ── Detailed action resolution ──

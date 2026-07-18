@@ -13,7 +13,7 @@ import {
 } from "@testing-library/vue";
 import { createPinia, setActivePinia } from "pinia";
 import { nextTick } from "vue";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 async function renderMainGameWithStores() {
   const pinia = createPinia();
@@ -45,6 +45,11 @@ describe("MainGameView battle overlay entrypoint", () => {
       dispatchEvent: vi.fn(() => false),
     })));
     setActivePinia(createPinia());
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("renders the battle overlay after trigger_battle enters COMBAT_PENDING and startBattle is called", async () => {
@@ -345,7 +350,7 @@ describe("MainGameView battle overlay entrypoint", () => {
 
     await fireEvent.click(screen.getByRole("button", { name: "Pass" }));
 
-    expect(battleStore.activeBattle?.selectedActionId).toBe("pass");
+    expect(battleStore.activeBattle?.selectedActionId).toBeNull();
     expect(battleStore.activeBattle?.currentActorId).toBe("player-heroine-2");
     expect(screen.getByLabelText("solid press turn icon")).toBeInTheDocument();
     expect(
@@ -478,9 +483,13 @@ describe("MainGameView battle overlay entrypoint", () => {
 
     await fireEvent.click(enemyButtons[1]);
 
-    expect(battleStore.activeBattle?.selectedTargetId).toBe("enemy-2");
+    expect(battleStore.activeBattle?.selectedTargetId).toBeNull();
     expect(battleStore.activeBattle?.phase).toBe("ENEMY_TURN");
-    expect(battleStore.activeBattle?.pressTurn.icons).toEqual([]);
+    expect(battleStore.activeBattle?.currentActorId).toBe("enemy-1");
+    expect(battleStore.activeBattle?.pressTurn).toMatchObject({
+      ownerSide: "enemy",
+      icons: [expect.objectContaining({ state: "solid" })],
+    });
     expect(
       battleStore.activeBattle?.participants.find(
         (participant) => participant.id === "enemy-2",
@@ -553,6 +562,75 @@ describe("MainGameView battle overlay entrypoint", () => {
     );
 
     expect(battleStore.activeBattle.selectedActionId).toBeNull();
+  });
+
+  it("automatically advances enemy actions without exposing a manual settlement button", async () => {
+    await renderMainGameWithStores();
+
+    const sessionStore = useSessionStore();
+    const battleStore = useBattleStore();
+
+    await sessionStore.executeTriggerBattle({
+      tool_name: "trigger_battle",
+      request_id: "req-trigger-overlay-progressive-enemy-turn",
+      context_version: 1,
+      state_hash: "initial",
+      tool_call_id: "tool-trigger-overlay-progressive-enemy-turn",
+      input: {
+        encounter_id: "enc-main-game-overlay-progressive-enemy-turn",
+        enemies: [{ enemy_id: "progressive-shadow", count: 1 }],
+        narrative_reason: "敌方行动应自动逐步推进。",
+      },
+    });
+
+    sessionStore.startBattle([
+      {
+        id: "player-heroine-1",
+        side: "player",
+        displayName: "鹿目真昼",
+        hp: { current: 120, max: 120 },
+        mp: { current: 48, max: 48 },
+        isDown: false,
+        isActive: true,
+      },
+    ]);
+
+    await waitForActiveBattleOverlay();
+
+    if (battleStore.activeBattle === null) {
+      throw new Error("expected active battle");
+    }
+
+    const advance = vi
+      .spyOn(battleStore, "resolveNextEnemyAction")
+      .mockImplementation(() => {
+        if (advance.mock.calls.length === 2 && battleStore.activeBattle != null) {
+          battleStore.activeBattle.phase = "PLAYER_COMMAND";
+        }
+      });
+    vi.useFakeTimers();
+
+    battleStore.activeBattle.phase = "ENEMY_TURN";
+    await nextTick();
+
+    expect(
+      screen.queryByRole("button", { name: "结算敌方回合" }),
+    ).not.toBeInTheDocument();
+
+    await vi.advanceTimersByTimeAsync(600);
+    await nextTick();
+
+    expect(advance).toHaveBeenCalledTimes(1);
+    expect(battleStore.activeBattle.phase).toBe("ENEMY_TURN");
+
+    await vi.advanceTimersByTimeAsync(600);
+    await nextTick();
+
+    expect(advance).toHaveBeenCalledTimes(2);
+    expect(battleStore.activeBattle.phase).toBe("PLAYER_COMMAND");
+
+    await vi.advanceTimersByTimeAsync(600);
+    expect(advance).toHaveBeenCalledTimes(2);
   });
 
   it("keeps the target UI unchanged when invalid target selections are ignored by battleStore", async () => {
@@ -1025,4 +1103,3 @@ describe("MainGameView battle overlay entrypoint", () => {
   });
 
 });
-

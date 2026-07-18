@@ -22,6 +22,7 @@ import BattleBroadcastWindow from "@/ui/battle/BattleBroadcastWindow.vue";
 import { getChallengeBossSprite } from "@/ui/battle/battleEnemySprites";
 import BattleCommandMenu from "@/ui/battle/BattleCommandMenu.vue";
 import BattleStatusPanel from "@/ui/battle/BattleStatusPanel.vue";
+import { useProgressiveEnemyTurn } from "@/ui/battle/useProgressiveEnemyTurn";
 import { useFormationStore } from "@/stores/formationStore";
 import { buildPlayerPartyFromFormation } from "@/engine/battle/battleSetup";
 import { storeToRefs } from "pinia";
@@ -31,6 +32,10 @@ const battleStore = useBattleStore();
 const sessionStore = useSessionStore();
 const { confirm } = useGameDialog();
 const { pendingBattle, activeBattle } = storeToRefs(battleStore);
+useProgressiveEnemyTurn({
+  battle: activeBattle,
+  advance: () => battleStore.resolveNextEnemyAction(),
+});
 const transformedAvatars = import.meta.glob(
   "../../assets/avatars/transformed/*.png",
   { eager: true, query: "?url", import: "default" },
@@ -364,10 +369,6 @@ function returnToRootMenu() {
   battleStore.returnToRootMenu();
 }
 
-function resolveEnemyTurn() {
-  battleStore.resolveEnemyTurn();
-}
-
 function cancelPendingBattle() {
   sessionStore.cancelPendingBattle();
 }
@@ -593,14 +594,7 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
           <span>{{ activeBattle?.encounterId }}</span>
           <span>{{ activeBattle?.phase }}</span>
         </p> -->
-        <button
-          v-if="activeBattle?.phase === 'ENEMY_TURN'"
-          type="button"
-          class="battle-overlay__phase-action"
-          @click="resolveEnemyTurn"
-        >
-          结算敌方回合
-        </button>
+
         <button
           v-if="canExitTraining"
           type="button"

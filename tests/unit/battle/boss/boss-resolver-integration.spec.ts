@@ -7,7 +7,7 @@ import {
   createEnemyBattleParticipant,
   createPendingBattleSnapshot,
 } from "@/engine/battle/battleSetup";
-import { resolveEnemyTurn } from "@/engine/battle/battleResolver";
+import { resolveNextEnemyAction } from "@/engine/battle/battleResolver";
 import { applyBossBattleEvent } from "@/engine/battle/boss/bossRuntime";
 import { registerChallengeBossProfiles } from "@/engine/battle/boss/profiles/registerChallengeBossProfiles";
 import type { BattleParticipant } from "@/types/battle";
@@ -71,7 +71,7 @@ describe("Boss resolver integration", () => {
       phaseByActorId: { "enemy-1": "opening" },
     });
 
-    const resolved = resolveEnemyTurn({
+    const resolved = resolveNextEnemyAction({
       ...active,
       phase: "ENEMY_TURN",
       pressTurn: { ownerSide: "enemy", icons: [{ id: "e1", state: "solid" }] },
@@ -104,7 +104,7 @@ describe("Boss resolver integration", () => {
     });
 
     expect(active.bossRuntime).toBeUndefined();
-    const resolved = resolveEnemyTurn({
+    const resolved = resolveNextEnemyAction({
       ...active,
       phase: "ENEMY_TURN",
       pressTurn: { ownerSide: "enemy", icons: [{ id: "e1", state: "solid" }] },
@@ -128,7 +128,7 @@ describe("Boss resolver integration", () => {
       effectId: "fire_reflect",
     });
 
-    const resolved = resolveEnemyTurn({
+    const resolved = resolveNextEnemyAction({
       ...active,
       phase: "ENEMY_TURN",
       pressTurn: { ownerSide: "enemy", icons: [{ id: "e1", state: "solid" }] },
@@ -140,6 +140,7 @@ describe("Boss resolver integration", () => {
   });
 
   it("attributes Boss damage-over-time HP loss to the player's DPS windows", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
     registerChallengeBossProfiles();
     const pending = createPendingBattleSnapshot({
       encounterId: "hidden-dot",
@@ -151,15 +152,22 @@ describe("Boss resolver integration", () => {
     active.participants = [player, ...pending.enemies.map(createEnemyBattleParticipant)];
     const sun = active.participants.find(participant => participant.enemyId === "107")!;
     sun.statusEffects = [{ effectId: "poison", remainingDuration: 2, stacks: 1 }];
+    active.participants = active.participants.map((participant) =>
+      participant.side === "enemy" ? { ...participant, canAct: false } : participant,
+    );
     active = {
       ...active,
       phase: "ENEMY_TURN",
       pressTurn: { ownerSide: "enemy", icons: [{ id: "e1", state: "solid" }] },
     };
 
-    const resolved = resolveEnemyTurn(active);
+    let resolved = active;
+    for (let step = 0; step < 10 && resolved.phase === "ENEMY_TURN"; step += 1) {
+      resolved = resolveNextEnemyAction(resolved);
+    }
     const pair = resolved.bossRuntime?.mechanicState["hidden:pair"] as { bigWindowDamage: number };
     expect(pair.bigWindowDamage).toBeGreaterThan(0);
+    vi.restoreAllMocks();
   });
 
 
@@ -197,7 +205,7 @@ describe("Boss resolver integration", () => {
     });
     configure?.(active.participants);
 
-    return resolveEnemyTurn({
+    return resolveNextEnemyAction({
       ...active,
       phase: "ENEMY_TURN",
       pressTurn: { ownerSide: "enemy", icons: [{ id: "e1", state: "solid" }] },

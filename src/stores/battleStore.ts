@@ -5,7 +5,7 @@ import {
   createDefaultBattleCommandMenuTree,
 } from "@/engine/battle/battleActionCatalog";
 import {
-  resolveEnemyTurn,
+  resolveNextEnemyAction,
   resolveSelectedBattleAction,
 } from "@/engine/battle/battleResolver";
 import {
@@ -409,15 +409,18 @@ export const useBattleStore = defineStore("battle", {
         this.rebuildActionMenuForActor(this.activeBattle.currentActorId);
       }
     },
-    resolveEnemyTurn() {
+    resolveNextEnemyAction() {
       if (this.activeBattle === null) {
         return;
       }
 
-      this.activeBattle = resolveEnemyTurn(this.activeBattle);
+      this.activeBattle = resolveNextEnemyAction(this.activeBattle);
 
-      // Rebuild menu when turn returns to player
-      if (this.activeBattle.currentActorId) {
+      // Rebuild menu only after control returns to a player actor.
+      if (
+        this.activeBattle.phase === "PLAYER_COMMAND"
+        && this.activeBattle.currentActorId != null
+      ) {
         this.rebuildActionMenuForActor(this.activeBattle.currentActorId);
       }
     },

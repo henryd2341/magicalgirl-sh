@@ -1,5 +1,5 @@
 import { getSkill } from "@/content/contentRegistry";
-import { resolveEnemyTurn, resolveSelectedBattleAction } from "@/engine/battle/battleResolver";
+import { resolveNextEnemyAction, resolveSelectedBattleAction } from "@/engine/battle/battleResolver";
 import { createBattleSnapshotFromPendingBattle, createEnemyBattleParticipant, createPendingBattleSnapshot } from "@/engine/battle/battleSetup";
 import { registerChallengeBossProfiles } from "@/engine/battle/boss/profiles/registerChallengeBossProfiles";
 import type { BattleParticipant, BattleSnapshot } from "@/types/battle";
@@ -151,12 +151,12 @@ export function simulateChallenge(challengeId: string, policy: ChallengePolicy, 
     while (snapshot.lifecycleState !== "RESOLVED" && (snapshot.turnCount ?? 1) <= maxTurns && steps < maxTurns * 20) {
       steps += 1;
       if (snapshot.phase === "ENEMY_TURN") {
-        snapshot = resolveEnemyTurn(snapshot);
+        snapshot = resolveNextEnemyAction(snapshot);
         continue;
       }
       if (snapshot.phase !== "PLAYER_COMMAND" || snapshot.currentActorId == null) break;
       if (living(snapshot, "enemy").length === 0) {
-        snapshot = resolveEnemyTurn({ ...snapshot, phase: "ENEMY_TURN" });
+        snapshot = resolveNextEnemyAction({ ...snapshot, phase: "ENEMY_TURN" });
         continue;
       }
       const action = chooseAction(snapshot, challengeId, policy);
@@ -172,5 +172,3 @@ export function simulateChallenge(challengeId: string, policy: ChallengePolicy, 
     invariantErrors: invariants(snapshot),
   };
 }
-
-

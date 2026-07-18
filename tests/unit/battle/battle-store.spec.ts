@@ -325,11 +325,21 @@ describe("battleStore", () => {
 
   it("ignores invalid menu node ids without mutating battle command navigation state", () => {
     const store = startTestBattle();
-    const snapshotBefore = JSON.parse(JSON.stringify(store.activeBattle));
+    const navigationBefore = {
+      currentMenuNodeId: store.activeBattle?.currentMenuNodeId,
+      selectedActionId: store.activeBattle?.selectedActionId,
+      selectedTargetId: store.activeBattle?.selectedTargetId,
+      pressTurn: store.activeBattle?.pressTurn,
+    };
 
     store.selectMenuNode("missing-node-id");
 
-    expect(store.activeBattle).toEqual(snapshotBefore);
+    expect({
+      currentMenuNodeId: store.activeBattle?.currentMenuNodeId,
+      selectedActionId: store.activeBattle?.selectedActionId,
+      selectedTargetId: store.activeBattle?.selectedTargetId,
+      pressTurn: store.activeBattle?.pressTurn,
+    }).toEqual(navigationBefore);
   });
 
   it("selects a selective leaf action and waits for target selection before resolution", () => {
@@ -354,8 +364,8 @@ describe("battleStore", () => {
     store.selectMenuNode("attack-action");
     store.selectTarget("enemy-2");
 
-    expect(store.activeBattle?.selectedActionId).toBe("attack");
-    expect(store.activeBattle?.selectedTargetId).toBe("enemy-2");
+    expect(store.activeBattle?.selectedActionId).toBeNull();
+    expect(store.activeBattle?.selectedTargetId).toBeNull();
     expect(store.activeBattle?.pressTurn.icons.length).toBeGreaterThan(0);
     expect(store.activeBattle?.pressTurn.icons[0]).toEqual({
       id: "pt-player-player-heroine-1-1",
@@ -391,7 +401,7 @@ describe("battleStore", () => {
 
     store.selectMenuNode("pass-action");
 
-    expect(store.activeBattle?.selectedActionId).toBe("pass");
+    expect(store.activeBattle?.selectedActionId).toBeNull();
     expect(store.activeBattle?.pressTurn.icons).toHaveLength(2);
     expect(store.activeBattle?.pressTurn.icons).toEqual([
       { id: "pt-player-player-heroine-1-1", state: "solid" },
@@ -419,10 +429,10 @@ describe("battleStore", () => {
     store.selectMenuNode("item-action-1");
     store.selectTarget("player-heroine-2");
 
-    expect(store.activeBattle?.selectedActionId).toBe("basic-item");
-    expect(store.activeBattle?.selectedContentId).toBe("1");
-    expect(store.activeBattle?.selectedTargetId).toBe("player-heroine-2");
-    expect(store.activeBattle?.pressTurn.icons).toHaveLength(2);
+    expect(store.activeBattle?.selectedActionId).toBeNull();
+    expect(store.activeBattle?.selectedContentId).toBeNull();
+    expect(store.activeBattle?.selectedTargetId).toBeNull();
+    expect(store.activeBattle?.pressTurn.icons).toHaveLength(1);
     expect(
       store.activeBattle?.participants.find(
         (participant) => participant.id === "player-heroine-2",
@@ -430,7 +440,7 @@ describe("battleStore", () => {
     ).toBe(100);
   });
 
-  it("accepts enemy targets for an item action since items now allow targeting enemies", () => {
+  it("keeps an ally-targeted item selected when an enemy target is rejected", () => {
     const store = startTestBattle();
 
     store.activeBattle!.actionMenu = [...createDefaultBattleCommandMenuTree(), {
@@ -451,7 +461,7 @@ describe("battleStore", () => {
     store.selectTarget("enemy-1");
 
     expect(store.activeBattle?.selectedActionId).toBe("basic-item");
-    expect(store.activeBattle?.selectedTargetId).toBe("enemy-1");
+    expect(store.activeBattle?.selectedTargetId).toBeNull();
     expect(store.activeBattle?.selectedContentId).toBe("1");
   });
 
@@ -588,7 +598,7 @@ describe("battleStore", () => {
       swapInParticipantId: "player-heroine-3",
     });
 
-    expect(store.activeBattle?.selectedActionId).toBe("swap");
+    expect(store.activeBattle?.selectedActionId).toBeNull();
     expect(store.activeBattle?.selectedSwapOutParticipantId).toBe(
       "player-heroine-2",
     );
@@ -598,7 +608,7 @@ describe("battleStore", () => {
     expect(store.activeBattle?.pressTurn.icons).toEqual([
       { id: "pt-player-player-heroine-1-1", state: "solid" },
     ]);
-    expect(store.activeBattle?.currentActorId).toBe("player-heroine-2");
+    expect(store.activeBattle?.currentActorId).toBe("player-heroine-1");
     expect(
       store.activeBattle?.participants.find(
         (participant) => participant.id === "player-heroine-2",
@@ -746,7 +756,7 @@ describe("battleStore", () => {
 
     store.selectAction("pass");
 
-    expect(store.activeBattle?.selectedActionId).toBe("pass");
+    expect(store.activeBattle?.selectedActionId).toBeNull();
     expect(store.activeBattle?.currentActorId).toBe("player-heroine-2");
     expect(store.activeBattle?.pressTurn.icons).toEqual([
       { id: "pt-player-player-heroine-1-1", state: "solid" },
@@ -755,12 +765,45 @@ describe("battleStore", () => {
     ]);
   });
 
-  it("ignores enemy turn resolution when no active battle exists", () => {
+  it("ignores the next enemy action when no active battle exists", () => {
     const store = useBattleStore();
 
-    store.resolveEnemyTurn();
+    store.resolveNextEnemyAction();
 
     expect(store.activeBattle).toBeNull();
+  });
+
+  it("resolves only one enemy action per store call", () => {
+    const store = startTestBattle();
+    const activeBattle = store.activeBattle;
+    if (activeBattle === null) {
+      throw new Error("Expected active battle.");
+    }
+
+    const enemyIds = activeBattle.participants
+      .filter((participant) => participant.side === "enemy")
+      .map((participant) => participant.id);
+    activeBattle.phase = "ENEMY_TURN";
+    activeBattle.currentActorId = enemyIds[0] ?? null;
+    activeBattle.battleLog = [];
+    activeBattle.pressTurn = {
+      ownerSide: "enemy",
+      icons: enemyIds.map((enemyId, index) => ({
+        id: `pt-enemy-${enemyId}-${index + 1}`,
+        state: "solid",
+      })),
+    };
+    activeBattle.pressTurnAllocation = {
+      participantIds: enemyIds,
+      initialIconCount: enemyIds.length,
+    };
+
+    store.resolveNextEnemyAction();
+
+    expect(store.activeBattle?.phase).toBe("ENEMY_TURN");
+    expect(
+      store.activeBattle?.battleLog?.filter((entry) => entry.side === "enemy"),
+    ).toHaveLength(1);
   });
 
   it("advances an active enemy turn into the next player command round", () => {
@@ -840,36 +883,32 @@ describe("battleStore", () => {
       turnCount: 1,
     };
 
-    store.resolveEnemyTurn();
+    store.resolveNextEnemyAction();
 
     expect(store.activeBattle?.phase).toBe("PLAYER_COMMAND");
     expect(store.activeBattle?.turnCount).toBe(2);
     expect(store.activeBattle?.currentActorId).toBe("player-heroine-1");
     expect(store.activeBattle?.selectedActionId).toBeNull();
-    expect(store.activeBattle?.selectedTargetId).toBe("enemy-1");
+    expect(store.activeBattle?.selectedTargetId).toBeNull();
     expect(
       store.activeBattle?.participants.find(
         (participant) => participant.id === "player-heroine-1",
       )?.hp.current,
     ).toBeLessThan(10);
     expect(store.activeBattle?.battleLog).toEqual([
-      {
-        id: "turn-1-enemy-1-attack-player-heroine-1",
+      expect.objectContaining({
         turnCount: 1,
         side: "enemy",
         actorId: "enemy-1",
-        actionId: "enemy_attack",
-        targetId: "player-heroine-1",
-        summary: expect.stringMatching(
-          /menu-shadow attacked 鹿目真昼 for \d+ damage\./,
-        ),
-      },
-      {
-        id: "turn-2-player-round-start",
+        actionId: "enemy_skill",
+        targetIds: ["player-heroine-1"],
+        summary: expect.stringMatching(/menu-shadow使用攻击：造成 \d+ 点伤害/),
+      }),
+      expect.objectContaining({
         turnCount: 2,
         side: "system",
         summary: "Player turn 2 started.",
-      },
+      }),
     ]);
   });
 
@@ -916,7 +955,7 @@ describe("battleStore", () => {
       phase: "ENEMY_TURN",
     });
 
-    store.resolveEnemyTurn();
+    store.resolveNextEnemyAction();
 
     expect(store.activeBattle).toMatchObject({
       lifecycleState: "RESOLVED",

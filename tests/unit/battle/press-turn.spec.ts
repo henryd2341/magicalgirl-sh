@@ -136,10 +136,12 @@ describe("pressTurn", () => {
     expect(rewardOneHalfTurn(blinkingOnlyState).icons).toEqual([]);
   });
 
-  it("keeps icons unchanged on status_no_effect", () => {
-    const state = allocatePressTurnIcons("player", ["p1", "p2"]);
+  it("consumes two icons when an enemy status has no effect", () => {
+    const state = allocatePressTurnIcons("enemy", ["e1", "e2", "e3"]);
 
-    expect(settlePressTurnByOutcome(state, "status_no_effect")).toEqual(state);
+    expect(settlePressTurnByOutcome(state, "status_no_effect").icons).toEqual([
+      expect.objectContaining({ id: "pt-enemy-e1-1", state: "solid" }),
+    ]);
   });
 
   it("returns settlement result metadata for normal hits", () => {
@@ -214,10 +216,13 @@ describe("pressTurn", () => {
     );
 
     expect(settlePressTurnResultByOutcome(state, "status_no_effect")).toEqual({
-      kind: "no_change",
+      kind: "consume_two",
       reason: "status_no_effect",
       before: state,
-      after: state,
+      after: {
+        ownerSide: "player",
+        icons: [expect.objectContaining({ state: "solid" })],
+      },
     });
   });
 

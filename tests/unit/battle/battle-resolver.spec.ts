@@ -2,7 +2,7 @@ import { createDefaultBattleCommandMenuTree } from "@/engine/battle/battleAction
 import {
   buildAttackOutcomes,
   createPressTurnResolutionForOutcomes,
-  resolveEnemyTurn,
+  resolveNextEnemyAction,
   resolveSelectedBattleAction,
   resolveSelectedBattleActionToResolution,
 } from "@/engine/battle/battleResolver";
@@ -167,7 +167,7 @@ describe("battleResolver", () => {
       ],
     });
 
-    const resolved = resolveEnemyTurn(snapshot);
+    const resolved = resolveNextEnemyAction(snapshot);
     const boss = resolved.participants.find((participant) => participant.id === "enemy-1")!;
 
     expect(boss.hp.current).toBeGreaterThan(0);
@@ -198,7 +198,8 @@ describe("battleResolver", () => {
     // Phase transition to enemy turn
     expect(resolved.phase).toBe("ENEMY_TURN");
     expect(resolved.lifecycleState).toBe("ACTIVE");
-    expect(resolved.currentActorId).toBeNull();
+    expect(resolved.currentActorId).toBe("enemy-1");
+    expect(resolved.pressTurn.ownerSide).toBe("enemy");
 
     // Battle log entry was generated
     expect(resolved.battleLog?.length).toBeGreaterThan(0);
@@ -398,7 +399,7 @@ describe("battleResolver", () => {
       turnCount: 1,
     });
 
-    const resolved = resolveEnemyTurn(snapshot);
+    const resolved = resolveNextEnemyAction(snapshot);
 
     expect(resolved.phase).toBe("PLAYER_COMMAND");
     expect(resolved.lifecycleState).toBe("ACTIVE");
@@ -466,7 +467,7 @@ describe("battleResolver", () => {
       turnCount: 1,
     });
 
-    const resolved = resolveEnemyTurn(snapshot);
+    const resolved = resolveNextEnemyAction(snapshot);
 
     expect(resolved.phase).toBe("PLAYER_COMMAND");
     const player = resolved.participants.find(
@@ -554,7 +555,7 @@ describe("battleResolver", () => {
       ] },
     });
 
-    const resolved = resolveEnemyTurn(snapshot);
+    const resolved = resolveNextEnemyAction(snapshot);
     const enemyActions = resolved.battleLog?.filter((entry) => entry.side === "enemy") ?? [];
     expect(enemyActions).toHaveLength(1);
     expect(enemyActions[0]?.summary).toContain("Miss");
@@ -610,7 +611,7 @@ describe("battleResolver", () => {
       turnCount: 2,
     });
 
-    const resolved = resolveEnemyTurn(snapshot);
+    const resolved = resolveNextEnemyAction(snapshot);
 
     expect(resolved.lifecycleState).toBe("RESOLVED");
     expect(resolved.phase).toBe("RESULT");
@@ -623,6 +624,7 @@ describe("battleResolver", () => {
   });
 
   it("targets the lowest-HP active player during enemy turn", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.1);
     const snapshot = createActiveBattleSnapshot({
       phase: "ENEMY_TURN",
       currentActorId: null,
@@ -634,7 +636,7 @@ describe("battleResolver", () => {
           side: "player",
           displayName: "鹿目真昼",
           level: 1,
-          hp: { current: 5, max: 5 },
+          hp: { current: 500, max: 500 },
           mp: { current: 48, max: 48 },
           attack: 5,
           defense: 5,
@@ -655,6 +657,13 @@ describe("battleResolver", () => {
           defense: 1,
           agility: 5,
           intelligence: 5,
+          affinities: {
+            weak: BATTLE_ELEMENTS.Physical,
+            resist: 0,
+            nullify: 0,
+            reflect: 0,
+            absorb: 0,
+          },
           isDown: false,
           isActive: true,
           statusEffects: [],
@@ -689,16 +698,19 @@ describe("battleResolver", () => {
       turnCount: 2,
     });
 
-    const resolved = resolveEnemyTurn(snapshot);
+    const first = resolveNextEnemyAction(snapshot);
 
-    // The lowest-HP player (player-heroine-2 with 1 HP) should be the first target and go down
-    const p2 = resolved.participants.find((p) => p.id === "player-heroine-2")!;
+    // The lowest-HP player (player-heroine-2 with 1 HP) is the first target.
+    const p2 = first.participants.find((p) => p.id === "player-heroine-2")!;
     expect(p2.isDown).toBe(true);
     expect(p2.hp.current).toBe(0);
+    expect(first.phase).toBe("ENEMY_TURN");
 
-    // Second attack targets the remaining player (player-heroine-1)
-    const p1 = resolved.participants.find((p) => p.id === "player-heroine-1")!;
-    expect(p1.hp.current).toBeLessThan(5);
+    // The next progressive step targets the remaining player.
+    const second = resolveNextEnemyAction(first);
+    const p1 = second.participants.find((p) => p.id === "player-heroine-1")!;
+    expect(p1.hp.current).toBeLessThan(500);
+    vi.restoreAllMocks();
   });
 
   // ── Battle log append ──
@@ -856,6 +868,70 @@ describe("battleResolver", () => {
     expect(player.statusEffects?.some((e: { effectId: string }) => e.effectId === "guard")).toBe(true);
   });
 
+  it("initializes enemy Press Turn when the player consumes the final icon", () => {
+    const snapshot = createActiveBattleSnapshot({
+      selectedActionId: "guard",
+      selectedTargetId: null,
+    });
+
+    const resolved = resolveSelectedBattleAction(snapshot);
+
+    expect(resolved).toMatchObject({
+      lifecycleState: "ACTIVE",
+      phase: "ENEMY_TURN",
+      currentActorId: "enemy-1",
+      pressTurn: { ownerSide: "enemy" },
+      pressTurnAllocation: {
+        participantIds: ["enemy-1", "enemy-2"],
+        initialIconCount: 2,
+      },
+      selectedActionId: null,
+      selectedContentId: null,
+    });
+    expect(resolved.pressTurn.icons).toHaveLength(2);
+  });
+
+  it("starts an empty enemy turn when living enemies cannot act", () => {
+    const snapshot = createActiveBattleSnapshot({
+      selectedActionId: "guard",
+      selectedTargetId: null,
+      participants: [
+        {
+          id: "player-heroine-1",
+          side: "player",
+          displayName: "鹿目真昼",
+          hp: { current: 120, max: 120 },
+          mp: { current: 48, max: 48 },
+          isDown: false,
+          isActive: true,
+          canAct: true,
+          statusEffects: [],
+        },
+        {
+          id: "enemy-1",
+          side: "enemy",
+          displayName: "封锁之影",
+          hp: { current: 20, max: 20 },
+          mp: { current: 0, max: 0 },
+          isDown: false,
+          isActive: true,
+          canAct: false,
+          statusEffects: [],
+        },
+      ],
+    });
+
+    const resolved = resolveSelectedBattleAction(snapshot);
+
+    expect(resolved.lifecycleState).toBe("ACTIVE");
+    expect(resolved.phase).toBe("ENEMY_TURN");
+    expect(resolved.currentActorId).toBeNull();
+    expect(resolved.pressTurn).toEqual({ ownerSide: "enemy", icons: [] });
+    expect(resolved.pressTurnAllocation).toEqual({
+      participantIds: [],
+      initialIconCount: 0,
+    });
+  });
   // ── Basic Skill (backward compat, no contentId) ──
 
   it("resolves a basic skill without contentId using legacy 3 MP / 2 damage", () => {
@@ -1439,7 +1515,7 @@ describe("battleResolver", () => {
       turnCount: 5,
     });
 
-    const resolved = resolveEnemyTurn(snapshot);
+    const resolved = resolveNextEnemyAction(snapshot);
 
     expect(resolved.lifecycleState).toBe("ACTIVE");
     expect(resolved.phase).toBe("PLAYER_COMMAND");
@@ -1494,7 +1570,7 @@ describe("battleResolver", () => {
       turnCount: 1,
     });
 
-    const resolved = resolveEnemyTurn(snapshot);
+    const resolved = resolveNextEnemyAction(snapshot);
 
     expect(resolved.lifecycleState).toBe("RESOLVED");
     expect(resolved.phase).toBe("RESULT");
@@ -1505,6 +1581,110 @@ describe("battleResolver", () => {
     });
   });
 
+  it("resolves exactly one enemy action and rotates the actor while icons remain", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const snapshot = createActiveBattleSnapshot({
+      phase: "ENEMY_TURN",
+      currentActorId: "enemy-1",
+      selectedActionId: null,
+      selectedTargetId: null,
+      participants: [
+        {
+          id: "player-heroine-1", side: "player", displayName: "鹿目真昼",
+          level: 1, hp: { current: 999, max: 999 }, mp: { current: 0, max: 0 },
+          attack: 5, defense: 50, agility: 5, intelligence: 5,
+          isDown: false, isActive: true, canAct: true, statusEffects: [],
+        },
+        {
+          id: "enemy-1", side: "enemy", displayName: "一号影",
+          level: 1, hp: { current: 100, max: 100 }, mp: { current: 0, max: 0 },
+          attack: 5, defense: 5, agility: 5, intelligence: 5,
+          isDown: false, isActive: true, canAct: true, statusEffects: [],
+        },
+        {
+          id: "enemy-2", side: "enemy", displayName: "二号影",
+          level: 1, hp: { current: 100, max: 100 }, mp: { current: 0, max: 0 },
+          attack: 5, defense: 5, agility: 5, intelligence: 5,
+          isDown: false, isActive: true, canAct: true, statusEffects: [],
+        },
+      ],
+      pressTurn: {
+        ownerSide: "enemy",
+        icons: [
+          { id: "e1", state: "solid" },
+          { id: "e2", state: "solid" },
+          { id: "e3", state: "solid" },
+        ],
+      },
+      pressTurnAllocation: {
+        participantIds: ["enemy-1", "enemy-2"],
+        initialIconCount: 2,
+      },
+    });
+
+    const first = resolveNextEnemyAction(snapshot);
+    expect(first.battleLog?.filter((entry) => entry.side === "enemy")).toHaveLength(1);
+    expect(first.phase).toBe("ENEMY_TURN");
+    expect(first.currentActorId).toBe("enemy-2");
+    expect(first.pressTurn.icons).toHaveLength(2);
+
+    const second = resolveNextEnemyAction(first);
+    expect(second.battleLog?.filter((entry) => entry.side === "enemy")).toHaveLength(2);
+    expect(second.phase).toBe("ENEMY_TURN");
+    expect(second.currentActorId).toBe("enemy-1");
+    expect(second.pressTurn.icons).toHaveLength(1);
+    vi.restoreAllMocks();
+  });
+
+  it("groups an enemy all-target skill into one log and one Press Turn settlement", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const snapshot = createActiveBattleSnapshot({
+      phase: "ENEMY_TURN",
+      currentActorId: "enemy-1",
+      selectedActionId: null,
+      selectedTargetId: null,
+      participants: [
+        {
+          id: "player-heroine-1", side: "player", displayName: "鹿目真昼",
+          level: 1, hp: { current: 999, max: 999 }, mp: { current: 0, max: 0 },
+          attack: 5, defense: 50, agility: 5, intelligence: 5,
+          isDown: false, isActive: true, canAct: true, statusEffects: [],
+        },
+        {
+          id: "player-heroine-2", side: "player", displayName: "同伴",
+          level: 1, hp: { current: 999, max: 999 }, mp: { current: 0, max: 0 },
+          attack: 5, defense: 50, agility: 5, intelligence: 5,
+          isDown: false, isActive: true, canAct: true, statusEffects: [],
+        },
+        {
+          id: "enemy-1", side: "enemy", displayName: "横扫之影",
+          level: 1, hp: { current: 100, max: 100 }, mp: { current: 99, max: 99 },
+          attack: 30, defense: 5, agility: 5, intelligence: 5,
+          isDown: false, isActive: true, canAct: true, statusEffects: [],
+          skillIds: ["2"],
+        },
+      ],
+      pressTurn: {
+        ownerSide: "enemy",
+        icons: [{ id: "e1", state: "solid" }, { id: "e2", state: "solid" }],
+      },
+      pressTurnAllocation: {
+        participantIds: ["enemy-1"],
+        initialIconCount: 1,
+      },
+    });
+
+    const resolved = resolveNextEnemyAction(snapshot);
+    const enemyLogs = resolved.battleLog?.filter((entry) => entry.side === "enemy") ?? [];
+
+    expect(enemyLogs).toHaveLength(1);
+    expect(enemyLogs[0]?.targetIds).toEqual(
+      expect.arrayContaining(["player-heroine-1", "player-heroine-2"]),
+    );
+    expect(resolved.phase).toBe("ENEMY_TURN");
+    expect(resolved.pressTurn.icons).toHaveLength(1);
+    vi.restoreAllMocks();
+  });
   // ── Non-mutating resolution only ──
 
   it("resolveSelectedBattleActionToResolution does not mutate the snapshot", () => {
