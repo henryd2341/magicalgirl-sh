@@ -2,6 +2,7 @@ import BattleBroadcastWindow from "@/ui/battle/BattleBroadcastWindow.vue";
 import battleBroadcastSource from "@/ui/battle/BattleBroadcastWindow.vue?raw";
 import type { BattleLogEntry } from "@/types/battle";
 import { cleanup, fireEvent, render, screen } from "@testing-library/vue";
+import { nextTick } from "vue";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 class TestPointerEvent extends MouseEvent {
@@ -83,7 +84,7 @@ describe("BattleBroadcastWindow", () => {
     expect(screen.getByText("敌人受到 120 点伤害")).toBeInTheDocument();
   });
 
-  it("does not auto-scroll and offers an unread badge plus manual jump", async () => {
+  it("automatically scrolls to the latest visible record", async () => {
     const view = render(BattleBroadcastWindow, {
       props: {
         entries,
@@ -118,16 +119,64 @@ describe("BattleBroadcastWindow", () => {
       ],
       turnCount: 2,
     });
-
-    expect(log.scrollTop).toBe(0);
-    expect(screen.getByText("1 条新播报")).toBeInTheDocument();
-
-    await fireEvent.click(screen.getByRole("button", { name: "跳到最新播报" }));
+    await nextTick();
 
     expect(log.scrollTop).toBe(1000);
-    expect(screen.queryByText("1 条新播报")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "跳到最新播报" }))
+      .not.toBeInTheDocument();
   });
+  it("scrolls to the latest record after restoring from minimized state", async () => {
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollHeight",
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get: () => 1000,
+    });
 
+    try {
+      const view = render(BattleBroadcastWindow, {
+        props: { entries, turnCount: 1 },
+      });
+
+      await fireEvent.click(
+        screen.getByRole("button", { name: "最小化战斗播报" }),
+      );
+      await view.rerender({
+        entries: [
+          ...entries,
+          {
+            id: "battle-log-4",
+            sequence: 4,
+            turnCount: 2,
+            side: "enemy",
+            kind: "action",
+            visibility: "both",
+            summary: "敌人发动攻击",
+          },
+        ],
+        turnCount: 2,
+      });
+
+      await fireEvent.click(
+        screen.getByRole("button", { name: "恢复战斗播报" }),
+      );
+      await nextTick();
+
+      expect(screen.getByRole("log").scrollTop).toBe(1000);
+    } finally {
+      if (scrollHeightDescriptor == null) {
+        delete (HTMLElement.prototype as { scrollHeight?: number }).scrollHeight;
+      } else {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "scrollHeight",
+          scrollHeightDescriptor,
+        );
+      }
+    }
+  });
   it("minimizes, restores, drags only from the header, and supports keyboard movement", async () => {
     render(BattleBroadcastWindow, {
       props: {
@@ -287,6 +336,4 @@ describe("BattleBroadcastWindow", () => {
       expect(screen.getByText(entry.summary)).toBeInTheDocument();
     }
   });
-
 });
-

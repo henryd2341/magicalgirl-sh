@@ -4,7 +4,7 @@ import {
   type BattleBroadcastViewport,
 } from "@/composables/useBattleBroadcastPreferences";
 import type { BattleLogEntry } from "@/types/battle";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 const props = defineProps<{
   entries: BattleLogEntry[];
@@ -231,6 +231,7 @@ function minimize(): void {
 
 function restore(): void {
   updatePreferences({ minimized: false });
+  void nextTick().then(jumpToLatest);
 }
 
 function restoreFromMinimizedClick(event: MouseEvent): void {
@@ -270,12 +271,14 @@ function clampToViewport(): void {
 }
 
 watch(
-  () => props.entries.length,
-  (nextLength, previousLength) => {
-    const addedCount = Math.max(0, nextLength - previousLength);
-    if (addedCount > 0 && !isAtLatest.value) {
-      unreadCount.value += addedCount;
+  () => visibleEntries.value.length,
+  async (nextLength, previousLength) => {
+    if (nextLength <= previousLength) {
+      return;
     }
+
+    await nextTick();
+    jumpToLatest();
   },
 );
 
