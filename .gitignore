@@ -26,6 +26,7 @@ design/
 *.sln
 *.sw?
 prototype/*
+docs/superpowers
 
 # AI Agent
 AGENTS.md
