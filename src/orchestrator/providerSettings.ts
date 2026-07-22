@@ -15,7 +15,12 @@ const STORAGE_KEY_V1 = "magicalgirl-sh.provider-settings.v1";
 const STORAGE_KEY_V2 = "magicalgirl-sh.provider-settings.v2";
 export const BUILTIN_FAKE_PROFILE_ID = "builtin-fake";
 
-export type ProviderProfileKind = "fake" | "openai-compatible" | "deepseek";
+export type ProviderProfileKind =
+  | "fake"
+  | "openai-compatible"
+  | "deepseek"
+  | "openai-responses"
+  | "anthropic";
 
 export interface ProviderProfile {
   id: string;
@@ -731,9 +736,20 @@ export async function createConfiguredProviderClient(
     );
   }
 
-  if (profile.kind === "deepseek" && !profile.apiKey?.trim()) {
+  if (
+    (profile.kind === "deepseek" ||
+      profile.kind === "openai-responses" ||
+      profile.kind === "anthropic") &&
+    !profile.apiKey?.trim()
+  ) {
+    const providerLabel =
+      profile.kind === "openai-responses"
+        ? "OpenAI Responses"
+        : profile.kind === "anthropic"
+          ? "Anthropic"
+          : "DeepSeek";
     throw new Error(
-      "[PROVIDER_SETTINGS_INVALID] DeepSeek provider requires API Key.",
+      `[PROVIDER_SETTINGS_INVALID] ${providerLabel} provider requires API Key.`,
     );
   }
 

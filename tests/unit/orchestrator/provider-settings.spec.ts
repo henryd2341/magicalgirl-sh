@@ -26,8 +26,8 @@ describe("provider settings profiles", () => {
             baseURL: "",
             model: "",
             apiKey: "",
-            temperature: 0.7,
-            maxOutputTokens: 1024,
+            temperature: 1.0,
+            maxOutputTokens: 32768,
             streamingEnabled: true,
             builtIn: true,
             updatedAt: "2026-05-27T12:00:00.000Z",
@@ -35,7 +35,7 @@ describe("provider settings profiles", () => {
         ],
         summaryProfileId: null,
         summaryEnabled: true,
-        summaryTokenThreshold: 4000,
+        summaryTokenThreshold: 48000,
         summaryOldRatio: 0.5,
         summaryMinMessages: 6,
         toolProfileIds: {},
@@ -196,6 +196,85 @@ describe("provider settings profiles", () => {
       "[PROVIDER_SETTINGS_INVALID]",
     );
   });
+
+
+  it("round-trips native provider kinds in localStorage v2", async () => {
+    const repository = new LocalStorageProviderSettingsRepository({
+      now: () => "2026-05-27T12:08:00.000Z",
+      idFactory: (() => {
+        const ids = ["profile-openai", "profile-anthropic"];
+        return () => ids.shift() ?? "profile-extra";
+      })(),
+    });
+
+    await repository.addProfile({
+      name: "OpenAI",
+      kind: "openai-responses",
+      baseURL: "",
+      model: "gpt-test",
+      apiKey: "openai-secret",
+      temperature: 0.7,
+      maxOutputTokens: 2048,
+      streamingEnabled: true,
+    });
+    await repository.addProfile({
+      name: "Anthropic",
+      kind: "anthropic",
+      baseURL: " https://proxy.example.test/v1 ",
+      model: "claude-test",
+      apiKey: "anthropic-secret",
+      temperature: 0.5,
+      maxOutputTokens: 4096,
+      streamingEnabled: false,
+    });
+
+    await expect(repository.getState()).resolves.toMatchObject({
+      profiles: expect.arrayContaining([
+        expect.objectContaining({
+          id: "profile-openai",
+          kind: "openai-responses",
+          baseURL: "",
+        }),
+        expect.objectContaining({
+          id: "profile-anthropic",
+          kind: "anthropic",
+          baseURL: "https://proxy.example.test/v1",
+        }),
+      ]),
+    });
+  });
+
+  it.each(["openai-responses", "anthropic"] as const)(
+    "requires API key for %s while allowing an empty Base URL",
+    async (kind) => {
+      const repository = new InMemoryProviderSettingsRepository({
+        idFactory: () => `profile-${kind}`,
+      });
+      await repository.addProfile({
+        name: kind,
+        kind,
+        baseURL: "",
+        model: "native-model",
+        apiKey: "",
+        temperature: 0.7,
+        maxOutputTokens: 1024,
+        streamingEnabled: true,
+      });
+      await repository.setActiveProfile(`profile-${kind}`);
+
+      await expect(createConfiguredProviderClient(repository)).rejects.toThrow(
+        "[PROVIDER_SETTINGS_INVALID]",
+      );
+
+      await repository.updateProfile(`profile-${kind}`, {
+        apiKey: "secret-key",
+      });
+      await expect(createConfiguredProviderClient(repository)).resolves.toMatchObject({
+        client: expect.any(AiSdkProviderClient),
+        providerInfo: { kind, baseURL: "", hasApiKey: true },
+      });
+    },
+  );
 
   it("redacts the API key from Prompt Viewer provider metadata", () => {
     expect(

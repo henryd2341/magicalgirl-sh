@@ -6,6 +6,9 @@ const aiSdkMocks = vi.hoisted(() => ({
   generateText: vi.fn(),
   streamText: vi.fn(),
   createOpenAICompatible: vi.fn(),
+  createDeepSeek: vi.fn(),
+  createOpenAI: vi.fn(),
+  createAnthropic: vi.fn(),
 }));
 
 vi.mock("ai", () => ({
@@ -17,6 +20,18 @@ vi.mock("ai", () => ({
 
 vi.mock("@ai-sdk/openai-compatible", () => ({
   createOpenAICompatible: aiSdkMocks.createOpenAICompatible,
+}));
+
+vi.mock("@ai-sdk/deepseek", () => ({
+  createDeepSeek: aiSdkMocks.createDeepSeek,
+}));
+
+vi.mock("@ai-sdk/openai", () => ({
+  createOpenAI: aiSdkMocks.createOpenAI,
+}));
+
+vi.mock("@ai-sdk/anthropic", () => ({
+  createAnthropic: aiSdkMocks.createAnthropic,
 }));
 
 function createHarnessDeps() {
@@ -66,8 +81,25 @@ describe("AiSdkProviderClient", () => {
     aiSdkMocks.generateText.mockReset();
     aiSdkMocks.streamText.mockReset();
     aiSdkMocks.createOpenAICompatible.mockReset();
+    aiSdkMocks.createDeepSeek.mockReset();
+    aiSdkMocks.createOpenAI.mockReset();
+    aiSdkMocks.createAnthropic.mockReset();
     aiSdkMocks.createOpenAICompatible.mockReturnValue((modelId: string) => ({
       provider: "compatible",
+      modelId,
+    }));
+    aiSdkMocks.createDeepSeek.mockReturnValue((modelId: string) => ({
+      provider: "deepseek",
+      modelId,
+    }));
+    aiSdkMocks.createOpenAI.mockReturnValue({
+      responses: vi.fn((modelId: string) => ({
+        provider: "openai.responses",
+        modelId,
+      })),
+    });
+    aiSdkMocks.createAnthropic.mockReturnValue((modelId: string) => ({
+      provider: "anthropic",
       modelId,
     }));
   });
@@ -201,6 +233,152 @@ describe("AiSdkProviderClient", () => {
       expect.objectContaining({
         model: { provider: "compatible", modelId: "story-model" },
         messages: createRequest().messages,
+      }),
+    );
+  });
+  it("routes OpenAI profiles through the Responses model factory", async () => {
+    aiSdkMocks.streamText.mockReturnValue({
+      fullStream: streamParts([{ type: "finish", finishReason: "stop" }]),
+    });
+    const responses = vi.fn((modelId: string) => ({
+      provider: "openai.responses",
+      modelId,
+    }));
+    aiSdkMocks.createOpenAI.mockReturnValue({ responses });
+
+    const client = new AiSdkProviderClient({
+      providerKind: "openai-responses",
+      providerName: "OpenAI",
+      baseURL: "",
+      model: "gpt-test",
+      apiKey: "openai-secret",
+      reasoningEffort: "high",
+      harnessDeps: createHarnessDeps(),
+    });
+
+    await client.stream(createRequest(), { onTextChunk: vi.fn() });
+
+    expect(aiSdkMocks.createOpenAI).toHaveBeenCalledWith({
+      baseURL: undefined,
+      apiKey: "openai-secret",
+    });
+    expect(responses).toHaveBeenCalledWith("gpt-test");
+    expect(aiSdkMocks.streamText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: { provider: "openai.responses", modelId: "gpt-test" },
+        providerOptions: { openai: { reasoningEffort: "high" } },
+      }),
+    );
+  });
+
+  it("routes non-streaming Anthropic profiles through the Messages provider", async () => {
+    aiSdkMocks.generateText.mockResolvedValue({
+      text: "Claude response",
+      finishReason: "stop",
+    });
+    const anthropic = vi.fn((modelId: string) => ({
+      provider: "anthropic",
+      modelId,
+    }));
+    aiSdkMocks.createAnthropic.mockReturnValue(anthropic);
+
+    const client = new AiSdkProviderClient({
+      providerKind: "anthropic",
+      providerName: "Anthropic",
+      baseURL: "https://proxy.example.test/v1",
+      model: "claude-test",
+      apiKey: "anthropic-secret",
+      streamingEnabled: false,
+      harnessDeps: createHarnessDeps(),
+    });
+
+    await client.stream(createRequest(), { onTextChunk: vi.fn() });
+
+    expect(aiSdkMocks.createAnthropic).toHaveBeenCalledWith({
+      baseURL: "https://proxy.example.test/v1",
+      apiKey: "anthropic-secret",
+    });
+    expect(anthropic).toHaveBeenCalledWith("claude-test");
+    expect(aiSdkMocks.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: { provider: "anthropic", modelId: "claude-test" },
+      }),
+    );
+    expect(aiSdkMocks.generateText.mock.calls[0]?.[0])
+      .not.toHaveProperty("providerOptions");
+  });
+
+  it("uses native provider routing for an independent tool profile", async () => {
+    aiSdkMocks.streamText.mockReturnValue({
+      fullStream: streamParts([{ type: "finish", finishReason: "stop" }]),
+    });
+    aiSdkMocks.generateText.mockResolvedValue({
+      text: JSON.stringify({
+        patches: [{ path: "player.money", value: 25 }],
+      }),
+    });
+    const anthropic = vi.fn((modelId: string) => ({
+      provider: "anthropic",
+      modelId,
+    }));
+    aiSdkMocks.createAnthropic.mockReturnValue(anthropic);
+    const dispatchCommand = vi.fn().mockResolvedValue({
+      next: {},
+      nextHash: "next-hash",
+      previousValues: {},
+    });
+
+    const client = new AiSdkProviderClient({
+      providerName: "main-compatible",
+      baseURL: "https://main.example.test/v1",
+      model: "main-model",
+      harnessDeps: {
+        dispatchCommand,
+        getToolProfile: vi.fn().mockResolvedValue({
+          id: "tool-anthropic",
+          name: "Tool Anthropic",
+          kind: "anthropic",
+          baseURL: "",
+          model: "claude-tool",
+          apiKey: "tool-secret",
+          temperature: 0.2,
+          maxOutputTokens: 1024,
+          streamingEnabled: false,
+          builtIn: false,
+          updatedAt: "2026-07-22T00:00:00.000Z",
+        }),
+      },
+    });
+
+    await client.stream(createRequest(), { onTextChunk: vi.fn() });
+    const streamOptions = aiSdkMocks.streamText.mock.calls[0]?.[0] as {
+      tools: {
+        update_variables: {
+          execute: (
+            input: { patches: Array<{ path: string; value: unknown }> },
+            options: { toolCallId: string },
+          ) => Promise<unknown>;
+        };
+      };
+    };
+    await streamOptions.tools.update_variables.execute(
+      { patches: [{ path: "player.money", value: 10 }] },
+      { toolCallId: "tool-call-1" },
+    );
+
+    expect(aiSdkMocks.createAnthropic).toHaveBeenCalledWith({
+      baseURL: undefined,
+      apiKey: "tool-secret",
+    });
+    expect(anthropic).toHaveBeenCalledWith("claude-tool");
+    expect(aiSdkMocks.generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: { provider: "anthropic", modelId: "claude-tool" },
+      }),
+    );
+    expect(dispatchCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "APPLY_VARIABLE_PATCH",
       }),
     );
   });

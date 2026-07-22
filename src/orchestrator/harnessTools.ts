@@ -1,7 +1,7 @@
 import { generateText, tool } from "ai";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
 import type { GameEngineFacade } from "@/engine/gameEngineFacade";
+import { createLanguageModel } from "@/orchestrator/languageModelFactory";
 import type { ProviderProfile } from "@/orchestrator/providerSettings";
 import {
   toTriggerBattleCommandPayload,
@@ -80,6 +80,16 @@ export function buildVariableAgentPrompt(params: {
   return { system, user };
 }
 
+function hasUsableToolProfile(
+  profile: ProviderProfile | null | undefined,
+): profile is ProviderProfile {
+  if (!profile?.model.trim() || profile.kind === "fake") return false;
+  if (profile.kind === "openai-compatible") {
+    return Boolean(profile.baseURL.trim());
+  }
+  return Boolean(profile.apiKey.trim());
+}
+
 export interface UpdateVariablesExecuteInput {
   tool_call_id: string;
   input: UpdateVariablesToolInput;
@@ -125,18 +135,8 @@ export function createHarnessToolsWithExecute(
         let agentReasoning;
 
         // Try Agent optimization if tool profile is configured
-        if (
-          toolProfile?.kind === "openai-compatible" &&
-          toolProfile.baseURL &&
-          toolProfile.model
-        ) {
+        if (hasUsableToolProfile(toolProfile)) {
           try {
-            const provider = createOpenAICompatible({
-              baseURL: toolProfile.baseURL,
-              name: toolProfile.name,
-              apiKey: toolProfile.apiKey,
-            });
-
             const prompt = buildVariableAgentPrompt({
               currentSnapshot: yamlSnapshot ?? "",
               lastUserMessage: lastMessages?.user ?? "",
@@ -145,7 +145,13 @@ export function createHarnessToolsWithExecute(
             });
 
             const response = await generateText({
-              model: provider(toolProfile.model),
+              model: createLanguageModel({
+                providerKind: toolProfile.kind,
+                providerName: toolProfile.name,
+                baseURL: toolProfile.baseURL,
+                model: toolProfile.model,
+                apiKey: toolProfile.apiKey,
+              }),
               system: prompt.system,
               messages: [{ role: "user", content: prompt.user }],
               temperature: 0.2,

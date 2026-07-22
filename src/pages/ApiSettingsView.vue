@@ -60,6 +60,18 @@ const visibleProfiles = computed(() =>
 );
 const isBuiltInProfile = computed(() => form.builtIn);
 const availableTokenizers = AVAILABLE_TOKENIZERS;
+const baseURLPlaceholder = computed(() => {
+  switch (form.kind) {
+    case "openai-responses":
+      return "官方默认：https://api.openai.com/v1";
+    case "anthropic":
+      return "官方默认：https://api.anthropic.com/v1";
+    case "deepseek":
+      return "官方默认：https://api.deepseek.com/v1";
+    default:
+      return "https://api.example.com/v1";
+  }
+});
 
 function applyProfile(profile: ProviderProfile): void {
   form.id = profile.id;
@@ -345,6 +357,8 @@ watch(
               <option v-if="ENABLE_DEV_TOOLS" value="fake">Fake</option>
               <option value="openai-compatible">OpenAI-compatible</option>
               <option value="deepseek">DeepSeek</option>
+              <option value="openai-responses">OpenAI Responses</option>
+              <option value="anthropic">Anthropic</option>
             </select>
           </label>
         </div>
@@ -356,7 +370,7 @@ watch(
             v-model="form.baseURL"
             class="settings-view__text-input"
             type="url"
-            placeholder="https://api.example.com/v1"
+            :placeholder="baseURLPlaceholder"
             :disabled="isBuiltInProfile"
           />
         </label>
@@ -426,7 +440,7 @@ watch(
             流式生成
           </label>
           <label
-            v-if="form.kind === 'openai-compatible' || form.kind === 'deepseek'"
+            v-if="form.kind === 'openai-compatible' || form.kind === 'deepseek' || form.kind === 'openai-responses'"
             class="chat-input-box__label"
             for="api-profile-reasoning-effort"
           >
@@ -455,7 +469,7 @@ watch(
             深度思考 (Thinking)
           </label>
           <label
-            v-if="form.kind === 'openai-compatible' || form.kind === 'deepseek'"
+            v-if="form.kind !== 'fake'"
             class="chat-input-box__label settings-view__checkbox-label"
           >
             <input

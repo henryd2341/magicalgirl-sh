@@ -47,6 +47,11 @@ function createModelsUrl(baseURL: string): string {
   return `${baseURL.trim().replace(/\/+$/, "")}/models`;
 }
 
+interface ProviderModelsRequestConfig {
+  baseURL: string;
+  headers: Record<string, string>;
+}
+
 function parseModelIds(payload: unknown): string[] | null {
   if (
     typeof payload !== "object" ||
@@ -78,50 +83,79 @@ function toErrorResult(
   };
 }
 
+function createModelsRequestConfig(
+  profile: ProviderProfile,
+): ProviderModelsRequestConfig | ProviderModelsResult {
+  const apiKey = profile.apiKey.trim();
+
+  switch (profile.kind) {
+    case "fake":
+      return toErrorResult(
+        "missing_config",
+        "Fake provider does not support model listing.",
+      );
+    case "openai-compatible":
+      if (!profile.baseURL.trim()) {
+        return toErrorResult(
+          "missing_config",
+          "OpenAI-compatible Base URL is required before listing models.",
+        );
+      }
+      return {
+        baseURL: profile.baseURL,
+        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      };
+    case "deepseek":
+      if (!apiKey) {
+        return toErrorResult(
+          "missing_config",
+          "DeepSeek API Key is required before listing models.",
+        );
+      }
+      return {
+        baseURL: profile.baseURL.trim() || "https://api.deepseek.com/v1",
+        headers: { Authorization: `Bearer ${apiKey}` },
+      };
+    case "openai-responses":
+      if (!apiKey) {
+        return toErrorResult(
+          "missing_config",
+          "OpenAI API Key is required before listing models.",
+        );
+      }
+      return {
+        baseURL: profile.baseURL.trim() || "https://api.openai.com/v1",
+        headers: { Authorization: `Bearer ${apiKey}` },
+      };
+    case "anthropic":
+      if (!apiKey) {
+        return toErrorResult(
+          "missing_config",
+          "Anthropic API Key is required before listing models.",
+        );
+      }
+      return {
+        baseURL: profile.baseURL.trim() || "https://api.anthropic.com/v1",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+      };
+  }
+}
+
 export async function listProviderModels(
   profile: ProviderProfile,
   dependencies: ProviderDiagnosticDependencies = {},
 ): Promise<ProviderModelsResult> {
-  if (profile.kind === "fake") {
-    return toErrorResult(
-      "missing_config",
-      "Fake provider does not support model listing.",
-    );
-  }
-
-  if (profile.kind === "deepseek" && !profile.apiKey?.trim()) {
-    return toErrorResult(
-      "missing_config",
-      "DeepSeek API Key is required before listing models.",
-    );
-  }
-
-  if (
-    profile.kind === "openai-compatible" &&
-    profile.baseURL.trim() === ""
-  ) {
-    return toErrorResult(
-      "missing_config",
-      "OpenAI-compatible Base URL is required before listing models.",
-    );
-  }
-
-  const baseURL =
-    profile.kind === "deepseek"
-      ? profile.baseURL.trim() || "https://api.deepseek.com/v1"
-      : profile.baseURL;
+  const requestConfig = createModelsRequestConfig(profile);
+  if ("ok" in requestConfig) return requestConfig;
 
   try {
-    const headers: Record<string, string> = {};
-    const apiKey = profile.apiKey.trim();
-
-    if (apiKey.length > 0) {
-      headers.Authorization = `Bearer ${apiKey}`;
-    }
-
-    const response = await getFetch(dependencies)(createModelsUrl(baseURL), {
-      headers,
-    });
+    const response = await getFetch(dependencies)(
+      createModelsUrl(requestConfig.baseURL),
+      { headers: requestConfig.headers },
+    );
 
     if (response.status === 401 || response.status === 403) {
       return toErrorResult("auth_error", "Provider rejected the API key.");

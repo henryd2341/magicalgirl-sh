@@ -47,6 +47,48 @@ describe("provider diagnostics", () => {
     });
   });
 
+
+  it("uses the official OpenAI models endpoint and Bearer authentication", async () => {
+    const fetchMock = vi.fn(async () =>
+      globalThis.Response.json({ data: [{ id: "gpt-test" }] }),
+    );
+
+    await expect(
+      listProviderModels(
+        profile({ kind: "openai-responses", baseURL: "" }),
+        { fetch: fetchMock },
+      ),
+    ).resolves.toEqual({ ok: true, models: ["gpt-test"] });
+    expect(fetchMock).toHaveBeenCalledWith("https://api.openai.com/v1/models", {
+      headers: { Authorization: "Bearer secret-key" },
+    });
+  });
+
+  it("uses Anthropic headers and supports a models URL override", async () => {
+    const fetchMock = vi.fn(async () =>
+      globalThis.Response.json({ data: [{ id: "claude-test" }] }),
+    );
+
+    await expect(
+      listProviderModels(
+        profile({
+          kind: "anthropic",
+          baseURL: "https://anthropic-proxy.example.test/v1/",
+        }),
+        { fetch: fetchMock },
+      ),
+    ).resolves.toEqual({ ok: true, models: ["claude-test"] });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://anthropic-proxy.example.test/v1/models",
+      {
+        headers: {
+          "x-api-key": "secret-key",
+          "anthropic-version": "2023-06-01",
+        },
+      },
+    );
+  });
+
   it("reports successful connection when /models returns a valid model list", async () => {
     await expect(
       testProviderConnection(profile(), {
