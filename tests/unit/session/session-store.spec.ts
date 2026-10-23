@@ -2,7 +2,7 @@ import type { VariableRepository } from "@/persistence/repositories/variableRepo
 import { useBattleStore } from "@/stores/battleStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getCharacter: _getCharacter, getAllCharacterIds: _getAllIds } =
   vi.hoisted(() => ({
@@ -512,5 +512,183 @@ describe("sessionStore", () => {
     });
 
     expect(sessionStore.isSkillLearned("char1", "10")).toBe(true);
+  });
+
+  describe("real-content progression save compatibility", () => {
+    beforeEach(async () => {
+      const content = await vi.importActual<typeof import("@/content/contentRegistry")>(
+        "@/content/contentRegistry",
+      );
+      _getCharacter.mockImplementation(content.getCharacterByName);
+      _getAllIds.mockImplementation(content.getAllCharacterIds);
+      vi.mocked(mockVarRepo.saveCurrent).mockImplementation(async (state) => {
+        vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(state);
+      });
+    });
+
+    afterEach(() => {
+      _getAllIds.mockReturnValue(["char1"]);
+      vi.mocked(mockVarRepo.saveCurrent).mockReset();
+    });
+
+    async function restoreProgressionCheckpoint(
+      characterId: string,
+      learned: string[],
+      equipped: string[] = [],
+      level = 99,
+    ) {
+      const sessionStore = useSessionStore();
+      const state = makeVarState({
+        player: {
+          combat: { level },
+          money: 10000,
+          learnedSkills: { [characterId]: learned },
+          equippedSkills: characterId === "player" ? equipped : [],
+        },
+        characters: characterId === "player" ? {} : {
+          [characterId]: {
+            displayName: characterId,
+            identity: "",
+            relationshipTag: "",
+            awakeningStatus: "现役",
+            inParty: true,
+            equippedSkills: equipped,
+          },
+        },
+      });
+      vi.mocked(mockVarRepo.getCurrent).mockResolvedValue(state);
+      await sessionStore.restoreFromCheckpointSnapshot({
+        id: "legacy-progression-checkpoint",
+        kind: "save_checkpoint",
+        snapshotVersion: 1,
+        createdAt: "2026-10-20T00:00:00.000Z",
+        reason: "load pre-progression save",
+        sessionSnapshot: { sessionState: "IDLE", pipelineState: null, activeRequestId: null },
+        variableValue: state,
+        chatMessages: [],
+      });
+      expect(await mockVarRepo.getCurrent()).toEqual(state);
+      vi.mocked(mockVarRepo.saveCurrent).mockClear();
+      return sessionStore;
+    }
+
+    it.each([
+      ["player", "102", ["189", "190"], 12],
+      ["shiota_sumireko", "171", ["99", "100"], 21],
+    ] as const)(
+      "retains %s skill %s from an old save without buying or granting its new ancestors",
+      async (characterId, skillId, missingAncestors, level) => {
+        const sessionStore = await restoreProgressionCheckpoint(characterId, [skillId], [skillId], level);
+        expect(sessionStore.isSkillLearned(characterId, skillId)).toBe(true);
+        expect(sessionStore.getLearnableSkills(characterId, level).map((node) => node.skillId))
+          .not.toContain(skillId);
+        for (const ancestor of missingAncestors) {
+          expect(sessionStore.isSkillLearned(characterId, ancestor)).toBe(false);
+        }
+        await expect(sessionStore.learnSkill(characterId, skillId)).resolves.toBe("already_learned");
+        await expect(sessionStore.equipSkill(characterId, skillId)).resolves.toBe("already_equipped");
+        expect(mockVarRepo.saveCurrent).not.toHaveBeenCalled();
+        await expect(sessionStore.unequipSkill(characterId, skillId)).resolves.toBe("ok");
+        await expect(sessionStore.equipSkill(characterId, skillId)).resolves.toBe("ok");
+
+        const state = (await mockVarRepo.getCurrent())!;
+        expect(state.root.player.money).toBe(10000);
+        expect(state.root.player.learnedSkills[characterId]).toEqual([skillId]);
+        const equipped = characterId === "player"
+          ? state.root.player.equippedSkills
+          : state.root.characters[characterId].equippedSkills;
+        expect(equipped).toEqual([skillId]);
+
+        const battleStore = useBattleStore();
+        battleStore.stagePendingEncounter({
+          encounterId: "training/free/legacy-progression",
+          narrativeReason: "Legacy equipped skill availability",
+          enemies: [{ enemy_id: "1", count: 1 }],
+          source: "training/free",
+        });
+        sessionStore.enterCombatPending();
+        await sessionStore.startBattle([{
+          id: "legacy-hero",
+          characterId: characterId === "player" ? "__player__" : characterId,
+          side: "player",
+          displayName: characterId,
+          level,
+          hp: { current: 100, max: 100 },
+          mp: { current: 100, max: 100 },
+          isDown: false,
+          isActive: true,
+        }]);
+        const hero = battleStore.activeBattle?.participants.find((entry) => entry.id === "legacy-hero");
+        expect(hero?.availableSkillIds).toContain(skillId);
+        for (const ancestor of missingAncestors) expect(hero?.availableSkillIds).not.toContain(ancestor);
+        const skillMenu = battleStore.activeBattle?.actionMenu?.find((node) => node.id === "skill-group");
+        expect(skillMenu?.children?.some((node) => node.contentId === skillId)).toBe(true);
+      },
+    );
+
+    it("requires the new player sleep chain at level 21 and charges each skill only once", async () => {
+      const sessionStore = await restoreProgressionCheckpoint("player", [], [], 20);
+      for (const skillId of ["189", "190", "102"]) {
+        await expect(sessionStore.learnSkill("player", skillId)).resolves.toBe("level_insufficient");
+      }
+      expect(mockVarRepo.saveCurrent).not.toHaveBeenCalled();
+      await restoreProgressionCheckpoint("player", [], [], 21);
+      await expect(sessionStore.learnSkill("player", "102")).resolves.toBe("missing_prerequisites");
+      await expect(sessionStore.learnSkill("player", "190")).resolves.toBe("missing_prerequisites");
+      expect(mockVarRepo.saveCurrent).not.toHaveBeenCalled();
+      for (const skillId of ["189", "190", "102"]) {
+        expect(sessionStore.getLearnableSkills("player", 21).map((node) => node.skillId)).toContain(skillId);
+        await expect(sessionStore.learnSkill("player", skillId)).resolves.toBe("ok");
+      }
+      await expect(sessionStore.learnSkill("player", "102")).resolves.toBe("already_learned");
+      const state = (await mockVarRepo.getCurrent())!;
+      expect(state.root.player.learnedSkills.player).toEqual(["189", "190", "102"]);
+      expect(state.root.player.money).toBe(6800);
+      expect(mockVarRepo.saveCurrent).toHaveBeenCalledTimes(3);
+    });
+
+    it.each([
+      ["player", "104", "103"],
+      ["player", "107", "106"],
+      ["player", "109", "108"],
+      ["player", "190", "189"],
+      ["sakakibara_rune", "104", "103"],
+      ["sakakibara_rune", "107", "106"],
+      ["sakakibara_rune", "109", "108"],
+      ["sakakibara_rune", "190", "189"],
+      ["sakakibara_chinatsu", "172", "75"],
+      ["sakakibara_rune", "176", "82"],
+    ])(
+      "%s skill %s becomes purchasable only after %s is learned",
+      async (characterId, skillId, prerequisite) => {
+        const sessionStore = await restoreProgressionCheckpoint(characterId, []);
+        expect(sessionStore.getLearnableSkills(characterId, 99).map((node) => node.skillId)).not.toContain(skillId);
+        await expect(sessionStore.learnSkill(characterId, skillId)).resolves.toBe("missing_prerequisites");
+        expect(mockVarRepo.saveCurrent).not.toHaveBeenCalled();
+        await restoreProgressionCheckpoint(characterId, [prerequisite]);
+        expect(sessionStore.getLearnableSkills(characterId, 99).map((node) => node.skillId)).toContain(skillId);
+        await expect(sessionStore.learnSkill(characterId, skillId)).resolves.toBe("ok");
+        const state = (await mockVarRepo.getCurrent())!;
+        expect(state.root.player.learnedSkills[characterId]).toEqual([prerequisite, skillId]);
+        expect(state.root.player.money).toBe(10000 - _getCharacter(characterId).skillTree
+          .find((node: { skillId: string }) => node.skillId === skillId).cost);
+      },
+    );
+
+    it.each([{ learned: [] }, { learned: ["99"] }, { learned: ["100"] }])(
+      "preserves Sumireko171's AND purchase gate with learned ancestors $learned",
+      async ({ learned }) => {
+        const sessionStore = await restoreProgressionCheckpoint("shiota_sumireko", learned);
+        expect(sessionStore.getLearnableSkills("shiota_sumireko", 99).map((node) => node.skillId))
+          .not.toContain("171");
+        await expect(sessionStore.learnSkill("shiota_sumireko", "171")).resolves.toBe("missing_prerequisites");
+        expect(mockVarRepo.saveCurrent).not.toHaveBeenCalled();
+        await restoreProgressionCheckpoint("shiota_sumireko", ["99", "100"]);
+        expect(sessionStore.getLearnableSkills("shiota_sumireko", 99).map((node) => node.skillId)).toContain("171");
+        await expect(sessionStore.learnSkill("shiota_sumireko", "171")).resolves.toBe("ok");
+        expect((await mockVarRepo.getCurrent())?.root.player.learnedSkills.shiota_sumireko)
+          .toEqual(["99", "100", "171"]);
+      },
+    );
   });
 });
