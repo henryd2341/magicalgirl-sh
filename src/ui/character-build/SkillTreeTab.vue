@@ -33,6 +33,10 @@ const sessionStore = useSessionStore();
 const activeCategory = ref<SkillCategory>("physical");
 const selectedBranch = ref("");
 const viewport = ref<HTMLElement>();
+const zoom = ref(1);
+const dragging = ref(false);
+let pan: { pointerId: number; target: Element; x: number; y: number; left: number; top: number } | undefined;
+let suppressClick = false;
 const currentLevel = ref(1);
 const currentMoney = ref(0);
 const loading = ref(true);
@@ -150,10 +154,10 @@ function measureConnections() {
     for (const block of graph.querySelectorAll<HTMLElement>("[data-skill-block]")) {
       const rect = block.getBoundingClientRect();
       bounds.set(block.dataset.skillBlock!, {
-        x: rect.left - origin.left,
-        y: rect.top - origin.top,
-        width: rect.width,
-        height: rect.height,
+        x: (rect.left - origin.left) / zoom.value,
+        y: (rect.top - origin.top) / zoom.value,
+        width: rect.width / zoom.value,
+        height: rect.height / zoom.value,
       });
     }
     paths[branch.id] = routeSkillEdges(branch, bounds);
@@ -171,6 +175,7 @@ async function observeLayout() {
 }
 
 function resetViewport() {
+  endPan();
   focusedSkill.value = "";
   if (viewport.value) {
     viewport.value.scrollLeft = 0;
@@ -190,6 +195,76 @@ function resetViewport() {
       }
     }
   }
+}
+
+function startPan(event: PointerEvent) {
+  suppressClick = false;
+  const view = viewport.value;
+  const target = event.target;
+  if (!view || event.pointerType !== "mouse" || event.button !== 0 || !(target instanceof Element)) return;
+  if (target.closest("button, a, input, select, textarea, [role='button'], [contenteditable='true']")) return;
+  const rect = view.getBoundingClientRect();
+  // Leave the native scrollbar gutters to the browser.
+  if (event.clientX >= rect.left + view.clientLeft + view.clientWidth
+    || event.clientY >= rect.top + view.clientTop + view.clientHeight) return;
+  pan = { pointerId: event.pointerId, target, x: event.clientX, y: event.clientY, left: view.scrollLeft, top: view.scrollTop };
+  target.setPointerCapture?.(event.pointerId);
+}
+
+function movePan(event: PointerEvent) {
+  if (!pan || pan.pointerId !== event.pointerId || !viewport.value) return;
+  if (!(event.buttons & 1)) {
+    endPan();
+    return;
+  }
+  const dx = event.clientX - pan.x;
+  const dy = event.clientY - pan.y;
+  if (!dragging.value && Math.hypot(dx, dy) < 6) return;
+  dragging.value = true;
+  suppressClick = true;
+  event.preventDefault();
+  viewport.value.scrollLeft = pan.left - dx;
+  viewport.value.scrollTop = pan.top - dy;
+}
+
+function endPan(event?: PointerEvent) {
+  if (!pan || (event && event.pointerId !== pan.pointerId)) return;
+  if (event?.type !== "pointerup") suppressClick = true;
+  const { target, pointerId } = pan;
+  pan = undefined;
+  dragging.value = false;
+  if (target.hasPointerCapture?.(pointerId)) target.releasePointerCapture(pointerId);
+}
+
+function onCanvasClick(event: MouseEvent) {
+  if (!suppressClick || event.detail === 0) return;
+  event.preventDefault();
+  event.stopPropagation();
+  suppressClick = false;
+}
+
+async function setZoom(value: number, clientX?: number, clientY?: number) {
+  const view = viewport.value;
+  const nextZoom = Math.min(2, Math.max(0.5, value));
+  if (!view || nextZoom === zoom.value) return;
+  endPan();
+  const rect = view.getBoundingClientRect();
+  const x = clientX === undefined ? view.clientWidth / 2 : clientX - rect.left - view.clientLeft;
+  const y = clientY === undefined ? view.clientHeight / 2 : clientY - rect.top - view.clientTop;
+  const anchorX = (view.scrollLeft + x) / zoom.value;
+  const anchorY = (view.scrollTop + y) / zoom.value;
+  zoom.value = nextZoom;
+  await nextTick();
+  if (viewport.value !== view || zoom.value !== nextZoom) return;
+  view.scrollLeft = anchorX * nextZoom - x;
+  view.scrollTop = anchorY * nextZoom - y;
+}
+
+function onCanvasWheel(event: WheelEvent) {
+  if (!event.ctrlKey) return;
+  event.preventDefault();
+  const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.value!.clientHeight : 1;
+  void setZoom(zoom.value * Math.exp(-event.deltaY * unit * 0.002), event.clientX, event.clientY);
 }
 
 function onViewportKeydown(event: KeyboardEvent) {
@@ -261,6 +336,7 @@ watch(
   { immediate: true },
 );
 watch([activeCategory, selectedBranch, loading], resetViewport, { flush: "post" });
+watch(zoom, measureConnections, { flush: "post" });
 watch([visibleBranches, loading, loadError, learned, currentMoney, currentLevel], observeLayout, {
   flush: "post",
   deep: true,
@@ -268,6 +344,7 @@ watch([visibleBranches, loading, loadError, learned, currentMoney, currentLevel]
 watch(
   () => props.characterId,
   () => {
+    zoom.value = 1;
     activeCategory.value = "physical";
     learnResult.value = "";
     void refreshData();
@@ -275,14 +352,21 @@ watch(
   { immediate: true },
 );
 onMounted(() => {
+  window.addEventListener("blur", cancelPan);
   if (typeof ResizeObserver !== "undefined") observer = new ResizeObserver(measureConnections);
   void observeLayout();
 });
 onUnmounted(() => {
+  endPan();
+  window.removeEventListener("blur", cancelPan);
   refreshVersion++;
   observer?.disconnect();
   clearTimeout(toastTimer);
 });
+
+function cancelPan() {
+  endPan();
+}
 </script>
 
 <template>
@@ -334,22 +418,34 @@ onUnmounted(() => {
           </button>
           <span>{{ selectedBranch === "all" ? "全部分支" : "单一分支" }} ·
             {{ categoryCounts[activeCategory] }} 个技能</span>
+          <button type="button" class="skilltree-tab__zoom" :aria-label="`当前缩放 ${Math.round(zoom * 100)}%，重置为 100%`" @click="setZoom(1)">
+            {{ Math.round(zoom * 100) }}% · 重置
+          </button>
         </div>
         <p v-if="branches.length" class="skilltree-tab__hint">
-          滚动或滑动浏览；聚焦画布后可用方向键。前置技能可点击跳转。
+          拖动画布或滚动浏览 · Ctrl + 滚轮缩放。也可滑动或聚焦画布后用方向键；前置技能可点击跳转。
         </p>
         <div
           ref="viewport"
           class="skilltree-tab__graph-wrap mg-scroll"
+          :class="{ 'skilltree-tab__graph-wrap--dragging': dragging }"
           tabindex="0"
           role="region"
           :aria-label="`${CATEGORY_LABELS[activeCategory]}技能树画布`"
           @keydown="onViewportKeydown"
+          @pointerdown="startPan"
+          @pointermove="movePan"
+          @pointerup="endPan"
+          @pointercancel="endPan"
+          @lostpointercapture="endPan"
+          @click.capture="onCanvasClick"
+          @wheel="onCanvasWheel"
         >
           <section
             v-for="branch in visibleBranches"
             :key="branch.id"
             class="skilltree-tab__branch"
+            :style="{ zoom }"
             :data-branch-id="branch.id"
             :aria-label="`${branchName(branch.id)}分支`"
           >
@@ -519,6 +615,7 @@ onUnmounted(() => {
 }
 .skilltree-tab__cat,
 .skilltree-tab__all,
+.skilltree-tab__zoom,
 .skilltree-tab__branch-heading button {
   display: inline-flex;
   align-items: center;
@@ -607,8 +704,15 @@ onUnmounted(() => {
   touch-action: pan-x pan-y;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  overflow-anchor: none;
+  cursor: grab;
   border: 1px solid var(--mg-border);
   border-radius: var(--mg-radius);
+}
+.skilltree-tab__graph-wrap--dragging,
+.skilltree-tab__graph-wrap--dragging * {
+  cursor: grabbing;
+  user-select: none;
 }
 .skilltree-tab__branch {
   padding: 20px 0;

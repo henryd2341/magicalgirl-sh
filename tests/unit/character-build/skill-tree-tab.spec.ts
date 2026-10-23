@@ -29,6 +29,20 @@ async function category(name: string) {
 async function branch(id: string) {
   await fireEvent.update(screen.getByRole("combobox", { name: "技能分支" }), id);
 }
+function canvasGeometry() {
+  const canvas = screen.getByRole("region", { name: /技能树画布/ });
+  Object.defineProperties(canvas, {
+    clientWidth: { value: 600 }, clientHeight: { value: 400 },
+    clientLeft: { value: 2 }, clientTop: { value: 2 },
+  });
+  vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({ left: 100, top: 80 } as DOMRect);
+  return canvas;
+}
+function pointer(target: Element | Window, type: string, options: PointerEventInit = {}) {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.assign(event, { pointerId: 1, pointerType: "mouse", button: 0, buttons: 1, clientX: 300, clientY: 200 }, options);
+  return fireEvent(target, event);
+}
 
 beforeEach(() => {
   fixture.store.learnedSkills = reactive(new Map([["player", new Set(["0", "1"])]]));
@@ -155,6 +169,165 @@ describe("SkillTreeTab", () => {
     expect(viewport.scrollLeft).toBe(0);
   });
 
+  it("keeps small clicks, pans both scroll axes after the threshold and suppresses a drag's click", async () => {
+    await openTree();
+    const canvas = canvasGeometry();
+    const card = canvas.querySelector<HTMLElement>("[data-skill-id]")!;
+    const click = vi.fn();
+    card.addEventListener("click", click);
+    canvas.scrollLeft = 200;
+    canvas.scrollTop = 300;
+    await pointer(card, "pointerdown");
+    await pointer(card, "pointermove", { clientX: 303, clientY: 202 });
+    await pointer(card, "pointerup");
+    await fireEvent.click(card, { detail: 1 });
+    expect(click).toHaveBeenCalledTimes(1);
+    expect([canvas.scrollLeft, canvas.scrollTop]).toEqual([200, 300]);
+
+    await pointer(card, "pointerdown");
+    await pointer(card, "pointermove", { clientX: 240, clientY: 160 });
+    expect([canvas.scrollLeft, canvas.scrollTop]).toEqual([260, 340]);
+    expect(canvas).toHaveClass("skilltree-tab__graph-wrap--dragging");
+    await pointer(card, "pointerup");
+    await fireEvent.click(card, { detail: 1 });
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(canvas).not.toHaveClass("skilltree-tab__graph-wrap--dragging");
+    await pointer(card, "pointermove", { clientX: 400, clientY: 300 });
+    expect([canvas.scrollLeft, canvas.scrollTop]).toEqual([260, 340]);
+  });
+
+  it("does not purchase on drag release, and leaves controls, touch, right clicks and scrollbars native", async () => {
+    fixture.store.learnSkill.mockResolvedValue("insufficient_money");
+    await openTree();
+    const canvas = canvasGeometry();
+    const button = screen.getAllByRole("button", { name: /^学习 / })[0];
+    await pointer(canvas, "pointerdown");
+    await pointer(canvas, "pointermove", { clientX: 240 });
+    await pointer(canvas, "pointerup");
+    await fireEvent.click(button, { detail: 1 });
+    expect(fixture.store.learnSkill).not.toHaveBeenCalled();
+
+    for (const [target, options] of [
+      [button, {}], [canvas, { pointerType: "touch" }], [canvas, { button: 2 }],
+      [canvas, { clientX: 705 }], [canvas, { clientY: 485 }],
+    ] as const) {
+      const left = canvas.scrollLeft;
+      await pointer(target, "pointerdown", options);
+      await pointer(target, "pointermove", { clientX: 220 });
+      await pointer(target, "pointerup");
+      expect(canvas.scrollLeft).toBe(left);
+    }
+    await pointer(button, "pointerdown");
+    await fireEvent.click(button, { detail: 1 });
+    expect(fixture.store.learnSkill).toHaveBeenCalledTimes(1);
+    await fireEvent.keyDown(button, { key: "ArrowDown" });
+    expect(canvas.scrollTop).toBe(0);
+  });
+
+  it.each(["pointercancel", "lostpointercapture", "blur", "buttons-released"])("cleans up a drag on %s", async (reason) => {
+    await openTree();
+    const canvas = canvasGeometry();
+    const capture = vi.fn();
+    const release = vi.fn();
+    Object.assign(canvas, { setPointerCapture: capture, hasPointerCapture: () => true, releasePointerCapture: release });
+    await pointer(canvas, "pointerdown");
+    await pointer(canvas, "pointermove", { pointerId: 2, clientX: 220 });
+    expect(canvas.scrollLeft).toBe(0);
+    await pointer(canvas, "pointermove", { clientX: 220 });
+    if (reason === "blur") await fireEvent(window, new Event("blur"));
+    else if (reason === "buttons-released") await pointer(canvas, "pointermove", { buttons: 0 });
+    else await pointer(canvas, reason);
+    expect(capture).toHaveBeenCalledWith(1);
+    expect(release).toHaveBeenCalledWith(1);
+    expect(canvas).not.toHaveClass("skilltree-tab__graph-wrap--dragging");
+    await pointer(canvas, "pointermove", { clientX: 180 });
+    expect(canvas.scrollLeft).toBe(80);
+    const button = screen.getAllByRole("button", { name: /^学习 / })[0];
+    await fireEvent.click(button, { detail: 1 });
+    expect(fixture.store.learnSkill).not.toHaveBeenCalled();
+  });
+
+  it("releases pointer capture and the blur listener on unmount", async () => {
+    const { unmount } = await openTree();
+    const canvas = canvasGeometry();
+    const release = vi.fn();
+    Object.assign(canvas, { hasPointerCapture: () => true, releasePointerCapture: release });
+    const remove = vi.spyOn(window, "removeEventListener");
+    await pointer(canvas, "pointerdown");
+    unmount();
+    expect(release).toHaveBeenCalledWith(1);
+    expect(remove).toHaveBeenCalledWith("blur", expect.any(Function));
+  });
+
+  it("zooms only Ctrl+wheel around its pointer, normalizes wheel units and resets around the view center", async () => {
+    await openTree();
+    const canvas = canvasGeometry();
+    canvas.scrollLeft = 200;
+    canvas.scrollTop = 300;
+    const ordinary = new WheelEvent("wheel", { deltaY: 100, bubbles: true, cancelable: true });
+    await fireEvent(canvas, ordinary);
+    expect(ordinary.defaultPrevented).toBe(false);
+    const outside = new WheelEvent("wheel", { ctrlKey: true, deltaY: -100, bubbles: true, cancelable: true });
+    await fireEvent(screen.getByRole("combobox"), outside);
+    expect(outside.defaultPrevented).toBe(false);
+    const wheel = new WheelEvent("wheel", {
+      ctrlKey: true, deltaY: -Math.log(1.5) / 0.002 / 16, deltaMode: 1,
+      clientX: 252, clientY: 202, bubbles: true, cancelable: true,
+    });
+    await fireEvent(canvas, wheel);
+    expect(wheel.defaultPrevented).toBe(true);
+    expect([canvas.scrollLeft, canvas.scrollTop]).toEqual([375, 510]);
+    const reset = screen.getByRole("button", { name: /重置为 100%$/ });
+    expect(reset).toHaveTextContent("150%");
+    expect(reset).toHaveAccessibleName("当前缩放 150%，重置为 100%");
+    await fireEvent.click(reset);
+    expect(reset).toHaveTextContent("100%");
+    expect(reset).toHaveAccessibleName("当前缩放 100%，重置为 100%");
+    expect(canvas.scrollLeft).toBe(150);
+    expect(canvas.scrollTop).toBeCloseTo(273.3333);
+  });
+
+  it("accumulates small pixel-wheel deltas instead of rounding each event away", async () => {
+    await openTree();
+    const canvas = canvasGeometry();
+    const reset = screen.getByRole("button", { name: /重置为 100%$/ });
+    for (let step = 0; step < 20; step++) {
+      await fireEvent.wheel(canvas, { ctrlKey: true, deltaY: -1 });
+    }
+    expect(reset).toHaveTextContent("104%");
+    for (let step = 0; step < 20; step++) {
+      await fireEvent.wheel(canvas, { ctrlKey: true, deltaY: 1 });
+    }
+    expect(reset).toHaveTextContent("100%");
+  });
+
+  it("clamps zoom, retains it across branch/category/jump navigation, and resets for character changes and remounts", async () => {
+    const { container, rerender, unmount } = await openTree();
+    const canvas = canvasGeometry();
+    const reset = screen.getByRole("button", { name: /重置为 100%$/ });
+    for (const deltaY of [-10000, -10000]) {
+      const wheel = new WheelEvent("wheel", { ctrlKey: true, deltaY, cancelable: true });
+      await fireEvent(canvas, wheel);
+      expect(wheel.defaultPrevented).toBe(true);
+      expect(reset).toHaveTextContent("200%");
+    }
+    await category("辅助");
+    await branch("125");
+    await fireEvent.click(container.querySelector('[data-prerequisite-id="112"]')!);
+    await waitFor(() => expect(container.querySelector('[data-skill-id="112"]')).toHaveFocus());
+    expect(reset).toHaveTextContent("200%");
+    await fireEvent.click(screen.getByRole("button", { name: "全部分支" }));
+    expect(reset).toHaveTextContent("200%");
+    await fireEvent.wheel(canvas, { ctrlKey: true, deltaY: 100, deltaMode: 2 });
+    expect(reset).toHaveTextContent("50%");
+    await rerender({ characterId: getAllCharacterIds().find((id) => id !== "player")! });
+    expect(await screen.findByRole("button", { name: /重置为 100%$/ })).toHaveTextContent("100%");
+    await fireEvent.wheel(screen.getByRole("region", { name: /技能树画布/ }), { ctrlKey: true, deltaY: -10000 });
+    unmount();
+    await openTree();
+    expect(screen.getByRole("button", { name: /重置为 100%$/ })).toHaveTextContent("100%");
+  });
+
   it("groups passives into prerequisite families with every real passive available", async () => {
     const { container } = await openTree();
     await category("被动");
@@ -176,22 +349,27 @@ describe("SkillTreeTab", () => {
     expect(blocks.length).toBeGreaterThan(1);
     vi.spyOn(graph, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0 } as DOMRect);
     let height = 520;
+    let scale = 1;
     blocks.forEach((block, index) => {
-      vi.spyOn(block, "getBoundingClientRect").mockImplementation(
-        () =>
-          ({
-            left: 24,
-            top: index ? height + 120 : 24,
-            width: 280,
-            height: index ? 200 : height,
-          }) as DOMRect,
-      );
+      vi.spyOn(block, "getBoundingClientRect").mockImplementation(() => {
+        return {
+          left: 24 * scale,
+          top: (index ? height + 120 : 24) * scale,
+          width: 280 * scale,
+          height: (index ? 200 : height) * scale,
+        } as DOMRect;
+      });
     });
     notifyResize();
     await waitFor(() => expect(graph.querySelector("path")?.getAttribute("d")).toContain("M 164 544"));
     height = 740;
     notifyResize();
     await waitFor(() => expect(graph.querySelector("path")?.getAttribute("d")).toContain("M 164 764"));
+    for (const deltaY of [-10000, 10000]) {
+      scale = deltaY < 0 ? 2 : 0.5;
+      await fireEvent.wheel(screen.getByRole("region", { name: /技能树画布/ }), { ctrlKey: true, deltaY });
+      expect(graph.querySelector("path")?.getAttribute("d")).toContain("M 164 764");
+    }
   });
 
   it("renders long names, descriptions and every locked condition without clipping or shrinking cards", async () => {

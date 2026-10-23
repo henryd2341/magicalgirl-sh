@@ -152,11 +152,21 @@ async function graphIntersections(page: Page) {
       }
     }
     const crossings: string[] = [];
+    const detached: string[] = [];
     const paths = tree.querySelectorAll<SVGPathElement>("[data-edge-from]");
     for (const path of paths) {
       const matrix = path.getScreenCTM();
       if (!matrix) continue;
       const length = path.getTotalLength();
+      for (const [id, distance, edge] of [
+        [path.dataset.edgeFrom, 0, "bottom"], [path.dataset.edgeTo, length, "top"],
+      ] as const) {
+        const block = tree.querySelector(`[data-skill-block="${id}"]`)!.getBoundingClientRect();
+        const point = path.getPointAtLength(distance).matrixTransform(matrix);
+        if (Math.abs(point.x - (block.left + block.width / 2)) > 2 || Math.abs(point.y - block[edge]) > 2) {
+          detached.push(`${id}/${edge}`);
+        }
+      }
       for (let distance = 0; distance < length; distance += 5) {
         const point = path.getPointAtLength(distance).matrixTransform(matrix);
         for (const card of cards) {
@@ -169,7 +179,7 @@ async function graphIntersections(page: Page) {
         }
       }
     }
-    return { overlaps, crossings, paths: paths.length };
+    return { overlaps, crossings, detached, paths: paths.length };
   });
 }
 
@@ -193,6 +203,150 @@ async function expectContainedBuildViewport(page: Page) {
 for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
   test.describe(`${viewport.width}px viewport`, () => {
     test.use({ viewport, hasTouch: viewport.width === 390 });
+    test("local zoom retains geometry, navigation and native scrolling", async ({ page }, testInfo) => {
+      test.setTimeout(90_000);
+      await openSkillTree(page);
+      const selector = page.getByRole("combobox", { name: "技能分支" });
+      const reset = page.getByRole("button", { name: /重置为 100%$/ });
+      const canvas = page.getByRole("region", { name: /技能树画布/ });
+      await page.getByRole("button", { name: "辅助技能", exact: true }).click();
+      await page.getByRole("button", { name: "全部分支", exact: true }).click();
+      const pageScale = await page.evaluate(() => ({ dpr: devicePixelRatio, scale: visualViewport?.scale }));
+      const controlSize = await selector.evaluate((element) => element.getBoundingClientRect().height);
+
+      async function canvasPoint() {
+        await canvas.scrollIntoViewIfNeeded();
+        return canvas.evaluate((element) => {
+          const r = element.getBoundingClientRect();
+          const outer = element.closest(".character-build__tab-content")!.getBoundingClientRect();
+          return { x: r.left + element.clientWidth / 2, y: (Math.max(r.top, outer.top) + Math.min(r.bottom, outer.bottom)) / 2 };
+        });
+      }
+      async function wheelZoom(deltaY: number, expected: string) {
+        const point = await canvasPoint();
+        await page.mouse.move(point.x, point.y);
+        await page.keyboard.down("Control");
+        await page.mouse.wheel(0, deltaY);
+        await page.keyboard.up("Control");
+        await expect(reset).toHaveText(`${expected}% · 重置`);
+      }
+      async function checkGeometry(label: string) {
+        await expectContainedBuildViewport(page);
+        const geometry = await graphIntersections(page);
+        expect(geometry.overlaps).toEqual([]);
+        expect(geometry.crossings).toEqual([]);
+        expect(geometry.detached).toEqual([]);
+        await page.screenshot({ path: testInfo.outputPath(`zoom-${label}.png`), fullPage: true });
+        const last = page.locator("[data-skill-id]").last();
+        await last.scrollIntoViewIfNeeded();
+        expect(await last.evaluate((card) => {
+          const r = card.getBoundingClientRect();
+          const canvas = card.closest(".skilltree-tab__graph-wrap")!.getBoundingClientRect();
+          const outer = card.closest(".character-build__tab-content")!.getBoundingClientRect();
+          const x = (Math.max(r.left, canvas.left) + Math.min(r.right, canvas.right)) / 2;
+          const y = (Math.max(r.top, canvas.top, outer.top) + Math.min(r.bottom, canvas.bottom, outer.bottom)) / 2;
+          return card.contains(document.elementFromPoint(x, y));
+        })).toBe(true);
+      }
+
+      await checkGeometry("100");
+      const finePoint = await canvasPoint();
+      await page.mouse.move(finePoint.x, finePoint.y);
+      await page.keyboard.down("Control");
+      for (let step = 0; step < 20; step++) await page.mouse.wheel(0, -1);
+      await page.keyboard.up("Control");
+      await expect(reset).toHaveText("104% · 重置");
+      await expect(reset).toHaveAccessibleName("当前缩放 104%，重置为 100%");
+      await reset.click();
+      await expect(reset).toHaveText("100% · 重置");
+      // Start away from scroll limits so the pointer's content coordinate can stay fixed.
+      await canvas.evaluate((element) => { element.scrollLeft = 300; element.scrollTop = 400; });
+      const point = await canvasPoint();
+      const before = await page.locator("[data-branch-id]").first().boundingBox();
+      await wheelZoom(-Math.log(1.5) / 0.002, "150");
+      const after = await page.locator("[data-branch-id]").first().boundingBox();
+      expect((point.x - after!.x) / 1.5).toBeCloseTo(point.x - before!.x, 0);
+      expect((point.y - after!.y) / 1.5).toBeCloseTo(point.y - before!.y, 0);
+      expect(await selector.evaluate((element) => element.getBoundingClientRect().height)).toBe(controlSize);
+      expect(await page.evaluate(() => ({ dpr: devicePixelRatio, scale: visualViewport?.scale }))).toEqual(pageScale);
+
+      await wheelZoom(-10000, "200");
+      await wheelZoom(-10000, "200");
+      await selector.selectOption("125");
+      await expect(reset).toHaveText("200% · 重置");
+      await page.locator('[data-skill-id="125"]').scrollIntoViewIfNeeded();
+      await checkGeometry("200-join");
+      const reference = page.locator('[data-merge-for="125"] [data-prerequisite-id="112"]');
+      await reference.focus();
+      await page.keyboard.press("Enter");
+      await expect(page.locator('[data-skill-id="112"]')).toBeFocused();
+      await expect(reset).toHaveText("200% · 重置");
+      await page.getByRole("button", { name: "全部分支", exact: true }).click();
+      await checkGeometry("200");
+      await wheelZoom(10000, "50");
+      await wheelZoom(10000, "50");
+      await checkGeometry("50");
+      await reset.click();
+      await expect(reset).toHaveText("100% · 重置");
+
+      await canvas.evaluate((element) => { element.scrollTop = 300; element.scrollLeft = 300; });
+      const scrollPoint = await canvasPoint();
+      await page.mouse.move(scrollPoint.x, scrollPoint.y);
+      const top = await canvas.evaluate((element) => element.scrollTop);
+      await page.mouse.wheel(0, 180);
+      await expect.poll(() => canvas.evaluate((element) => element.scrollTop)).toBeGreaterThan(top);
+      await expect(reset).toHaveText("100% · 重置");
+
+      if (viewport.width === 390) {
+        const touch = await page.context().newCDPSession(page);
+        const start = await canvasPoint();
+        const top = await canvas.evaluate((element) => element.scrollTop);
+        await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: start.x, y: start.y }] });
+        for (let step = 1; step <= 6; step++) {
+          await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: start.x, y: start.y - step * 15 }] });
+        }
+        await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        await expect.poll(() => canvas.evaluate((element) => element.scrollTop)).toBeGreaterThan(top);
+        await touch.detach();
+      } else {
+        // Drag empty canvas space, release outside it, then drag a card's non-control area.
+        await canvas.evaluate((element) => { element.scrollLeft = 300; element.scrollTop = 0; });
+        const box = await canvas.boundingBox();
+        await page.mouse.move(box!.x + 200, box!.y + 10);
+        await page.mouse.down();
+        await page.mouse.move(box!.x + 100, box!.y - 40, { steps: 8 });
+        await expect(canvas).toHaveClass(/--dragging/);
+        expect(await canvas.evaluate((element) => [element.scrollLeft, element.scrollTop])).toEqual([400, 50]);
+        await page.mouse.up();
+        await expect(canvas).not.toHaveClass(/--dragging/);
+        await page.getByRole("button", { name: "物理技能", exact: true }).click();
+        await selector.selectOption("2");
+        const card = page.locator('[data-skill-id="2"]');
+        await card.scrollIntoViewIfNeeded();
+        const heading = card.locator("h4");
+        const h = await heading.boundingBox();
+        const before = await canvas.evaluate((element) => element.scrollTop);
+        await page.mouse.move(h!.x + h!.width / 2, h!.y + h!.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(h!.x + h!.width / 2, h!.y + h!.height / 2 - 70, { steps: 8 });
+        await page.mouse.up();
+        expect(await canvas.evaluate((element) => element.scrollTop)).toBeGreaterThan(before);
+        await expect(card).toHaveAttribute("data-state", "learnable");
+        await card.getByRole("button", { name: /^学习 / }).click();
+        await expect(card).toHaveAttribute("data-state", "learned");
+        await expect(card).toBeFocused();
+      }
+
+      await page.getByRole("button", { name: "被动技能", exact: true }).click();
+      for (const [delta, level] of [[-10000, "200"], [10000, "50"]] as const) {
+        await wheelZoom(delta, level);
+        await checkGeometry(`${level}-passive`);
+      }
+      await page.getByRole("button", { name: "装备技能", exact: true }).click();
+      await page.getByRole("button", { name: "技能学习", exact: true }).click();
+      await expect(reset).toHaveText("100% · 重置");
+    });
+
     test(`skill-tree branches, legacy skills and AND joins at ${viewport.width}px`, async ({
       page,
     }, testInfo) => {
