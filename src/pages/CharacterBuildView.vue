@@ -320,10 +320,12 @@ function close() {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 
 .character-build__tabs {
   display: flex;
+  flex-shrink: 0;
   gap: 0;
   border-bottom: var(--mg-border-width) solid var(--mg-border);
   margin-bottom: var(--mg-space-md);
@@ -355,7 +357,7 @@ function close() {
 .character-build__tab-content {
   flex: 1;
   overflow-y: auto;
-  min-height: 300px;
+  min-height: 0;
 }
 
 .character-build__loading,
