@@ -49,16 +49,22 @@ let toastTimer: ReturnType<typeof setTimeout> | undefined;
 let observer: ResizeObserver | undefined;
 
 const contentCharacterId = computed(() => (props.characterId === "__player__" ? "player" : props.characterId));
-const character = computed(() => {
+const contentResult = computed(() => {
   try {
-    return getCharacterByName(contentCharacterId.value);
-  } catch {
-    return null;
+    const character = getCharacterByName(contentCharacterId.value);
+    const ids = new Set(character.skillTree.flatMap((node) => [node.skillId, ...node.prerequisites]));
+    const skills = new Map(Array.from(ids, (id) => [id, getSkill(id)]));
+    return { character, skills, error: "" };
+  } catch (error) {
+    const missingCharacter = error instanceof Error
+      && error.message === `Character not found: "${contentCharacterId.value}"`;
+    return { character: null, skills: new Map<string, ReturnType<typeof getSkill>>(), error: missingCharacter ? "" : String(error) };
   }
 });
+const character = computed(() => contentResult.value.character);
 const learned = computed(() => sessionStore.learnedSkills.get(contentCharacterId.value) ?? new Set<string>());
 const tree = computed(() => character.value?.skillTree ?? []);
-const skills = computed(() => new Map(tree.value.map((node) => [node.skillId, getSkill(node.skillId)])));
+const skills = computed(() => contentResult.value.skills);
 const categoryCounts = computed(() =>
   Object.fromEntries(
     SKILL_CATEGORIES.map((category) => [
@@ -112,12 +118,12 @@ function branchName(id: string) {
   return skills.value.get(id)?.name ?? id;
 }
 function prerequisiteLabel(id: string) {
-  const skill = getSkill(id);
+  const skill = skills.value.get(id)!;
   const state = learned.value.has(id) ? "已学习" : "未学习";
   return `${skill.name} · ${CATEGORY_LABELS[skill.category]} · ${state}`;
 }
 function hasTreeNode(id: string) {
-  return skills.value.has(id);
+  return tree.value.some((node) => node.skillId === id);
 }
 function blockStyle(node: SkillTreeNode, column: number, span: number, row: number) {
   if (activeCategory.value === "passive") return {};
@@ -284,7 +290,7 @@ function onViewportKeydown(event: KeyboardEvent) {
 
 async function jumpToSkill(id: string) {
   if (!hasTreeNode(id)) return;
-  activeCategory.value = getSkill(id).category;
+  activeCategory.value = skills.value.get(id)!.category;
   await nextTick();
   selectedBranch.value =
     branches.value.find((branch) => branch.placements.some(({ node }) => node.skillId === id))?.id ?? "";
@@ -376,6 +382,9 @@ function cancelPan() {
     <div v-else-if="loadError" class="skilltree-tab__error" role="alert">
       <p>读取角色进度失败，请重试。</p>
       <button type="button" class="skilltree-tab__learn-btn" @click="refreshData">重试</button>
+    </div>
+    <div v-else-if="contentResult.error" class="skilltree-tab__error" role="alert">
+      技能树配置错误：{{ contentResult.error }}
     </div>
     <div v-else-if="!character" class="skilltree-tab__empty">未找到角色数据</div>
     <template v-else>

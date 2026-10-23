@@ -76,6 +76,68 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+describe("buff dispel support", () => {
+  const cases = [
+    ["player", "175"], ["player", "187"], ["enemy", "175"], ["enemy", "187"],
+  ] as const;
+
+  it.each(cases)("%s skill %s removes every buff stack from living active opponents, retaining shields and unrelated state", (side, skillId) => {
+    const opposite = side === "player" ? "enemy" : "player";
+    const casterId = side === "player" ? "p" : "e";
+    const targetId = side === "player" ? "e" : "p";
+    const buffs = [...content.getStatusEffectMap().values()].filter((effect) => effect.type === "buff");
+    const shields = [...content.getStatusEffectMap().values()].filter((effect) => effect.type === "shield");
+    const target = participant(targetId, opposite, {
+      statusEffects: [
+        ...buffs.map((effect) => ({ ...status(effect.id), stacks: effect.stackable ? 2 : 1 })),
+        ...shields.map((effect) => status(effect.id)),
+        status("attack_down"), status("burn"), status("blind"), status("unknown", 3),
+      ],
+      passiveEffects: content.getSkill("160").passiveEffects, accessoryEffects: ["auto_buff_start"],
+      affinities: { weak: 0, resist: 0, nullify: BATTLE_ELEMENTS.Dark | BATTLE_ELEMENTS.Ailment, reflect: 0, absorb: 0 },
+    });
+    const targets = [target, { ...target, id: "second" }, { ...target, id: "inactive", isActive: false },
+      { ...target, id: "down", isDown: true, hp: { current: 0, max: 1000 } }];
+    const casters = [participant(casterId, side, { statusEffects: [status("blind"), status("attack_up")] }),
+      participant("friend", side, { statusEffects: [status("attack_up")] })];
+    const snapshot = refreshBattleStatus(side === "player" ? battle(casters, targets) : battle(targets, casters));
+    vi.mocked(Math.random).mockReturnValue(0.99);
+    const next = side === "player" ? cast(snapshot, skillId, targetId) : enemyCast(snapshot, skillId, targetId);
+    for (const id of [targetId, "second"]) {
+      const before = get(snapshot, id);
+      const after = get(next, id);
+      const expected = before.statusEffects!.filter((effect) => !buffs.some((buff) => buff.id === effect.effectId));
+      if (skillId === "175") {
+        expected[expected.findIndex((effect) => effect.effectId === "attack_down")] = { ...status("attack_down"), stacks: 2 };
+        expected.push(status("defense_down"), status("agility_down"));
+      }
+      expect(after.statusEffects).toEqual(expected);
+      for (const key of ["hp", "mp", "attack", "defense", "agility", "intelligence", "passiveEffects", "accessoryEffects", "affinities"] as const) {
+        expect(after[key]).toEqual(before[key]);
+      }
+    }
+    for (const id of ["inactive", "down", "friend", casterId]) {
+      expect(get(next, id).statusEffects).toEqual(get(snapshot, id).statusEffects);
+    }
+    expect(get(next, casterId).mp.current).toBe(1000 - content.getSkill(skillId).mpCost);
+    expect(next.pressTurn.icons).toHaveLength(1);
+    expect(next.pressTurn.icons[0]!.state).toBe("solid");
+    expect(next.pressTurn.ownerSide).toBe(side);
+    expect(next.battleLog?.filter((entry) => entry.kind === "action")).toHaveLength(1);
+  });
+
+  it.each(cases)("%s skill %s still pays once and spends an action when no buff matches", (side, skillId) => {
+    const snapshot = battle();
+    const next = side === "player" ? cast(snapshot, skillId) : enemyCast(snapshot, skillId);
+    expect(get(next, side === "player" ? "p" : "e").mp.current).toBe(1000 - content.getSkill(skillId).mpCost);
+    expect(next.pressTurn.icons).toHaveLength(1);
+    expect(next.pressTurn.ownerSide).toBe(side);
+    expect(get(next, side === "player" ? "e" : "p").statusEffects?.map((effect) => effect.effectId)).toEqual(
+      skillId === "175" ? ["attack_down", "defense_down", "agility_down"] : [],
+    );
+  });
+});
+
 describe("approved status lifecycle", () => {
   it("seals only positive-MP skills at player and enemy execution/candidate gates", () => {
     const snapshot = battle([participant("p", "player", { statusEffects: [status("seal")] })]);

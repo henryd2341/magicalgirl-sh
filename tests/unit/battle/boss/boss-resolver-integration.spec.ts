@@ -10,6 +10,7 @@ import {
 import { resolveNextEnemyAction } from "@/engine/battle/battleResolver";
 import { applyBossBattleEvent } from "@/engine/battle/boss/bossRuntime";
 import { registerChallengeBossProfiles } from "@/engine/battle/boss/profiles/registerChallengeBossProfiles";
+import { getStatusEffectMap } from "@/content/contentRegistry";
 import type { BattleParticipant } from "@/types/battle";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -139,6 +140,45 @@ describe("Boss resolver integration", () => {
     expect(resolved).toMatchObject({ lifecycleState: "RESOLVED", phase: "RESULT", resultSummary: "Defeat" });
     expect(resolved.participants.filter(participant => participant.side === "player").every(participant => participant.hp.current === 0)).toBe(true);
     expect(resolved.battleLog?.some(entry => entry.summary.includes("镜壁戒律"))).toBe(true);
+  });
+
+  it.each([true, false])("executes queued 325 on the first living player after a different player's six-stage trigger (target buffed: %s)", (targetBuffed) => {
+    registerChallengeBossProfiles();
+    const statuses = [...getStatusEffectMap().values()];
+    const effects = statuses.filter((effect) => effect.type === "shield" || (targetBuffed && effect.type === "buff"))
+      .map((effect) => ({ effectId: effect.id, remainingDuration: effect.duration, stacks: effect.stackable ? 2 : 1 }));
+    effects.push({ effectId: "attack_down", remainingDuration: 3, stacks: 1 });
+    const first = { ...player, statusEffects: effects };
+    const trigger = { ...player, id: "trigger-player", statusEffects: [
+      { effectId: "attack_up", remainingDuration: 3, stacks: 2 },
+      { effectId: "defense_up", remainingDuration: 3, stacks: 2 },
+    ] };
+    const pending = createPendingBattleSnapshot({
+      encounterId: "hidden-dispel", narrativeReason: "six-stage dispel", source: "training/challenge",
+      enemies: [{ enemy_id: "107", count: 1 }, { enemy_id: "108", count: 1 }],
+    });
+    let active = createBattleSnapshotFromPendingBattle({ pendingBattle: pending, playerParty: [first, trigger] });
+    active = applyBossBattleEvent(active, {
+      type: "status_applied", sourceId: trigger.id, targetId: trigger.id, effectId: "defense_up",
+    });
+    const earth = active.participants.find((entry) => entry.enemyId === "108")!;
+    expect(active.bossRuntime?.queuedCounters[earth.id]).toBe("325");
+    const resolved = resolveNextEnemyAction({
+      ...active, phase: "ENEMY_TURN", currentActorId: earth.id,
+      pressTurn: { ownerSide: "enemy", icons: [{ id: "e1", state: "solid" }, { id: "e2", state: "solid" }] },
+      pressTurnAllocation: { participantIds: [earth.id], initialIconCount: 2 },
+    });
+    expect(resolved.bossRuntime?.queuedCounters[earth.id]).toBeNull();
+    expect(resolved.participants.find((entry) => entry.id === first.id)?.statusEffects?.map((effect) => effect.effectId)).toEqual(
+      effects.filter((effect) => getStatusEffectMap().get(effect.effectId)!.type !== "buff").map((effect) => effect.effectId),
+    );
+    expect(resolved.participants.find((entry) => entry.id === trigger.id)?.statusEffects).toEqual(trigger.statusEffects);
+    expect(resolved.participants.find((entry) => entry.id === earth.id)?.mp).toEqual(earth.mp);
+    expect(resolved.pressTurn.icons).toHaveLength(1);
+    expect(resolved.phase).toBe("ENEMY_TURN");
+    const actions = resolved.battleLog?.filter((entry) => entry.kind === "action");
+    expect(actions).toHaveLength(1);
+    expect(actions![0]!.summary).toContain("万象归土");
   });
 
   it("attributes Boss damage-over-time HP loss to the player's DPS windows", () => {

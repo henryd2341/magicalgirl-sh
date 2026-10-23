@@ -2,15 +2,50 @@ import {
   assertUniqueContentIds,
   getItem,
   getSkill,
+  getAllSkills,
   isChallengeEnemyId,
   isEnemyExclusiveSkillId,
   getStatusEffect,
   getStatusEffectMap,
   statusEffectContentSchema,
 } from "@/content/contentRegistry";
-import { describe, expect, it } from "vitest";
+import skillsRaw from "@/content/skills.jsonl?raw";
+import { describe, expect, it, vi } from "vitest";
 
 describe("challenge content ID boundaries", () => {
+  it("loads every bundled skill and separates seven dispellable buffs from all 21 shields", () => {
+    expect(getAllSkills().size).toBe(skillsRaw.trim().split("\n").length);
+    for (const id of ["175", "187", "325"]) expect(getSkill(id).cleanses).toEqual(["buff"]);
+    expect(getSkill("297").healPercent).toBe(10);
+    const statuses = [...getStatusEffectMap().values()];
+    expect(statuses.filter((effect) => effect.type === "buff").map((effect) => effect.id).sort()).toEqual([
+      "agility_up", "attack_up", "chant", "charge", "defense_up", "focus", "intelligence_up",
+    ]);
+    const shields = statuses.filter((effect) => effect.type === "shield");
+    expect(shields.map((effect) => effect.id).sort()).toEqual([
+      "fire_null", "fire_reflect", "fire_absorb", "ice_null", "ice_reflect", "ice_absorb",
+      "wind_null", "wind_reflect", "wind_absorb", "electric_null", "electric_reflect", "electric_absorb",
+      "earth_null", "earth_reflect", "earth_absorb", "element_null", "physical_null",
+      "physical_reflect", "physical_absorb", "ailment_null", "guard",
+    ].sort());
+    for (const shield of shields) expect(shield).toMatchObject({ duration: 1, stackable: false });
+    expect(statusEffectContentSchema.safeParse({ ...shields[0], type: "unknown" }).success).toBe(false);
+  });
+
+  it.each(["shield", "unknown"])("rejects %s cleansing at the real skill-loading boundary", async (cleanse) => {
+    vi.resetModules();
+    vi.doMock("@/content/skills.jsonl?raw", () => ({
+      default: JSON.stringify({ ...JSON.parse(skillsRaw.split("\n")[0]!), cleanses: [cleanse] }),
+    }));
+    try {
+      const isolated = await import("@/content/contentRegistry");
+      expect(() => isolated.getAllSkills()).toThrow(/\[skills.jsonl\] Line 1:[\s\S]*cleanses/);
+    } finally {
+      vi.doUnmock("@/content/skills.jsonl?raw");
+      vi.resetModules();
+    }
+  });
+
   it("keeps all 40 status IDs and validates the optional final-hit multiplier", () => {
     expect(getStatusEffectMap().size).toBe(40);
     const blind = getStatusEffect("blind");

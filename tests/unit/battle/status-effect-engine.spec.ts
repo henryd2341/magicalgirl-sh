@@ -4,9 +4,11 @@ import {
   computeEffectiveStats,
   consumeChargeChantFocus,
   isDisabledByAilment,
+  isShieldStatusEffect,
   tickStatusEffects,
 } from "@/engine/battle/statusEffectEngine";
 import type { ActiveStatusEffect } from "@/types/battle";
+import { getStatusEffect } from "@/content/contentRegistry";
 import type { StatusEffectContent } from "@/types/content";
 import { describe, expect, it } from "vitest";
 
@@ -329,6 +331,13 @@ describe("statusEffectEngine", () => {
   // ── checkShield ──
 
   describe("checkShield", () => {
+    it("classifies guard as shield without treating it as an intercepting barrier", () => {
+      expect(getStatusEffect("guard").type).toBe("shield");
+      expect(isShieldStatusEffect("guard")).toBe(false);
+      for (const element of Object.values(ELEM)) {
+        expect(checkShield([{ effectId: "guard", remainingDuration: 1, stacks: 1 }], element).blocked).toBe(false);
+      }
+    });
     it("returns blocked for matching element nullify shield", () => {
       const effects: ActiveStatusEffect[] = [
         { effectId: "fire_null", remainingDuration: 1, stacks: 1 },

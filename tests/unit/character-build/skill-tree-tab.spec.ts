@@ -68,6 +68,61 @@ afterEach(() => {
 });
 
 describe("SkillTreeTab", () => {
+  it.each(["character", "skill", "prerequisite"])("contains the original %s content error before any render lookup and recovers on remount", async (source) => {
+    const diagnostic = source === "prerequisite"
+      ? 'Skill not found: "missing-innate"'
+      : `[${source === "character" ? "characters" : "skills"}.jsonl] Line 176: invalid content`;
+    const errors = vi.fn();
+    const originalCharacter = registry.getCharacterByName;
+    const originalSkill = registry.getSkill;
+    const characterLookup = vi.spyOn(registry, "getCharacterByName").mockImplementation((name) => {
+      if (source === "character") throw new Error(diagnostic);
+      const character = originalCharacter(name);
+      return source === "prerequisite" ? {
+        ...character,
+        skillTree: character.skillTree.map((node, index) => index ? node : { ...node, prerequisites: ["missing-innate"] }),
+      } : character;
+    });
+    const skillLookup = vi.spyOn(registry, "getSkill").mockImplementation((id) => {
+      if (source === "skill" || id === "missing-innate") throw new Error(diagnostic);
+      return originalSkill(id);
+    });
+    const { unmount } = render(SkillTreeTab, {
+      props: { characterId: "佐仓真央" }, global: { config: { errorHandler: errors } },
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(diagnostic);
+    expect(screen.queryByRole("navigation", { name: "技能分类" })).not.toBeInTheDocument();
+    notifyResize();
+    expect(errors).not.toHaveBeenCalled();
+    unmount();
+    characterLookup.mockRestore();
+    skillLookup.mockRestore();
+    render(SkillTreeTab, { props: { characterId: "佐仓真央" } });
+    expect(await screen.findByRole("navigation", { name: "技能分类" })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("keeps a missing character distinct from invalid content", async () => {
+    render(SkillTreeTab, { props: { characterId: "missing-character" } });
+    expect(await screen.findByText("未找到角色数据")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("preloads innate prerequisites without turning them into tree jump targets", async () => {
+    const character = registry.getCharacter("player");
+    vi.spyOn(registry, "getCharacterByName").mockReturnValue({
+      ...character,
+      skillTree: [{ skillId: "1", prerequisites: ["0"], requiredLevel: 1, cost: 0 }],
+    });
+    const lookup = vi.spyOn(registry, "getSkill");
+    const { container } = await openTree();
+    const innate = container.querySelector('[data-prerequisite-id="0"]')!;
+    expect(innate.tagName).toBe("SPAN");
+    expect(innate).toHaveTextContent("天生技能");
+    expect(innate).toHaveAttribute("data-state", "learned");
+    expect(lookup.mock.calls).toEqual([["1"], ["0"]]);
+  });
+
   it("defaults to one branch, exposes all branches and returns to a chosen branch", async () => {
     const { container } = await openTree();
     expect(container.querySelectorAll("[data-branch-id]")).toHaveLength(1);
