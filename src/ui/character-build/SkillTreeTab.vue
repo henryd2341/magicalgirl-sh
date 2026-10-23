@@ -911,7 +911,7 @@ button.skilltree-tab__reference {
   border: 1px solid var(--mg-accent);
   border-radius: var(--mg-radius-pill);
   background: var(--mg-accent);
-  color: var(--mg-ink-outline);
+  color: var(--mg-text-on-accent);
   cursor: pointer;
   font: inherit;
   font-weight: 700;
