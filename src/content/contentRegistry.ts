@@ -54,6 +54,7 @@ const skillContentSchema = z.object({
     "self",
   ]),
   accuracy: z.number().int().min(0).max(200),
+  pierceResistanceWhenCharged: z.boolean().optional(),
   statDriver: z.enum(["attack", "intelligence"]),
   critRate: z.number().int().min(0).max(100).optional(),
   hitCount: z.number().int().min(1).optional(),

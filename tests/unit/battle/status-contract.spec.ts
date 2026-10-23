@@ -1,5 +1,6 @@
 import * as content from "@/content/contentRegistry";
 import * as enemyUtility from "@/engine/battle/enemyUtility";
+import * as battleLogger from "@/engine/battle/battleLogger";
 import {
   buildAttackOutcomes,
   refreshBattleStatus,
@@ -175,7 +176,7 @@ describe("approved status lifecycle", () => {
     const actor = participant("p", "player", { statusEffects: [status("blind")] });
     const input = {
       actorId: actor.id, actor, targetId: "e", target: participant("e", "enemy"),
-      skillPower: skill.power, skillElement: skill.element, skillAccuracy: 200,
+      skillPower: skill.power, skillElement: skill.element, skillAccuracy: 199,
       statDriver: skill.statDriver, skillCategory: skill.category,
     };
     expect(buildAttackOutcomes(input)[0]!.type).toBe("miss");
@@ -488,5 +489,150 @@ describe("action-scoped shields and offensive buffs", () => {
     const untyped = { ...content.getItem("27"), element: undefined };
     vi.spyOn(content, "getItem").mockReturnValue(untyped);
     expect(get(use(participant("e", "enemy", { statusEffects: [status("fire_null"), status("guard")] })), "e").hp.current).toBe(985);
+  });
+});
+
+describe("charged affinity/shield piercing and numeric guaranteed attacks", () => {
+  const fire = BATTLE_ELEMENTS.Fire;
+  const affinities = { weak: 0, resist: fire, nullify: 0, reflect: 0, absorb: 0 };
+
+  function attack(side: "player" | "enemy", skillId: string, target: Partial<BattleParticipant>, charged = true) {
+    const casterId = side === "player" ? "p" : "e";
+    const targetId = side === "player" ? "e" : "p";
+    const snapshot = battle();
+    Object.assign(get(snapshot, casterId), { statusEffects: charged ? [status("charge")] : [] });
+    Object.assign(get(snapshot, targetId), target);
+    return side === "player" ? cast(snapshot, skillId) : enemyCast(snapshot, skillId);
+  }
+
+  it.each(["player", "enemy"] as const)("%s charged 164 ignores native/passive Fire resistance without mutating it", (side) => {
+    const targetId = side === "player" ? "e" : "p";
+    const casterId = side === "player" ? "p" : "e";
+    const neutral = attack(side, "164", {});
+    const resistant = attack(side, "164", { affinities });
+    const passive = attack(side, "164", { passiveEffects: [{ hook: "on_damage_calc", type: "element_resist", element: "Fire", value: 0.5 }] });
+    expect(get(neutral, targetId).hp.current).toBeLessThan(1000);
+    expect(get(resistant, targetId).hp).toEqual(get(neutral, targetId).hp);
+    expect(get(passive, targetId).hp).toEqual(get(neutral, targetId).hp);
+    expect(get(resistant, targetId).affinities).toEqual(affinities);
+    expect(get(passive, targetId).passiveEffects).toHaveLength(1);
+    expect(get(resistant, casterId).statusEffects).not.toEqual(expect.arrayContaining([expect.objectContaining({ effectId: "charge" })]));
+    expect(get(resistant, casterId).mp.current).toBe(955);
+    expect(get(attack(side, "164", { affinities }, false), targetId).hp.current)
+      .toBeGreaterThan(get(attack(side, "164", {}, false), targetId).hp.current);
+    expect(get(attack(side, "0", { affinities: { ...affinities, resist: BATTLE_ELEMENTS.Physical } }), targetId).hp.current)
+      .toBeGreaterThan(get(attack(side, "0", {}), targetId).hp.current);
+  });
+
+  it.each(["player", "enemy"] as const)("%s charged 164 bypasses native/passive prevention and every matching shield without consuming it", (side) => {
+    const targetId = side === "player" ? "e" : "p";
+    const casterId = side === "player" ? "p" : "e";
+    const playerLog = vi.spyOn(battleLogger, "createPlayerActionLogEntry");
+    const enemyLog = vi.spyOn(battleLogger, "createEnemySkillLogEntry");
+    const neutralDamage = 1000 - get(attack(side, "164", {}), targetId).hp.current;
+    const protections: Partial<BattleParticipant>[] = [
+      ...["nullify", "reflect", "absorb"].map((prevention) => ({
+        affinities: { ...affinities, [prevention]: fire | BATTLE_ELEMENTS.Ice },
+      })),
+      { passiveEffects: [{ hook: "on_damage_calc", type: "element_nullify", element: "Fire", value: 1 }] },
+      ...["fire_null", "fire_reflect", "fire_absorb", "element_null"].map((effectId) => ({ statusEffects: [status(effectId)] })),
+      {
+        affinities: { ...affinities, nullify: fire, reflect: fire, absorb: fire },
+        statusEffects: ["fire_null", "fire_reflect", "fire_absorb", "element_null", "physical_null"].map((id) => status(id)),
+      },
+    ];
+    for (const protection of protections) {
+      const result = attack(side, "164", { ...protection, hp: { current: 500, max: 1000 } });
+      expect(get(result, targetId).hp.current).toBe(500 - neutralDamage);
+      expect(get(result, casterId).hp.current).toBe(1000);
+      expect(get(result, casterId).mp.current).toBe(955);
+      expect(get(result, casterId).statusEffects).not.toContainEqual(expect.objectContaining({ effectId: "charge" }));
+      expect(get(result, targetId).affinities).toEqual(protection.affinities);
+      expect(get(result, targetId).passiveEffects).toEqual(protection.passiveEffects);
+      expect(get(result, targetId).statusEffects).toMatchObject(protection.statusEffects ?? []);
+      expect(result.pressTurn.ownerSide).toBe(side);
+      expect(result.pressTurn.icons).toHaveLength(1);
+      expect(result.pressTurn.icons[0]!.state).toBe("solid");
+      const outcomes = side === "player" ? playerLog.mock.calls.at(-1)![0].outcomes : enemyLog.mock.calls.at(-1)![4];
+      expect(outcomes.filter((outcome) => outcome.finalTargetId === targetId)).toEqual([
+        { actorId: casterId, primaryTargetId: targetId, finalTargetId: targetId, type: "hit", tags: [], hpDelta: -neutralDamage },
+      ]);
+      expect(outcomes.every((outcome) => outcome.preventedBy == null && outcome.consumedShieldEffectId == null)).toBe(true);
+      if (protection.statusEffects?.length === 1) {
+        const ordinary = side === "player" ? cast(result, "164") : enemyCast(result, "164");
+        expect(get(ordinary, targetId).hp.current).toBeGreaterThanOrEqual(get(result, targetId).hp.current);
+        const laterOutcomes = side === "player" ? playerLog.mock.calls.at(-1)![0].outcomes : enemyLog.mock.calls.at(-1)![4];
+        expect(laterOutcomes).toContainEqual(expect.objectContaining({ consumedShieldEffectId: protection.statusEffects[0]!.effectId }));
+      }
+    }
+  });
+
+  it.each(["player", "enemy"] as const)("%s piercing retains guard, weakness and charge on a miss", (side) => {
+    const targetId = side === "player" ? "e" : "p";
+    const casterId = side === "player" ? "p" : "e";
+    const neutralDamage = 1000 - get(attack(side, "164", {}), targetId).hp.current;
+    const guarded = attack(side, "164", { affinities: { ...affinities, nullify: fire }, statusEffects: [status("fire_reflect"), status("guard")] });
+    expect(1000 - get(guarded, targetId).hp.current).toBe(Math.floor(neutralDamage * 0.5));
+    const weak = attack(side, "164", { affinities: { ...affinities, nullify: fire, weak: fire }, statusEffects: [status("element_null")] });
+    expect(1000 - get(weak, targetId).hp.current).toBeGreaterThan(neutralDamage);
+    expect(weak.battleLog?.some((entry) => entry.summary.includes("弱点"))).toBe(true);
+    expect(weak.pressTurn.icons).toHaveLength(2);
+    expect(weak.pressTurn.icons.some((icon) => icon.state === "blinking")).toBe(true);
+    const guardedWeak = attack(side, "164", { affinities: { ...affinities, nullify: fire, weak: fire }, statusEffects: [status("fire_null"), status("guard")] });
+    expect(1000 - get(guardedWeak, targetId).hp.current).toBe(Math.floor(neutralDamage * 0.5));
+    expect(guardedWeak.battleLog?.some((entry) => entry.summary.includes("弱点"))).toBe(false);
+    vi.mocked(Math.random).mockReturnValue(0.9999999999999999);
+    const missed = attack(side, "164", { affinities: { ...affinities, reflect: fire }, statusEffects: [status("fire_reflect")] });
+    expect(get(missed, targetId).hp.current).toBe(1000);
+    expect(get(missed, casterId).hp.current).toBe(1000);
+    expect(get(missed, casterId).statusEffects).toContainEqual(expect.objectContaining({ effectId: "charge" }));
+    expect(get(missed, targetId).statusEffects).toContainEqual(expect.objectContaining({ effectId: "fire_reflect" }));
+    expect(get(missed, casterId).mp.current).toBe(955);
+    expect(missed.battleLog?.some((entry) => entry.summary.includes("Miss"))).toBe(true);
+  });
+
+  it.each(["player", "enemy"] as const)("%s uncharged 164 and unrelated charged skills still obey prevention", (side) => {
+    const targetId = side === "player" ? "e" : "p";
+    const casterId = side === "player" ? "p" : "e";
+    for (const [skillId, charged] of [["164", false], ["162", true]] as const) {
+      for (const prevention of ["nullify", "reflect", "absorb"] as const) {
+        const result = attack(side, skillId, { affinities: { ...affinities, [prevention]: fire } }, charged);
+        expect(get(result, targetId).hp.current).toBe(1000);
+        if (charged) expect(get(result, casterId).statusEffects).toContainEqual(expect.objectContaining({ effectId: "charge" }));
+      }
+      const passive = attack(side, skillId, { passiveEffects: [{ hook: "on_damage_calc", type: "element_nullify", element: "Fire", value: 1 }] }, charged);
+      expect(get(passive, targetId).hp.current).toBe(1000);
+      for (const effectId of ["fire_null", "fire_reflect", "fire_absorb", "element_null"]) {
+        const result = attack(side, skillId, { affinities, statusEffects: [status(effectId)] }, charged);
+        expect(get(result, targetId).hp.current).toBe(1000);
+        expect(get(result, targetId).statusEffects).not.toContainEqual(expect.objectContaining({ effectId }));
+        if (charged) expect(get(result, casterId).statusEffects).toContainEqual(expect.objectContaining({ effectId: "charge" }));
+        if (effectId === "fire_reflect") expect(get(result, casterId).hp.current).toBeLessThan(1000);
+      }
+    }
+  });
+
+  it.each(["player", "enemy"] as const)("%s real guaranteed skills hit through blind/extreme agility without guaranteeing their riders", (side) => {
+    vi.mocked(Math.random).mockReturnValue(0.9999999999999999);
+    for (const skillId of ["42", "49", "56", "63", "70", "77", "84", "170"]) {
+      const casterId = side === "player" ? "p" : "e";
+      const targetId = side === "player" ? "e" : "p";
+      const snapshot = battle();
+      Object.assign(get(snapshot, casterId), { agility: 0, statusEffects: [status("blind")] });
+      get(snapshot, targetId).agility = 1000000;
+      const next = side === "player" ? cast(snapshot, skillId) : enemyCast(snapshot, skillId);
+      expect(get(next, targetId).hp.current, skillId).toBeLessThan(1000);
+      expect(get(next, targetId).statusEffects, skillId).toEqual([]);
+      expect(get(next, casterId).mp.current, skillId).toBe(1000 - content.getSkill(skillId).mpCost);
+    }
+  });
+
+  it.each(["player", "enemy"] as const)("%s guaranteed accuracy still respects native prevention and temporary shields", (side) => {
+    vi.mocked(Math.random).mockReturnValue(0.9999999999999999);
+    const targetId = side === "player" ? "e" : "p";
+    for (const prevention of ["nullify", "reflect", "absorb"] as const) {
+      expect(get(attack(side, "42", { affinities: { ...affinities, [prevention]: fire } }), targetId).hp.current).toBe(1000);
+    }
+    expect(get(attack(side, "42", { statusEffects: [status("fire_null")] }), targetId).hp.current).toBe(1000);
   });
 });

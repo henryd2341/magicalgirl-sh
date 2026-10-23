@@ -16,6 +16,7 @@ import {
 } from "@/engine/battle/formulaEngine";
 import { BATTLE_ELEMENTS } from "@/types/battle";
 import type { FormulaParams } from "@/types/content";
+import { getFormulaParams } from "@/content/contentRegistry";
 
 function makeParams(overrides?: Partial<FormulaParams>): FormulaParams {
   return {
@@ -132,6 +133,28 @@ describe("calculateHitChance", () => {
   it("clamps to maxHitRate", () => {
     const result = calculateHitChance(100, 100, 1, params);
     expect(result).toBeLessThanOrEqual(params.maxHitRate);
+  });
+
+  it("guarantees exactly 200 before agility, custom caps and even a zero hit multiplier", () => {
+    for (const agility of [0, 1000000]) {
+      for (const multiplier of [0, 0.5, 1]) {
+        expect(calculateHitChance(200, agility, 1000000 - agility, params, multiplier)).toBe(100);
+      }
+    }
+  });
+
+  it("raises the bundled ordinary and derived caps to 100, then applies blind", () => {
+    const bundled = getFormulaParams();
+    expect(bundled.hitRate.maxHitRate).toBe(100);
+    for (const accuracy of [100, 199]) {
+      expect(calculateHitChance(accuracy, 1000, 0, bundled.hitRate)).toBe(100);
+      expect(calculateHitChance(accuracy, 1000, 0, bundled.hitRate, 0.5)).toBe(50);
+      expect(calculateHitChance(accuracy, 0, 1000, bundled.hitRate, 0.5)).toBe(2.5);
+    }
+    expect(computeDerivedCombatStats(1000, bundled.hitRate, bundled.critRate)).toMatchObject({
+      accuracy: 100, evasion: 100,
+    });
+    expect(calculateHitChance(80, 100, 0, bundled.hitRate)).toBe(100);
   });
 });
 

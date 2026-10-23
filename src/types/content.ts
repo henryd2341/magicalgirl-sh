@@ -49,7 +49,8 @@ export interface SkillContent {
   power: number;
   mpCost: number;
   targetType: SkillTargetType;
-  accuracy: number; // 0–200, base hit chance
+  accuracy: number; // 0–200; exactly 200 guarantees a hit
+  pierceResistanceWhenCharged?: boolean;
   statDriver: "attack" | "intelligence";
   critRate?: number; // per-skill bonus crit rate, additive with base
   hitCount?: number; // min hits, default 1

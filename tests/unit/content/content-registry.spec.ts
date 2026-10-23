@@ -13,6 +13,30 @@ import skillsRaw from "@/content/skills.jsonl?raw";
 import { describe, expect, it, vi } from "vitest";
 
 describe("challenge content ID boundaries", () => {
+  it("reserves accuracy 200 for the eight guaranteed offensive skills and piercing for 164", () => {
+    const skills = [...getAllSkills().values()];
+    expect(skills.filter((skill) => ["physical", "magic"].includes(skill.category) && skill.accuracy === 200)
+      .map((skill) => skill.id)).toEqual(["42", "49", "56", "63", "70", "77", "84", "170"]);
+    expect(skills.filter((skill) => skill.pierceResistanceWhenCharged).map((skill) => skill.id)).toEqual(["164"]);
+    for (const id of ["25", "31", "34"]) expect(getSkill(id).accuracy).toBe(100);
+  });
+
+  it.each([
+    { accuracy: -1 }, { accuracy: 201 }, { pierceResistanceWhenCharged: "true" },
+  ])("rejects invalid attack metadata %j at the skill-loading boundary", async (fields) => {
+    vi.resetModules();
+    vi.doMock("@/content/skills.jsonl?raw", () => ({
+      default: JSON.stringify({ ...JSON.parse(skillsRaw.split("\n")[0]!), ...fields }),
+    }));
+    try {
+      const isolated = await import("@/content/contentRegistry");
+      expect(() => isolated.getAllSkills()).toThrow(/\[skills.jsonl\] Line 1:/);
+    } finally {
+      vi.doUnmock("@/content/skills.jsonl?raw");
+      vi.resetModules();
+    }
+  });
+
   it("loads every bundled skill and separates seven dispellable buffs from all 21 shields", () => {
     expect(getAllSkills().size).toBe(skillsRaw.trim().split("\n").length);
     for (const id of ["175", "187", "325"]) expect(getSkill(id).cleanses).toEqual(["buff"]);

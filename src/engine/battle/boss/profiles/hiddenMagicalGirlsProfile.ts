@@ -2,7 +2,7 @@ import { getStatusEffectMap } from "@/content/contentRegistry";
 import { cloneBossStateValue } from "@/engine/battle/boss/bossStateClone";
 import { isShieldStatusEffect } from "@/engine/battle/statusEffectEngine";
 import type { BossProfile } from "@/engine/battle/boss/bossRegistry";
-import type { BossActionIntent, BossContext, BossEffect, BossUtilityCandidate } from "@/engine/battle/boss/bossTypes";
+import type { BossActionIntent, BossContext, BossEffect, BossUtilityCandidate, HiddenExecutionFailure } from "@/engine/battle/boss/bossTypes";
 import { BATTLE_ELEMENTS } from "@/types/battle";
 
 export const ALL_HIDDEN_DAMAGE_RESISTANCE = BATTLE_ELEMENTS.Physical | BATTLE_ELEMENTS.Gun | BATTLE_ELEMENTS.Fire | BATTLE_ELEMENTS.Ice | BATTLE_ELEMENTS.Electric | BATTLE_ELEMENTS.Wind | BATTLE_ELEMENTS.Earth | BATTLE_ELEMENTS.Light | BATTLE_ELEMENTS.Dark | BATTLE_ELEMENTS.Almighty;
@@ -11,6 +11,11 @@ export interface HiddenPairState { phase: "trial" | "confluence" | "horizon"; co
 interface CommandmentState { skillUses: Record<string, number>; guardOrPassActors: string[]; partyHealing: number; }
 const INITIAL: HiddenPairState = { phase: "trial", confluenceRounds: 0, bigWindowStartRound: 1, bigWindowDamage: 0, smallWindow: null, crisisEntered: { "107": false, "108": false }, finalPlayerRoundsRemaining: null, reviveTargetActorId: null, ailmentSuccesses: {} };
 const EMPTY_COMMANDMENTS: CommandmentState = { skillUses: {}, guardOrPassActors: [], partyHealing: 0 };
+const EXECUTION_FLAGS: Record<HiddenExecutionFailure, string> = {
+  shield_commandment: "hidden:shieldCommandmentFailed",
+  big_dps: "hidden:bigDpsFailed",
+  final_countdown: "hidden:finalFailed",
+};
 function pair(context: BossContext): HiddenPairState { return cloneBossStateValue((context.runtime.mechanicState["hidden:pair"] as HiddenPairState | undefined) ?? INITIAL); }
 function commandments(context: BossContext): CommandmentState { return cloneBossStateValue((context.runtime.mechanicState["hidden:commandments"] as CommandmentState | undefined) ?? EMPTY_COMMANDMENTS); }
 function bosses(context: BossContext) { return context.snapshot.participants.filter((p) => p.enemyId === "107" || p.enemyId === "108"); }
@@ -27,6 +32,9 @@ function useSkill(actorId: string, skillId: string, targetIds: string[], reason:
 export const hiddenMagicalGirlsProfile: BossProfile = {
   id: "hidden-magical-girls", actorEnemyIds: ["107", "108"], initialPhase: "trial", skillIds: Array.from({ length: 24 }, (_, i) => String(306 + i)),
   reduceEvent(context, event): BossEffect[] {
+    if (event.type === "hidden_execution_resolved") return [
+      { type: "set_flag", key: EXECUTION_FLAGS[event.failure], value: false },
+    ];
     const value = pair(context); const effects: BossEffect[] = [];
     if (event.type === "damage_applied" && bosses(context).some((boss) => boss.id === event.targetId)) {
       if (isPlayer(context, event.sourceId)) { value.bigWindowDamage += event.amount; if (value.smallWindow) value.smallWindow.damage += event.amount; }
@@ -64,17 +72,23 @@ export const hiddenMagicalGirlsProfile: BossProfile = {
       if (event.turnCount % 8 === 0) { const failed = value.bigWindowDamage < 2000; effects.push({ type: "set_flag", key: "hidden:bigDpsFailed", value: failed }, { type: "append_mechanic_log", summary: failed ? "大 DPS 检定失败" : "大 DPS 检定通过", details: [`${value.bigWindowDamage} / 2000`] }); value.bigWindowStartRound = event.turnCount + 1; value.bigWindowDamage = 0; }
       if (value.smallWindow) { value.smallWindow.remainingPlayerRounds -= 1; if (value.smallWindow.remainingPlayerRounds <= 0) { const failed = value.smallWindow.damage < 800; effects.push({ type: "set_flag", key: "hidden:smallDpsFailed", value: failed }, { type: "append_mechanic_log", summary: failed ? "小 DPS 检定失败" : "小 DPS 检定通过", details: [`${value.smallWindow.damage} / 800`] }); if (failed) for (const boss of bosses(context)) effects.push({ type: "adjust_hp", actorId: boss.id, amount: Math.ceil(boss.hp.max * 0.1) }, { type: "apply_status", actorId: boss.id, effectId: "attack_up", duration: 3 }, { type: "apply_status", actorId: boss.id, effectId: "intelligence_up", duration: 3 }); else { const earth = bossByEnemy(context, "108"); if (earth) effects.push({ type: "apply_status", actorId: earth.id, effectId: "defense_down", duration: 1 }); } value.smallWindow = null; } }
       if (value.phase === "confluence") { value.confluenceRounds += 1; if (value.smallWindow == null && value.confluenceRounds % 4 === 0) { value.smallWindow = { remainingPlayerRounds: 2, damage: 0 }; effects.push({ type: "append_mechanic_log", summary: "小 DPS 检定再次启动", details: ["2 回合 / 800 伤害"] }); } }
-      if (value.finalPlayerRoundsRemaining != null) { value.finalPlayerRoundsRemaining = Math.max(0, value.finalPlayerRoundsRemaining - 1); if (value.finalPlayerRoundsRemaining === 0) effects.push({ type: "set_flag", key: "hidden:finalFailed", value: true }); }
+      if (value.finalPlayerRoundsRemaining != null && value.finalPlayerRoundsRemaining > 0) { value.finalPlayerRoundsRemaining -= 1; if (value.finalPlayerRoundsRemaining === 0) effects.push({ type: "set_flag", key: "hidden:finalFailed", value: true }); }
       effects.unshift(stateEffect(value), commandEffect(EMPTY_COMMANDMENTS)); return effects;
     }
-    if (event.type === "participant_down") { const members = bosses(context); const living = members.filter((p) => !p.isDown); const down = members.filter((p) => p.isDown); value.reviveTargetActorId = down.length === 1 && living.length === 1 ? down[0]!.id : null; return [stateEffect(value), { type: "append_mechanic_log", summary: value.reviveTargetActorId ? "复苏脉动已排入下一实际行动" : "双重击破成立", details: value.reviveTargetActorId ? [`目标 ${value.reviveTargetActorId}`] : [] }]; }
+    if (event.type === "participant_down" && bosses(context).some((boss) => boss.id === event.participantId)) { const members = bosses(context); const living = members.filter((p) => !p.isDown); const down = members.filter((p) => p.isDown); value.reviveTargetActorId = down.length === 1 && living.length === 1 ? down[0]!.id : null; return [stateEffect(value), { type: "append_mechanic_log", summary: value.reviveTargetActorId ? "复苏脉动已排入下一实际行动" : "双重击破成立", details: value.reviveTargetActorId ? [`目标 ${value.reviveTargetActorId}`] : [] }]; }
     if (event.type === "action_resolved" && event.actionId === "324" && value.reviveTargetActorId) { const target = value.reviveTargetActorId; value.reviveTargetActorId = null; return [{ type: "revive_actor", actorId: target, hpPercent: 50 }, stateEffect(value), { type: "append_mechanic_log", summary: "复苏脉动", details: ["同伴恢复 50% 最大生命"] }]; }
     return [];
   },
   selectPriorityIntent(context, priority) {
     const value = pair(context); const actor = context.snapshot.participants.find((p) => p.id === context.actorId);
-    if (priority === "hard_defeat" && context.runtime.flags["hidden:shieldCommandmentFailed"]) return { type: "force_defeat", skillId: "317", reason: "镜壁戒律：玩家方使用护盾" };
-    if (priority === "hard_defeat" && (context.runtime.flags["hidden:bigDpsFailed"] || context.runtime.flags["hidden:finalFailed"])) return { type: "force_defeat", skillId: context.runtime.flags["hidden:bigDpsFailed"] ? "317" : "316", reason: "隐藏挑战硬性检定失败" };
+    if (priority === "hard_defeat") {
+      for (const failure of ["shield_commandment", "big_dps", "final_countdown"] as const) {
+        if (context.runtime.flags[EXECUTION_FLAGS[failure]]) return {
+          type: "execute_players", failure, skillId: failure === "final_countdown" ? "316" : "317",
+          reason: failure === "shield_commandment" ? "镜壁戒律：玩家方使用护盾" : "隐藏挑战硬性检定失败",
+        };
+      }
+    }
     if (priority === "revival" && value.reviveTargetActorId && actor && !actor.isDown) return useSkill(actor.id, "324", [value.reviveTargetActorId], "强制复活优先");
     if (priority === "emergency" && actor?.enemyId === "108") { const wounded = bosses(context).filter((boss) => !boss.isDown).sort((a, b) => a.hp.current / a.hp.max - b.hp.current / b.hp.max)[0]; if (wounded && wounded.hp.current / wounded.hp.max < 0.5) return useSkill(actor.id, "321", [wounded.id], "大地恩泽紧急恢复"); if (bosses(context).some((boss) => (boss.statusEffects ?? []).length > 0)) return useSkill(actor.id, "322", bosses(context).map((boss) => boss.id), "岩庭净化"); }
     return null;

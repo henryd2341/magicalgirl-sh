@@ -1,6 +1,9 @@
 import type { BattleSnapshot } from "@/types/battle";
 
+export type HiddenExecutionFailure = "shield_commandment" | "big_dps" | "final_countdown";
+
 export type BossBattleEvent =
+  | { type: "hidden_execution_resolved"; failure: HiddenExecutionFailure }
   | { type: "battle_started" }
   | { type: "round_started"; turnCount: number }
   | {
@@ -42,6 +45,7 @@ export type BossActionIntent =
       reason: string;
     }
   | { type: "pass"; actorId: string; reason: string }
+  | { type: "execute_players"; skillId: string; failure: HiddenExecutionFailure; reason: string }
   | { type: "force_defeat"; skillId: string; reason: string };
 
 export interface BossPublicSignal {

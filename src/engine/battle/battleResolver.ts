@@ -325,6 +325,7 @@ export interface BuildAttackOutcomesInput {
   skillPower: number;
   skillElement: number;
   skillAccuracy: number;
+  pierceResistanceWhenCharged?: boolean;
   statDriver: "attack" | "intelligence";
   skillCritRate?: number;
   hitCount?: number;
@@ -350,6 +351,13 @@ export function buildAttackOutcomes(
   const mergedAffinities = applyPassiveAffinities(collectPassives(target.passiveEffects), target.affinities ?? {
     weak: 0, resist: 0, nullify: 0, reflect: 0, absorb: 0,
   });
+  const isPiercing = input.pierceResistanceWhenCharged && actor.statusEffects?.some((effect) => effect.effectId === "charge");
+  if (isPiercing) {
+    mergedAffinities.resist &= ~skillElement;
+    mergedAffinities.nullify &= ~skillElement;
+    mergedAffinities.reflect &= ~skillElement;
+    mergedAffinities.absorb &= ~skillElement;
+  }
   const affinityResult = resolveAffinityResult(mergedAffinities, skillElement);
   const baseOutcome = {
     actorId: input.actorId, primaryTargetId: input.targetId, finalTargetId: input.targetId,
@@ -372,8 +380,8 @@ export function buildAttackOutcomes(
     return { damage, critical };
   };
 
-  // A matching shield intercepts the entire action before any accuracy roll.
-  const shield: ReturnType<typeof checkShield> = skillPower > 0 ? checkShield(target.statusEffects ?? [], skillElement) : { blocked: false };
+  // Piercing bypasses shields without consuming them; ordinary interception precedes accuracy.
+  const shield: ReturnType<typeof checkShield> = skillPower > 0 && !isPiercing ? checkShield(target.statusEffects ?? [], skillElement) : { blocked: false };
   if (shield.blocked && shield.kind != null) {
     let nominalDamage = 0;
     const nominalAffinity = ["nullify", "reflect", "absorb"].includes(affinityResult) ||
@@ -398,7 +406,7 @@ export function buildAttackOutcomes(
   const outcomes: BattleActionOutcome[] = [];
   for (let hit = 0; hit < actualHits; hit++) {
     const hitChance = calculateHitChance(skillAccuracy, effectiveStats.agility ?? 5,
-      effectiveTargetStats.agility ?? 5, params.hitRate) * hitRateMultiplier(actor.statusEffects ?? [], effectMap);
+      effectiveTargetStats.agility ?? 5, params.hitRate, hitRateMultiplier(actor.statusEffects ?? [], effectMap));
     if (!rollHit(hitChance)) {
       outcomes.push({ ...baseOutcome, type: "miss", tags: [] });
       break;
@@ -1335,10 +1343,13 @@ export function resolveNextEnemyAction(
   }
 
   let scored: ScoredAction | null;
-  if (bossIntent?.type === "use_skill") {
+  const execution = bossIntent?.type === "execute_players" ? bossIntent : null;
+  if (bossIntent?.type === "use_skill" || bossIntent?.type === "execute_players") {
     const action = buildEnemySkillAction(bossIntent.skillId);
     const target = participants.find(
-      (participant) => participant.id === bossIntent.targetIds[0],
+      (participant) => bossIntent.type === "execute_players"
+        ? participant.side === "player" && !participant.isDown
+        : participant.id === bossIntent.targetIds[0],
     );
     scored = action == null || target == null
       ? null
@@ -1351,7 +1362,9 @@ export function resolveNextEnemyAction(
   }
 
   const { action, target } = scored;
-  const actionTargets = resolveEnemyActionTargets(
+  const actionTargets = execution != null
+    ? participants.filter((participant) => participant.side === "player" && !participant.isDown)
+    : resolveEnemyActionTargets(
     participants,
     actor,
     action,
@@ -1367,6 +1380,14 @@ export function resolveNextEnemyAction(
   const participantsBeforeAction = participants.map(cloneParticipant);
   let actionOutcomes: BattleActionOutcome[] = [];
   for (const actionTarget of actionTargets) {
+    if (execution != null) {
+      actionOutcomes.push({
+        type: "hit", tags: [], actorId: actor.id,
+        primaryTargetId: actionTarget.id, finalTargetId: actionTarget.id,
+        hpDelta: -actionTarget.hp.current,
+      });
+      continue;
+    }
     if (action.skillId === "102" && !(actionTarget.statusEffects ?? []).some((effect) => effect.effectId === "sleep")) {
       actionOutcomes.push({ type: "status_no_effect", tags: [], actorId: actor.id, finalTargetId: actionTarget.id });
       continue;
@@ -1378,6 +1399,7 @@ export function resolveNextEnemyAction(
           skillPower: action.basePower, skillElement: action.element, skillAccuracy: action.accuracy,
           statDriver: action.statDriver, skillCategory: action.category, skillCritRate: action.critRate,
           hitCount: action.hitCount, hitCountMax: action.hitCountMax,
+          pierceResistanceWhenCharged: action.pierceResistanceWhenCharged,
         });
     if ((action.category === "physical" || action.category === "magic") &&
       outcomes.some((outcome) => outcome.type === "hit" && outcome.finalTargetId === actionTarget.id)) {
@@ -1389,7 +1411,7 @@ export function resolveNextEnemyAction(
     }
     actionOutcomes.push(...outcomes);
   }
-  appendBoostConsumption(actor, action.category, actionOutcomes);
+  if (execution == null) appendBoostConsumption(actor, action.category, actionOutcomes);
   if ((action.mpCost ?? 0) > 0) actionOutcomes.push({
     type: "hit", tags: [], actorId: actor.id, finalTargetId: actor.id, mpDelta: -action.mpCost!,
   });
@@ -1397,6 +1419,18 @@ export function resolveNextEnemyAction(
   participants = refreshBattleStatus({
     ...working, participants: applyBattleOutcomes(participants, actionOutcomes, statusPhaseIndex(working)),
   }).participants;
+
+  if (execution != null) {
+    // Report settled HP loss, including Endure, rather than the lethal request.
+    actionOutcomes = actionOutcomes.map((outcome) => ({
+      ...outcome,
+      hpDelta: participants.find((participant) => participant.id === outcome.finalTargetId)!.hp.current
+        - participantsBeforeAction.find((participant) => participant.id === outcome.finalTargetId)!.hp.current,
+    }));
+    working = applyBossBattleEvent({ ...working, participants }, {
+      type: "hidden_execution_resolved", failure: execution.failure,
+    });
+  }
 
   const actionLog = createEnemySkillLogEntry(
     working.turnCount ?? 1,
@@ -2031,6 +2065,7 @@ export function resolveSelectedBattleActionToResolution(
         skillPower: skillContent.mpDrainAmount != null ? 1 : skillContent.power,
         skillElement: skillContent.element,
         skillAccuracy: skillContent.accuracy,
+        pierceResistanceWhenCharged: skillContent.pierceResistanceWhenCharged,
         statDriver: skillContent.statDriver,
         skillCritRate: skillContent.critRate,
         hitCount: skillContent.hitCount,

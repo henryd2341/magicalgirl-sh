@@ -95,12 +95,14 @@ export function calculateHitChance(
   attackerAgility: number,
   defenderAgility: number,
   params: FormulaParams["hitRate"],
+  hitMultiplier = 1,
 ): number {
+  if (skillAccuracy === 200) return 100;
   return clamp(
     skillAccuracy + (attackerAgility - defenderAgility) * params.agilityInfluence,
     params.minHitRate,
     params.maxHitRate,
-  );
+  ) * hitMultiplier;
 }
 
 export function rollHit(hitChance: number): boolean {

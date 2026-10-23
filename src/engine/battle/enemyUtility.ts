@@ -66,6 +66,7 @@ export interface EnemyAction {
   basePower: number;
   element: number;
   accuracy: number;
+  pierceResistanceWhenCharged?: boolean;
   statDriver: "attack" | "intelligence";
   category: SkillCategory;
   statusEffects?: StatusEffectPayload[];
@@ -111,6 +112,7 @@ export function buildEnemySkillAction(skillId: string): EnemyAction | null {
       basePower: skill.power,
       element: skill.element,
       accuracy: skill.accuracy,
+      pierceResistanceWhenCharged: skill.pierceResistanceWhenCharged,
       statDriver: skill.statDriver,
       category: skill.category,
       statusEffects: skill.statusEffects,
