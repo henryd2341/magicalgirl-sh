@@ -813,17 +813,17 @@ function cancelPan() {
 .skilltree-tab__node-name {
   font-size: 1rem;
   font-weight: 700;
-  line-height: 1.5;
+  line-height: 0.5;
 }
 .skilltree-tab__description {
   font-size: 0.85rem;
-  line-height: 1.7;
+  line-height: 1.2;
   color: var(--mg-text-secondary);
 }
 .skilltree-tab__requirements,
 .skilltree-tab__node-missing {
   font-size: 0.82rem;
-  line-height: 1.6;
+  line-height: 0.6;
   color: var(--mg-text-secondary);
 }
 .skilltree-tab__prerequisites {

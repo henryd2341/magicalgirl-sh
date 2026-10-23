@@ -190,6 +190,7 @@ const CATEGORY_LABELS: Record<string, string> = {
           >
             <div class="equip-tab__row-info">
               <span class="equip-tab__row-name">{{ skill.name }}</span>
+              <span class="equip-tab__row-detail">{{ skill.description }}</span>
               <span class="equip-tab__row-detail">
                 <span class="equip-tab__row-cat">{{ CATEGORY_LABELS[skill.category] ?? skill.category }}</span>
                 <span v-if="skill.mpCost > 0" class="equip-tab__row-mp">{{ skill.mpCost }} MP</span>
@@ -216,6 +217,7 @@ const CATEGORY_LABELS: Record<string, string> = {
           >
             <div class="equip-tab__row-info">
               <span class="equip-tab__row-name">{{ skill.name }}</span>
+              <span class="equip-tab__row-detail">{{ skill.description }}</span>
               <span class="equip-tab__row-detail">
                 <span class="equip-tab__row-cat">{{ CATEGORY_LABELS[skill.category] ?? skill.category }}</span>
                 <span v-if="skill.mpCost > 0" class="equip-tab__row-mp">{{ skill.mpCost }} MP</span>
@@ -239,6 +241,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 .equip-tab {
   position: relative;
   min-height: 200px;
+  overflow-y: hidden;
 }
 
 .equip-tab__toast {

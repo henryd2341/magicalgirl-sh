@@ -140,7 +140,7 @@ function close() {
         </aside>
 
         <!-- Right: Tabs + Content -->
-        <div class="character-build__main" v-if="selectedCharacterId">
+        <div class="character-build__main mg-scroll" v-if="selectedCharacterId">
           <div class="character-build__tabs">
             <button
               class="character-build__tab"
