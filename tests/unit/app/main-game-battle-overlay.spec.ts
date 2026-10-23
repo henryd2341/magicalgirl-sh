@@ -413,6 +413,8 @@ describe("MainGameView battle overlay entrypoint", () => {
   });
 
   it("switches selected target in the overlay and automatically resolves the selected attack through battleStore", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+
     await renderMainGameWithStores();
 
     const sessionStore = useSessionStore();

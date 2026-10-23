@@ -39,7 +39,7 @@ const visibleMenu = computed(() => {
 });
 
 function selectMenuNode(nodeId: string) {
-  if (props.isLocked) {
+  if (props.isLocked || findBattleActionMenuNodeById(props.actionMenu, nodeId)?.disabled === true) {
     return;
   }
 
@@ -99,6 +99,7 @@ function onLeaveAction() {
               action.kind === 'action' && selectedActionId === action.actionId
             "
             :disabled="isLocked || action.disabled === true"
+            :title="action.description"
             @click="selectMenuNode(action.id)"
             @mouseenter="onHoverAction(action)"
             @mouseleave="onLeaveAction"

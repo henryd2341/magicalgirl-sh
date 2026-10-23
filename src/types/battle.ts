@@ -122,6 +122,8 @@ export const BATTLE_ACTION_VALIDATION_ERRORS = [
   "swap_in_down",
   "swap_unavailable",
   "actor_not_found",
+  "actor_disabled",
+  "skill_sealed",
 ] as const;
 
 export type BattleActionValidationError =
@@ -184,6 +186,10 @@ export interface ActiveStatusEffect {
   effectId: string;
   remainingDuration: number;
   stacks: number;
+  /** First complete side phase eligible for expiry; derived from round and side. */
+  firstTickPhase?: number;
+  paralysisPhase?: number;
+  paralysisBlocked?: boolean;
 }
 
 export interface BattleParticipant {
@@ -212,6 +218,7 @@ export interface BattleParticipant {
   affinities?: BattleAffinityProfile;
   combatStats?: BattleParticipantCombatStats;
   canAct?: boolean;
+  canActBeforeStatus?: boolean;
   passiveEffects?: import("@/types/content").PassiveEffectDef[];
   accessoryEffects?: import("@/types/content").ItemAccessoryEffect[];
   endureUsed?: boolean;

@@ -7,7 +7,11 @@ import {
 import {
   resolveNextEnemyAction,
   resolveSelectedBattleAction,
+  refreshBattleStatus,
+  advanceEmptyPlayerPhase,
 } from "@/engine/battle/battleResolver";
+import { isSkillSealed } from "@/engine/battle/statusEffectEngine";
+import { normalizeCurrentActorId } from "@/engine/battle/battleTurnQueue";
 import {
   createBattleSnapshotFromPendingBattle,
   createEnemyBattleParticipant,
@@ -16,6 +20,7 @@ import {
 import { getSkill, getItem } from "@/content/contentRegistry";
 import {
   type BattleActionId,
+  type BattleActionMenuNode,
   type BattleParticipant,
   type BattleSnapshot,
   type CreatePendingBattleSnapshotInput,
@@ -107,7 +112,7 @@ export const useBattleStore = defineStore("battle", {
         nodeId,
       );
 
-      if (node == null) {
+      if (node == null || node.disabled === true) {
         return;
       }
 
@@ -429,7 +434,20 @@ export const useBattleStore = defineStore("battle", {
       activeBattle?: BattleSnapshot;
     }) {
       this.pendingBattle = input.pendingBattle ?? null;
-      this.activeBattle = input.activeBattle ?? null;
+      this.activeBattle = input.activeBattle == null ? null : refreshBattleStatus(input.activeBattle);
+      if (this.activeBattle?.phase === "PLAYER_COMMAND") {
+        const queue = this.activeBattle.participants.filter((participant) =>
+          participant.side === "player" && participant.isActive && !participant.isDown).map((participant) => participant.id);
+        this.activeBattle.pressTurnAllocation = {
+          participantIds: queue,
+          initialIconCount: this.activeBattle.pressTurnAllocation?.initialIconCount ?? this.activeBattle.pressTurn.icons.length,
+        };
+        this.activeBattle.currentActorId = normalizeCurrentActorId(queue, this.activeBattle.participants, this.activeBattle.currentActorId);
+        this.activeBattle = advanceEmptyPlayerPhase(this.activeBattle);
+        if (this.activeBattle.phase === "PLAYER_COMMAND" && this.activeBattle.currentActorId != null) {
+          this.rebuildActionMenuForActor(this.activeBattle.currentActorId);
+        }
+      }
     },
     setBattleItems(items: Record<string, number>) {
       this._currentBattleItems = items;
@@ -443,6 +461,18 @@ export const useBattleStore = defineStore("battle", {
         actorSkills,
         this._currentBattleItems ?? undefined,
       );
+      const markSealedSkills = (nodes: BattleActionMenuNode[]) => {
+        for (const node of nodes) {
+          if (node.children != null) markSealedSkills(node.children);
+          if (node.actionId === "basic-skill" && node.contentId != null &&
+            isSkillSealed(actor, getSkill(node.contentId).mpCost)) {
+            node.disabled = true;
+            node.label += "（封技）";
+            node.description = "封技期间禁用消耗 MP 的技能。";
+          }
+        }
+      };
+      markSealedSkills(this.activeBattle.actionMenu);
       // Clear previous actor's action selection state
       this.activeBattle.currentMenuNodeId = null;
       this.activeBattle.selectedActionId = null;

@@ -220,6 +220,7 @@ export interface StatusEffectContent {
   >;
   damagePercent?: number;
   healPercent?: number;
+  hitRateMultiplier?: number;
   stackable: boolean;
 }
 

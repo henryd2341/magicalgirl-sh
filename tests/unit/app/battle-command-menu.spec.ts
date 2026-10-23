@@ -28,6 +28,24 @@ const rootMenu = [
 ];
 
 describe("BattleCommandMenu", () => {
+  it("exposes the seal explanation and disables the affected command", async () => {
+    const onSelectMenuNode = vi.fn();
+    render(BattleCommandMenu, {
+      props: {
+        actionMenu: [{
+          id: "sealed", kind: "action", actionId: "basic-skill", contentId: "36",
+          label: "火球术（封技）", description: "封技期间禁用消耗 MP 的技能。", disabled: true,
+        }],
+        currentMenuNodeId: null, selectedActionId: null, isResultPhase: false,
+        description: "", onSelectMenuNode,
+      },
+    });
+    const button = screen.getByRole("button", { name: "火球术（封技）" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", "封技期间禁用消耗 MP 的技能。");
+    await fireEvent.click(button);
+    expect(onSelectMenuNode).not.toHaveBeenCalled();
+  });
   it("renders root commands and emits menu selection", async () => {
     const onSelectMenuNode = vi.fn();
 

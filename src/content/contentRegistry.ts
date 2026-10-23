@@ -245,7 +245,7 @@ const formulaParamsSchema = z.object({
   }),
 });
 
-const statusEffectContentSchema = z.object({
+export const statusEffectContentSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   type: z.enum(["dot", "hot", "buff", "debuff", "ailment"]),
@@ -260,6 +260,7 @@ const statusEffectContentSchema = z.object({
     .optional(),
   damagePercent: z.number().min(0).max(100).optional(),
   healPercent: z.number().min(0).max(100).optional(),
+  hitRateMultiplier: z.number().finite().min(0).max(1).optional(),
   stackable: z.boolean(),
 });
 

@@ -2,7 +2,7 @@ import { createDefaultBattleCommandMenuTree } from "@/engine/battle/battleAction
 import { useBattleStore } from "@/stores/battleStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 function startTestBattle() {
   const store = useBattleStore();
@@ -773,7 +773,10 @@ describe("battleStore", () => {
     expect(store.activeBattle).toBeNull();
   });
 
-  it("resolves only one enemy action per store call", () => {
+  it("resolves only one enemy action per store call", ({ onTestFinished }) => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    onTestFinished(() => random.mockRestore());
+
     const store = startTestBattle();
     const activeBattle = store.activeBattle;
     if (activeBattle === null) {

@@ -2,8 +2,13 @@ import type {
   ActiveStatusEffect,
   BattleElement,
   BattleParticipant,
+  BattleSnapshot,
+  CombatantSide,
+  AppliedStatusEffectPayload,
 } from "@/types/battle";
 import type { StatusEffectContent } from "@/types/content";
+import { applyPassivesAtHook, collectPassives } from "@/engine/battle/passiveEffectEngine";
+import { getEnemy } from "@/content/contentRegistry";
 
 // ── Shield effect → element + kind mapping ──
 
@@ -36,8 +41,8 @@ function buildShieldMap(): Record<string, ShieldEntry> {
     kind: "nullify",
   };
   map["physical_null"] = { elementMask: 1 | 2, kind: "nullify" };
-  map["physical_reflect"] = { elementMask: 1, kind: "reflect" };
-  map["physical_absorb"] = { elementMask: 1, kind: "absorb" };
+  map["physical_reflect"] = { elementMask: 1 | 2, kind: "reflect" };
+  map["physical_absorb"] = { elementMask: 1 | 2, kind: "absorb" };
 
   // Ailment shield (Ailment = 1 << 11)
   map["ailment_null"] = { elementMask: 1 << 11, kind: "nullify" };
@@ -55,11 +60,125 @@ export function isShieldStatusEffect(effectId: string): boolean {
   return getShieldEffectMap()[effectId] != null;
 }
 
+const CONTROL_EFFECTS = new Set(["sleep", "freeze", "paralyze", "seal", "blind"]);
+
+export function usesSidePhase(effectId: string): boolean {
+  return CONTROL_EFFECTS.has(effectId) || effectId === "guard" || isShieldStatusEffect(effectId);
+}
+
+export function statusPhaseIndex(snapshot: Pick<BattleSnapshot, "turnCount" | "phase">): number {
+  return ((snapshot.turnCount ?? 1) - 1) * 2 + (snapshot.phase === "ENEMY_TURN" ? 1 : 0);
+}
+
+export function isSkillSealed(participant: BattleParticipant, mpCost: number): boolean {
+  return mpCost > 0 && (participant.statusEffects ?? []).some((effect) => effect.effectId === "seal");
+}
+
+export function hitRateMultiplier(
+  effects: ActiveStatusEffect[],
+  effectMap: Map<string, StatusEffectContent>,
+): number {
+  return [...new Set(effects.map((effect) => effect.effectId))]
+    .reduce((multiplier, id) => multiplier * (effectMap.get(id)?.hitRateMultiplier ?? 1), 1);
+}
+
+export function refreshStatusEligibility(
+  participant: BattleParticipant,
+  phase: number,
+  side: CombatantSide,
+): BattleParticipant {
+  const statusEffects = (participant.statusEffects ?? []).map((effect) => {
+    let next = usesSidePhase(effect.effectId) && effect.firstTickPhase == null
+      ? { ...effect, firstTickPhase: phase + 1 }
+      : effect;
+    if (effect.effectId === "paralyze" && participant.side === side && effect.paralysisPhase !== phase) {
+      next = {
+        ...next,
+        paralysisPhase: phase,
+        paralysisBlocked: effect.paralysisPhase == null && effect.paralysisBlocked != null
+          ? effect.paralysisBlocked
+          : Math.random() < 0.5,
+      };
+    }
+    return next;
+  });
+  const disabled = isDisabledByAilment(statusEffects) ||
+    statusEffects.some((effect) => effect.effectId === "paralyze" && effect.paralysisBlocked === true);
+  const baseCanAct = participant.canActBeforeStatus ?? participant.canAct ?? true;
+  const next = { ...participant, statusEffects, canAct: baseCanAct && !disabled && !participant.isDown };
+  if (disabled || participant.isDown) {
+    next.canActBeforeStatus = baseCanAct;
+  } else {
+    delete next.canActBeforeStatus;
+  }
+  return next;
+}
+
+export function expireSidePhase(
+  participant: BattleParticipant,
+  phase: number,
+  side: CombatantSide,
+): BattleParticipant {
+  return {
+    ...participant,
+    statusEffects: (participant.statusEffects ?? []).flatMap((effect) => {
+      if (!usesSidePhase(effect.effectId) || phase < (effect.firstTickPhase ?? phase + 1)) return [effect];
+      const tickingSide = CONTROL_EFFECTS.has(effect.effectId)
+        ? participant.side
+        : participant.side === "player" ? "enemy" : "player";
+      if (side !== tickingSide) return [effect];
+      return effect.remainingDuration > 1
+        ? [{ ...effect, remainingDuration: effect.remainingDuration - 1 }]
+        : [];
+    }),
+  };
+}
+
 export function isStatusEffectImmune(
-  participant: Pick<BattleParticipant, "statusImmunities">,
+  participant: Pick<BattleParticipant, "statusImmunities" | "enemyId">,
   effectId: string,
 ): boolean {
-  return participant.statusImmunities?.includes(effectId) ?? false;
+  return resolveStatusImmunities(participant)?.includes(effectId) ?? false;
+}
+
+export function resolveStatusImmunities(
+  participant: Pick<BattleParticipant, "statusImmunities" | "enemyId">,
+): string[] | undefined {
+  if (participant.statusImmunities != null) return participant.statusImmunities;
+  if (participant.enemyId == null) return undefined;
+  try {
+    return getEnemy(participant.enemyId).statusImmunities;
+  } catch {
+    return undefined;
+  }
+}
+
+export function protectStatusPayloads(
+  participant: BattleParticipant,
+  payloads: AppliedStatusEffectPayload[],
+  effectMap: Map<string, StatusEffectContent>,
+  hostile: boolean,
+): { payloads: AppliedStatusEffectPayload[]; blocked: boolean } {
+  const eligible = payloads.filter((payload) => !isStatusEffectImmune(participant, payload.effectId));
+  const harmful = (payload: AppliedStatusEffectPayload) =>
+    ["ailment", "dot"].includes(effectMap.get(payload.effectId)?.type ?? "");
+  const blocked = hostile && eligible.some(harmful) &&
+    (participant.statusEffects ?? []).some((effect) => effect.effectId === "ailment_null");
+  return { payloads: blocked ? eligible.filter((payload) => !harmful(payload)) : eligible, blocked };
+}
+
+export function settleHpChange(
+  participant: BattleParticipant,
+  hpDelta: number,
+): Pick<BattleParticipant, "hp" | "isDown" | "endureUsed"> {
+  let hpAfterDamage = Math.max(0, Math.min(participant.hp.max, participant.hp.current + hpDelta));
+  let endureUsed = participant.endureUsed ?? false;
+  if (hpAfterDamage <= 0 && !participant.isDown && !endureUsed) {
+    ({ hpAfterDamage, endureUsed } = applyPassivesAtHook(
+      collectPassives(participant.passiveEffects), "on_death_check", { hpAfterDamage, endureUsed },
+    ) as { hpAfterDamage: number; endureUsed: boolean });
+  }
+  return { hp: { ...participant.hp, current: hpAfterDamage }, isDown: hpAfterDamage <= 0, endureUsed };
 }
 
 // ── Shield check ──
@@ -76,7 +195,7 @@ export function checkShield(
 ): ShieldCheckResult {
   for (const effect of activeEffects) {
     const entry = getShieldEffectMap()[effect.effectId];
-    if (entry != null && (entry.elementMask & element) === element) {
+    if (element !== 0 && entry != null && (entry.elementMask & element) === element) {
       return {
         blocked: true,
         shieldEffectId: effect.effectId,
@@ -139,6 +258,7 @@ export function applyStatusEffect(
   effectId: string,
   duration: number,
   effectContent: StatusEffectContent,
+  phase?: number,
 ): { effects: ActiveStatusEffect[]; applied: boolean } {
   const existing = effects.find((e) => e.effectId === effectId);
 
@@ -159,7 +279,11 @@ export function applyStatusEffect(
       // Non-stackable: refresh duration
       const updated = effects.map((e) =>
         e.effectId === effectId
-          ? { ...e, remainingDuration: Math.max(e.remainingDuration, duration) }
+          ? {
+              ...e,
+              remainingDuration: Math.max(e.remainingDuration, duration),
+              ...(phase != null && usesSidePhase(effectId) ? { firstTickPhase: phase + 1 } : {}),
+            }
           : e,
       );
       return { effects: updated, applied: true };
@@ -168,7 +292,10 @@ export function applyStatusEffect(
 
   // New effect
   return {
-    effects: [...effects, { effectId, remainingDuration: duration, stacks: 1 }],
+    effects: [...effects, {
+      effectId, remainingDuration: duration, stacks: 1,
+      ...(phase != null && usesSidePhase(effectId) ? { firstTickPhase: phase + 1 } : {}),
+    }],
     applied: true,
   };
 }
@@ -189,6 +316,7 @@ export function tickStatusEffects(
 ): TickResult {
   let hpDelta = 0;
   let mpDelta = 0;
+  let instantDeath = false;
   const expiredEffectIds: string[] = [];
   const updatedEffects: ActiveStatusEffect[] = [];
 
@@ -201,7 +329,7 @@ export function tickStatusEffects(
     }
 
     // Special: charge/chant/focus have duration 999 and don't tick
-    if (content.duration >= 999) {
+    if (content.duration >= 999 || usesSidePhase(effect.effectId)) {
       updatedEffects.push(effect);
       continue;
     }
@@ -218,7 +346,7 @@ export function tickStatusEffects(
 
     // Instant death on expiry
     if (content.id === "instant_death" && newDuration <= 0) {
-      hpDelta = -participantHp.current; // kill
+      instantDeath = true;
     }
 
     if (newDuration <= 0) {
@@ -228,7 +356,7 @@ export function tickStatusEffects(
     }
   }
 
-  return { updatedEffects, hpDelta, mpDelta, expiredEffectIds };
+  return { updatedEffects, hpDelta: instantDeath ? -participantHp.current : hpDelta, mpDelta, expiredEffectIds };
 }
 
 // ── Consume charge/chant/focus after attack ──
@@ -256,15 +384,15 @@ export function consumeChargeChantFocus(
   if (hasChant && skillCategory === "magic") {
     damageMultiplier *= 2;
   }
-  // Focus: consumed by any offensive skill, guarantees crit
-  if (hasFocus && (skillCategory === "physical" || skillCategory === "magic")) {
+  // Focus follows the physical action category, not its element.
+  if (hasFocus && skillCategory === "physical") {
     guaranteedCrit = true;
   }
 
   const removeIds: string[] = [];
   if (hasCharge && skillCategory === "physical") removeIds.push("charge");
   if (hasChant && skillCategory === "magic") removeIds.push("chant");
-  if (hasFocus && (skillCategory === "physical" || skillCategory === "magic"))
+  if (hasFocus && skillCategory === "physical")
     removeIds.push("focus");
 
   if (removeIds.length === 0) {
@@ -279,14 +407,6 @@ export function consumeChargeChantFocus(
 
 export function isDisabledByAilment(effects: ActiveStatusEffect[]): boolean {
   return effects.some((e) => e.effectId === "sleep" || e.effectId === "freeze");
-}
-
-// ── Paralyze random check ──
-
-export function isParalyzed(effects: ActiveStatusEffect[]): boolean {
-  if (!effects.some((e) => e.effectId === "paralyze")) return false;
-  // 50% chance to be disabled
-  return Math.random() < 0.5;
 }
 
 // ── Consume shield effects from a participant ──

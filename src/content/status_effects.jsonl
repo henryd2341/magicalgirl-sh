@@ -30,7 +30,7 @@
 {"id":"sleep","name":"睡眠","type":"ailment","duration":3,"stackable":false}
 {"id":"poison","name":"中毒","type":"dot","duration":3,"damagePercent":5,"stackable":false}
 {"id":"seal","name":"封技","type":"ailment","duration":3,"stackable":false}
-{"id":"blind","name":"致盲","type":"ailment","duration":3,"stackable":false}
+{"id":"blind","name":"致盲","type":"ailment","duration":3,"stackable":false,"hitRateMultiplier":0.5}
 {"id":"instant_death","name":"即死","type":"ailment","duration":1,"stackable":false}
 {"id":"burn","name":"燃烧","type":"dot","duration":3,"damagePercent":5,"stackable":false}
 {"id":"freeze","name":"冻结","type":"ailment","duration":1,"stackable":false}

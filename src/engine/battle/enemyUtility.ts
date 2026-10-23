@@ -16,6 +16,7 @@ import type {
   SkillTargetType,
   StatusEffectPayload,
 } from "@/types/content";
+import { isSkillSealed } from "@/engine/battle/statusEffectEngine";
 import { BATTLE_ELEMENTS } from "@/types/battle";
 
 // ── Behavior types ──
@@ -71,6 +72,10 @@ export interface EnemyAction {
   healPercent?: number;
   revives?: boolean;
   cleanses?: CleansableStatusEffectType[];
+  mpCost?: number;
+  critRate?: number;
+  hitCount?: number;
+  hitCountMax?: number;
 }
 
 export interface ScoredAction {
@@ -112,6 +117,10 @@ export function buildEnemySkillAction(skillId: string): EnemyAction | null {
       healPercent: skill.healPercent,
       revives: skill.revives,
       cleanses: skill.cleanses,
+      mpCost: skill.mpCost,
+      critRate: skill.critRate,
+      hitCount: skill.hitCount,
+      hitCountMax: skill.hitCountMax,
     };
   } catch {
     return null;
@@ -272,6 +281,7 @@ export function selectEnemyAction(
   const candidates: ScoredAction[] = [];
 
   for (const action of actions) {
+    if (isSkillSealed(actor, action.mpCost ?? 0) || actor.mp.current < (action.mpCost ?? 0)) continue;
     const targets = filterTargetsByScope(action, actor, allParticipants);
     for (const target of targets) {
       // Skip healing at full HP unless it's the only option

@@ -70,6 +70,8 @@ describe("Boss resolver integration", () => {
       profileIds: { "enemy-1": "resolver-test" },
       phaseByActorId: { "enemy-1": "opening" },
     });
+    // The forced opener is a positive-MP skill; ordinary MP accounting still applies.
+    active.participants.find((entry) => entry.side === "enemy")!.mp = { current: 4, max: 4 };
 
     const resolved = resolveNextEnemyAction({
       ...active,

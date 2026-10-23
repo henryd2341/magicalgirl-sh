@@ -7,7 +7,7 @@ import {
   resolveSelectedBattleActionToResolution,
 } from "@/engine/battle/battleResolver";
 import { BATTLE_ELEMENTS, type BattleSnapshot } from "@/types/battle";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vi } from "vitest";
 
 // ── Helpers ──
@@ -87,6 +87,8 @@ function createActiveBattleSnapshot(
 // ── Tests ──
 
 describe("battleResolver", () => {
+  beforeEach(() => vi.spyOn(Math, "random").mockReturnValue(0.5));
+  afterEach(() => vi.restoreAllMocks());
   // ── Attack resolution (content-driven via "attack" skill) ──
   it("does not apply instant death to a status-immune participant", () => {
     const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
@@ -132,7 +134,7 @@ describe("battleResolver", () => {
     const resolved = resolveSelectedBattleAction(snapshot);
 
     expect(resolved.participants[1]!.statusEffects).toEqual([
-      { effectId: "sleep", remainingDuration: 2, stacks: 1 },
+      { effectId: "sleep", remainingDuration: 2, stacks: 1, firstTickPhase: 1 },
     ]);
     randomSpy.mockRestore();
   });
@@ -438,7 +440,7 @@ describe("battleResolver", () => {
           intelligence: 5,
           isDown: false,
           isActive: true,
-          statusEffects: [{ effectId: "guard", remainingDuration: 1, stacks: 1 }],
+          statusEffects: [{ effectId: "guard", remainingDuration: 1, stacks: 1, firstTickPhase: 1 }],
         },
         {
           id: "enemy-1",
@@ -1524,7 +1526,7 @@ describe("battleResolver", () => {
     expect(resolved.participants.find((p) => p.id === "enemy-1")).toMatchObject({
       hp: { current: 1105, max: 1600 },
       isDown: false,
-      canAct: true,
+      canAct: false,
     });
   });
   // ── Enemy turn: victory on empty enemy actors ──

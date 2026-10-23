@@ -11,6 +11,14 @@ import type {
 } from "@/engine/battle/boss/bossTypes";
 import { appendBattleLogs, createMechanicLogDraft } from "@/engine/battle/battleLogger";
 import type { BattleSnapshot } from "@/types/battle";
+import { getStatusEffectMap } from "@/content/contentRegistry";
+import {
+  applyStatusEffect,
+  protectStatusPayloads,
+  refreshStatusEligibility,
+  settleHpChange,
+  statusPhaseIndex,
+} from "@/engine/battle/statusEffectEngine";
 
 function cloneRuntime(snapshot: BattleSnapshot): NonNullable<BattleSnapshot["bossRuntime"]> {
   const runtime = snapshot.bossRuntime;
@@ -60,6 +68,7 @@ export function applyBossEffects(
     bossRuntime: cloneRuntime(snapshot),
   };
   const phaseTransitions = new Set<string>();
+  const ailmentProtectedActors = new Set<string>();
 
   for (const effect of effects) {
     const runtime = next.bossRuntime!;
@@ -108,23 +117,41 @@ export function applyBossEffects(
       case "apply_status":
         next = {
           ...next,
-          participants: next.participants.map((participant) =>
-            participant.id === effect.actorId
-              ? {
+            participants: next.participants.map((participant) => {
+              if (participant.id !== effect.actorId) return participant;
+              const effectMap = getStatusEffectMap();
+              const protection = protectStatusPayloads(ailmentProtectedActors.has(participant.id)
+                ? { ...participant, statusEffects: [...(participant.statusEffects ?? []),
+                    { effectId: "ailment_null", remainingDuration: 1, stacks: 1 }] }
+                : participant, [{
+                effectId: effect.effectId, duration: effect.duration,
+              }], effectMap, true);
+              if (protection.blocked) {
+                ailmentProtectedActors.add(participant.id);
+                return {
                   ...participant,
-                  statusEffects: [
-                    ...(participant.statusEffects ?? []).filter(
-                      (status) => status.effectId !== effect.effectId,
-                    ),
-                    {
-                      effectId: effect.effectId,
-                      remainingDuration: effect.duration,
-                      stacks: effect.stacks ?? 1,
-                    },
-                  ],
-                }
-              : participant,
-          ),
+                  statusEffects: participant.statusEffects?.filter((status) => status.effectId !== "ailment_null"),
+                };
+              }
+              if (protection.payloads.length === 0) return participant;
+              if (effect.effectId === "instant_death") return {
+                ...participant, ...settleHpChange(participant, -participant.hp.current),
+              };
+              const definition = effectMap.get(effect.effectId);
+              const phase = statusPhaseIndex(next);
+              const statusEffects = definition == null
+                ? [...(participant.statusEffects ?? []).filter((status) => status.effectId !== effect.effectId),
+                    { effectId: effect.effectId, remainingDuration: effect.duration, stacks: effect.stacks ?? 1 }]
+                : applyStatusEffect(
+                    participant.statusEffects ?? [],
+                    effect.effectId, effect.duration, definition, phase,
+                  ).effects
+                    .map((status) => status.effectId === effect.effectId
+                      ? { ...status, remainingDuration: effect.duration, stacks: effect.stacks ?? 1 } : status);
+              return refreshStatusEligibility(
+                { ...participant, statusEffects }, phase, next.phase === "ENEMY_TURN" ? "enemy" : "player",
+              );
+            }),
         };
         break;
       case "summon_enemy": {
@@ -226,9 +253,18 @@ export function applyBossBattleEvent(
   snapshot: BattleSnapshot,
   event: BossBattleEvent,
 ): BattleSnapshot {
+  return reduceBossBattleEvent(snapshot, event, new Set<string>());
+}
+
+function reduceBossBattleEvent(
+  snapshot: BattleSnapshot,
+  event: BossBattleEvent,
+  emittedDown: Set<string>,
+): BattleSnapshot {
   if (snapshot.bossRuntime == null) {
     return snapshot;
   }
+  if (event.type === "participant_down") emittedDown.add(event.participantId);
 
   const prepared =
     event.type === "round_started" ? decrementCooldowns(snapshot) : snapshot;
@@ -242,7 +278,17 @@ export function applyBossBattleEvent(
     );
   }
 
-  return applyBossEffects(prepared, effects);
+  let next = applyBossEffects(prepared, effects);
+  const newlyDown = next.participants.filter((participant) => participant.isDown &&
+    prepared.participants.some((before) => before.id === participant.id && !before.isDown));
+  for (const participant of newlyDown) {
+    if (emittedDown.has(participant.id)) continue;
+    emittedDown.add(participant.id);
+    next = reduceBossBattleEvent(next, {
+      type: "participant_down", participantId: participant.id,
+    }, emittedDown);
+  }
+  return next;
 }
 
 
