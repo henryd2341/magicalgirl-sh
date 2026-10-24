@@ -146,7 +146,7 @@ function emitTrainingGround(event: MouseEvent) {
     <!-- Mobile dropdown menu -->
     <nav v-if="isMobile && menuOpen" class="mg-topbar__dropdown" aria-label="移动端游戏菜单">
       <button class="mg-topbar__dropdown-btn" title="背包" type="button" @click="$emit('openInventory'); closeMenu()">
-        <i class="fas fa-backpack"></i> 背包
+        <i class="fas fa-bag-shopping"></i> 背包
       </button>
       <button class="mg-topbar__dropdown-btn" title="商店" type="button" @click="$emit('openShop'); closeMenu()">
         <i class="fas fa-store"></i> 商店

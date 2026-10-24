@@ -307,49 +307,11 @@ onUnmounted(() => {
       @open-shop="openShopOverlay"
     />
 
-    <!-- ═══ Mobile bottom nav ═══ -->
-    <nav v-if="isMobile" class="mg-game__mobile-nav">
-      <button
-        @click="leftPanelOpen = !leftPanelOpen; rightPanelOpen = false"
-        :class="{ 'mg-game__mobile-nav-btn--active': leftPanelOpen }"
-        class="mg-game__mobile-nav-btn"
-        title="场景信息"
-      >
-        <i class="fas fa-map"></i>
-        <span>场景</span>
-      </button>
-      <button
-        @click="rightPanelOpen = !rightPanelOpen; leftPanelOpen = false"
-        :class="{ 'mg-game__mobile-nav-btn--active': rightPanelOpen }"
-        class="mg-game__mobile-nav-btn"
-        title="角色"
-      >
-        <i class="fas fa-user"></i>
-        <span>角色</span>
-      </button>
-      <button
-        class="mg-game__mobile-nav-btn"
-        @click="openFormationModal"
-        title="编队"
-      >
-        <i class="fas fa-users"></i>
-        <span>编队</span>
-      </button>
-      <button
-        class="mg-game__mobile-nav-btn"
-        @click="bottomBarOpen = !bottomBarOpen"
-        :class="{ 'mg-game__mobile-nav-btn--active': bottomBarOpen }"
-        title="更多"
-      >
-        <i class="fas fa-ellipsis-h"></i>
-        <span>更多</span>
-      </button>
-    </nav>
-
     <!-- ═══ Center Row (3 columns) ═══ -->
     <div class="mg-game__center">
       <!-- Left Panel -->
       <aside
+        id="game-scene-panel"
         class="mg-game__left mg-scroll"
         :class="{ 'mg-game__left--closed': !leftPanelOpen }"
       >
@@ -409,6 +371,42 @@ onUnmounted(() => {
         <div class="mg-game__messages mg-scroll">
           <GameConversationPanel />
         </div>
+        <!-- ═══ Mobile floating controls ═══ -->
+        <nav v-if="isMobile" class="mg-game__mobile-nav" aria-label="移动端面板">
+          <button
+            :class="{ 'mg-game__mobile-nav-btn--active': leftPanelOpen }"
+            class="mg-game__mobile-nav-btn"
+            type="button"
+            :aria-expanded="leftPanelOpen"
+            aria-controls="game-scene-panel"
+            title="场景信息"
+            @click="leftPanelOpen = !leftPanelOpen; rightPanelOpen = false"
+          >
+            <i class="fas fa-map" aria-hidden="true"></i>
+            <span>场景</span>
+          </button>
+          <button
+            :class="{ 'mg-game__mobile-nav-btn--active': rightPanelOpen }"
+            class="mg-game__mobile-nav-btn"
+            type="button"
+            :aria-expanded="rightPanelOpen"
+            aria-controls="game-character-panel"
+            title="角色"
+            @click="rightPanelOpen = !rightPanelOpen; leftPanelOpen = false"
+          >
+            <i class="fas fa-user" aria-hidden="true"></i>
+            <span>角色</span>
+          </button>
+          <!-- <button
+            class="mg-game__mobile-nav-btn"
+            @click="bottomBarOpen = !bottomBarOpen"
+            :class="{ 'mg-game__mobile-nav-btn--active': bottomBarOpen }"
+            title="更多"
+          >
+            <i class="fas fa-ellipsis-h"></i>
+            <span>更多</span>
+          </button> -->
+        </nav>
         <PostCombatPanel v-if="shouldShowPostCombatPanel" />
         <PendingBattleBar v-if="shouldShowPendingBattleBar" />
         <GameInputDock />
@@ -416,6 +414,7 @@ onUnmounted(() => {
 
       <!-- Right Panel -->
       <aside
+        id="game-character-panel"
         class="mg-game__right mg-scroll"
         :class="{ 'mg-game__right--closed': !rightPanelOpen }"
       >
@@ -858,45 +857,54 @@ onUnmounted(() => {
 }
 
 // ═══════════════════════════════════════════
-// Mobile bottom navigation
+// Mobile floating controls
 // ═══════════════════════════════════════════
 .mg-game__mobile-nav {
+  position: relative;
   display: flex;
-  justify-content: space-around;
-  align-items: center;
+  align-items: flex-end;
+  align-self: flex-end;
+  gap: 8px;
+  height: 0;
   flex-shrink: 0;
-  padding: 4px 4px;
-  padding-bottom: max(4px, env(safe-area-inset-bottom));
-  background: var(--mg-bg-card);
-  border-top: var(--mg-border-width) solid var(--mg-border);
-  z-index: var(--mg-z-content);
+  margin-right: max(12px, env(safe-area-inset-right));
+  z-index: calc(var(--mg-z-content) - 1);
 }
 
 .mg-game__mobile-nav-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
-  padding: 6px 14px;
-  border: none;
+  justify-content: center;
+  gap: 3px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 6px 10px;
+  transform: translateY(-12px);
+  border: var(--mg-border-width) solid var(--mg-border);
   border-radius: var(--mg-radius-sm);
-  background: transparent;
-  color: var(--mg-text-secondary);
-  font-size: 0.6rem;
+  background: var(--mg-bg-card);
+  box-shadow: var(--mg-shadow-sticker);
+  color: var(--mg-text);
+  font-size: 0.7rem;
+  line-height: 1.2;
   cursor: pointer;
-  transition: color var(--mg-transition-fast);
+  transition: color var(--mg-transition-fast), border-color var(--mg-transition-fast);
 
   i {
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
 
   &:hover,
-  &:active {
-    color: var(--mg-accent);
-  }
-
+  &:active,
   &--active {
     color: var(--mg-accent);
+    border-color: var(--mg-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mg-accent);
+    outline-offset: 3px;
   }
 }
 
@@ -951,6 +959,10 @@ onUnmounted(() => {
     width: 100%;
   }
 
+  .mg-game__messages {
+    padding-bottom: calc(var(--mg-space-md) + 60px);
+  }
+
   // Adjust panel toggles for overlay mode
   .mg-panel-toggle {
     top: 8px;
@@ -963,8 +975,8 @@ onUnmounted(() => {
   }
 
   .mg-game__right .mg-panel-toggle {
-    left: 4px;
-    right: auto;
+    left: auto;
+    right: 4px;
   }
 
   .mg-game__left--closed .mg-panel-toggle {
@@ -977,6 +989,13 @@ onUnmounted(() => {
     left: -36px;
     right: auto;
     border-radius: 50% 0 0 50%;
+  }
+
+  .mg-game__dev-toggle {
+    bottom: unset;
+    right: unset;
+    top: 14px;
+    left: 120px;
   }
 }
 

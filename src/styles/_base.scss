@@ -48,6 +48,7 @@ body {
   z-index: -1;
   background-image: var(--mg-bg-pattern, none);
   background-size: var(--mg-bg-pattern-size, auto);
+  background-position: var(--mg-bg-pattern-position, none);
 }
 
 h1, h2, h3, h4, h5, h6 {
