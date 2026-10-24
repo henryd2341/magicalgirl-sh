@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  DEFAULT_BATTLE_BROADCAST_PREFERENCES,
   useBattleBroadcastPreferences,
   type BattleBroadcastViewport,
 } from "@/composables/useBattleBroadcastPreferences";
@@ -59,10 +60,15 @@ const windowStyle = computed(() => ({
   height: `${preferences.value.height}px`,
 }));
 
-const iconStyle = computed(() => ({
-  left: `${preferences.value.x}px`,
-  top: `${preferences.value.y}px`,
-}));
+const isDefaultPosition = computed(() =>
+  preferences.value.x === DEFAULT_BATTLE_BROADCAST_PREFERENCES.x &&
+  preferences.value.y === DEFAULT_BATTLE_BROADCAST_PREFERENCES.y,
+);
+const iconStyle = computed(() =>
+  isDefaultPosition.value
+    ? { position: "absolute" as const, right: "0px", top: "0px" }
+    : { left: `${preferences.value.x}px`, top: `${preferences.value.y}px` },
+);
 
 function currentViewport(): BattleBroadcastViewport {
   return {
@@ -102,6 +108,11 @@ function startDrag(event: PointerEvent, activationThreshold = 0): void {
 function startMinimizedDrag(event: PointerEvent): void {
   suppressMinimizedRestoreClick.value = false;
   startDrag(event, 5);
+  if (pointerInteraction.value?.kind === "drag") {
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    pointerInteraction.value.startX = rect.left;
+    pointerInteraction.value.startY = rect.top;
+  }
 }
 
 function moveDrag(event: PointerEvent): void {
@@ -298,7 +309,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport to="body" :disabled="preferences.minimized && isDefaultPosition">
     <button
       v-if="preferences.minimized"
       type="button"

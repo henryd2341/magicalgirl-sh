@@ -3,7 +3,7 @@ import battleBroadcastSource from "@/ui/battle/BattleBroadcastWindow.vue?raw";
 import type { BattleLogEntry } from "@/types/battle";
 import { cleanup, fireEvent, render, screen } from "@testing-library/vue";
 import { nextTick } from "vue";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 class TestPointerEvent extends MouseEvent {
   readonly pointerId: number;
@@ -240,6 +240,8 @@ describe("BattleBroadcastWindow", () => {
 
     await fireEvent.click(screen.getByRole("button", { name: "最小化战斗播报" }));
     const icon = screen.getByRole("button", { name: "恢复战斗播报" });
+    expect(icon).toHaveStyle({ position: "absolute", right: "0px", top: "0px" });
+    vi.spyOn(icon, "getBoundingClientRect").mockReturnValue({ left: 24, top: 24 } as DOMRect);
 
     await fireEvent.pointerDown(icon, {
       pointerId: 4,

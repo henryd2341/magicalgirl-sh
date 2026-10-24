@@ -867,7 +867,7 @@
   min-width: 320px;
   min-height: 100dvh;
   padding: clamp(0.4rem, 1.5cqh, 1.5rem);
-  overflow: hidden;
+  overflow-y: auto;
   background: var(--mg-battle-overlay-bg);
   color: var(--mg-text);
 }
@@ -880,11 +880,12 @@
 
 .battle-hud {
   display: grid;
-  grid-template-rows: auto auto minmax(230px, 1fr) auto;
+  // Reserve four effect rows above vitals, including when text is enlarged.
+  grid-template-rows: auto auto minmax(calc(158px + 4rem), 1fr) minmax(0, auto);
   gap: clamp(0.4rem, 1.2cqh, 1.25rem);
   width: min(100%, 1440px);
-  height: calc(100dvh - clamp(1.5rem, 4vw, 3rem));
-  min-height: 0;
+  height: 100%;
+  min-height: 620px;
   margin: 0 auto;
 }
 
@@ -908,8 +909,9 @@
 .battle-status-panel__turn {
   display: grid;
   align-content: center;
-  min-height: var(--mg-battle-card-min-height);
-  padding: var(--mg-space-md);
+  min-width: 0;
+  min-height: 72px;
+  padding: 8px 12px;
 }
 
 .battle-status-panel__enemy {
@@ -977,7 +979,9 @@
 
 .battle-status-panel__icons {
   display: flex;
-  gap: 0.55rem;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
   align-items: center;
   justify-content: flex-end;
   margin: 0;
@@ -987,8 +991,9 @@
 
 .battle-status-panel__icon {
   position: relative;
-  width: var(--mg-battle-icon-size);
-  height: var(--mg-battle-icon-size);
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
 }
 
 .battle-status-panel__icon-img {
@@ -1081,7 +1086,8 @@
   gap: clamp(0.4rem, 1.2cqh, 1.5rem);
   align-items: center;
   justify-content: center;
-  min-height: 230px;
+  min-height: 0;
+  overflow: auto;
   padding: clamp(0.4rem, 1.5cqh, 1.5rem);
   border: var(--mg-battle-enemy-row-border);
   border-radius: var(--mg-radius-xl);
@@ -1090,11 +1096,13 @@
 
 .battle-enemy-card {
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
   gap: 2px;
   justify-items: center;
   width: clamp(120px, 13vw, 180px);
-  min-height: clamp(150px, 18vw, 230px);
-  max-height: 230px;
+  min-height: 0;
+  height: 100%;
+  max-height: 260px;
   padding: var(--mg-space-3);
   border: var(--mg-battle-enemy-card-border);
   border-radius: var(--mg-radius-lg);
@@ -1121,8 +1129,9 @@
 
 .battle-enemy-card__sprite {
   width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
+  min-height: 0;
+  height: 100%;
+  object-fit: contain;
   border: var(--mg-battle-enemy-sprite-border);
   border-radius: var(--mg-radius-lg);
   background: var(--mg-battle-enemy-sprite-bg);
@@ -1160,13 +1169,25 @@
 .battle-hud__bottom {
   display: grid;
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  gap: var(--mg-space-md);
+  grid-template-rows: clamp(calc(206px + 5.25rem), 36dvh, 360px) 3.25rem;
+  gap: 10px;
+  min-height: 0;
   align-items: stretch;
 }
 
 .battle-hud__bottom > .battle-command-description {
   grid-column: 1 / -1;
+  grid-row: 2;
+  margin-right: 60px;
+}
+
+.battle-hud__log-dock {
+  position: relative;
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  width: 52px;
+  height: 52px;
 }
 
 .battle-hud__command-column,
@@ -1181,12 +1202,15 @@
   padding: var(--mg-space-3);
 }
 
+.battle-hud__command-column { min-height: 0; }
+
 .battle-command-menu {
-  min-height: 170px;
+  min-height: 0;
+  grid-template-rows: 44px minmax(0, 1fr);
 }
 
 .battle-command-description {
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .battle-command-menu__header {
@@ -1203,7 +1227,8 @@
   padding-right: 0.25rem;
   list-style: none;
   overflow-y: auto;
-  max-height: clamp(200px, 30cqh, 280px);
+  min-height: 0;
+  align-content: start;
 }
 
 .battle-command-menu__button,
@@ -1212,7 +1237,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 34px;
+  min-height: 44px;
   padding: 0.45rem 0.8rem;
   border: 2px solid var(--mg-ink-outline);
   border-radius: var(--mg-radius);
@@ -1266,9 +1291,8 @@
 .battle-command-description p {
   margin: 0;
   color: var(--mg-text-secondary);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
   line-height: 1.55;
   transition: color var(--mg-transition-fast);
 }
@@ -1283,7 +1307,8 @@
   align-items: stretch;
   justify-content: flex-start;
   min-width: 0;
-  min-height: 200px;
+  position: relative;
+  min-height: 0;
   overflow-x: auto;
   padding-bottom: 0.25rem;
 }
@@ -1291,8 +1316,9 @@
 .battle-party-card {
   position: relative;
   overflow: hidden;
-  width: min(100%, 220px);
-  min-width: 180px;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
   border: var(--mg-battle-card-border);
   border-radius: var(--mg-battle-card-radius);
   background: rgba(0, 0, 0, 0.35);
@@ -1330,6 +1356,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center top;
   z-index: 0;
   border: none;
   border-radius: inherit;
@@ -1363,10 +1390,10 @@
 
 .battle-party-card__bar {
   display: grid;
-  grid-template-columns: 1.4em auto 3.8em;
+  grid-template-columns: 1.4em minmax(8px, 1fr) auto;
   gap: 0.35em;
   align-items: center;
-  font-size: clamp(0.55rem, 1.2cqh, 0.75rem);
+  font-size: 0.75rem;
 }
 
 .battle-party-card__bar-label {
@@ -1417,12 +1444,16 @@
 
 .battle-party-card__actor {
   width: fit-content;
-  margin-top: 0.35rem;
+  max-width: calc(100% - 68px);
+  position: absolute;
+  z-index: 2;
+  top: 7px;
+  left: 7px;
   padding: 0.15rem 0.45rem;
   border-radius: var(--mg-radius-pill);
   background: var(--mg-battle-actor-badge-bg);
   color: var(--mg-warning);
-  font-size: clamp(0.6rem, 1.1cqh, 0.8rem);
+  font-size: 0.75rem;
   font-weight: 800;
 }
 
@@ -1602,14 +1633,7 @@
     grid-template-columns: 1fr;
   }
 
-  .battle-hud__top .battle-status-panel,
-  .battle-hud__bottom {
-    grid-template-columns: 1fr;
-  }
 
-  .battle-hud__party-row {
-    justify-content: flex-start;
-  }
 }
 
 @media (max-width: 640px) {
@@ -1647,38 +1671,6 @@
     width: 100%;
   }
 
-  .battle-overlay {
-    padding: var(--mg-space-3);
-  }
-
-  .battle-hud {
-    height: auto;
-    min-height: calc(100dvh - 1.5rem);
-  }
-
-  .battle-status-panel__turn {
-    grid-template-columns: 1fr;
-  }
-
-  .battle-hud__enemy-row {
-    justify-content: flex-start;
-    overflow-x: auto;
-  }
-
-  .battle-enemy-card {
-    min-width: 150px;
-  }
-
-  .battle-party-card {
-    min-width: 220px;
-  }
-
-  .battle-command-description p {
-    white-space: normal;
-    text-overflow: clip;
-    overflow: visible;
-  }
-
   .mg-bgm__btn {
     width: 40px;
     height: 40px;
@@ -1692,87 +1684,216 @@
   }
 }
 
-// ═══════════════════════════════════════════
-// Extra-small screens (< 400px) — small phones
-// ═══════════════════════════════════════════
-@media (max-width: 399px) {
-  .battle-overlay {
+// Battle portraits share one vital baseline; inspection is independent of targeting.
+.battle-party-slot {
+  position: relative;
+  flex: 1 0 150px;
+  min-width: 0;
+}
+
+.battle-party-card__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battle-party-card__condition {
+  position: absolute;
+  right: 7px;
+  bottom: 100%;
+  padding: 2px 6px;
+  border-radius: var(--mg-radius);
+  background: var(--mg-bg-card);
+  color: var(--mg-text);
+  font-size: 0.75rem;
+}
+
+.battle-enemy-slot {
+  position: relative;
+  flex: 0 0 auto;
+  height: 100%;
+  max-height: 260px;
+}
+
+.battle-status-effects {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 3;
+  max-width: calc(100% - 14px);
+}
+
+// Keep a separate left slot for the actor, even when its text wraps.
+.battle-party-card--actor + .battle-status-effects {
+  max-width: max(44px, calc(100% - 5rem - 14px));
+}
+
+.battle-status-effects__inspect {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 2px;
+  border: 0;
+  border-radius: 6px;
+  overflow-x: auto;
+  direction: rtl;
+  cursor: pointer;
+}
+
+.battle-status-effects__grid {
+  display: grid;
+  width: max-content;
+  grid-template-rows: repeat(var(--effect-rows), 24px);
+  grid-auto-flow: column;
+  grid-auto-columns: 24px;
+  gap: 2px;
+  & img {
+    border: 1px solid var(--mg-border);
+    border-radius: 20%;
+    box-shadow: 2px 2px 0 var(--mg-shadow);
+  }
+}
+
+.battle-status-effects img { display: block; }
+
+.battle-status-effects__preview {
+  position: fixed;
+  z-index: 1100;
+  margin: 0;
+  right: auto;
+  bottom: auto;
+  width: min(272px, calc(100vw - 16px));
+  max-height: 172px;
+  overflow: hidden;
+  padding: 10px;
+  border: var(--mg-battle-card-border);
+  border-radius: var(--mg-radius);
+  background: var(--mg-bg-card);
+  color: var(--mg-text);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+.battle-status-effects__names {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li { display: flex; gap: 12px; align-items: center; }
+  img { flex: 0 0 32px; }
+}
+
+.battle-inspection-dialog {
+  position: fixed;
+  margin: auto;
+  padding: 0;
+  max-height: calc(100dvh - 24px);
+  width: min(720px, calc(100vw - 24px));
+  max-width: 720px;
+  color: var(--mg-text);
+  overflow: hidden;
+  &::backdrop { background: var(--mg-bg-overlay); backdrop-filter: blur(4px); }
+  .mg-modal__body { min-height: 0; padding: 12px; }
+  .mg-modal__close { position: static; flex: 0 0 44px; width: 44px; height: 44px; font-size: 1.5rem; }
+  .mg-modal__title { padding: 0; font-size: 1.1rem; }
+}
+
+.battle-inspection-dialog__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px;
+  flex-shrink: 0;
+}
+
+.battle-roster-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: clamp(calc(146px + 5.25rem), 34dvh, 320px);
+  gap: 10px;
+}
+
+.battle-roster-hint { margin: 0 0 12px; }
+.battle-party-stack-trigger { display: none; }
+.battle-overlay :focus-visible,
+.battle-inspection-dialog :focus-visible { outline: 3px solid var(--mg-accent); outline-offset: 2px; }
+
+@media (min-width: 1025px) {
+  .battle-hud__bottom {
+    // Original root menu: capped list + label line + three spaces + panel borders.
+    grid-template-rows:
+      calc(clamp(200px, 30cqh, 280px) + clamp(0.9rem, 1.8cqh, 1.17rem)
+      + 3 * var(--mg-space-3) + 2 * var(--mg-border-width)) 3.25rem;
+  }
+  .battle-hud__party-row > .battle-party-slot { flex: 0 1 220px; min-width: 180px; }
+  .battle-hud__party-row .battle-party-card__avatar { object-position: center; }
+}
+
+@media (max-width: 1024px) {
+  .battle-overlay { padding: 8px; }
+  .battle-hud { min-height: 600px; gap: 4px; }
+  .battle-hud:not(.battle-hud--pending) { grid-template-rows: auto auto minmax(calc(64px + 7rem), 1fr) minmax(0, auto); }
+  .battle-status-panel__enemy, .battle-status-panel__turn { padding: 4px 12px; }
+  .battle-hud__top .battle-status-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 8px; }
+  .battle-status-panel__enemy { grid-template-columns: 1fr auto; }
+  .battle-status-panel__name, .battle-status-panel__hp { grid-column: 1 / -1; }
+  .battle-status-panel__turn .battle-status-panel__label { display: none; }
+  .battle-status-panel__turn { gap: 6px; grid-template-columns: auto minmax(0, 1fr); }
+  .battle-status-panel__icons { justify-content: flex-start; }
+  .battle-status-panel__icon { width: 24px; height: 24px; flex-basis: 24px; }
+  .battle-status-panel__name { font-size: 1rem; }
+  .battle-status-panel__label { font-size: 0.75rem; }
+  .battle-hud__bottom { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: clamp(calc(198px + 6rem), 40dvh, 360px) 3.25rem; gap: 8px; }
+  .battle-command-menu { padding: 8px; gap: 8px; }
+  .battle-command-menu__header { gap: 4px; }
+  .battle-command-menu__back { font-size: 0.75rem; padding: 4px; min-height: 44px; }
+  .battle-command-menu__label { font-size: 0.75rem; }
+  .battle-command-menu__button { padding: 8px 4px; }
+  .battle-hud__party-row { overflow: visible; padding: 0; }
+  .battle-hud__party-row > .battle-party-slot { display: none; }
+  .battle-hud__party-row > .battle-party-slot--front,
+  .battle-hud__party-row > .battle-party-slot--next { display: block; position: absolute; }
+  .battle-hud__party-row > .battle-party-slot--front { z-index: 2; inset: 0 12px calc(20px + 2.5rem) 0; }
+  .battle-hud__party-row > .battle-party-slot--next { z-index: 1; inset: 12px 0 calc(8px + 2.5rem) 12px; }
+  .battle-party-slot--next .battle-status-effects { display: none; }
+  .battle-party-stack-trigger {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 3;
+    bottom: 0;
+    right: 0;
+    width: 100%;
+    min-height: 44px;
     padding: 4px;
+    border: var(--mg-battle-card-border);
+    border-radius: var(--mg-radius);
+    background: var(--mg-battle-button-bg);
+    color: var(--mg-ink-outline);
+    font-weight: 800;
+    cursor: pointer;
+    small { font-size: 0.75rem; font-weight: 500; }
   }
+  .battle-party-card__body { padding: 7px; }
+  .battle-party-card__name { font-size: 0.875rem; }
+  .battle-enemy-slot .battle-status-effects__grid { grid-template-rows: repeat(var(--effect-rows), 18px); grid-auto-columns: 18px; }
+  .battle-enemy-slot .battle-status-effects__grid img { width: 18px; height: 18px; }
+  .battle-enemy-card { width: 140px; padding: 6px; }
+  .battle-enemy-card__name { font-size: 0.875rem; }
+  .battle-enemy-card__hp-nums { font-size: 0.75rem; }
+  .battle-hud__enemy-row { justify-content: safe center; padding: 6px; }
+}
 
-  .battle-hud {
-    gap: 4px;
-    height: auto;
-    min-height: calc(100dvh - 0.5rem);
-  }
-
-  .battle-enemy-card {
-    min-width: 110px;
-    width: 120px;
-    padding: 6px;
-
-    .battle-enemy-card__sprite {
-      max-height: 60px;
-    }
-
-    .battle-enemy-card__name {
-      font-size: 0.7rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 100%;
-    }
-  }
-
-  .battle-party-card {
-    min-width: 140px;
-    width: 160px;
-
-    &__body {
-      padding: 6px;
-    }
-
-    &__name {
-      font-size: 0.7rem;
-    }
-
-    &__bar {
-      font-size: 0.5rem;
-      grid-template-columns: 1.2em auto 3em;
-    }
-  }
-
-  .battle-hud__enemy-row {
-    min-height: 140px;
-    padding: 4px;
-    gap: 4px;
-  }
-
-  .battle-hud__party-row {
-    min-height: 140px;
-    gap: 6px;
-    padding-bottom: 2px;
-  }
-
-  .battle-status-panel__enemy,
-  .battle-status-panel__turn {
-    min-height: auto;
-    padding: 8px;
-  }
-
-  .battle-status-panel__name {
-    font-size: 1rem;
-  }
-
-  .battle-command-menu__button {
-    min-height: 28px;
-    padding: 0.3rem 0.5rem;
-    font-size: 0.75rem;
-  }
-
-  .battle-command-menu__items {
-    max-height: 160px;
-  }
+// Short windows and enlarged text use the overlay scrollport, not body scrolling.
+@media (max-height: 600px) {
+  .battle-hud { min-height: 620px; }
 }
 
 /* ===== TODO Feature Widgets ===== */

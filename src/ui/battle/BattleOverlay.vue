@@ -3,7 +3,7 @@ import {
   findBattleActionMenuNodeById,
   getBattleActionDefinition,
 } from "@/engine/battle/battleActionCatalog";
-import { getEnemy, getSkill, getStatusEffectMap } from "@/content/contentRegistry";
+import { getEnemy, getSkill, getItem } from "@/content/contentRegistry";
 import { useBattleStore } from "@/stores/battleStore";
 import { useGameDialog } from "@/composables/useGameDialog";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -12,7 +12,6 @@ import allyIconBright from "@/assets/pressTurnIcon/allyIconBright.svg";
 import enemyIcon from "@/assets/pressTurnIcon/enemyIcon.svg";
 import enemyIconBright from "@/assets/pressTurnIcon/enemyIconBright.svg";
 import type {
-  ActiveStatusEffect,
   BattleActionId,
   BattleActionMenuNode,
   BattleEnemyInstance,
@@ -21,12 +20,16 @@ import type {
 import BattleBroadcastWindow from "@/ui/battle/BattleBroadcastWindow.vue";
 import { getChallengeBossSprite } from "@/ui/battle/battleEnemySprites";
 import BattleCommandMenu from "@/ui/battle/BattleCommandMenu.vue";
+import BattlePartyCard from "@/ui/battle/BattlePartyCard.vue";
+import BattleStatusEffects from "@/ui/battle/BattleStatusEffects.vue";
+import BattleInspectionDialog from "@/ui/battle/BattleInspectionDialog.vue";
+import { findNextEligibleActorId } from "@/engine/battle/battleTurnQueue";
 import BattleStatusPanel from "@/ui/battle/BattleStatusPanel.vue";
 import { useProgressiveEnemyTurn } from "@/ui/battle/useProgressiveEnemyTurn";
 import { useFormationStore } from "@/stores/formationStore";
 import { buildPlayerPartyFromFormation } from "@/engine/battle/battleSetup";
 import { storeToRefs } from "pinia";
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 const battleStore = useBattleStore();
 const sessionStore = useSessionStore();
@@ -501,9 +504,59 @@ function findBattleActionMenuNodeByActionId(
   return null;
 }
 
-const _statusEffectNameCache = getStatusEffectMap();
-function formatStatusEffectName(effect: ActiveStatusEffect): string {
-  return _statusEffectNameCache.get(effect.effectId)?.name ?? effect.effectId;
+const compactParty = ref(false);
+const partyMedia = window.matchMedia("(max-width: 1024px)");
+function updatePartyMedia() {
+  compactParty.value = partyMedia.matches;
+}
+onMounted(() => {
+  updatePartyMedia();
+  partyMedia.addEventListener("change", updatePartyMedia);
+});
+onBeforeUnmount(() => partyMedia.removeEventListener("change", updatePartyMedia));
+
+const rosterOpen = ref(false);
+const lastAllyId = ref<string | null>(null);
+const actingAlly = computed(() =>
+  activeBattle.value?.phase === "PLAYER_COMMAND" && currentActor.value?.side === "player"
+    ? currentActor.value : null,
+);
+watch(actingAlly, (ally) => {
+  if (ally) lastAllyId.value = ally.id;
+}, { immediate: true });
+watch(() => activeBattle.value?.encounterId, () => { rosterOpen.value = false; });
+const foregroundAlly = computed(() =>
+  actingAlly.value ?? activePlayers.value.find(player => player.id === lastAllyId.value) ?? activePlayers.value[0],
+);
+const nextAlly = computed(() => {
+  const battle = activeBattle.value;
+  const actor = actingAlly.value;
+  if (!battle || !actor || battle.pressTurn.ownerSide !== "player" || !battle.pressTurn.icons.length ||
+    !actor.isActive || actor.isDown || actor.canAct === false) return null;
+  const id = findNextEligibleActorId(battle.pressTurnAllocation?.participantIds ?? [], activePlayers.value, actor.id);
+  return id === actor.id ? null : activePlayers.value.find(player => player.id === id) ?? null;
+});
+
+function canTargetAlly(player: BattleParticipant): boolean {
+  const battle = activeBattle.value;
+  if (!canSelectAlly.value || battle?.phase !== "PLAYER_COMMAND" || !battle.selectedActionId) return false;
+  if (!player.isDown) return true;
+  if (!battle.selectedContentId) return false;
+  try {
+    return battle.selectedActionId === "basic-skill"
+      ? getSkill(battle.selectedContentId).revives === true
+      : battle.selectedActionId === "basic-item" && getItem(battle.selectedContentId).revivePercent != null;
+  } catch {
+    return false;
+  }
+}
+
+function selectRosterTarget(id: string) {
+  const player = activePlayers.value.find(player => player.id === id);
+  if (!player || !canTargetAlly(player)) return;
+  const logSequence = activeBattle.value?.battleLog?.at(-1)?.sequence ?? 0;
+  selectTarget(id);
+  if ((activeBattle.value?.battleLog?.at(-1)?.sequence ?? 0) > logSequence) rosterOpen.value = false;
 }
 </script>
 
@@ -537,7 +590,7 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
 
       <section class="battle-hud__enemy-row" aria-label="敌人区域">
         <button
-          v-for="(enemy, index) in pendingEnemies"
+          v-for="enemy in pendingEnemies"
           :key="enemy.instanceId"
           type="button"
           class="battle-enemy-card battle-enemy-card--pending"
@@ -606,35 +659,36 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
       </div>
 
       <section class="battle-hud__enemy-row" aria-label="敌人区域">
-        <button
-          v-for="(enemy, index) in activeEnemies"
-          :key="enemy.id"
-          type="button"
-          class="battle-enemy-card"
-          :class="{
-            'battle-enemy-card--selected': selectedTarget?.id === enemy.id,
-            'battle-enemy-card--down': enemy.isDown,
-          }"
-          :aria-pressed="selectedTarget?.id === enemy.id"
-          :disabled="!canSelectEnemy"
-          @click="canSelectEnemy && selectTarget(enemy.id)"
-        >
-          <img
-            class="battle-enemy-card__sprite"
-            :src="getActiveEnemySprite(enemy)"
-            :alt="`${enemy.displayName} sprite`"
-          />
-          <span class="battle-enemy-card__name">
-            <span class="battle-enemy-card__level">LV {{ enemy.level ?? 1 }}</span>
-            {{ enemy.displayName }}
-          </span>
-          <progress
-            class="battle-enemy-card__hp"
-            :value="enemy.hp.current"
-            :max="enemy.hp.max"
-          />
-          <span class="battle-enemy-card__hp-nums">HP {{ enemy.hp.current }}/{{ enemy.hp.max }}</span>
-        </button>
+        <div v-for="enemy in activeEnemies" :key="enemy.id" class="battle-enemy-slot">
+          <button
+            type="button"
+            class="battle-enemy-card"
+            :class="{
+              'battle-enemy-card--selected': selectedTarget?.id === enemy.id,
+              'battle-enemy-card--down': enemy.isDown,
+            }"
+            :aria-pressed="selectedTarget?.id === enemy.id"
+            :disabled="!canSelectEnemy"
+            @click="canSelectEnemy && selectTarget(enemy.id)"
+          >
+            <img
+              class="battle-enemy-card__sprite"
+              :src="getActiveEnemySprite(enemy)"
+              :alt="`${enemy.displayName} sprite`"
+            />
+            <span class="battle-enemy-card__name">
+              <span class="battle-enemy-card__level">LV {{ enemy.level ?? 1 }}</span>
+              {{ enemy.displayName }}
+            </span>
+            <progress
+              class="battle-enemy-card__hp"
+              :value="enemy.hp.current"
+              :max="enemy.hp.max"
+            />
+            <span class="battle-enemy-card__hp-nums">HP {{ enemy.hp.current }}/{{ enemy.hp.max }}</span>
+          </button>
+          <BattleStatusEffects :effects="enemy.statusEffects ?? []" :owner-name="enemy.displayName" />
+        </div>
       </section>
 
       <div class="battle-hud__bottom">
@@ -652,60 +706,47 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
         />
 
         <section class="battle-hud__party-row" aria-label="玩家队伍区域">
-          <button
-            v-for="(player, index) in activePlayers"
+          <BattlePartyCard
+            v-for="player in activePlayers"
             :key="player.id"
-            type="button"
-            class="battle-party-card"
+            :player="player"
+            :avatar="getPartyAvatar(player)"
+            :acting="actingAlly?.id === player.id"
+            :targetable="canTargetAlly(player)"
             :class="{
-              'battle-party-card--actor': currentActor?.id === player.id,
-              'battle-party-card--down': player.isDown,
-              'battle-party-card--clickable': canSelectAlly,
+              'battle-party-slot--front': foregroundAlly?.id === player.id,
+              'battle-party-slot--next': nextAlly?.id === player.id,
             }"
-            :disabled="!canSelectAlly"
-            @click="canSelectAlly && selectTarget(player.id)"
+            :inert="compactParty && foregroundAlly?.id !== player.id"
+            :aria-hidden="compactParty && foregroundAlly?.id !== player.id ? true : undefined"
+            @select="selectTarget"
+          />
+          <button
+            type="button"
+            class="battle-party-stack-trigger"
+            aria-label="查看队伍"
+            aria-haspopup="dialog"
+            @click="rosterOpen = true"
           >
-            <img
-              class="battle-party-card__avatar"
-              :src="getPartyAvatar(player)"
-              :alt="`${player.displayName} avatar`"
-            />
-            <div class="battle-party-card__body">
-              <p class="battle-party-card__name">{{ player.displayName }}</p>
-              <div class="battle-party-card__bar">
-                <span class="battle-party-card__bar-label">HP</span>
-                <progress
-                  class="battle-party-card__hp"
-                  :value="player.hp.current"
-                  :max="player.hp.max"
-                />
-                <span class="battle-party-card__bar-nums">{{ player.hp.current }}/{{ player.hp.max }}</span>
-              </div>
-              <div class="battle-party-card__bar">
-                <span class="battle-party-card__bar-label">MP</span>
-                <progress
-                  class="battle-party-card__mp"
-                  :value="player.mp.current"
-                  :max="player.mp.max"
-                />
-                <span class="battle-party-card__bar-nums">{{ player.mp.current }}/{{ player.mp.max }}</span>
-              </div>
-              <p class="battle-party-card__status">
-                {{
-                  player.statusEffects?.length
-                    ? player.statusEffects.map(e => formatStatusEffectName(e)).join(", ")
-                    : "正常"
-                }}
-              </p>
-              <p
-                v-if="currentActor?.id === player.id"
-                class="battle-party-card__actor"
-              >
-                当前行动者
-              </p>
-            </div>
+            <span>查看队伍 <span aria-hidden="true">↗</span></span>
+            <small v-if="nextAlly">顺位 · {{ nextAlly.displayName }}</small>
           </button>
         </section>
+
+        <BattleInspectionDialog v-if="rosterOpen" title="玩家队伍" class="battle-roster-dialog" @close="rosterOpen = false">
+          <p v-if="canSelectAlly && activeBattle?.phase === 'PLAYER_COMMAND'" class="battle-roster-hint">{{ targetHintText }}</p>
+          <div class="battle-roster-grid">
+            <BattlePartyCard
+              v-for="player in activePlayers"
+              :key="player.id"
+              :player="player"
+              :avatar="getPartyAvatar(player)"
+              :acting="actingAlly?.id === player.id"
+              :targetable="canTargetAlly(player)"
+              @select="selectRosterTarget"
+            />
+          </div>
+        </BattleInspectionDialog>
 
         <section
           class="battle-command-description"
@@ -714,6 +755,12 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
         >
           <p>{{ displayCommandDescription }}</p>
         </section>
+        <div class="battle-hud__log-dock">
+          <BattleBroadcastWindow
+            :entries="activeBattle?.battleLog ?? []"
+            :turn-count="activeBattle?.turnCount ?? 1"
+          />
+        </div>
       </div>
 
       <!-- ═══ Swap Popup Overlay ═══ -->
@@ -783,11 +830,5 @@ function formatStatusEffectName(effect: ActiveStatusEffect): string {
         </div>
       </div>
     </div>
-
-    <BattleBroadcastWindow
-      v-if="activeBattle"
-      :entries="activeBattle.battleLog ?? []"
-      :turn-count="activeBattle.turnCount ?? 1"
-    />
   </section>
 </template>
