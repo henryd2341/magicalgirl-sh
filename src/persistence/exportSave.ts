@@ -2,6 +2,7 @@ import { createCheckpointManager } from "@/engine/checkpointManager";
 import type { SessionSnapshot } from "@/engine/sessionManager";
 import { ensureVariableState } from "@/engine/variableStateBootstrap";
 import { sanitizeRuntimeSnapshot } from "@/engine/runtimePersistenceService";
+import { encodeFullSaveV3 } from "@/persistence/fullSaveMessageCodec";
 import type { ChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
 import type { CheckpointRepository } from "@/persistence/repositories/checkpointRepository";
 import type { EventLogRepository } from "@/persistence/repositories/eventLogRepository";
@@ -71,8 +72,22 @@ export interface FullSaveExportV1 {
   };
 }
 
-/** All supported save export formats. */
-export type FullSaveExportPayload = FullSaveExportV2 | FullSaveExportV1;
+export interface FullSaveExportV3 extends Omit<FullSaveExportV2, "version" | "data"> {
+  version: 3;
+  data: Omit<FullSaveExportV2["data"], "chatMessages" | "checkpointSnapshots"> & {
+    messagePool: ChatMessage[];
+    chatMessageRefs: number[];
+    checkpointSnapshots: Array<
+      Omit<CheckpointSnapshotRecord, "chatMessages"> & { chatMessageRefs: number[] }
+    >;
+  };
+}
+
+/** Expanded payloads stored in slots and consumed by runtime restoration. */
+export type NormalizedFullSavePayload = FullSaveExportV2 | FullSaveExportV1;
+
+/** All supported file formats, including reference-based v3. */
+export type FullSaveExportPayload = NormalizedFullSavePayload | FullSaveExportV3;
 
 export interface FullSaveExportRepositories {
   checkpointRepository: CheckpointRepository;
@@ -230,7 +245,7 @@ export async function createFullSaveExport(
 
   return {
     fileName: `magicalgirl-sh-save-${timestampParts.fileStamp}.json`,
-    jsonText: JSON.stringify(exportPayload, null, 2),
+    jsonText: JSON.stringify(encodeFullSaveV3(exportPayload), null, 2),
     exportRecord,
   };
 }

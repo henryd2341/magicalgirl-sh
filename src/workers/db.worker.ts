@@ -8,7 +8,7 @@ import type {
   DbWorkerResponse,
   DbWorkerStateSnapshot,
 } from "@/persistence/dbProtocol";
-import type { FullSaveExportPayload } from "@/persistence/exportSave";
+import type { NormalizedFullSavePayload } from "@/persistence/exportSave";
 import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
 import { runMigrations } from "@/persistence/migrationRunner";
 import {
@@ -201,7 +201,7 @@ function saveSlotFromRow(row: SaveSlotRow): SaveSlotRecord {
     createdCheckpointId: row.created_checkpoint_id,
     saveMetaId: row.save_meta_id,
     label: row.label,
-    payload: parseJson<FullSaveExportPayload>(row.payload_json),
+    payload: parseJson<NormalizedFullSavePayload>(row.payload_json),
   };
 }
 

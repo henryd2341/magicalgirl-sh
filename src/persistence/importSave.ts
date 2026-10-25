@@ -3,10 +3,9 @@ import { syncPlayerGenderWorldInfoActivation } from "@/content/worldInfoActivati
 import type { DbWorkerClient } from "@/persistence/dbClient";
 import {
   FULL_SAVE_EXPORT_FORMAT,
-  type FullSaveExportPayload,
-  type FullSaveExportV1,
-  type FullSaveExportV2,
+  type NormalizedFullSavePayload,
 } from "@/persistence/exportSave";
+import { decodeFullSaveV3Data } from "@/persistence/fullSaveMessageCodec";
 import { DbVariableRepository } from "@/persistence/repositories/variableRepository";
 import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
 import type { SaveSlotRecord } from "@/persistence/saveSlotTypes";
@@ -61,7 +60,7 @@ function assertArray(value: unknown, fieldName: string): asserts value is unknow
   }
 }
 
-export function parseFullSaveImport(jsonText: string): FullSaveExportPayload {
+export function parseFullSaveImport(jsonText: string): NormalizedFullSavePayload {
   let parsed: unknown;
 
   try {
@@ -79,8 +78,8 @@ export function parseFullSaveImport(jsonText: string): FullSaveExportPayload {
   }
 
   const version = parsed.version;
-  if (version !== 1 && version !== 2) {
-    throw invalidImport("Unsupported save export version. Expected 1 or 2.");
+  if (version !== 1 && version !== 2 && version !== 3) {
+    throw invalidImport("Unsupported save export version. Expected 1, 2 or 3.");
   }
 
   if (
@@ -96,25 +95,15 @@ export function parseFullSaveImport(jsonText: string): FullSaveExportPayload {
   assertArray(parsed.data.checkpointSnapshots, "checkpointSnapshots");
   assertArray(parsed.data.saveMeta, "saveMeta");
   assertArray(parsed.data.eventLog, "eventLog");
-  assertArray(parsed.data.chatMessages, "chatMessages");
+  if (version !== 3) assertArray(parsed.data.chatMessages, "chatMessages");
   assertArray(parsed.data.variableChangeLog, "variableChangeLog");
   assertArray(parsed.data.worldInfo, "worldInfo");
 
-  if (version === 2) {
-    const payload = parsed as unknown as FullSaveExportV2;
-    const createdCheckpoint = payload.data.checkpointSnapshots.find(
-      (checkpoint) => checkpoint.id === payload.createdCheckpointId,
-    );
-    if (!createdCheckpoint || createdCheckpoint.kind !== "save_checkpoint") {
-      throw invalidImport("createdCheckpointId must point to a save checkpoint.");
-    }
-    return payload;
-  }
-
-  // v1: worldInfo has content but we don't use it on import
-  const payload = parsed as unknown as FullSaveExportV1;
+  const payload = (version === 3
+    ? { ...parsed, version: 2, data: decodeFullSaveV3Data(parsed.data) }
+    : parsed) as unknown as NormalizedFullSavePayload;
   const createdCheckpoint = payload.data.checkpointSnapshots.find(
-    (checkpoint) => checkpoint.id === payload.createdCheckpointId,
+    (checkpoint) => isRecord(checkpoint) && checkpoint.id === payload.createdCheckpointId,
   );
   if (!createdCheckpoint || createdCheckpoint.kind !== "save_checkpoint") {
     throw invalidImport("createdCheckpointId must point to a save checkpoint.");
@@ -122,7 +111,7 @@ export function parseFullSaveImport(jsonText: string): FullSaveExportPayload {
   return payload;
 }
 
-function createSlotLabel(payload: FullSaveExportPayload): string {
+function createSlotLabel(payload: NormalizedFullSavePayload): string {
   const saveMeta = payload.data.saveMeta.find(
     (record) => record.id === payload.saveMetaId,
   );
