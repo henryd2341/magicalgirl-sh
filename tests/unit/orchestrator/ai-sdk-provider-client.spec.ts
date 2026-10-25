@@ -1,4 +1,5 @@
 import { createHarnessToolExecutors } from "@/orchestrator/harnessTools";
+import { InputValidationError, VariablePatchRejectedError } from "@/engine/inputValidationError";
 import { skillRegistry } from "@/orchestrator/skillRegistry";
 import type { BuiltProviderRequest } from "@/orchestrator/harnessContextTypes";
 import { AiSdkProviderClient } from "@/orchestrator/aiSdkProviderClient";
@@ -13,7 +14,8 @@ const aiSdkMocks = vi.hoisted(() => ({
   createAnthropic: vi.fn(),
 }));
 
-vi.mock("ai", () => ({
+vi.mock("ai", async (importOriginal) => ({
+  ...await importOriginal<typeof import("ai")>(),
   generateText: aiSdkMocks.generateText,
   streamText: aiSdkMocks.streamText,
   stepCountIs: vi.fn((n: number) => ({ type: "stepCountIs", n })),
@@ -416,7 +418,7 @@ describe("AiSdkProviderClient", () => {
     aiSdkMocks.generateText.mockResolvedValue({ text: JSON.stringify({ patches: optimized }) });
     aiSdkMocks.streamText.mockReturnValue({ fullStream: streamParts([]) });
     const dispatchCommand = vi.fn().mockResolvedValue({ next: {}, nextHash: "hash", previousValues: new Map() });
-    if (fallback) dispatchCommand.mockRejectedValueOnce(new Error("optimized dispatch failed"));
+    if (fallback) dispatchCommand.mockRejectedValueOnce(new VariablePatchRejectedError(new InputValidationError("VARIABLE_SCHEMA_INVALID", "optimized dispatch failed")));
     await new AiSdkProviderClient({ providerName: "test", baseURL: "", model: "test", harnessDeps: {
       dispatchCommand,
       getToolProfile: vi.fn().mockResolvedValue({ kind: "openai-compatible", baseURL: "http://fake", model: "fake", apiKey: "" }),

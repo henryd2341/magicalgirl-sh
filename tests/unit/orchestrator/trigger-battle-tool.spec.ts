@@ -139,6 +139,8 @@ describe("ToolExecutor trigger_battle", () => {
     }
     expect(result.error.code).toBe("TOOL_INPUT_INVALID");
     expect(result.error.message).toContain("enemies must be a non-empty array");
+    expect(result.failureKind).toBe("input-rejected-before-write");
+    expect(facade.getSessionSnapshot().sessionState).toBe("IDLE");
   });
 
   it("rejects enemy counts lower than one in the frozen trigger_battle contract", async () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { InvalidToolInputError, NoSuchToolError } from 'ai';
 import { renderMarkdown } from '@/composables/useMarkdown';
 import { buildToolFoldHtml, normalizeStepToolResults, readToolChipPatches } from '@/orchestrator/toolResults';
 import { buildHarnessRequest } from '@/orchestrator/promptBuilder';
@@ -35,6 +36,55 @@ const results = [
 ];
 
 describe('recorded tool results', () => {
+  const call = { toolName: 'update_variables', toolCallId: 'safe', input: { patches: [] } };
+  const rejection = {
+    tool_name: call.toolName, tool_call_id: call.toolCallId, ok: false, commitAck: false,
+    failureKind: 'input-rejected-before-write', error: { code: 'VARIABLE_SCHEMA_INVALID', message: 'invalid player structure' },
+  };
+
+  it('preserves only matching local producer certificates and keeps their failed chips truthful', () => {
+    const [result] = normalizeStepToolResults({ toolCalls: [call], toolResults: [{ toolCallId: call.toolCallId, output: rejection }] });
+    expect(result).toMatchObject({ ok: false, failureKind: 'input-rejected-before-write', error: 'invalid player structure' });
+    const html = buildToolFoldHtml([result]);
+    expect(renderMarkdown(html)).toContain('变量更新 · 失败');
+    expect(html).toContain('invalid player structure');
+    expect(readToolChipPatches(html)).toBeUndefined();
+  });
+
+  it.each(['id-mismatch', 'name-mismatch', 'old', 'nested', 'provider-call', 'provider-result', 'contradictory', 'duplicates'])(
+    'does not trust %s envelope evidence', variant => {
+      const output = variant === 'nested' ? { ok: false, output: rejection } : {
+        ...rejection,
+        ...(variant === 'id-mismatch' ? { tool_call_id: 'other' } : {}),
+        ...(variant === 'name-mismatch' ? { tool_name: 'other' } : {}),
+        ...(variant === 'old' ? { failureKind: undefined } : {}),
+      };
+      const result = { toolCallId: call.toolCallId, output, providerExecuted: variant === 'provider-result' };
+      const [normalized] = normalizeStepToolResults({
+        toolCalls: [{ ...call, providerExecuted: variant === 'provider-call' }],
+        toolResults: variant === 'duplicates' ? [result, result] : [result],
+        content: variant === 'contradictory' ? [{ type: 'tool-error', toolCallId: call.toolCallId, error: 'write failed' }] : [],
+      });
+      expect(normalized.ok).toBe(false);
+      expect(normalized.failureKind).toBeUndefined();
+    },
+  );
+
+  it.each(['valid', 'execution-time', 'string', 'unsupported', 'provider', 'missing', 'mismatch', 'contradictory'])(
+    'requires actual SDK parser identity, invalid flag and matching rejection: %s', variant => {
+      const typed = new InvalidToolInputError({ toolName: call.toolName, toolInput: '{}', cause: new Error('schema') });
+      const error = variant === 'string' ? typed.message : variant === 'unsupported'
+        ? new NoSuchToolError({ toolName: call.toolName }) : typed;
+      const [result] = normalizeStepToolResults({
+        toolCalls: [{ ...call, invalid: variant !== 'execution-time', error, providerExecuted: variant === 'provider' }],
+        toolResults: variant === 'contradictory' ? [{ toolCallId: call.toolCallId, output: rejection }] : [],
+        content: variant === 'missing' ? [] : [{ type: 'tool-error', toolName: variant === 'mismatch' ? 'other' : call.toolName, toolCallId: call.toolCallId, error: error instanceof Error ? error.message : error }],
+      });
+      expect(result.ok).toBe(false);
+      expect(result.failureKind).toBe(variant === 'valid' ? 'input-rejected-before-write' : undefined);
+      if (variant === 'missing') expect(result.unconfirmed).toBe(true);
+    },
+  );
   it('renders uncapped sibling chips with literal complete values and no private root', () => {
     const raw = buildToolFoldHtml(results);
     const body = document.createElement('div');
@@ -134,7 +184,8 @@ describe('recorded tool results', () => {
   it.each([false, true])(
     'persists complete result chips before finalization or failed-draft recovery (retry=%s)',
     async retry => {
-      for (const failed of [false, true]) {
+      for (const state of ['success', 'failure', 'unconfirmed-rejection', 'unconfirmed-success']) {
+        const failed = state !== 'success';
         const repository = new InMemoryChatHistoryRepository();
         const chatService = new ChatMessageService(repository);
         const service = new OrchestratorService({
@@ -144,7 +195,10 @@ describe('recorded tool results', () => {
             textChunks: ['正文'],
             toolResults: [
               ...results,
-              ...(failed ? [{ tool_name: 'read_skill', tool_call_id: 'failed', ok: false, error: '技能不存在' }] : []),
+              ...(failed ? [{
+                tool_name: 'read_skill', tool_call_id: 'failed', ok: state === 'unconfirmed-success', error: '技能不存在',
+                ...(state.startsWith('unconfirmed') ? { unconfirmed: true, failureKind: 'input-rejected-before-write' as const } : {}),
+              }] : []),
             ],
           }),
           buildRequest: async () => ({

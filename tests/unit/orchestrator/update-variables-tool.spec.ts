@@ -1,14 +1,99 @@
 import { GameEngineFacade } from "@/engine/gameEngineFacade";
 import { createSessionManager } from "@/engine/sessionManager";
+import { InMemoryToolCallExecutionLedger } from "@/engine/idempotencyService";
+import { InputValidationError } from "@/engine/inputValidationError";
 import type { UpdateVariablesToolEnvelope } from "@/orchestrator/toolEnvelope";
 import { ToolExecutor } from "@/orchestrator/toolExecutor";
 import {
   InMemoryVariableChangeLogRepository,
   InMemoryVariableRepository,
 } from "@/persistence/repositories/variableRepository";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 describe("ToolExecutor update_variables", () => {
+  const base = { tool_name: "update_variables" as const, request_id: "request", context_version: 1, state_hash: "initial", tool_call_id: "tool" };
+
+  it("rejects invalid input and root structure without save, log or success ledger writes; a later update succeeds", async () => {
+    const variables = new InMemoryVariableRepository();
+    const logs = new InMemoryVariableChangeLogRepository();
+    const ledger = new InMemoryToolCallExecutionLedger();
+    const save = vi.spyOn(variables, "saveCurrent");
+    const append = vi.spyOn(logs, "append");
+    const record = vi.spyOn(ledger, "recordSuccess");
+    const facade = new GameEngineFacade(createSessionManager(), { variableRepository: variables, variableChangeLogRepository: logs });
+    const executor = new ToolExecutor(facade, { idempotencyLedger: ledger });
+    for (const input of [{ patches: [] }, { patches: [{ path: "player.profile", value: { name: "incomplete" } }] }]) {
+      expect(await executor.execute({ ...base, input })).toMatchObject({ ok: false, commitAck: false, failureKind: "input-rejected-before-write" });
+    }
+    expect(save).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+    expect(await executor.execute({ ...base, input: { patches: [{ path: "player.money", value: 10 }] } })).toMatchObject({ ok: true });
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["envelope", "unsupported", "hash", "request", "duplicate", "ledger-read", "ledger-write", "save", "skill-missing"])(
+    "keeps %s failures fatal, including typed errors after writes", async stage => {
+      const variables = new InMemoryVariableRepository();
+      const logs = new InMemoryVariableChangeLogRepository();
+      const ledger = new InMemoryToolCallExecutionLedger();
+      const facade = new GameEngineFacade(createSessionManager(), { variableRepository: variables, variableChangeLogRepository: logs });
+      const executor = new ToolExecutor(facade, { idempotencyLedger: ledger });
+      const error = new InputValidationError("VARIABLE_SCHEMA_INVALID", "[VARIABLE_SCHEMA_INVALID] failure after validation");
+      if (stage === "request") facade.beginAiRequest("different-request");
+      if (stage === "duplicate") await ledger.recordSuccess({ toolCallId: "tool", requestId: "request", toolName: "update_variables", recordedAt: "now" });
+      if (stage === "ledger-read") vi.spyOn(ledger, "hasSucceeded").mockRejectedValue(error);
+      if (stage === "ledger-write") vi.spyOn(ledger, "recordSuccess").mockRejectedValue(error);
+      if (stage === "save") vi.spyOn(variables, "saveCurrent").mockRejectedValue(error);
+      const result = await executor.execute({
+        ...base,
+        ...(stage === "envelope" ? { tool_call_id: "" } : {}),
+        ...(stage === "hash" ? { state_hash: "stale" } : {}),
+        tool_name: stage === "unsupported" ? "unknown" : stage === "skill-missing" ? "read_skill" : "update_variables",
+        input: stage === "skill-missing" ? { name: "missing-synthetic-skill" } : { patches: [{ path: "player.money", value: 10 }] },
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.failureKind).toBeUndefined();
+      if (stage === "ledger-write") expect((await variables.getCurrent())?.root.player.money).toBe(10);
+    },
+  );
+
+  it.each(["update_variables", "trigger_battle", "read_skill"].flatMap(toolName =>
+    ["hash", "request", "duplicate", "ledger-read", "state-read"].map(stage => ({ toolName, stage })),
+  ))("keeps $stage fatal when $toolName input is also invalid", async ({ toolName, stage }) => {
+    const variables = new InMemoryVariableRepository();
+    const logs = new InMemoryVariableChangeLogRepository();
+    const ledger = new InMemoryToolCallExecutionLedger();
+    const facade = new GameEngineFacade(createSessionManager(), { variableRepository: variables, variableChangeLogRepository: logs });
+    if (stage === "request") facade.beginAiRequest("different-request");
+    if (stage === "duplicate") await ledger.recordSuccess({ toolCallId: "tool", requestId: "request", toolName, recordedAt: "now" });
+    const error = new InputValidationError("VARIABLE_SCHEMA_INVALID", "[VARIABLE_SCHEMA_INVALID] context read failed");
+    if (stage === "ledger-read") vi.spyOn(ledger, "hasSucceeded").mockRejectedValue(error);
+    if (stage === "state-read") vi.spyOn(variables, "getCurrent").mockRejectedValue(error);
+    const dispatch = vi.spyOn(facade, "dispatchCommand");
+    const save = vi.spyOn(variables, "saveCurrent");
+    const append = vi.spyOn(logs, "append");
+    const record = vi.spyOn(ledger, "recordSuccess");
+    const result = await new ToolExecutor(facade, { idempotencyLedger: ledger }).execute({
+      ...base,
+      tool_name: toolName,
+      state_hash: stage === "hash" ? "stale" : "initial",
+      input: {},
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      commitAck: false,
+      error: { code: stage === "duplicate" ? "TOOL_CALL_DUPLICATE" : stage.endsWith("read") ? "VARIABLE_SCHEMA_INVALID" : "TOOL_CONTEXT_EXPIRED" },
+    });
+    if (!result.ok) expect(result.failureKind).toBeUndefined();
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
   it("translates update_variables envelope into APPLY_VARIABLE_PATCH command and commits the next variable root", async () => {
     const variableRepository = new InMemoryVariableRepository();
     const changeLogRepository = new InMemoryVariableChangeLogRepository();
