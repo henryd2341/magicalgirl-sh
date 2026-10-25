@@ -1,3 +1,4 @@
+import "../../helpers/conversationDom";
 import MainGameView from "@/pages/MainGameView.vue";
 import {
   configureChatPersistenceClient,
@@ -18,7 +19,7 @@ import type { BattleParticipant } from "@/types/battle";
 import { createDbWorkerRuntime } from "@/workers/db.worker";
 import { fireEvent, render, screen, waitFor } from "@testing-library/vue";
 import { createPinia, setActivePinia } from "pinia";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 function createPlayerParty(): BattleParticipant[] {
   return [
@@ -46,11 +47,13 @@ async function renderMainGameWithFreshPinia() {
   await router.push("/game");
   await router.isReady();
 
-  return render(MainGameView, {
+  const result = render(MainGameView, {
     global: {
       plugins: [pinia, router],
     },
   });
+  await waitFor(() => expect(screen.getByRole("region", { name: "消息列表" })).toHaveAttribute("aria-busy", "false"));
+  return result;
 }
 
 describe("MainGameView chat persistence wiring", () => {
@@ -136,7 +139,7 @@ describe("MainGameView chat persistence wiring", () => {
     ).toBeInTheDocument();
     expect(
       await screen.findByText(
-        "战斗后的空气慢慢安静下来，新的选择浮现在你面前。",
+        /四周的空气突然变得凝重/,
       ),
     ).toBeInTheDocument();
     expect(usePromptViewerStore().lastProviderInfo).toMatchObject({
@@ -316,13 +319,11 @@ describe("MainGameView chat persistence wiring", () => {
       promptText: "drawer system prompt",
     });
 
-    await fireEvent.click(
-      screen.getByRole("button", { name: "开发者 Prompt Viewer" }),
-    );
+    await fireEvent.click(screen.getByRole("button", { name: "显示开发者工具" }));
+    vi.spyOn(useSessionStore(), "previewPrompt").mockResolvedValue(viewerStore.lastRequest!);
+    await fireEvent.click(screen.getByRole("button", { name: "查看提示词" }));
 
-    expect(
-      screen.getByRole("region", { name: "开发者 Prompt Viewer" }),
-    ).toHaveAttribute("id", "prompt-viewer-drawer");
+    expect(await screen.findByRole("heading", { name: "Prompt Viewer" })).toBeInTheDocument();
     expect(screen.getByText("drawer system prompt")).toBeInTheDocument();
 
     await fireEvent.click(screen.getByRole("button", { name: "Traces" }));

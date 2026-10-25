@@ -32,8 +32,11 @@ describe("ToolExecutor update_variables", () => {
           },
           {
             path: "player.money",
-            value: 120,
+            value: 100,
           },
+          { path: "world.flags.visited", value: false },
+          { path: "world.location", value: { id: "roof", name: "旧校舍走廊", description: "雨后" } },
+          { path: "player.money", value: 120 },
         ],
       },
     } satisfies UpdateVariablesToolEnvelope);
@@ -47,6 +50,7 @@ describe("ToolExecutor update_variables", () => {
       throw new Error("Expected successful result.");
     }
 
+    expect(result.output.patches).toEqual([{ path: "world.location.name", value: "旧校舍走廊" }, { path: "player.money", value: 100 }, { path: "world.flags.visited", value: false }, { path: "world.location", value: { id: "roof", name: "旧校舍走廊", description: "雨后" } }, { path: "player.money", value: 120 }]);
     expect(result.output.next.root.world.location.name).toBe("旧校舍走廊");
     expect(result.output.next.root.player.money).toBe(120);
     expect((await variableRepository.getCurrent())?.version).toBe(2);

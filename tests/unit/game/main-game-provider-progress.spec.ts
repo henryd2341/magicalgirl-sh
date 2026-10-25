@@ -1,3 +1,4 @@
+import "../../helpers/conversationDom";
 import type {
   BuiltProviderRequest,
 } from "@/orchestrator/harnessContextTypes";
@@ -50,7 +51,8 @@ class DeferredProviderClient implements ProviderClient {
   }
 }
 
-vi.mock("@/orchestrator/providerSettings", () => ({
+vi.mock("@/orchestrator/providerSettings", async importOriginal => ({
+  ...await importOriginal<typeof import("@/orchestrator/providerSettings")>(),
   createConfiguredProviderClient: vi.fn(async () => ({
     client: new DeferredProviderClient(),
     providerInfo: {
@@ -90,6 +92,7 @@ describe("MainGameView provider progress feedback", () => {
       },
     });
 
+    await waitFor(() => expect(screen.getByRole("region", { name: "消息列表" })).toHaveAttribute("aria-busy", "false"));
     const textbox = screen.getByRole("textbox", { name: "故事输入框" });
     await fireEvent.update(textbox, "确认讯号是否发送。");
     await fireEvent.click(screen.getByRole("button", { name: "发送" }));
@@ -97,6 +100,8 @@ describe("MainGameView provider progress feedback", () => {
     expect(await screen.findByText("确认讯号是否发送。")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "发送" })).toBeDisabled();
     expect(textbox).toBeDisabled();
+    expect(screen.getByText("正在生成回复")).toBeInTheDocument();
+    expect(screen.getByText(/已用时/)).toBeInTheDocument();
 
     providerMocks.deferred?.resolve();
 
@@ -104,6 +109,7 @@ describe("MainGameView provider progress feedback", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "发送" })).toBeEnabled();
       expect(screen.getByRole("textbox", { name: "故事输入框" })).toBeEnabled();
+      expect(screen.queryByText("正在生成回复")).not.toBeInTheDocument();
     });
   });
 });

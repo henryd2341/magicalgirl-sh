@@ -1,5 +1,7 @@
 /* eslint-disable no-undef */
 
+import { useGameDialog } from "@/composables/useGameDialog";
+import { useChatStore } from "@/stores/chatStore";
 import SaveExportView from "@/pages/SaveExportView.vue";
 import {
   configureChatPersistenceClient,
@@ -362,7 +364,6 @@ describe("SaveExportView", () => {
       },
       now: () => "2026-05-25T11:03:00.000Z",
     });
-    vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(SaveExportView, {
       global: {
@@ -371,10 +372,13 @@ describe("SaveExportView", () => {
     });
 
     await screen.findByText("restore-slot.json");
+    const historyEpoch = useChatStore(pinia).historyEpoch;
     await fireEvent.click(screen.getByRole("button", { name: "恢复此槽位" }));
+    useGameDialog().handleConfirm();
 
     await waitFor(async () => {
       expect(await chatRepository.list()).toEqual(payload.data.chatMessages);
+      expect(useChatStore(pinia).historyEpoch).toBe(historyEpoch + 1);
       expect(
         screen.getByText(/已从槽位 slot-ui-restored 恢复到/),
       ).toBeInTheDocument();
@@ -460,7 +464,6 @@ describe("SaveExportView", () => {
       },
       now: () => "2026-05-25T12:03:00.000Z",
     });
-    vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(SaveExportView, {
       global: {
@@ -470,6 +473,7 @@ describe("SaveExportView", () => {
 
     await screen.findByText("delete-slot.json");
     await fireEvent.click(screen.getByRole("button", { name: "删除槽位" }));
+    useGameDialog().handleConfirm();
 
     await waitFor(async () => {
       expect(screen.getByText(/已删除槽位 slot-ui-delete/)).toBeInTheDocument();

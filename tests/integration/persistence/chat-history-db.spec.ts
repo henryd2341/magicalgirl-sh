@@ -1,3 +1,8 @@
+import { buildToolFoldHtml } from "@/orchestrator/toolResults";
+const recordedContent = "霓虹雨丝挂在站台边缘。" + '<details class="chat-tool-fold"><summary>旧工具</summary>历史内容</details>' + buildToolFoldHtml([
+  { tool_name: "update_variables", tool_call_id: "saved-batch", ok: true, output: { patches: [{ path: "player.money", value: 0 }, { path: "world.flags.test", value: false }, { path: "world.location.name", value: "天台" }] } },
+  { tool_name: "read_skill", tool_call_id: "saved-skill", ok: true, output: { name: "夜行", content: "完整结果<&>" } },
+]);
 import { ChatMessageService } from "@/engine/chatMessageService";
 import {
   DbWorkerClient,
@@ -23,7 +28,7 @@ describe("DbChatHistoryRepository", () => {
     });
     await service.appendAssistantChunk({
       messageId: "assistant-db-001",
-      chunk: "霓虹雨丝挂在站台边缘。",
+      chunk: recordedContent,
     });
     await service.finalizeAssistantMessage({
       messageId: "assistant-db-001",
@@ -33,7 +38,7 @@ describe("DbChatHistoryRepository", () => {
     expect(await repository.getById("assistant-db-001")).toMatchObject({
       id: "assistant-db-001",
       role: "assistant",
-      content: "霓虹雨丝挂在站台边缘。",
+      content: recordedContent,
       provisional: false,
       finalized: true,
       failed: false,
@@ -42,7 +47,7 @@ describe("DbChatHistoryRepository", () => {
     expect(await repository.list()).toEqual([
       expect.objectContaining({
         id: "assistant-db-001",
-        content: "霓虹雨丝挂在站台边缘。",
+        content: recordedContent,
       }),
     ]);
   });

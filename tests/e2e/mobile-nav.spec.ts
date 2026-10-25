@@ -22,9 +22,11 @@ test("floating controls do not cover pending or post-combat actions", async ({ p
     await page.evaluate(async (sessionState) => {
       const sessionPath = "/src/stores/sessionStore.ts";
       const battlePath = "/src/stores/battleStore.ts";
+      const chatPath = "/src/stores/chatStore.ts";
       const piniaPath = "/src/stores/index.ts";
       const { useSessionStore } = await import(/* @vite-ignore */ sessionPath);
       const { useBattleStore } = await import(/* @vite-ignore */ battlePath);
+      const { useChatStore } = await import(/* @vite-ignore */ chatPath);
       const { pinia } = await import(/* @vite-ignore */ piniaPath);
       const session = useSessionStore(pinia);
       if (sessionState === "COMBAT_PENDING") {
@@ -44,19 +46,30 @@ test("floating controls do not cover pending or post-combat actions", async ({ p
           reason: "Mobile navigation layout fixture",
           sessionSnapshot: { sessionState, pipelineState: null, activeRequestId: null },
           variableValue: await session.getVariableSnapshot(),
-          chatMessages: [],
+          chatMessages: useChatStore(pinia).messages,
         });
+        await useChatStore(pinia).refreshMessages({ replaceHistory: true });
       }
     }, state);
 
     const action = page.getByRole("button", { name: state === "COMBAT_PENDING" ? "进入战斗" : "继续剧情", exact: true });
     await expect(action).toBeVisible();
-    await page.screenshot({ path: testInfo.outputPath(`${state}.png`), animations: "disabled" });
+    await expect.poll(() => page.locator(".mg-game__messages").evaluate(el =>
+      el.scrollHeight - el.scrollTop - el.clientHeight,
+    )).toBeLessThanOrEqual(2);
+    const finalActions = page.locator(".chat-message-card__actions").last().getByRole("button");
+    await expect(finalActions).toHaveCount(3);
     const actionBounds = (await action.boundingBox())!;
     for (const button of await page.getByRole("navigation", { name: "移动端面板" }).getByRole("button").all()) {
       const bounds = (await button.boundingBox())!;
       expect(bounds.y + bounds.height).toBeLessThanOrEqual(actionBounds.y);
+      for (const messageAction of await finalActions.all()) {
+        const messageBounds = (await messageAction.boundingBox())!;
+        expect(messageBounds.y + messageBounds.height).toBeLessThanOrEqual(bounds.y);
+      }
     }
+    for (const messageAction of await finalActions.all()) await messageAction.click({ trial: true });
+    await page.screenshot({ path: testInfo.outputPath(`${state}.png`), animations: "disabled" });
     // Check pointer access without starting combat or making a provider request.
     await action.click({ trial: true });
   }

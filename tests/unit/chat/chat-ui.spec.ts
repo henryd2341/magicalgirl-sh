@@ -4,7 +4,10 @@ import ChatInputBox from "@/ui/chat/ChatInputBox.vue";
 import ChatMessageList from "@/ui/chat/ChatMessageList.vue";
 import FailedDraftActions from "@/ui/chat/FailedDraftActions.vue";
 import { render, screen } from "@testing-library/vue";
-import { describe, expect, it, vi } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+beforeEach(() => setActivePinia(createPinia()));
 
 describe("ChatMessageList", () => {
   it("renders user, provisional assistant, and failed draft messages with semantic status labels", () => {

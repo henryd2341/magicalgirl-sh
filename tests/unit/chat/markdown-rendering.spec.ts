@@ -14,7 +14,7 @@ describe("renderMarkdown", () => {
 
   it("renders [link](url) as clickable <a> tag", () => {
     const result = renderMarkdown("[link](https://example.com)");
-    expect(result).toContain('<a href="https://example.com">link</a>');
+    expect(result).toContain('<a href="https://example.com" target="_blank" rel="noopener noreferrer">link</a>');
   });
 
   it("renders inline `code` as <code> tag", () => {
