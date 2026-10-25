@@ -16,6 +16,7 @@ import type {
   ProviderStreamCallbacks,
   ProviderStreamResult,
 } from "@/orchestrator/providerClient";
+import { normalizeStepToolResults } from "@/orchestrator/toolResults";
 import type { ProviderProfileKind } from "@/orchestrator/providerSettings";
 
 export interface AiSdkProviderClientConfig {
@@ -123,18 +124,7 @@ export class AiSdkProviderClient implements ProviderClient {
       const result = (await generateText({
         ...modelOptions,
         onStepFinish: (event) => {
-          for (const tc of event.toolCalls) {
-            const tr = event.toolResults.find(
-              (r) => r.toolCallId === tc.toolCallId,
-            );
-            toolResults.push({
-              tool_name: tc.toolName,
-              tool_call_id: tc.toolCallId,
-              ok: !("error" in (tr ?? {})),
-              output: tr && "output" in tr ? tr.output : undefined,
-              error: tr && "error" in tr ? String(tr.error) : undefined,
-            });
-          }
+          toolResults.push(...normalizeStepToolResults(event));
         },
       })) as {
         text?: string;
@@ -164,18 +154,7 @@ export class AiSdkProviderClient implements ProviderClient {
     const result = streamText({
       ...modelOptions,
       onStepFinish: (event) => {
-        for (const tc of event.toolCalls) {
-          const tr = event.toolResults.find(
-            (r) => r.toolCallId === tc.toolCallId,
-          );
-          toolResults.push({
-            tool_name: tc.toolName,
-            tool_call_id: tc.toolCallId,
-            ok: !("error" in (tr ?? {})),
-            output: tr && "output" in tr ? tr.output : undefined,
-            error: tr && "error" in tr ? String(tr.error) : undefined,
-          });
-        }
+        toolResults.push(...normalizeStepToolResults(event));
       },
     });
 

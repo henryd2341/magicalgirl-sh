@@ -1,3 +1,4 @@
+import { skillRegistry } from "@/orchestrator/skillRegistry";
 import { BattleResultService, type BattleRewards } from "@/engine/battleResultService";
 import {
   RuntimePersistenceService,
@@ -124,6 +125,18 @@ export const useSessionStore = defineStore("session", () => {
   const variableEngine = new VariableEngine();
   const snapshot = ref(gameEngineFacade.getSessionSnapshot());
   const isStoryTurnRunning = ref(false);
+  const storyTurnStartedAt = ref<number | null>(null);
+  let storyTurnDepth = 0;
+  function beginStoryTurn() {
+    if (storyTurnDepth++ === 0) storyTurnStartedAt.value = Date.now();
+    isStoryTurnRunning.value = true;
+  }
+  function endStoryTurn() {
+    if (--storyTurnDepth === 0) {
+      isStoryTurnRunning.value = false;
+      storyTurnStartedAt.value = null;
+    }
+  }
   const summarizationStatus = ref<"idle" | "running" | "done" | "error">("idle");
   const lastPreviousValues = ref<PreviousValueMap>(new Map());
   const variableVersion = ref(0);
@@ -1409,11 +1422,13 @@ export const useSessionStore = defineStore("session", () => {
               });
             } else if (call.tool_name === "read_skill") {
               const input = call.input as { name: string };
+              const skill = skillRegistry.getByName(input.name);
               results.push({
                 tool_name: "read_skill",
                 tool_call_id: callId,
-                ok: true,
-                output: { name: input.name },
+                ok: !!skill,
+                output: { name: skill?.name ?? input.name, content: skill?.content ?? "" },
+                ...(!skill ? { error: `未找到技能: ${input.name}` } : {}),
               });
             } else {
               results.push({
@@ -1532,7 +1547,7 @@ export const useSessionStore = defineStore("session", () => {
 
   async function runStoryTurn(userInput: string) {
     const chatStore = useChatStore();
-    isStoryTurnRunning.value = true;
+    beginStoryTurn();
 
     try {
       const orchestratorService = await createStoryOrchestratorService({
@@ -1559,7 +1574,7 @@ export const useSessionStore = defineStore("session", () => {
 
       return result;
     } finally {
-      isStoryTurnRunning.value = false;
+      endStoryTurn();
     }
   }
 
@@ -1567,7 +1582,7 @@ export const useSessionStore = defineStore("session", () => {
     const chatStore = useChatStore();
 
     if (isStoryTurnRunning.value) return;
-    isStoryTurnRunning.value = true;
+    beginStoryTurn();
 
     try {
       const currentMessages = chatStore.messages;
@@ -1601,7 +1616,7 @@ export const useSessionStore = defineStore("session", () => {
       const keepMessages = restoredMessages.slice(0, keepEndIdx);
       const repo = chatStore.getActiveChatRuntime().repository;
       await repo.replaceAll(keepMessages);
-      await chatStore.refreshMessages();
+      await chatStore.refreshMessages({ replaceHistory: true });
 
       if (targetMessage.role === "assistant") {
         // AI message retry: trigger user message preserved, resume from it
@@ -1614,7 +1629,7 @@ export const useSessionStore = defineStore("session", () => {
         await runStoryTurn(triggerUserMsg.content);
       }
     } finally {
-      isStoryTurnRunning.value = false;
+      endStoryTurn();
     }
   }
 
@@ -1633,7 +1648,7 @@ export const useSessionStore = defineStore("session", () => {
       );
     }
 
-    isStoryTurnRunning.value = true;
+    beginStoryTurn();
 
     try {
       const chatStore = useChatStore();
@@ -1661,7 +1676,7 @@ export const useSessionStore = defineStore("session", () => {
 
       return result;
     } finally {
-      isStoryTurnRunning.value = false;
+      endStoryTurn();
     }
   }
 
@@ -1704,7 +1719,7 @@ export const useSessionStore = defineStore("session", () => {
     snapshot.value = gameEngineFacade.getSessionSnapshot();
 
     if (result.recovered) {
-      await chatStore.refreshMessages();
+      await chatStore.refreshMessages({ replaceHistory: true });
     }
 
     await persistRuntimeSnapshot();
@@ -1764,6 +1779,7 @@ export const useSessionStore = defineStore("session", () => {
       },
     });
     const result = await service.rollbackToLatest("idle_checkpoint");
+    await useChatStore().refreshMessages({ replaceHistory: true });
 
     if (checkpoint.variableValue !== null) {
       await variableRepository.saveCurrent(checkpoint.variableValue);
@@ -1779,6 +1795,7 @@ export const useSessionStore = defineStore("session", () => {
   return {
     snapshot,
     isStoryTurnRunning,
+    storyTurnStartedAt,
     summarizationStatus,
     variableVersion,
     learnedSkills,

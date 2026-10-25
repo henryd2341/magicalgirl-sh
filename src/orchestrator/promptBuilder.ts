@@ -1,3 +1,4 @@
+import { readToolChipPatches } from "@/orchestrator/toolResults";
 import { syncPlayerGenderWorldInfoActivation } from "@/content/worldInfoActivation";
 import { VariableEngine } from "@/engine/variableEngine";
 import { applyContextBudget } from "@/orchestrator/contextBudget";
@@ -142,47 +143,28 @@ function stripTagContent(content: string, tagName?: string): string {
   return content.replace(closed, "").replace(loneClose, "").trim();
 }
 
-function extractRecentVarUpdates(
-  messages: ChatMessage[],
-  maxResults = 3,
-): string {
-  const patches: Array<{ path: string; value: unknown }> = [];
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const content = messages[i].content;
-    const match = content.match(DETAILS_RE);
-    if (!match) continue;
-    for (const block of match) {
-      // Extract update_variables patches from the details block
-      const varSection = block.match(/\*\*变量更新\*\*\n([\s\S]*?)(?=\*\*|$)/);
-      if (!varSection) continue;
-      const lines = varSection[1].matchAll(/- `([^`]+)` → (.+)/g);
-      for (const line of lines) {
-        if (patches.length >= maxResults * 5) break;
-        try {
-          patches.push({ path: line[1], value: JSON.parse(line[2]) });
-        } catch {
-          patches.push({ path: line[1], value: line[2].trim() });
-        }
+function extractRecentVarUpdates(messages: ChatMessage[], maxResults = 3): string {
+  const recent = new Map<string, unknown>();
+  for (const message of [...messages].reverse()) {
+    const blocks = message.content.match(DETAILS_RE) ?? [];
+    for (const block of blocks.reverse()) {
+      let patches = readToolChipPatches(block) ?? [];
+      if (!block.includes('class="chat-tool-result-json"')) {
+        const section = block.match(/\*\*变量更新\*\*\n([\s\S]*?)(?=\*\*|$)/);
+        patches = [...(section?.[1].matchAll(/- `([^`]+)` → (.+)/g) ?? [])].map(line => {
+          try { return { path: line[1], value: JSON.parse(line[2]) }; }
+          catch { return { path: line[1], value: line[2].trim() }; }
+        });
       }
+      for (const patch of patches.reverse()) {
+        if (!recent.has(patch.path)) recent.set(patch.path, patch.value);
+        if (recent.size >= maxResults) break;
+      }
+      if (recent.size >= maxResults) break;
     }
-    if (patches.length >= maxResults * 5) break;
+    if (recent.size >= maxResults) break;
   }
-
-  // Deduplicate by path, keep most recent
-  const seen = new Set<string>();
-  const deduped: Array<{ path: string; value: unknown }> = [];
-  for (const p of patches.reverse()) {
-    if (deduped.length >= maxResults) break;
-    if (seen.has(p.path)) continue;
-    seen.add(p.path);
-    deduped.push(p);
-  }
-
-  if (deduped.length === 0) return "";
-  return (
-    "最近变量变更：\n" +
-    deduped.map((p) => `- ${p.path} → ${JSON.stringify(p.value)}`).join("\n")
-  );
+  return recent.size ? "最近变量变更：\n" + [...recent].map(([path, value]) => `- ${path} → ${JSON.stringify(value)}`).join("\n") : "";
 }
 
 function renderHistory(messages: ChatMessage[], tagName?: string): string {

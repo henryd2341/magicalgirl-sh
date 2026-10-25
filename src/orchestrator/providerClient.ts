@@ -9,15 +9,19 @@ export interface ProviderStreamCallbacks {
   onReasoningChunk?: (chunk: string) => Promise<void> | void;
 }
 
+export interface ProviderToolResult {
+  tool_name: string;
+  tool_call_id: string;
+  ok: boolean;
+  output?: unknown;
+  input?: unknown;
+  error?: string;
+  unconfirmed?: boolean;
+}
+
 export interface ProviderStreamResult {
   finishReason: "stop" | "tool_calls";
-  toolResults: Array<{
-    tool_name: string;
-    tool_call_id: string;
-    ok: boolean;
-    output?: unknown;
-    error?: string;
-  }>;
+  toolResults: ProviderToolResult[];
   providerMetadata?: Record<string, unknown>;
 }
 

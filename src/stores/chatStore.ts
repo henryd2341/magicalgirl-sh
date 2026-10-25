@@ -24,18 +24,15 @@ export interface ActiveChatRuntime {
   service: ChatMessageService;
 }
 
-const defaultRepository = new InMemoryChatHistoryRepository();
-let activeRepository: ChatHistoryRepository = defaultRepository;
+let activeRepository: ChatHistoryRepository = new InMemoryChatHistoryRepository();
 let activeService = new ChatMessageService(activeRepository);
+let runtimeVersion = 0;
+let mutationVersion = 0;
 
 function useInMemoryRepository(): void {
-  activeRepository = defaultRepository;
+  activeRepository = new InMemoryChatHistoryRepository();
   activeService = new ChatMessageService(activeRepository);
-  defaultRepository.clear();
-}
-
-async function listMessages(): Promise<ChatMessage[]> {
-  return activeRepository.list();
+  runtimeVersion++;
 }
 
 export const useChatStore = defineStore("chat", {
@@ -46,17 +43,19 @@ export const useChatStore = defineStore("chat", {
 
     return {
       messages: [] as ChatMessage[],
+      historyEpoch: 0,
     };
   },
   actions: {
     async configurePersistence(payload: { client: DbWorkerClient }) {
       activeRepository = new DbChatHistoryRepository(payload.client);
       activeService = new ChatMessageService(activeRepository);
-      this.messages = await listMessages();
+      runtimeVersion++;
+      await this.refreshMessages();
     },
     async createUserMessage(payload: CreateUserMessageInput) {
       const message = await activeService.createUserMessage(payload);
-      this.messages = await listMessages();
+      await this.refreshMessages();
       return message;
     },
     async createAssistantProvisionalMessage(
@@ -64,49 +63,74 @@ export const useChatStore = defineStore("chat", {
     ) {
       const message =
         await activeService.createAssistantProvisionalMessage(payload);
-      this.messages = await listMessages();
+      await this.refreshMessages();
       return message;
     },
     async appendAssistantChunk(payload: AppendAssistantChunkInput) {
+      const version = runtimeVersion;
+      const epoch = this.historyEpoch;
       const message = await activeService.appendAssistantChunk(payload);
-      this.messages = await listMessages();
+      if (version === runtimeVersion && epoch === this.historyEpoch) {
+        mutationVersion++;
+        const index = this.messages.findIndex(row => row.id === message.id);
+        if (index >= 0) this.messages[index] = message;
+        else await this.refreshMessages();
+      }
       return message;
     },
     async appendAssistantReasoning(payload: AppendAssistantReasoningInput) {
+      const version = runtimeVersion;
+      const epoch = this.historyEpoch;
       const message = await activeService.appendAssistantReasoning(payload);
-      this.messages = await listMessages();
+      if (version === runtimeVersion && epoch === this.historyEpoch) {
+        mutationVersion++;
+        const index = this.messages.findIndex(row => row.id === message.id);
+        if (index >= 0) this.messages[index] = message;
+        else await this.refreshMessages();
+      }
       return message;
     },
     async finalizeAssistantMessage(payload: FinalizeAssistantMessageInput) {
       const message = await activeService.finalizeAssistantMessage(payload);
-      this.messages = await listMessages();
+      await this.refreshMessages();
       return message;
     },
     async markAssistantFailedDraft(payload: MarkAssistantFailedDraftInput) {
       const message = await activeService.markAssistantFailedDraft(payload);
-      this.messages = await listMessages();
+      await this.refreshMessages();
       return message;
     },
     async createBattleSummaryMessages(
       payload: CreateBattleSummaryMessageInput[],
     ) {
       const messages = await activeService.createBattleSummaryMessages(payload);
-      this.messages = await listMessages();
+      await this.refreshMessages();
       return messages;
     },
     async createContextSummaryMessage(
       payload: CreateContextSummaryMessageInput,
     ) {
       const message = await activeService.createContextSummaryMessage(payload);
-      this.messages = await listMessages();
+      await this.refreshMessages();
       return message;
     },
-    async refreshMessages() {
-      this.messages = await listMessages();
+    async refreshMessages(options?: { replaceHistory?: boolean }) {
+      if (options?.replaceHistory) runtimeVersion++;
+      const version = runtimeVersion;
+      const epoch = this.historyEpoch;
+      let revision: number;
+      let messages: ChatMessage[];
+      do {
+        revision = mutationVersion;
+        messages = await activeRepository.list();
+        if (version !== runtimeVersion || epoch !== this.historyEpoch) return;
+      } while (revision !== mutationVersion);
+      this.messages = messages;
+      if (options?.replaceHistory) this.historyEpoch++;
     },
     async updateMessageContent(payload: UpdateMessageContentInput) {
       await activeService.updateMessageContent(payload);
-      this.messages = await listMessages();
+      await this.refreshMessages();
     },
     getActiveChatRuntime(): ActiveChatRuntime {
       return {
@@ -117,6 +141,7 @@ export const useChatStore = defineStore("chat", {
     resetToInMemoryPersistence() {
       useInMemoryRepository();
       this.messages = [];
+      this.historyEpoch++;
     },
   },
 });

@@ -9,6 +9,7 @@ import type { GameEngineFacade } from "@/engine/gameEngineFacade";
 import type {
   BuiltProviderRequest,
 } from "@/orchestrator/harnessContextTypes";
+import { buildToolFoldHtml } from "@/orchestrator/toolResults";
 import type {
   ProviderClient,
   ProviderStreamResult,
@@ -58,7 +59,7 @@ export interface RunUserTurnResult {
   ok: boolean;
   request: BuiltProviderRequest | null;
   assistantMessageId: string;
-  toolResults: Array<{ tool_name: string; tool_call_id: string; ok: boolean; output?: unknown; error?: string }>;
+  toolResults: ProviderStreamResult["toolResults"];
   providerMetadata?: Record<string, unknown>;
   error?: Error;
 }
@@ -117,7 +118,7 @@ export class OrchestratorService {
     let request: BuiltProviderRequest | null = null;
     let checkpoint: CheckpointSnapshotRecord | null = null;
     let assistantMessageCreated = false;
-    const toolResults: Array<{ tool_name: string; tool_call_id: string; ok: boolean; output?: unknown; error?: string }> = [];
+    const toolResults: ProviderStreamResult["toolResults"] = [];
 
     await this.chatService.createUserMessage({
       id: userMessageId,
@@ -234,7 +235,7 @@ export class OrchestratorService {
     let request: BuiltProviderRequest | null = null;
     let checkpoint: CheckpointSnapshotRecord | null = null;
     let assistantMessageCreated = false;
-    const toolResults: Array<{ tool_name: string; tool_call_id: string; ok: boolean; output?: unknown; error?: string }> = [];
+    const toolResults: ProviderStreamResult["toolResults"] = [];
 
     // NOTE: do NOT create user message — it already exists from checkpoint rollback
 
@@ -359,57 +360,4 @@ export class OrchestratorService {
       },
     });
   }
-}
-
-function buildToolFoldHtml(
-  toolResults: ProviderStreamResult["toolResults"],
-): string {
-  const visible = toolResults.filter(
-    (tr) => tr.ok,
-  );
-  if (visible.length === 0) return "";
-
-  let html = `\n\n<details class="chat-tool-fold"><summary>工具调用 (${visible.length})</summary>\n\n`;
-
-  for (const tr of visible) {
-    if (tr.tool_name === "update_variables") {
-      html += "**变量更新**\n";
-      const output = tr.output as
-        | { patches?: Array<{ path: string; value: unknown }> }
-        | undefined;
-      if (output?.patches && output.patches.length > 0) {
-        for (const p of output.patches) {
-          html += `- \`${p.path}\` → ${JSON.stringify(p.value)}\n`;
-        }
-      } else {
-        html += "*(已执行)*\n";
-      }
-    } else if (tr.tool_name === "read_skill") {
-      html += "**读取技能**\n";
-      const output = tr.output as { name?: string } | undefined;
-      if (output?.name) {
-        html += `- ${output.name}\n`;
-      } else {
-        html += "*(已执行)*\n";
-      }
-    } else if (tr.tool_name === "trigger_battle") {
-      html += "**触发战斗**\n";
-      const output = tr.output as
-        | { encounter_id?: string; narrative_reason?: string }
-        | undefined;
-      if (output?.encounter_id) {
-        html += `- 遭遇: ${output.encounter_id}\n`;
-      }
-      if (output?.narrative_reason) {
-        html += `- 原因: ${output.narrative_reason}\n`;
-      }
-      if (!output?.encounter_id && !output?.narrative_reason) {
-        html += "*(已执行)*\n";
-      }
-    }
-    html += "\n";
-  }
-
-  html += "</details>\n";
-  return html;
 }

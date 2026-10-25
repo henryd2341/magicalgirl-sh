@@ -98,7 +98,7 @@ export type ToolExecutionResult<TToolName extends string, TOutput> =
 
 export type UpdateVariablesToolResult = ToolExecutionResult<
   "update_variables",
-  VariablePatchResult
+  VariablePatchResult & { patches: VariablePathPatch[] }
 >;
 
 export type TriggerBattleToolResult = ToolExecutionResult<

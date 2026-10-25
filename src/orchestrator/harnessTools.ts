@@ -237,6 +237,7 @@ export function createHarnessToolsWithExecute(
           tool_call_id: options.toolCallId,
           commitAck: true,
           output: {
+            patches,
             next: result.next,
             nextHash: result.nextHash,
             previousValues: result.previousValues,
@@ -303,13 +304,14 @@ export function createHarnessToolsWithExecute(
         "Input: { name: string } — 技能名称",
       ].join("\n"),
       inputSchema: readSkillToolInputSchema,
-      execute: async (input) => {
+      execute: async (input, options) => {
         const skill = skillRegistry.getByName(input.name);
         if (!skill) {
           return {
             ok: false,
             tool_name: "read_skill",
-            tool_call_id: "",
+            tool_call_id: options.toolCallId,
+            name: input.name,
             content: "",
             error: `未找到技能: ${input.name}`,
           };
@@ -318,7 +320,8 @@ export function createHarnessToolsWithExecute(
         return {
           ok: true,
           tool_name: "read_skill",
-          tool_call_id: "",
+          tool_call_id: options.toolCallId,
+          name: skill.name,
           content: skill.content,
         };
       },
@@ -341,7 +344,7 @@ export interface UpdateVariablesExecuteResult {
   tool_name: "update_variables";
   tool_call_id: string;
   commitAck: true;
-  output: VariablePatchResult & { agentReasoning?: string };
+  output: VariablePatchResult & { patches: VariablePathPatch[]; agentReasoning?: string };
 }
 
 export interface TriggerBattleExecuteResult {
@@ -357,6 +360,7 @@ export interface ReadSkillExecuteResult {
   tool_name: "read_skill";
   tool_call_id: string;
   commitAck: true;
+  name: string;
   content: string;
 }
 
@@ -464,6 +468,7 @@ export function createHarnessToolExecutors(
           tool_call_id: input.tool_call_id,
           commitAck: true as const,
           output: {
+            patches: input.input.patches,
             next: result.next,
             nextHash: result.nextHash,
             previousValues: result.previousValues,
@@ -508,6 +513,7 @@ export function createHarnessToolExecutors(
           tool_name: "read_skill" as const,
           tool_call_id: input.tool_call_id,
           commitAck: true as const,
+          name: skill.name,
           content: skill.content,
         };
       },
