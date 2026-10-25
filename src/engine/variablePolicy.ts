@@ -1,8 +1,9 @@
+import { InputValidationError } from "@/engine/inputValidationError";
 import type { GameVariablesRoot, VariablePathPatch } from "@/types/variables";
 import type { TrainingProgress } from "@/types/training";
 
 function createVariableError(code: string, message: string): Error {
-  return new Error(`[${code}] ${message}`);
+  return new InputValidationError(code, `[${code}] ${message}`);
 }
 
 export function createDefaultGameVariablesRoot(): GameVariablesRoot {

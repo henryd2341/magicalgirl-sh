@@ -178,7 +178,9 @@ export class OrchestratorService {
         });
       }
 
-      const failedResult = streamResult.toolResults.find((tr) => !tr.ok);
+      const failedResult = streamResult.toolResults.find(
+        (tr) => tr.unconfirmed || (!tr.ok && tr.failureKind !== "input-rejected-before-write"),
+      );
       if (failedResult) {
         throw new Error(
           `[TOOL_EXECUTION_FAILED] Tool ${failedResult.tool_name} (${failedResult.tool_call_id}) failed: ${failedResult.error ?? "unknown error"}`,
@@ -288,7 +290,9 @@ export class OrchestratorService {
         });
       }
 
-      const failedResult = streamResult.toolResults.find((tr) => !tr.ok);
+      const failedResult = streamResult.toolResults.find(
+        (tr) => tr.unconfirmed || (!tr.ok && tr.failureKind !== "input-rejected-before-write"),
+      );
       if (failedResult) {
         throw new Error(
           `[TOOL_EXECUTION_FAILED] Tool ${failedResult.tool_name} (${failedResult.tool_call_id}) failed: ${failedResult.error ?? "unknown error"}`,

@@ -1,3 +1,4 @@
+import type { InputValidationError, VariablePatchRejectedError } from "@/engine/inputValidationError";
 import type {
   VariablePatchEnvelope,
   VariablePatchResult,
@@ -89,12 +90,28 @@ export interface ToolExecutionFailureResult<TToolName extends string> {
   tool_name: TToolName;
   tool_call_id: string;
   commitAck: false;
+  failureKind?: "input-rejected-before-write";
   error: ToolExecutionError;
 }
 
 export type ToolExecutionResult<TToolName extends string, TOutput> =
   | ToolExecutionSuccessResult<TToolName, TOutput>
   | ToolExecutionFailureResult<TToolName>;
+
+export function rejectedToolInput<TToolName extends string>(
+  toolName: TToolName,
+  toolCallId: string,
+  error: InputValidationError | VariablePatchRejectedError,
+): ToolExecutionFailureResult<TToolName> {
+  return {
+    ok: false,
+    tool_name: toolName,
+    tool_call_id: toolCallId,
+    commitAck: false,
+    failureKind: "input-rejected-before-write",
+    error: { code: error.code, message: error.message },
+  };
+}
 
 export type UpdateVariablesToolResult = ToolExecutionResult<
   "update_variables",

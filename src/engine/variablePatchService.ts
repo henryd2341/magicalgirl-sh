@@ -1,4 +1,5 @@
 import { VariableEngine } from "@/engine/variableEngine";
+import { InputValidationError, VariablePatchRejectedError } from "@/engine/inputValidationError";
 import type {
   VariableChangeLogRepository,
   VariableRepository,
@@ -37,10 +38,15 @@ export class VariablePatchService {
       (await this.variableRepository.getCurrent()) ??
       this.engine.createInitialState();
 
-    const result = this.engine.applyPatchSet({
-      current,
-      envelope,
-    });
+    let result;
+    try {
+      result = this.engine.applyPatchSet({ current, envelope });
+    } catch (error) {
+      if (error instanceof InputValidationError) {
+        throw new VariablePatchRejectedError(error);
+      }
+      throw error;
+    }
 
     await this.variableRepository.saveCurrent(result.next);
 

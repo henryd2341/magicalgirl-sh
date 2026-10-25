@@ -1,11 +1,14 @@
 import { generateText, tool } from "ai";
 
 import type { GameEngineFacade } from "@/engine/gameEngineFacade";
+import { VariablePatchRejectedError } from "@/engine/inputValidationError";
 import { createLanguageModel } from "@/orchestrator/languageModelFactory";
 import type { ProviderProfile } from "@/orchestrator/providerSettings";
 import {
   toTriggerBattleCommandPayload,
   toVariablePatchEnvelope,
+  rejectedToolInput,
+  type ToolExecutionFailureResult,
   type ReadSkillToolInput,
   type TriggerBattleCommandResult,
   type TriggerBattleToolInput,
@@ -219,15 +222,21 @@ export function createHarnessToolsWithExecute(
         try {
           result = await dispatchPatches(patches);
         } catch (dispatchErr) {
+          if (!(dispatchErr instanceof VariablePatchRejectedError)) throw dispatchErr;
           if (patches !== input.patches) {
             console.warn(
               "[harnessTools] Optimized patch dispatch failed, retrying with original.",
             );
             patches = input.patches;
             agentReasoning = undefined;
-            result = await dispatchPatches(input.patches);
+            try {
+              result = await dispatchPatches(input.patches);
+            } catch (error) {
+              if (!(error instanceof VariablePatchRejectedError)) throw error;
+              return rejectedToolInput("update_variables", options.toolCallId, error);
+            }
           } else {
-            throw dispatchErr;
+            return rejectedToolInput("update_variables", options.toolCallId, dispatchErr);
           }
         }
 
@@ -366,13 +375,14 @@ export interface ReadSkillExecuteResult {
 
 export type HarnessToolExecuteResult =
   | UpdateVariablesExecuteResult
+  | ToolExecutionFailureResult<"update_variables">
   | TriggerBattleExecuteResult
   | ReadSkillExecuteResult;
 
 export interface HarnessToolExecutors {
   update_variables: {
     // eslint-disable-next-line no-unused-vars
-    execute(input: UpdateVariablesExecuteInput): Promise<UpdateVariablesExecuteResult>;
+    execute(input: UpdateVariablesExecuteInput): Promise<UpdateVariablesExecuteResult | ToolExecutionFailureResult<"update_variables">>;
   };
   trigger_battle: {
     // eslint-disable-next-line no-unused-vars
@@ -450,17 +460,23 @@ export function createHarnessToolExecutors(
   return {
     update_variables: {
       async execute(input) {
-        const result = await deps.dispatchCommand({
-          type: "APPLY_VARIABLE_PATCH",
-          envelope: toVariablePatchEnvelope({
-            tool_name: "update_variables",
-            tool_call_id: input.tool_call_id,
-            request_id: input.envelope.request_id,
-            context_version: input.envelope.context_version,
-            state_hash: input.envelope.state_hash,
-            input: input.input,
-          }),
-        });
+        let result;
+        try {
+          result = await deps.dispatchCommand({
+            type: "APPLY_VARIABLE_PATCH",
+            envelope: toVariablePatchEnvelope({
+              tool_name: "update_variables",
+              tool_call_id: input.tool_call_id,
+              request_id: input.envelope.request_id,
+              context_version: input.envelope.context_version,
+              state_hash: input.envelope.state_hash,
+              input: input.input,
+            }),
+          });
+        } catch (error) {
+          if (!(error instanceof VariablePatchRejectedError)) throw error;
+          return rejectedToolInput("update_variables", input.tool_call_id, error);
+        }
 
         return {
           ok: true as const,

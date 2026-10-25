@@ -1,4 +1,5 @@
 import { z, type ZodIssue } from "zod";
+import { InputValidationError } from "@/engine/inputValidationError";
 
 import type {
   ToolEnvelopeCandidate,
@@ -209,7 +210,7 @@ export function validateUpdateVariablesToolInput(
 ): UpdateVariablesToolInput {
   const result = updateVariablesToolInputSchema.safeParse(input);
   if (!result.success) {
-    throw updateVariablesInputError(result.error);
+    throw new InputValidationError("TOOL_INPUT_INVALID", updateVariablesInputError(result.error).message);
   }
 
   return result.data;
@@ -220,7 +221,7 @@ export function validateTriggerBattleToolInput(
 ): TriggerBattleToolInput {
   const result = triggerBattleToolInputSchema.safeParse(input);
   if (!result.success) {
-    throw triggerBattleInputError(result.error);
+    throw new InputValidationError("TOOL_INPUT_INVALID", triggerBattleInputError(result.error).message);
   }
 
   return result.data;
@@ -231,7 +232,8 @@ export function validateReadSkillToolInput(
 ): ReadSkillToolInput {
   const result = readSkillToolInputSchema.safeParse(input);
   if (!result.success) {
-    throw new Error(
+    throw new InputValidationError(
+      "TOOL_INPUT_INVALID",
       "[TOOL_INPUT_INVALID] read_skill input must include a string name.",
     );
   }

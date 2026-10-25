@@ -1,3 +1,4 @@
+import { InvalidToolInputError } from 'ai';
 import type { ProviderToolResult } from '@/orchestrator/providerClient';
 import type { VariablePathPatch } from '@/types/variables';
 
@@ -13,18 +14,37 @@ function errorText(error: unknown): string {
 }
 
 export function normalizeStepToolResults(step: {
-  toolCalls: ReadonlyArray<{ toolName: string; toolCallId: string; input?: unknown; error?: unknown }>;
-  toolResults: ReadonlyArray<{ toolCallId: string; output?: unknown; error?: unknown }>;
+  toolCalls: ReadonlyArray<{ toolName: string; toolCallId: string; input?: unknown; error?: unknown; invalid?: boolean; providerExecuted?: boolean }>;
+  toolResults: ReadonlyArray<{ toolCallId: string; toolName?: string; output?: unknown; error?: unknown; providerExecuted?: boolean }>;
   content?: ReadonlyArray<unknown>;
 }): ProviderToolResult[] {
   return step.toolCalls.map(call => {
-    const result = step.toolResults.find(result => result.toolCallId === call.toolCallId);
-    const failure = step.content
+    const results = step.toolResults.filter(result => result.toolCallId === call.toolCallId);
+    const result = results[0];
+    const failures = step.content
       ?.map(record)
-      .find(part => part.type === 'tool-error' && part.toolCallId === call.toolCallId);
+      .filter(part => part.type === 'tool-error' && part.toolCallId === call.toolCallId) ?? [];
+    const failure = failures[0];
     const base = { tool_name: call.toolName, tool_call_id: call.toolCallId, input: call.input };
+    if (!result && !failure) {
+      return { ...base, ok: false, unconfirmed: true, error: call.error === undefined ? '未收到工具执行结果，状态未确认。' : errorText(call.error) };
+    }
+    if (results.length > 1 || failures.length > 1 || (failure && result)) {
+      return { ...base, ok: false, error: errorText(failure?.error ?? '工具执行结果冲突，状态未确认。') };
+    }
     if (failure || call.error !== undefined || (result && 'error' in result)) {
-      return { ...base, ok: false, error: errorText(failure?.error ?? call.error ?? result?.error) };
+      const rejection = failure ?? result;
+      const rejectedInput = call.invalid === true && call.providerExecuted !== true &&
+        rejection?.providerExecuted !== true && rejection?.toolName === call.toolName &&
+        InvalidToolInputError.isInstance(call.error) && call.error.toolName === call.toolName &&
+        (rejection.error === call.error || rejection.error === call.error.message) &&
+        !(result && 'output' in result);
+      return {
+        ...base,
+        ok: false,
+        error: errorText(failure?.error ?? call.error ?? result?.error),
+        ...(rejectedInput ? { failureKind: 'input-rejected-before-write' as const } : {}),
+      };
     }
     if (!result) return { ...base, ok: false, unconfirmed: true, error: '未收到工具执行结果，状态未确认。' };
     const envelope = record(result.output);
@@ -40,6 +60,11 @@ export function normalizeStepToolResults(step: {
       ...base,
       ok,
       output,
+      ...(!ok && wrapped && envelope.ok === false && envelope.tool_call_id === call.toolCallId &&
+        envelope.commitAck === false && envelope.failureKind === 'input-rejected-before-write' &&
+        call.providerExecuted !== true && result.providerExecuted !== true &&
+        (result.toolName === undefined || result.toolName === call.toolName)
+        ? { failureKind: 'input-rejected-before-write' as const } : {}),
       ...(!ok ? { error: errorText(envelope.error ?? domain.error ?? '工具执行失败。') } : {}),
     };
   });

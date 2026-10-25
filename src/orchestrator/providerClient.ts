@@ -17,6 +17,7 @@ export interface ProviderToolResult {
   input?: unknown;
   error?: string;
   unconfirmed?: boolean;
+  failureKind?: "input-rejected-before-write";
 }
 
 export interface ProviderStreamResult {

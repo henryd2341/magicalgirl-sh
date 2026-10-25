@@ -1,4 +1,5 @@
 import type { GameEngineFacade } from "@/engine/gameEngineFacade";
+import { InputValidationError } from "@/engine/inputValidationError";
 import {
   InMemoryToolCallExecutionLedger,
   type ToolCallExecutionLedger,
@@ -8,6 +9,8 @@ import {
   type HarnessToolExecutors,
 } from "@/orchestrator/harnessTools";
 import {
+  rejectedToolInput,
+  type BaseToolEnvelope,
   type ToolEnvelope,
   type ToolEnvelopeCandidate,
   type ToolExecutionError,
@@ -92,7 +95,14 @@ export class ToolExecutor {
     envelope: TEnvelope,
   ): Promise<ToolExecutorResult<TEnvelope>> {
     try {
-      const validatedEnvelope = validateToolEnvelope(envelope);
+      let validatedEnvelope;
+      try {
+        validatedEnvelope = validateToolEnvelope(envelope);
+      } catch (error) {
+        if (!(error instanceof InputValidationError)) throw error;
+        await this.assertExecutionContext(envelope);
+        return rejectedToolInput(envelope.tool_name, envelope.tool_call_id, error) as ToolExecutorResult<TEnvelope>;
+      }
       await this.assertExecutionContext(validatedEnvelope);
 
       switch (validatedEnvelope.tool_name) {
@@ -107,7 +117,7 @@ export class ToolExecutor {
             },
           });
 
-          await this.recordSuccessfulExecution(validatedEnvelope);
+          if (result.ok) await this.recordSuccessfulExecution(validatedEnvelope);
 
           return result as ToolExecutorResult<TEnvelope>;
         }
@@ -151,7 +161,7 @@ export class ToolExecutor {
     }
   }
 
-  private async assertExecutionContext(envelope: ToolEnvelope): Promise<void> {
+  private async assertExecutionContext(envelope: BaseToolEnvelope): Promise<void> {
     const [alreadySucceeded, sessionSnapshot, currentStateHash] =
       await Promise.all([
         this.idempotencyLedger.hasSucceeded(envelope.tool_call_id),

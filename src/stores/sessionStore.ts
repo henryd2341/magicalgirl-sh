@@ -1,3 +1,6 @@
+import { InputValidationError, VariablePatchRejectedError } from "@/engine/inputValidationError";
+import type { ProviderToolResult } from "@/orchestrator/providerClient";
+import { validateUpdateVariablesToolInput, validateTriggerBattleToolInput, validateReadSkillToolInput } from "@/orchestrator/toolSchemas";
 import { skillRegistry } from "@/orchestrator/skillRegistry";
 import { BattleResultService, type BattleRewards } from "@/engine/battleResultService";
 import {
@@ -677,17 +680,23 @@ export const useSessionStore = defineStore("session", () => {
     const varState = await variableRepository.getCurrent();
     if (!varState) return;
     const callId = `patch-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
-    const result = variableEngine.applyPatchSet({
-      current: varState,
-      envelope: {
-        request_id: requestId ?? callId,
-        context_version: varState.version,
-        state_hash: varState.stateHash,
-        tool_call_id: callId,
-        bypassAllowlist: true,
-        patches,
-      },
-    });
+    let result;
+    try {
+      result = variableEngine.applyPatchSet({
+        current: varState,
+        envelope: {
+          request_id: requestId ?? callId,
+          context_version: varState.version,
+          state_hash: varState.stateHash,
+          tool_call_id: callId,
+          bypassAllowlist: true,
+          patches,
+        },
+      });
+    } catch (error) {
+      if (error instanceof InputValidationError) throw new VariablePatchRejectedError(error);
+      throw error;
+    }
     await variableRepository.saveCurrent(result.next);
     variableVersion.value++;
   }
@@ -1350,34 +1359,45 @@ export const useSessionStore = defineStore("session", () => {
       },
       async (calls) => {
         const battleStore = useBattleStore();
-        const results: Array<{
-          tool_name: string;
-          tool_call_id: string;
-          ok: boolean;
-          output?: unknown;
-          error?: string;
-        }> = [];
+        const results: ProviderToolResult[] = [];
         for (const call of calls) {
           const callId = `fake-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
+          let validatedInput = call.input;
           try {
             if (call.tool_name === "update_variables") {
-              const input = call.input as { patches: VariablePathPatch[] };
-              if (input.patches?.length > 0) {
+              validatedInput = validateUpdateVariablesToolInput(validatedInput);
+            } else if (call.tool_name === "trigger_battle" && preRequestState !== "POST_COMBAT_READY") {
+              validatedInput = validateTriggerBattleToolInput(validatedInput);
+            } else if (call.tool_name === "read_skill") {
+              validatedInput = validateReadSkillToolInput(validatedInput);
+            }
+          } catch (error) {
+            if (!(error instanceof InputValidationError)) throw error;
+            results.push({
+              tool_name: call.tool_name, tool_call_id: callId, ok: false,
+              failureKind: "input-rejected-before-write", error: error.message,
+            });
+            continue;
+          }
+          try {
+            if (call.tool_name === "update_variables") {
+              const input = validatedInput as { patches: VariablePathPatch[] };
+              try {
                 await patchVariables(input.patches, "fake-provider");
+              } catch (error) {
+                if (!(error instanceof VariablePatchRejectedError)) throw error;
                 results.push({
-                  tool_name: "update_variables",
-                  tool_call_id: callId,
-                  ok: true,
-                  output: { patches: input.patches },
+                  tool_name: call.tool_name, tool_call_id: callId, ok: false,
+                  failureKind: "input-rejected-before-write", error: error.message,
                 });
-              } else {
-                results.push({
-                  tool_name: "update_variables",
-                  tool_call_id: callId,
-                  ok: false,
-                  error: "empty patches",
-                });
+                continue;
               }
+              results.push({
+                tool_name: "update_variables",
+                tool_call_id: callId,
+                ok: true,
+                output: { patches: input.patches },
+              });
             } else if (call.tool_name === "trigger_battle") {
               if (preRequestState === "POST_COMBAT_READY") {
                 results.push({
@@ -1388,7 +1408,7 @@ export const useSessionStore = defineStore("session", () => {
                 });
                 continue;
               }
-              const input = call.input as {
+              const input = validatedInput as {
                 encounter_id: string;
                 enemies: Array<{ enemy_id: string; count: number }>;
                 modifiers?: string[];
@@ -1423,7 +1443,7 @@ export const useSessionStore = defineStore("session", () => {
                 },
               });
             } else if (call.tool_name === "read_skill") {
-              const input = call.input as { name: string };
+              const input = validatedInput as { name: string };
               const skill = skillRegistry.getByName(input.name);
               results.push({
                 tool_name: "read_skill",
