@@ -169,7 +169,7 @@ async function loadLatestSnapshot() {
   try {
     await sessionStore.rollbackToLatestIdleCheckpoint();
     await chatStore.configurePersistence({ client: persistenceClient });
-    await chatStore.refreshMessages();
+    await chatStore.refreshMessages({ replaceHistory: true });
     emit("close");
     router.push({ name: "game" });
   } catch (error) {
@@ -234,7 +234,7 @@ async function restoreSlot(slot: SaveSlotRecord) {
       slotId: slot.id,
     });
     await chatStore.configurePersistence({ client: persistenceClient });
-    await chatStore.refreshMessages();
+    await chatStore.refreshMessages({ replaceHistory: true });
     await sessionStore.restoreFromCheckpointSnapshot(result.checkpoint);
     lastRestore.value = {
       slotId: result.slotId,

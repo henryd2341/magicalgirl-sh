@@ -119,7 +119,7 @@ onMounted(async () => {
 .training-footer button { min-height: 44px; }
 .training-confirm { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--mg-space-lg); background: color-mix(in srgb, var(--mg-bg) 75%, transparent); }
 .training-confirm__card { max-width: 460px; padding: var(--mg-space-xl); border: 2px solid var(--mg-border-strong); border-radius: var(--mg-radius-lg); background: var(--mg-bg-card); }
-.training-actions { display: flex; justify-content: flex-end; gap: var(--mg-space-sm); }
+.training-actions { display: flex; justify-content: space-between; gap: var(--mg-space-lg); }
 :deep(.training-free) { display: grid; grid-template-columns: 1.25fr .75fr; gap: var(--mg-space-lg); }
 :deep(.training-panel) { padding: var(--mg-space-md); border: 1px solid var(--mg-border-light); border-radius: var(--mg-radius-lg); background: var(--mg-bg-input); }
 :deep(.training-panel h3) { margin-top: 0; }

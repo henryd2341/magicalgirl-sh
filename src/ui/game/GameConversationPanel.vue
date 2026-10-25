@@ -3,14 +3,17 @@ import { getPromptPresetRepository } from "@/orchestrator/promptPreset";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import ChatMessageList from "@/ui/chat/ChatMessageList.vue";
+import ConversationLoading from "@/ui/chat/ConversationLoading.vue";
 import FailedDraftActions from "@/ui/chat/FailedDraftActions.vue";
 import { storeToRefs } from "pinia";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+
+const props = defineProps<{ scrollElement?: HTMLElement | null; ready?: boolean; virtual?: boolean }>();
 
 const chatStore = useChatStore();
 const sessionStore = useSessionStore();
-const { messages } = storeToRefs(chatStore);
-const { summarizationStatus } = storeToRefs(sessionStore);
+const { messages, historyEpoch } = storeToRefs(chatStore);
+const { summarizationStatus, storyTurnStartedAt } = storeToRefs(sessionStore);
 const recoveryStatus = ref<string | null>(null);
 const recoveryError = ref<string | null>(null);
 const isRollingBack = ref(false);
@@ -91,15 +94,21 @@ onMounted(async () => {
     cotBeautifyTagName.value = cot.beautifyTagName;
   }
 });
+onUnmounted(() => { if (badgeTimer) clearTimeout(badgeTimer); });
 </script>
 
 <template>
   <section id="game-conversation-panel" class="game-conversation-panel">
     <ChatMessageList
       :messages="visibleMessages"
+      :virtual="props.virtual"
+      :scroll-element="props.scrollElement"
+      :ready="props.ready"
+      :history-epoch="historyEpoch"
       :beautify-tag-name="cotBeautifyTagName"
       @retry="sessionStore.retryFromMessage($event)"
     />
+    <ConversationLoading :started-at="storyTurnStartedAt" />
     <FailedDraftActions
       v-if="latestFailedDraftId"
       :message-id="latestFailedDraftId"

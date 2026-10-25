@@ -112,7 +112,7 @@ async function confirmNewGame() {
       });
       const { repository } = chatStore.getActiveChatRuntime();
       await repository.save(openingMessage);
-      await chatStore.refreshMessages();
+      await chatStore.refreshMessages({ replaceHistory: true });
     } else {
       chatStore.resetToInMemoryPersistence();
     }

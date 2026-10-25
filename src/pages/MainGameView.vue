@@ -48,6 +48,8 @@ const { snapshot } = storeToRefs(sessionStore);
 const { pendingBattle, activeBattle } = storeToRefs(battleStore);
 
 // ── Initialization guard ──
+const messagesElement = ref<HTMLElement | null>(null);
+const historyReady = ref(false);
 const hasInitialized = ref(false);
 
 // ── Responsive breakpoint detection ──
@@ -282,6 +284,7 @@ onMounted(async () => {
     }
   }
   await chatStore.refreshMessages();
+  historyReady.value = true;
 });
 
 onUnmounted(() => {
@@ -368,8 +371,8 @@ onUnmounted(() => {
             <i class="fas fa-times"></i>
           </button>
         </div>
-        <div class="mg-game__messages mg-scroll">
-          <GameConversationPanel />
+        <div ref="messagesElement" class="mg-game__messages mg-scroll" role="region" aria-label="对话记录" tabindex="0">
+          <GameConversationPanel virtual :scroll-element="messagesElement" :ready="historyReady" />
         </div>
         <!-- ═══ Mobile floating controls ═══ -->
         <nav v-if="isMobile" class="mg-game__mobile-nav" aria-label="移动端面板">
@@ -794,6 +797,8 @@ onUnmounted(() => {
   min-width: 0;
 }
 .mg-game__messages {
+  overflow-anchor: none;
+  scroll-behavior: auto;
   flex: 1;
   overflow-y: auto;
   padding: var(--mg-space-md);

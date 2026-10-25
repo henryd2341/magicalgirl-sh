@@ -103,10 +103,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
-import { useSessionStore } from "@/stores/sessionStore";
-import { storeToRefs } from "pinia";
-import type { VariableValueRecord } from "@/types/variables";
+import { useSessionStore } from '@/stores/sessionStore';
+import type { VariableValueRecord } from '@/types/variables';
+import { storeToRefs } from 'pinia';
+import { computed, ref, watch } from 'vue';
 
 const sessionStore = useSessionStore();
 const { snapshot: sessionSnapshot, variableVersion } = storeToRefs(sessionStore);
@@ -117,10 +117,10 @@ const vars = ref<VariableValueRecord | null>(null);
 const expandedCards = ref<Set<string>>(new Set());
 const imgErrors = ref<Set<string>>(new Set());
 
-const avatarImages = import.meta.glob("../../assets/avatars/normal/*.png", {
+const avatarImages = import.meta.glob('../../assets/avatars/normal/*.png', {
   eager: true,
-  query: "?url",
-  import: "default",
+  query: '?url',
+  import: 'default',
 }) as Record<string, string>;
 
 watch(
@@ -144,8 +144,8 @@ watch(
 );
 
 function barPercent(current: number, max: number): string {
-  if (max <= 0) return "0%";
-  return Math.min((current / max) * 100, 100) + "%";
+  if (max <= 0) return '0%';
+  return Math.min((current / max) * 100, 100) + '%';
 }
 
 interface CharacterCardEntry {
@@ -175,33 +175,35 @@ function buildVariableList(
     awakeningStatus?: string;
     currentState?: string;
     inParty?: boolean;
-    combat?: CharacterCardEntry["combat"];
+    combat?: CharacterCardEntry['combat'];
   } | null,
-  extraCombat: CharacterCardEntry["combat"],
+  extraCombat: CharacterCardEntry['combat'],
 ): { label: string; value: string; desc?: string }[] {
   const list: { label: string; value: string; desc?: string }[] = [];
-  if (charData?.identity) list.push({ label: "身份", value: charData.identity, desc: "角色身份/职业" });
-  if (charData?.relationshipTag) list.push({ label: "关系", value: charData.relationshipTag, desc: "与玩家的关系" });
-  if (charData?.awakeningStatus) list.push({ label: "觉醒", value: charData.awakeningStatus, desc: "魔法少女觉醒状态" });
-  if (charData?.currentState) list.push({ label: "状态", value: charData.currentState, desc: "当前状态描述" });
-  if (charData?.inParty !== undefined) list.push({ label: "在队", value: charData.inParty ? "是" : "否", desc: "是否在队伍中" });
+  if (charData?.identity) list.push({ label: '身份', value: charData.identity, desc: '角色身份/职业' });
+  if (charData?.relationshipTag) list.push({ label: '关系', value: charData.relationshipTag, desc: '与玩家的关系' });
+  if (charData?.awakeningStatus)
+    list.push({ label: '觉醒', value: charData.awakeningStatus, desc: '魔法少女觉醒状态' });
+  if (charData?.currentState) list.push({ label: '状态', value: charData.currentState, desc: '当前状态描述' });
+  if (charData?.inParty !== undefined)
+    list.push({ label: '在队', value: charData.inParty ? '是' : '否', desc: '是否在队伍中' });
 
   const combat = charData?.combat || extraCombat;
   if (combat) {
-    list.push({ label: "等级", value: String(combat.level), desc: "当前等级" });
-    list.push({ label: "经验", value: String(combat.exp), desc: "当前经验值" });
-    list.push({ label: "攻击", value: String(combat.attack), desc: "攻击力" });
-    list.push({ label: "防御", value: String(combat.defense), desc: "防御力" });
-    list.push({ label: "敏捷", value: String(combat.agility), desc: "敏捷值" });
-    list.push({ label: "智力", value: String(combat.intelligence), desc: "智力值" });
+    list.push({ label: '等级', value: String(combat.level), desc: '当前等级' });
+    list.push({ label: '经验', value: String(combat.exp), desc: '当前经验值' });
+    list.push({ label: '攻击', value: String(combat.attack), desc: '攻击力' });
+    list.push({ label: '防御', value: String(combat.defense), desc: '防御力' });
+    list.push({ label: '敏捷', value: String(combat.agility), desc: '敏捷值' });
+    list.push({ label: '智力', value: String(combat.intelligence), desc: '智力值' });
   }
   return list;
 }
 
 const characterCards = computed<CharacterCardEntry[]>(() => {
   const allChars = vars.value?.root?.characters;
-  const playerName = vars.value?.root?.player?.profile?.name ?? "";
-  const playerGender = vars.value?.root?.player?.profile?.gender ?? "";
+  const playerName = vars.value?.root?.player?.profile?.name ?? '';
+  const playerGender = vars.value?.root?.player?.profile?.gender ?? '';
   const playerCombat = vars.value?.root?.player?.combat ?? null;
   const playerRelationships = vars.value?.root?.player?.relationships ?? {};
 
@@ -211,21 +213,21 @@ const characterCards = computed<CharacterCardEntry[]>(() => {
   if (allChars) {
     for (const [charId, charData] of Object.entries(allChars)) {
       const isPlayer = charData.displayName === playerName;
-      let avatarUrl = "";
+      let avatarUrl = '';
 
       if (isPlayer) {
         playerFound = true;
-        const genderKey = playerGender === "男" ? "男user" : "女user";
-        avatarUrl = avatarImages[`../../assets/avatars/normal/${genderKey}.png`] ?? "";
+        const genderKey = playerGender === '男' ? '男user' : '女user';
+        avatarUrl = avatarImages[`../../assets/avatars/normal/${genderKey}.png`] ?? '';
       } else {
-        avatarUrl = avatarImages[`../../assets/avatars/normal/${charData.displayName}.png`] ?? "";
+        avatarUrl = avatarImages[`../../assets/avatars/normal/${charData.displayName}.png`] ?? '';
       }
 
-      const roleTag = charData.relationshipTag || charData.identity || "";
+      const roleTag = charData.relationshipTag || charData.identity || '';
 
       cards.push({
         charId,
-        displayName: charData.displayName ?? "???",
+        displayName: charData.displayName ?? '???',
         avatarUrl,
         isPlayer,
         roleTag,
@@ -238,13 +240,13 @@ const characterCards = computed<CharacterCardEntry[]>(() => {
 
   // Ensure player card always exists (even if not in characters record)
   if (!playerFound && playerName) {
-    const genderKey = playerGender === "男" ? "男user" : "女user";
+    const genderKey = playerGender === '男' ? '男user' : '女user';
     cards.push({
-      charId: "__player__",
+      charId: '__player__',
       displayName: playerName,
-      avatarUrl: avatarImages[`../../assets/avatars/normal/${genderKey}.png`] ?? "",
+      avatarUrl: avatarImages[`../../assets/avatars/normal/${genderKey}.png`] ?? '',
       isPlayer: true,
-      roleTag: "",
+      roleTag: '',
       relationship: 0,
       combat: playerCombat,
       variables: buildVariableList(null, playerCombat),
@@ -283,7 +285,11 @@ function toggleExpanded(charId: string) {
   background: var(--mg-bg-card);
   border: var(--mg-border-width, 2px) solid var(--mg-border, rgba(255, 255, 255, 0.1));
   box-shadow: var(--mg-shadow-card);
-  transition: transform var(--mg-transition-base), border-color var(--mg-transition-base), box-shadow var(--mg-transition-base);
+  transition:
+    transform var(--mg-transition-base),
+    border-color var(--mg-transition-base),
+    box-shadow var(--mg-transition-base),
+    height var(--mg-transition-base);
   cursor: pointer;
 
   &:hover {
@@ -485,7 +491,9 @@ function toggleExpanded(charId: string) {
 .mg-character-card__variable-value {
   color: var(--mg-text);
   font-variant-numeric: tabular-nums;
-  transition: color 0.3s, transform 0.2s;
+  transition:
+    color 0.3s,
+    transform 0.2s;
   cursor: help;
 }
 
