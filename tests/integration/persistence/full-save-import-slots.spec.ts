@@ -23,9 +23,11 @@ import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepos
 import { VariableEngine } from "@/engine/variableEngine";
 import { getTrainingProgress } from "@/engine/variablePolicy";
 import { createDbWorkerRuntime } from "@/workers/db.worker";
-import type { FullSaveExportV1 } from "@/persistence/exportSave";
+import { createFullSaveExport, type FullSaveExportV1, type FullSaveExportV2 } from "@/persistence/exportSave";
+import { encodeFullSaveV3 } from "@/persistence/fullSaveMessageCodec";
+import { RecoveryService } from "@/engine/recoveryService";
 import type { CheckpointSnapshotRecord } from "@/types/recovery";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 function createSaveCheckpoint(): CheckpointSnapshotRecord {
   const variableValue = {
@@ -132,7 +134,105 @@ function createImportPayload(): FullSaveExportV1 {
 }
 
 describe("full save import slots", () => {
-  it("imports a full save into a slot without activating it, then restores the slot on explicit request", async () => {
+  it.each([1, 2] as const)("loads an already-stored v%s slot without migration", async (version) => {
+    const client = new DbWorkerClient(createInProcessDbWorkerEndpoint(createDbWorkerRuntime()));
+    await client.initialize();
+    const payload = { ...createImportPayload(), version };
+    await client.saveSaveSlot({
+      id: "old-slot", label: "old", sourceFileName: "old.json", importedAt: payload.exportedAt,
+      exportedAt: payload.exportedAt, exportId: payload.exportId,
+      createdCheckpointId: payload.createdCheckpointId, saveMetaId: payload.saveMetaId, payload,
+    });
+    await restoreFullSaveSlot({ client, slotId: "old-slot" });
+    expect(await new DbChatHistoryRepository(client).list()).toEqual(payload.data.chatMessages);
+    expect((await client.getSaveSlotById("old-slot"))?.payload.version).toBe(version);
+  });
+
+  it("exports v3, restores its slot, then rolls back to the original historical battle and message state", async () => {
+    const client = new DbWorkerClient(createInProcessDbWorkerEndpoint(createDbWorkerRuntime()));
+    await client.initialize();
+    const repositories = {
+      checkpointRepository: new DbCheckpointRepository(client),
+      eventLogRepository: new DbEventLogRepository(client),
+      saveMetaRepository: new DbSaveMetaRepository(client),
+      chatRepository: new DbChatHistoryRepository(client),
+      variableRepository: new DbVariableRepository(client),
+      variableChangeLogRepository: new DbVariableChangeLogRepository(client),
+      worldInfoRepository: new DbWorldInfoRepository(client),
+    };
+    const historical = createSaveCheckpoint();
+    historical.kind = "combat_checkpoint";
+    historical.sessionSnapshot.sessionState = "IN_COMBAT";
+    historical.activeBattle = {
+      lifecycleState: "ACTIVE", phase: "PLAYER_TURN", encounterId: "story-battle", source: "story",
+      participants: [], pressTurn: { ownerSide: "player", icons: [] },
+    };
+    historical.chatMessages[0]!.reasoning = "历史思考";
+    historical.chatMessages.push({ ...historical.chatMessages[0]!, id: "old-branch-only", content: "旧分支" });
+    historical.variableValue!.root.player.money = 17;
+    await repositories.checkpointRepository.save(historical);
+    const current = { ...historical.chatMessages[0]!, content: "同 ID 已编辑", user_visible: false, ai_visible: false };
+    await repositories.chatRepository.save(current);
+    const variables = new VariableEngine().createInitialState();
+    variables.root.player.money = 99;
+    await repositories.variableRepository.saveCurrent(variables);
+    const exported = await createFullSaveExport({
+      repositories,
+      getSessionSnapshot: () => ({ sessionState: "IDLE", pipelineState: null, activeRequestId: null }),
+      getPendingBattle: () => null, getActiveBattle: () => null,
+      idFactory: { exportId: () => "new-export", checkpointId: () => "new-save", eventId: () => "new-event", saveMetaId: () => "new-meta" },
+      now: () => "2026-10-25T00:00:00Z",
+    });
+    const expectedCheckpoints = await repositories.checkpointRepository.list();
+    await importFullSaveToSlot({ client, jsonText: exported.jsonText, sourceFileName: "roundtrip.json", idFactory: { slotId: () => "roundtrip" } });
+    expect(await repositories.chatRepository.list()).toEqual([current]);
+    await repositories.chatRepository.replaceAll([]);
+    const restored = await restoreFullSaveSlot({ client, slotId: "roundtrip" });
+    expect(restored.checkpoint.id).toBe("new-save");
+    expect(restored.checkpoint.activeBattle).toBeUndefined();
+    expect(await repositories.chatRepository.list()).toEqual([current]);
+    expect(await repositories.checkpointRepository.list()).toEqual(expectedCheckpoints);
+    expect((await repositories.variableRepository.getCurrent())?.root.player.money).toBe(99);
+    const restoreSessionSnapshot = vi.fn();
+    const restoreBattleSnapshot = vi.fn();
+    const recovery = new RecoveryService({ ...repositories, restoreSessionSnapshot, restoreBattleSnapshot });
+    await recovery.rollbackToLatest("combat_checkpoint");
+    expect(await repositories.chatRepository.list()).toEqual(historical.chatMessages);
+    expect(await repositories.variableRepository.getCurrent()).toEqual(historical.variableValue);
+    expect(restoreSessionSnapshot).toHaveBeenCalledWith(historical.sessionSnapshot);
+    expect(restoreBattleSnapshot).toHaveBeenCalledWith({ activeBattle: historical.activeBattle, pendingBattle: undefined });
+  });
+
+  it.each([
+    ["missing pool", { messagePool: undefined }],
+    ["non-array pool", { messagePool: {} }],
+    ["null pool record", { messagePool: [null] }],
+    ["invalid unused pool record", { messagePool: [createSaveCheckpoint().chatMessages[0], {}] }],
+    ["missing current refs", { chatMessageRefs: undefined }],
+    ["non-array current refs", { chatMessageRefs: {} }],
+    ...[-1, 0.5, "0", null, 1].map((ref) => [`invalid ref ${ref}`, { chatMessageRefs: [ref] }]),
+    ["missing checkpoint refs", { checkpointSnapshots: [{ id: "checkpoint-imported-save", kind: "save_checkpoint" }] }],
+    ["non-array checkpoint refs", { checkpointSnapshots: [{ chatMessageRefs: {} }] }],
+    ["invalid checkpoint ref", { checkpointSnapshots: [{ chatMessageRefs: [99] }] }],
+    ["null checkpoint", { checkpointSnapshots: [null] }],
+    ["missing linked checkpoint", { checkpointSnapshots: [] }],
+    ["wrong checkpoint kind", { checkpointSnapshots: [{ id: "checkpoint-imported-save", kind: "idle_checkpoint", chatMessageRefs: [] }] }],
+  ])("rejects v3 %s without changing active data or slots", async (_label, overrides) => {
+    const client = new DbWorkerClient(createInProcessDbWorkerEndpoint(createDbWorkerRuntime()));
+    await client.initialize();
+    const original: FullSaveExportV2 = { ...createImportPayload(), version: 2 };
+    await client.replaceFullSaveData(original.data);
+    const wire = encodeFullSaveV3(original);
+    Object.assign(wire.data, overrides);
+    await expect(importFullSaveToSlot({ client, jsonText: JSON.stringify(wire), sourceFileName: "bad.json" }))
+      .rejects.toThrow("[FULL_SAVE_IMPORT_INVALID]");
+    expect(await client.listSaveSlots()).toEqual([]);
+    expect(await new DbChatHistoryRepository(client).list()).toEqual(original.data.chatMessages);
+    expect(await new DbCheckpointRepository(client).list()).toEqual(original.data.checkpointSnapshots);
+    expect(await new DbVariableRepository(client).getCurrent()).toEqual(original.data.variableValue);
+  });
+
+  it.each([1, 2, 3] as const)("imports v%s without activating it, then restores on explicit request", async (version) => {
     const client = new DbWorkerClient(
       createInProcessDbWorkerEndpoint(createDbWorkerRuntime()),
     );
@@ -167,7 +267,7 @@ describe("full save import slots", () => {
     const payload = createImportPayload();
     const importResult = await importFullSaveToSlot({
       client,
-      jsonText: JSON.stringify(payload),
+      jsonText: JSON.stringify(version === 3 ? encodeFullSaveV3({ ...payload, version: 2 }) : { ...payload, version }),
       sourceFileName: "external-save.json",
       idFactory: {
         slotId: () => "slot-imported-001",
@@ -197,6 +297,10 @@ describe("full save import slots", () => {
       rootId: "root-current",
     });
 
+    const stored = await client.getSaveSlotById("slot-imported-001");
+    expect(stored?.payload.version).toBe(version === 1 ? 1 : 2);
+    expect(stored?.payload.data).not.toHaveProperty("messagePool");
+    expect(stored?.payload.data.chatMessages).toEqual(payload.data.chatMessages);
     await restoreFullSaveSlot({ client, slotId: "slot-imported-001" });
 
     expect(await chatRepository.list()).toEqual(payload.data.chatMessages);

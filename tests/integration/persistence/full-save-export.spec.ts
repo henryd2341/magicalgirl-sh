@@ -5,7 +5,7 @@ const recordedContent = "我把存档护符握紧。" + '<details class="chat-to
 ]);
 import {
   createFullSaveExport,
-  type FullSaveExportV2,
+  type FullSaveExportV3,
 } from "@/persistence/exportSave";
 import {
   DbWorkerClient,
@@ -121,17 +121,22 @@ describe("full save export", () => {
       checkpointId: "checkpoint-save-export-001",
     });
 
-    const parsed = JSON.parse(result.jsonText) as FullSaveExportV2;
+    const parsed = JSON.parse(result.jsonText) as FullSaveExportV3;
     expect(parsed).toMatchObject({
       format: "magicalgirl-sh.full-save-export",
-      version: 2,
+      version: 3,
       exportedAt: "2026-05-25T01:12:03.000Z",
       exportId: "export-full-001",
       createdCheckpointId: "checkpoint-save-export-001",
       saveMetaId: "save-meta-export-001",
     });
     expect(parsed).not.toHaveProperty("testRecords");
-    expect(parsed.data.chatMessages).toContainEqual(
+    expect(parsed.data).not.toHaveProperty("chatMessages");
+    expect(parsed.data.messagePool).toHaveLength(1);
+    expect(parsed.data.chatMessageRefs).toEqual([0]);
+    expect(parsed.data.checkpointSnapshots[0]?.chatMessageRefs).toEqual([0]);
+    expect(parsed.data.checkpointSnapshots[0]).not.toHaveProperty("chatMessages");
+    expect(parsed.data.messagePool).toContainEqual(
       expect.objectContaining({
         id: "msg-export-seed",
         content: recordedContent,
@@ -214,7 +219,7 @@ describe("full save export", () => {
       now: () => "2026-05-25T13:02:00.000Z",
     });
 
-    const parsed = JSON.parse(result.jsonText) as FullSaveExportV2;
+    const parsed = JSON.parse(result.jsonText) as FullSaveExportV3;
     expect(parsed.data.variableValue).toMatchObject({
       rootId: "game_variables_root",
       stateHash: "initial",
@@ -288,7 +293,7 @@ describe("full save export", () => {
       now: () => "2026-07-13T12:30:00.000Z",
     });
 
-    const parsed = JSON.parse(result.jsonText) as FullSaveExportV2;
+    const parsed = JSON.parse(result.jsonText) as FullSaveExportV3;
     expect(parsed.data.variableValue?.root.training).toEqual({
       clearedChallengeIds: ["trial-1"],
       claimedRewardIds: ["trial-1"],
