@@ -293,75 +293,32 @@ describe("buildHarnessRequest", () => {
     expect(second.metadata.state_hash).toBe("state-custom");
   });
 
-  it("includes only minimal AI-visible battle summaries in provider history", async () => {
+  it.each(["minimal", "default", "verbose"] as const)("includes the persisted %s battle summary, not hidden or unfinished variants", async (level) => {
     const chatRepository = new InMemoryChatHistoryRepository();
-    await chatRepository.save(
-      createMessage({
-        id: "summary-verbose",
-        role: "system",
-        kind: "battle_summary",
-        summary_level: "verbose",
-        content: "verbose developer battle diagnostics",
-        user_visible: false,
-        ai_visible: true,
-        created_at: "2026-05-24T00:01:00.000Z",
-      }),
-    );
-    await chatRepository.save(
-      createMessage({
-        id: "summary-default",
-        role: "system",
-        kind: "battle_summary",
-        summary_level: "default",
-        content: "default player battle recap",
-        user_visible: true,
-        ai_visible: true,
-        created_at: "2026-05-24T00:02:00.000Z",
-      }),
-    );
-    await chatRepository.save(
-      createMessage({
-        id: "summary-minimal",
-        role: "system",
-        kind: "battle_summary",
-        summary_level: "minimal",
-        content: "minimal provider battle summary",
-        user_visible: false,
-        ai_visible: true,
-        created_at: "2026-05-24T00:03:00.000Z",
-      }),
-    );
-
+    for (const summaryLevel of ["minimal", "default", "verbose"] as const) {
+      await chatRepository.save(createMessage({
+        id: `summary-${summaryLevel}`, role: "system", kind: "battle_summary",
+        summary_level: summaryLevel, content: `${summaryLevel} battle report`,
+        ai_visible: summaryLevel === level,
+      }));
+    }
+    for (const flags of [{ finalized: false }, { provisional: true }, { failed: true }]) {
+      await chatRepository.save(createMessage({
+        id: JSON.stringify(flags), role: "system", kind: "battle_summary",
+        summary_level: level, content: `invalid ${JSON.stringify(flags)}`, ai_visible: true, ...flags,
+      }));
+    }
     const request = await buildHarnessRequest({
       chatRepository,
       variableRepository: new InMemoryVariableRepository(),
       worldInfoRepository: new InMemoryWorldInfoRepository(),
-      systemPrompt: "stable",
-      userInput: "继续剧情。",
-      requestId: "req-battle-summary-history",
-      contextVersion: 12,
+      systemPrompt: "stable", userInput: "继续剧情。", requestId: "req-battle-summary-history",
       now: "2026-05-24T00:04:00.000Z",
     });
-
-    expect(request.promptText).toContain("minimal provider battle summary");
-    expect(request.promptText).not.toContain(
-      "default player battle recap",
-    );
-    expect(request.promptText).not.toContain(
-      "verbose developer battle diagnostics",
-    );
-    expect(request.messages).toContainEqual({
-      role: "system",
-      content: "minimal provider battle summary",
-    });
-    expect(request.messages).not.toContainEqual({
-      role: "system",
-      content: "default player battle recap",
-    });
-    expect(request.messages).not.toContainEqual({
-      role: "system",
-      content: "verbose developer battle diagnostics",
-    });
+    expect(request.messages.filter((message) => message.content.includes("battle report"))).toEqual([
+      { role: "system", content: `${level} battle report` },
+    ]);
+    expect(request.promptText).not.toContain("invalid");
   });
 
   it("excludes invalidated (ai_visible:false) context_summary messages from the conversation summary segment", async () => {

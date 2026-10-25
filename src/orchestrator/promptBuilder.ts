@@ -73,13 +73,6 @@ function segment(
 }
 
 function isAiVisibleFinalized(message: ChatMessage): boolean {
-  if (
-    message.kind === "battle_summary" &&
-    message.summary_level !== "minimal"
-  ) {
-    return false;
-  }
-
   return (
     message.ai_visible &&
     message.finalized &&

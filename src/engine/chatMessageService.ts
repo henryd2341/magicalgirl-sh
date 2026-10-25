@@ -199,9 +199,20 @@ export class ChatMessageService {
       };
     });
 
-    for (const message of messages) {
-      await this.repository.save(message);
+    const existing = await Promise.all(messages.map((message) => this.repository.getById(message.id)));
+    for (const [index, message] of existing.entries()) {
+      if (message != null && (message.kind !== "battle_summary" || message.role !== "system" ||
+        message.summary_level !== messages[index]!.summary_level)) {
+        throw createChatLifecycleError(
+          "CHAT_BATTLE_SUMMARY_ID_CONFLICT",
+          `Message ID already belongs to a different message: ${message.id}`,
+        );
+      }
     }
+    if (existing.every((message) => message != null)) return existing;
+
+    // An incomplete batch never finished settlement; retry it with one consistent selection.
+    for (const message of messages) await this.repository.save(message);
 
     return messages;
   }

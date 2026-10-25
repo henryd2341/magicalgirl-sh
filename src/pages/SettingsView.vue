@@ -36,6 +36,12 @@ const worldInfoRows = ref<EditableWorldInfoEntry[]>([]);
 const form = reactive<PromptPresetConfig>(
   createDefaultPromptPresetConfig(),
 );
+const battleSummaryLevels = ["minimal", "default", "verbose"] as const;
+const battleSummaryLabels = ["精简", "普通", "详细"];
+const battleSummaryStep = computed({
+  get: () => battleSummaryLevels.indexOf(form.battleSummaryLevel),
+  set: (step: number) => { form.battleSummaryLevel = battleSummaryLevels[step] ?? "minimal"; },
+});
 
 interface EditableWorldInfoEntry extends WorldInfoEntry {
   keywordsText: string;
@@ -48,6 +54,7 @@ function applyConfig(config: PromptPresetConfig): void {
   form.systemPrompt = config.systemPrompt;
   form.maxTotalTokens = config.maxTotalTokens;
   form.previewMustacheVariables = config.previewMustacheVariables;
+  form.battleSummaryLevel = config.battleSummaryLevel;
   form.updatedAt = config.updatedAt;
   form.customChainOfThought = config.customChainOfThought
     ?? { ...DEFAULT_CHAIN_OF_THOUGHT_CONFIG };
@@ -147,6 +154,7 @@ async function savePromptPreset() {
     systemPrompt: form.systemPrompt,
     maxTotalTokens: Number(form.maxTotalTokens),
     previewMustacheVariables: form.previewMustacheVariables,
+    battleSummaryLevel: form.battleSummaryLevel,
     updatedAt: form.updatedAt,
     customChainOfThought: form.customChainOfThought,
   });
@@ -273,6 +281,25 @@ onMounted(async () => {
                 <strong>{{ resolution.value ?? "null" }}</strong>
               </li>
             </ul>
+          </section>
+
+          <section class="settings-view__battle-summary" aria-label="战报设置">
+            <label class="chat-input-box__label" for="prompt-battle-summary-level">战报详略程度</label>
+            <output for="prompt-battle-summary-level">{{ battleSummaryLabels[battleSummaryStep] }}</output>
+            <input
+              id="prompt-battle-summary-level"
+              v-model.number="battleSummaryStep"
+              type="range"
+              min="0"
+              max="2"
+              step="1"
+              :aria-valuetext="battleSummaryLabels[battleSummaryStep]"
+              aria-describedby="prompt-battle-summary-hint"
+            />
+            <div class="settings-view__range-labels" aria-hidden="true">
+              <span v-for="label in battleSummaryLabels" :key="label">{{ label }}</span>
+            </div>
+            <p id="prompt-battle-summary-hint">控制发送给 AI 的战报信息量。保存后用于之后结算的战斗，已结算战报不变。</p>
           </section>
 
           <section class="settings-view__world-info" aria-label="world_info 条目">
@@ -509,3 +536,21 @@ onMounted(async () => {
     </section>
   </main>
 </template>
+
+<style scoped>
+.settings-view__battle-summary {
+  display: grid;
+  gap: var(--mg-space-sm);
+}
+
+.settings-view__battle-summary input {
+  width: 100%;
+  min-height: 32px;
+  accent-color: var(--mg-accent);
+}
+
+.settings-view__range-labels {
+  display: flex;
+  justify-content: space-between;
+}
+</style>

@@ -3,6 +3,7 @@
 import systemPrompt from "@/content/systemPrompt.md?raw";
 import { createDefaultContextBudget } from "@/orchestrator/promptBuilder";
 import { deepClone } from "@/utils/deepClone";
+import type { ChatBattleSummaryLevel } from "@/types/chat";
 
 const STORAGE_KEY = "magicalgirl-sh.prompt-preset.v1";
 
@@ -84,6 +85,7 @@ export interface PromptPresetConfig {
   systemPrompt: string;
   maxTotalTokens: number;
   previewMustacheVariables: boolean;
+  battleSummaryLevel: ChatBattleSummaryLevel;
   updatedAt: string;
   customChainOfThought: ChainOfThoughtConfig;
 }
@@ -99,7 +101,9 @@ interface LegacyPromptPresetConfig {
   updatedAt: string;
 }
 
-type PromptPresetInput = PromptPresetConfig | LegacyPromptPresetConfig;
+type PromptPresetInput =
+  | (Omit<PromptPresetConfig, "battleSummaryLevel"> & { battleSummaryLevel?: ChatBattleSummaryLevel })
+  | LegacyPromptPresetConfig;
 
 export interface PromptPresetRepository {
   getCurrent(): Promise<PromptPresetConfig>;
@@ -122,6 +126,7 @@ export function createDefaultPromptPresetConfig(
     systemPrompt,
     maxTotalTokens: createDefaultContextBudget().maxTotalTokens,
     previewMustacheVariables: false,
+    battleSummaryLevel: "minimal",
     updatedAt: now,
     customChainOfThought: { ...DEFAULT_CHAIN_OF_THOUGHT_CONFIG },
   };
@@ -138,6 +143,11 @@ function normalizeConfig(
     systemPrompt: config.systemPrompt,
     maxTotalTokens: Number(maxTotalTokens),
     previewMustacheVariables: config.previewMustacheVariables ?? false,
+    battleSummaryLevel:
+      "battleSummaryLevel" in config &&
+      (config.battleSummaryLevel === "default" || config.battleSummaryLevel === "verbose")
+        ? config.battleSummaryLevel
+        : "minimal",
     updatedAt,
     customChainOfThought:
       "customChainOfThought" in config

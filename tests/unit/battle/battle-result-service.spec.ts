@@ -3,7 +3,7 @@ import { ChatMessageService } from "@/engine/chatMessageService";
 import { createBattleSummaries } from "@/engine/battle/battleSummary";
 import { InMemoryChatHistoryRepository } from "@/persistence/repositories/chatHistoryRepository";
 import type { BattleSnapshot } from "@/types/battle";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 function createResolvedBattleSnapshot(
   overrides: Partial<BattleSnapshot> = {},
@@ -59,7 +59,7 @@ function createResolvedBattleSnapshot(
       survivingParticipantIds: ["player-heroine-1"],
       downParticipantIds: ["enemy-1"],
     },
-    resultSummary: "Victory",
+    resultSummary: "胜利",
     battleLog: [
       {
         id: "turn-1-player-heroine-1-attack-enemy-1",
@@ -68,13 +68,13 @@ function createResolvedBattleSnapshot(
         actorId: "player-heroine-1",
         actionId: "attack",
         targetId: "enemy-1",
-        summary: "Attack hit",
+        summary: "使用攻击",
       },
       {
         id: "turn-2-result-victory",
         turnCount: 2,
         side: "system",
-        summary: "Victory: all enemies are down.",
+        summary: "胜利：敌方全员倒下。",
       },
     ],
     ...overrides,
@@ -82,6 +82,42 @@ function createResolvedBattleSnapshot(
 }
 
 describe("BattleResultService", () => {
+  it.each([
+    ["minimal", "verbose"], ["verbose", "minimal"], ["default", "verbose"],
+  ] as const)("retries a partial %s write as a consistent %s batch", async (firstLevel, retryLevel) => {
+    const repository = new InMemoryChatHistoryRepository();
+    const service = new BattleResultService({
+      chatService: new ChatMessageService(repository), now: () => "2026-05-24T00:00:00.000Z",
+    });
+    const save = repository.save.bind(repository);
+    const failingSave = vi.spyOn(repository, "save")
+      .mockImplementationOnce(save)
+      .mockRejectedValueOnce(new Error("interrupted write"));
+    await expect(service.commitResolvedBattle(createResolvedBattleSnapshot(), firstLevel)).rejects.toThrow("interrupted write");
+    expect(await repository.list()).toHaveLength(1);
+    failingSave.mockRestore();
+
+    const snapshot = createResolvedBattleSnapshot({ resultSummary: "重试后的结果" });
+    const retried = await new BattleResultService({
+      chatService: new ChatMessageService(repository), now: () => "2026-10-25T00:00:00.000Z",
+    }).commitResolvedBattle(snapshot, retryLevel);
+    expect(await repository.list()).toEqual(retried.messages);
+    expect(retried.messages).toHaveLength(3);
+    expect(retried.messages.every((message) => message.created_at === "2026-10-25T00:00:00.000Z")).toBe(true);
+    expect(retried.messages.filter((message) => message.ai_visible).map((message) => message.summary_level)).toEqual([retryLevel]);
+    expect(retried.summaries).toEqual(createBattleSummaries(snapshot));
+  });
+
+  it.each(["minimal", "default", "verbose"] as const)("persists only %s for AI while keeping the player report unchanged", async (level) => {
+    const repository = new InMemoryChatHistoryRepository();
+    const service = new BattleResultService({ chatService: new ChatMessageService(repository) });
+    await service.commitResolvedBattle(createResolvedBattleSnapshot(), level);
+    const messages = await repository.list();
+    expect(messages).toHaveLength(3);
+    expect(messages.filter((message) => message.ai_visible).map((message) => message.summary_level)).toEqual([level]);
+    expect(messages.filter((message) => message.user_visible).map((message) => message.summary_level)).toEqual(["default"]);
+  });
+
   it("writes verbose, default, and minimal battle summary messages with the correct visibility", async () => {
     const repository = new InMemoryChatHistoryRepository();
     const chatService = new ChatMessageService(repository);
@@ -158,7 +194,7 @@ describe("BattleResultService", () => {
     expect(await repository.list()).toEqual([]);
   });
 
-  it("uses stable message ids so repeated commits replace the same summary records", async () => {
+  it.each(["minimal", "default", "verbose"] as const)("keeps the original %s reports when the same encounter is committed again with changed settings and content", async (level) => {
     const repository = new InMemoryChatHistoryRepository();
     const chatService = new ChatMessageService(repository);
     const service = new BattleResultService({
@@ -167,9 +203,23 @@ describe("BattleResultService", () => {
     });
     const snapshot = createResolvedBattleSnapshot();
 
-    await service.commitResolvedBattle(snapshot);
-    await service.commitResolvedBattle(snapshot);
+    const original = await service.commitResolvedBattle(snapshot, level);
+    const save = vi.spyOn(repository, "save");
+    const retriedService = new BattleResultService({
+      chatService: new ChatMessageService(repository),
+      now: () => "2026-10-25T00:00:00.000Z",
+    });
+    const retried = await retriedService.commitResolvedBattle({
+      ...snapshot,
+      resultSummary: "不应覆盖的结果",
+      battleLog: [],
+      battleResult: { ...snapshot.battleResult!, turnCount: 99 },
+    }, level === "verbose" ? "minimal" : "verbose");
 
-    expect(await repository.list()).toHaveLength(3);
+    expect(save).not.toHaveBeenCalled();
+    expect(retried.messages).toEqual(original.messages);
+    expect(retried.summaries).toEqual(original.summaries);
+    expect(await repository.list()).toEqual(original.messages);
+    expect(retried.messages.filter((message) => message.ai_visible).map((message) => message.summary_level)).toEqual([level]);
   });
 });

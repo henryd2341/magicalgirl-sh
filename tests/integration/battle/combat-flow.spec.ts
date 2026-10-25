@@ -1,9 +1,10 @@
 import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
+import { getPromptPresetRepository } from "@/orchestrator/promptPreset";
 import type { BattleParticipant } from "@/types/battle";
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 function createPlayerParty(): BattleParticipant[] {
   return [
@@ -51,8 +52,50 @@ async function triggerBattle({
 }
 
 describe("combat flow integration", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     setActivePinia(createPinia());
+    await getPromptPresetRepository().resetToDefault();
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each(["minimal", "default", "verbose"] as const)("freezes %s at settlement across a setting change and a second battle", async (level) => {
+    const session = useSessionStore();
+    const battle = useBattleStore();
+    const chat = useChatStore();
+    const presets = getPromptPresetRepository();
+    const nextLevel = level === "verbose" ? "minimal" : "verbose";
+    const settle = async (id: string) => {
+      await triggerBattle({ encounterId: id, enemyId: "integration-shadow", narrativeReason: "战报设置测试" });
+      await session.startBattle(createPlayerParty());
+      for (const participant of battle.activeBattle!.participants) {
+        if (participant.side === "enemy") participant.hp = { current: 1, max: 1 };
+      }
+      battle.selectAction("attack");
+      battle.selectTarget("enemy-1");
+      return session.completeActiveBattle();
+    };
+    await presets.saveCurrent({ ...await presets.getCurrent(), battleSummaryLevel: level });
+    const first = await settle("summary-first");
+    const savedFirst = JSON.parse(JSON.stringify(chat.messages));
+    await presets.saveCurrent({ ...await presets.getCurrent(), battleSummaryLevel: nextLevel });
+    expect(chat.messages).toEqual(savedFirst);
+    const continuation = await session.continuePostCombatStory();
+    expect(continuation.ok).toBe(true);
+    const firstRequest = continuation.request!.messages;
+    for (const report of first.messages) {
+      expect(firstRequest.some((message) => message.content === report.content)).toBe(report.summary_level === level);
+    }
+    const second = await settle("summary-second");
+    expect(second.messages.filter((message) => message.ai_visible).map((message) => message.summary_level)).toEqual([nextLevel]);
+    const nextContinuation = await session.continuePostCombatStory();
+    expect(nextContinuation.ok).toBe(true);
+    const reportMessages = nextContinuation.request!.messages.filter((message) => message.content.startsWith("战斗报告（"));
+    expect(reportMessages).toEqual([
+      { role: "system", content: first.summaries[level] },
+      { role: "system", content: second.summaries[nextLevel] },
+    ]);
+    expect(chat.messages.filter((message) => message.id.startsWith("battle-summary-summary-first-"))).toEqual(savedFirst);
   });
 
   it("cancels a pending combat encounter back to idle without leaving staged battle state", async () => {
@@ -136,12 +179,12 @@ describe("combat flow integration", () => {
     expect(sessionStore.snapshot.sessionState).toBe("IDLE");
     expect(sessionStore.snapshot.activeRequestId).toBeNull();
     expect(continuationResult.request?.promptText).toContain(
-      "outcome: victory",
+      "结果：胜利",
     );
-    expect(continuationResult.request?.promptText).not.toContain("Victory\n");
+    expect(continuationResult.request?.promptText).not.toContain("战斗报告（普通）");
     expect(continuationResult.request?.messages).toContainEqual({
       role: "system",
-      content: expect.stringContaining("outcome: victory"),
+      content: expect.stringContaining("结果：胜利"),
     });
     expect(chatStore.messages).toContainEqual(
       expect.objectContaining({

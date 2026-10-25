@@ -137,7 +137,7 @@ describe("Boss resolver integration", () => {
       pressTurn: { ownerSide: "enemy", icons: [{ id: "e1", state: "solid" }] },
     });
 
-    expect(resolved).toMatchObject({ lifecycleState: "RESOLVED", phase: "RESULT", resultSummary: "Defeat" });
+    expect(resolved).toMatchObject({ lifecycleState: "RESOLVED", phase: "RESULT", resultSummary: "失败" });
     expect(resolved.participants.filter(participant => participant.side === "player").every(participant => participant.hp.current === 0)).toBe(true);
     expect(resolved.battleLog?.some(entry => entry.summary.includes("镜壁戒律"))).toBe(true);
   });

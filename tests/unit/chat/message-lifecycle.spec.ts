@@ -3,6 +3,25 @@ import { InMemoryChatHistoryRepository } from "@/persistence/repositories/chatHi
 import { describe, expect, it } from "vitest";
 
 describe("ChatMessageService", () => {
+  it.each(["normal", "different-level"] as const)("rejects a battle summary ID owned by a %s message without overwriting it", async (collision) => {
+    const repository = new InMemoryChatHistoryRepository();
+    const service = new ChatMessageService(repository);
+    const input = {
+      id: "summary-conflict", level: "minimal" as const, content: "战报",
+      userVisible: false, aiVisible: true, createdAt: "2026-10-25T00:00:00.000Z",
+    };
+    if (collision === "normal") {
+      await service.createUserMessage({ id: input.id, content: "用户消息", createdAt: input.createdAt });
+    } else {
+      await service.createBattleSummaryMessages([{ ...input, level: "default" }]);
+    }
+    const original = await repository.list();
+    await expect(service.createBattleSummaryMessages([
+      { ...input, id: "new-summary-before-conflict" }, input,
+    ])).rejects.toThrow("CHAT_BATTLE_SUMMARY_ID_CONFLICT");
+    expect(await repository.list()).toEqual(original);
+  });
+
   it("persists user messages as finalized records immediately", async () => {
     const repository = new InMemoryChatHistoryRepository();
     const service = new ChatMessageService(repository);

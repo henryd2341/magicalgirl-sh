@@ -3,7 +3,7 @@
 import { createBattleSummaries } from "@/engine/battle/battleSummary";
 import type { CreateBattleSummaryMessageInput } from "@/engine/chatMessageService";
 import type { BattleSnapshot, BattleSummarySet } from "@/types/battle";
-import type { ChatMessage } from "@/types/chat";
+import type { ChatBattleSummaryLevel, ChatMessage } from "@/types/chat";
 import { getEnemyByName } from "@/content/contentRegistry";
 import { calculateExpGained } from "@/engine/battle/formulaEngine";
 import {
@@ -55,6 +55,7 @@ function createSummaryMessageInputs(
   snapshot: BattleSnapshot,
   summaries: BattleSummarySet,
   createdAt: string,
+  aiSummaryLevel: ChatBattleSummaryLevel,
 ): CreateBattleSummaryMessageInput[] {
   const idPrefix = `battle-summary-${snapshot.encounterId}`;
 
@@ -64,7 +65,7 @@ function createSummaryMessageInputs(
       level: "verbose",
       content: summaries.verbose,
       userVisible: false,
-      aiVisible: false,
+      aiVisible: aiSummaryLevel === "verbose",
       createdAt,
     },
     {
@@ -72,7 +73,7 @@ function createSummaryMessageInputs(
       level: "default",
       content: summaries.default,
       userVisible: true,
-      aiVisible: false,
+      aiVisible: aiSummaryLevel === "default",
       createdAt,
     },
     {
@@ -80,7 +81,7 @@ function createSummaryMessageInputs(
       level: "minimal",
       content: summaries.minimal,
       userVisible: false,
-      aiVisible: true,
+      aiVisible: aiSummaryLevel === "minimal",
       createdAt,
     },
   ];
@@ -159,15 +160,19 @@ export class BattleResultService {
     return { expGained, characterExp, moneyGained, enemyIds };
   }
 
-    public async commitResolvedBattle(
+  public async commitResolvedBattle(
     snapshot: BattleSnapshot,
+    aiSummaryLevel: ChatBattleSummaryLevel = "minimal",
   ): Promise<CommitResolvedBattleResult> {
     requireResolvedBattle(snapshot);
 
     const summaries = createBattleSummaries(snapshot);
     const messages = await this.chatService.createBattleSummaryMessages(
-      createSummaryMessageInputs(snapshot, summaries, this.now()),
+      createSummaryMessageInputs(snapshot, summaries, this.now(), aiSummaryLevel),
     );
+    for (const message of messages) {
+      if (message.summary_level != null) summaries[message.summary_level] = message.content;
+    }
     const rewards = this.computeRewards(snapshot);
 
     return {

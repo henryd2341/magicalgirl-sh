@@ -55,13 +55,13 @@ describe("post-combat continuation orchestration", () => {
         survivingParticipantIds: ["player-heroine-1"],
         downParticipantIds: ["enemy-1"],
       },
-      resultSummary: "Victory",
+      resultSummary: "胜利",
       battleLog: [
         {
           id: "turn-1-result-victory",
           turnCount: 1,
           side: "system",
-          summary: "Victory: all enemies are down.",
+          summary: "胜利：敌方全员倒下。",
         },
       ],
     };
@@ -71,11 +71,11 @@ describe("post-combat continuation orchestration", () => {
 
     expect(result.ok).toBe(true);
     expect(sessionStore.snapshot.sessionState).toBe("IDLE");
-    expect(result.request?.promptText).toContain("outcome: victory");
-    expect(result.request?.promptText).not.toContain("Victory\n");
+    expect(result.request?.promptText).toContain("结果：胜利");
+    expect(result.request?.promptText).not.toContain("战斗报告（普通）");
     expect(result.request?.messages).toContainEqual({
       role: "system",
-      content: expect.stringContaining("outcome: victory"),
+      content: expect.stringContaining("结果：胜利"),
     });
     expect(chatStore.messages).toContainEqual(
       expect.objectContaining({

@@ -1265,8 +1265,10 @@ export const useSessionStore = defineStore("session", () => {
       chatService: chatStore,
     });
 
+    const preset = await getPromptPresetRepository().getCurrent();
     const result = await battleResultService.commitResolvedBattle(
       battleStore.activeBattle,
+      preset.battleSummaryLevel,
     );
 
     // Apply rewards with idempotency guard

@@ -2,6 +2,7 @@ import MainGameView from "@/pages/MainGameView.vue";
 import ApiSettingsView from "@/pages/ApiSettingsView.vue";
 import NewGameSetupView from "@/pages/NewGameSetupView.vue";
 import SettingsView from "@/pages/SettingsView.vue";
+import { getPromptPresetRepository } from "@/orchestrator/promptPreset";
 import SplashScreenView from "@/pages/SplashScreenView.vue";
 import StartScreenView from "@/pages/StartScreenView.vue";
 import {
@@ -15,7 +16,7 @@ import {
 import { DbWorldInfoRepository } from "@/persistence/repositories/worldInfoRepository";
 import { router } from "@/router";
 import { createDbWorkerRuntime } from "@/workers/db.worker";
-import { fireEvent, render, screen } from "@testing-library/vue";
+import { fireEvent, render, screen, waitFor } from "@testing-library/vue";
 import { createPinia } from "pinia";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -124,6 +125,31 @@ describe("application page layering", () => {
       "id",
       "chat-input-box",
     );
+  });
+
+  it("saves and reloads the three-step battle summary slider, then resets it", async () => {
+    await getPromptPresetRepository().resetToDefault();
+    const mount = () => render(SettingsView, { global: { plugins: [createPinia(), router] } });
+    const view = mount();
+    const slider = screen.getByRole("slider", { name: "战报详略程度" });
+    await waitFor(() => expect(slider).toHaveValue("0"));
+    expect(slider).toHaveAttribute("min", "0");
+    expect(slider).toHaveAttribute("max", "2");
+    expect(slider).toHaveAttribute("step", "1");
+    expect(slider).toHaveAttribute("aria-valuetext", "精简");
+    await fireEvent.update(slider, "1");
+    expect(slider).toHaveAttribute("aria-valuetext", "普通");
+    await fireEvent.update(slider, "2");
+    expect(slider).toHaveAttribute("aria-valuetext", "详细");
+    expect((await getPromptPresetRepository().getCurrent()).battleSummaryLevel).toBe("minimal");
+    await fireEvent.click(screen.getByRole("button", { name: "保存 Prompt 设置" }));
+    await screen.findByText("Prompt 设置已保存。");
+    view.unmount();
+    mount();
+    await waitFor(() => expect(screen.getByRole("slider", { name: "战报详略程度" })).toHaveValue("2"));
+    await fireEvent.click(screen.getByRole("button", { name: "恢复默认" }));
+    await waitFor(() => expect(screen.getByRole("slider", { name: "战报详略程度" })).toHaveValue("0"));
+    expect((await getPromptPresetRepository().getCurrent()).battleSummaryLevel).toBe("minimal");
   });
 
   it("renders prompt builder controls on the settings page", async () => {

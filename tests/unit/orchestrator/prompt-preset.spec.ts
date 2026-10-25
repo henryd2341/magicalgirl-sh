@@ -1,18 +1,36 @@
 import {
   createDefaultPromptPresetConfig,
   InMemoryPromptPresetRepository,
+  LocalStoragePromptPresetRepository,
 } from "@/orchestrator/promptPreset";
 import { createDefaultContextBudget } from "@/orchestrator/promptBuilder";
 import systemPrompt from "@/content/systemPrompt.md?raw";
 import { describe, expect, it } from "vitest";
 
 describe("prompt preset config", () => {
+  it.each(["minimal", "default", "verbose"] as const)("round-trips %s through both repositories and resets to minimal", async (battleSummaryLevel) => {
+    for (const repository of [new InMemoryPromptPresetRepository(), new LocalStoragePromptPresetRepository()]) {
+      await repository.saveCurrent({ ...createDefaultPromptPresetConfig(), battleSummaryLevel });
+      expect((await repository.getCurrent()).battleSummaryLevel).toBe(battleSummaryLevel);
+      expect((await repository.resetToDefault()).battleSummaryLevel).toBe("minimal");
+    }
+  });
+
+  it.each([undefined, null, "invalid", 2])("normalizes missing or invalid saved level %s to minimal", async (battleSummaryLevel) => {
+    localStorage.setItem("magicalgirl-sh.prompt-preset.v1", JSON.stringify({
+      ...createDefaultPromptPresetConfig(), battleSummaryLevel,
+    }));
+    expect((await new LocalStoragePromptPresetRepository().getCurrent()).battleSummaryLevel).toBe("minimal");
+    localStorage.removeItem("magicalgirl-sh.prompt-preset.v1");
+  });
+
   it("creates defaults from the bundled system prompt and context budget", () => {
     expect(createDefaultPromptPresetConfig("2026-05-26T12:00:00.000Z"))
       .toMatchObject({
         systemPrompt,
         maxTotalTokens: createDefaultContextBudget().maxTotalTokens,
         previewMustacheVariables: false,
+        battleSummaryLevel: "minimal",
         updatedAt: "2026-05-26T12:00:00.000Z",
         customChainOfThought: expect.objectContaining({ enabled: false }),
       });

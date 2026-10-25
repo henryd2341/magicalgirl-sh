@@ -588,7 +588,7 @@ describe("charged affinity/shield piercing and numeric guaranteed attacks", () =
     expect(get(missed, casterId).statusEffects).toContainEqual(expect.objectContaining({ effectId: "charge" }));
     expect(get(missed, targetId).statusEffects).toContainEqual(expect.objectContaining({ effectId: "fire_reflect" }));
     expect(get(missed, casterId).mp.current).toBe(955);
-    expect(missed.battleLog?.some((entry) => entry.summary.includes("Miss"))).toBe(true);
+    expect(missed.battleLog?.some((entry) => entry.summary.includes("未命中"))).toBe(true);
   });
 
   it.each(["player", "enemy"] as const)("%s uncharged 164 and unrelated charged skills still obey prevention", (side) => {

@@ -102,10 +102,10 @@ export function createBattleResultLogEntry(
 ): BattleLogDraft {
   const summary =
     battleResult.outcome === "victory"
-      ? "Victory: all enemies are down."
+      ? "胜利：敌方全员倒下。"
       : battleResult.outcome === "defeat"
-        ? "Defeat: all players are down."
-        : "Battle ended by escape.";
+        ? "失败：我方全员倒下。"
+        : "战斗因撤退结束。";
 
   return {
     turnCount: battleResult.turnCount,
@@ -187,7 +187,7 @@ function formatActionOutcomes(
   }
 
   const resultLabels: Partial<Record<BattleActionOutcome["type"], string>> = {
-    miss: "Miss", block: "无效", reflect: "反弹", absorb: "吸收", status_no_effect: "状态无效",
+    miss: "未命中", block: "无效", reflect: "反弹", absorb: "吸收", status_no_effect: "状态无效",
   };
   for (const outcome of outcomes) {
     const label = resultLabels[outcome.type];
@@ -225,7 +225,7 @@ export function createPlayerActionLogEntry(
   participants: readonly BattleParticipant[] = [],
 ): BattleLogDraft {
   const formatted = formatActionOutcomes(resolution.outcomes, participants);
-  const baseSummary = resolution.summaryLog[0] ?? `${resolution.actionId} used`;
+  const baseSummary = resolution.summaryLog[0] ?? `使用 ${resolution.actionId}`;
   const targetIds = [...new Set(
     resolution.outcomes
       .map(outcomeTargetId)
@@ -263,8 +263,8 @@ export function createEnemyAttackLogEntry(
   return {
     turnCount, side: "enemy", kind: "action", visibility: "both",
     actorId: actor.id, actionId: "enemy_attack", targetIds: [target.id],
-    summary: `${actor.displayName} attacked ${target.displayName} for ${damage} damage.`,
-    details: [`${target.displayName} took ${damage} damage.`],
+    summary: `${actor.displayName}攻击${target.displayName}，造成 ${damage} 点伤害。`,
+    details: [`${target.displayName}受到 ${damage} 点伤害。`],
   };
 }
 
@@ -294,7 +294,7 @@ export function createPlayerRoundStartLogEntry(
     side: "system",
     kind: "system",
     visibility: "both",
-    summary: `Player turn ${turnCount} started.`,
+    summary: `我方第 ${turnCount} 回合开始。`,
   };
 }
 

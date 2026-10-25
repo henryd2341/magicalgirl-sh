@@ -510,10 +510,10 @@ function createSwapResolution(
     pressTurnResult: settleSwapPressTurn(snapshot.pressTurn),
     verboseLog: [
       validation.swapInId == null
-        ? `${validation.swapOutId} withdrew from the frontline.`
-        : `${validation.swapOutId} swapped out for ${validation.swapInId}.`,
+        ? `${validation.swapOutId}退出前排。`
+        : `${validation.swapOutId}换下，${validation.swapInId}上场。`,
     ],
-    summaryLog: ["Swap used"],
+    summaryLog: ["换人"],
   };
 }
 
@@ -826,9 +826,9 @@ export function resolveSelectedBattleAction(
   }
 
   if (allEnemiesDefeated) {
-    nextSnapshot.resultSummary = "Victory";
+    nextSnapshot.resultSummary = "胜利";
   } else if (allPlayersDefeated) {
-    nextSnapshot.resultSummary = "Defeat";
+    nextSnapshot.resultSummary = "失败";
   } else if (normalizedSnapshot.resultSummary != null) {
     nextSnapshot.resultSummary = normalizedSnapshot.resultSummary;
   }
@@ -1116,7 +1116,7 @@ function finishEnemyTurn(snapshot: BattleSnapshot): BattleSnapshot {
       phase: "RESULT",
       currentActorId: null,
       battleResult,
-      resultSummary: "Defeat",
+      resultSummary: "失败",
       battleLog: appendBattleLogs(postTickBossState, [
         ...logs,
         createBattleResultLogEntry(battleResult),
@@ -1195,7 +1195,7 @@ function createImmediateEnemyResult(
     phase: "RESULT",
     currentActorId: null,
     battleResult,
-    resultSummary: outcome === "victory" ? "Victory" : "Defeat",
+    resultSummary: outcome === "victory" ? "胜利" : "失败",
     battleLog: appendBattleLogs(snapshot, [
       createBattleResultLogEntry(battleResult),
     ]),
@@ -1607,8 +1607,8 @@ export function resolveSelectedBattleActionToResolution(
       intendedTargetId: snapshot.selectedTargetId,
       outcomes: [],
       pressTurnResult: passResult,
-      verboseLog: [`${actorId} passed the turn.`],
-      summaryLog: ["Pass used"],
+      verboseLog: [`${actorId}传递了行动。`],
+      summaryLog: ["传递行动"],
     };
   }
 
@@ -1674,8 +1674,8 @@ export function resolveSelectedBattleActionToResolution(
       actionId: definition.id,
       contentId,
       intendedTargetId: snapshot.selectedTargetId,
-      verboseLog: [`${actorId} guarded.`],
-      summaryLog: ["Guard used"],
+      verboseLog: [`${actorId}采取防御。`],
+      summaryLog: ["防御"],
     };
   }
 
@@ -1803,9 +1803,9 @@ export function resolveSelectedBattleActionToResolution(
         actionId: definition.id,
         intendedTargetId: snapshot.selectedTargetId,
         verboseLog: [
-          `${actorId} used basic-skill on ${snapshot.selectedTargetId}.`,
+          `${actorId}对${snapshot.selectedTargetId}使用基础技能。`,
         ],
-        summaryLog: ["Basic Skill hit"],
+        summaryLog: ["使用基础技能"],
       };
     }
 
@@ -1862,7 +1862,7 @@ export function resolveSelectedBattleActionToResolution(
           actorId,
           actionId,
           outcomes: [],
-          verboseLog: [`${actorId} had no valid targets for ${skillContent.name}.`],
+          verboseLog: [`${actorId}使用${skillContent.name}时没有有效目标。`],
           summaryLog: [],
         };
       }
@@ -1945,9 +1945,9 @@ export function resolveSelectedBattleActionToResolution(
         contentId,
         intendedTargetId: snapshot.selectedTargetId,
         verboseLog: [
-          `${actorId} used ${skillContent.name}.`,
+          `${actorId}使用${skillContent.name}。`,
         ],
-        summaryLog: [`${skillContent.name} used`],
+        summaryLog: [`使用${skillContent.name}`],
       };
     }
 
@@ -1962,7 +1962,7 @@ export function resolveSelectedBattleActionToResolution(
           contentId,
           intendedTargetId: snapshot.selectedTargetId,
           outcomes: [],
-          verboseLog: [`[BATTLE] Actor ${actorId} not found`],
+          verboseLog: [`[BATTLE] 未找到行动者 ${actorId}`],
           summaryLog: [],
         };
       }
@@ -1984,7 +1984,7 @@ export function resolveSelectedBattleActionToResolution(
           actorId,
           actionId,
           outcomes: [],
-          verboseLog: [`${actorId} had no valid targets for ${skillContent.name}.`],
+          verboseLog: [`${actorId}使用${skillContent.name}时没有有效目标。`],
           summaryLog: [],
         };
       }
@@ -2026,9 +2026,9 @@ export function resolveSelectedBattleActionToResolution(
         contentId,
         intendedTargetId: snapshot.selectedTargetId,
         verboseLog: [
-          `${actorId} used ${skillContent.name}.`,
+          `${actorId}使用${skillContent.name}。`,
         ],
-        summaryLog: [`${skillContent.name} used`],
+        summaryLog: [`使用${skillContent.name}`],
       };
     }
 
@@ -2164,9 +2164,9 @@ export function resolveSelectedBattleActionToResolution(
       contentId,
       intendedTargetId: snapshot.selectedTargetId,
       verboseLog: [
-        `${actorId} used ${skillContent.name}.`,
+        `${actorId}使用${skillContent.name}。`,
       ],
-      summaryLog: [`${skillContent.name} used`],
+      summaryLog: [`使用${skillContent.name}`],
     };
   }
 
@@ -2188,9 +2188,9 @@ export function resolveSelectedBattleActionToResolution(
         actionId: definition.id,
         intendedTargetId: snapshot.selectedTargetId,
         verboseLog: [
-          `${actorId} used basic-item on ${snapshot.selectedTargetId}.`,
+          `${actorId}对${snapshot.selectedTargetId}使用基础道具。`,
         ],
-        summaryLog: ["Basic Item healed"],
+        summaryLog: ["使用基础道具"],
       };
     }
 
@@ -2353,9 +2353,9 @@ export function resolveSelectedBattleActionToResolution(
       intendedTargetId: snapshot.selectedTargetId,
       consumedItemId: contentId,
       verboseLog: [
-        `${actorId} used ${itemContent.name} on ${snapshot.selectedTargetId}.`,
+        `${actorId}对${snapshot.selectedTargetId}使用${itemContent.name}。`,
       ],
-      summaryLog: [`${itemContent.name} used`],
+      summaryLog: [`使用${itemContent.name}`],
     };
   }
 
@@ -2483,8 +2483,8 @@ export function resolveSelectedBattleActionToResolution(
     contentId,
     intendedTargetId: snapshot.selectedTargetId,
     verboseLog: [
-      `${actorId} used ${skillContent.name} on ${snapshot.selectedTargetId}.`,
+      `${actorId}对${snapshot.selectedTargetId}使用${skillContent.name}。`,
     ],
-    summaryLog: [`${skillContent.name} used`],
+    summaryLog: [`使用${skillContent.name}`],
   };
 }

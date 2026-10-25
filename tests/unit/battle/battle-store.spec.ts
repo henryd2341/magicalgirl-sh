@@ -910,7 +910,7 @@ describe("battleStore", () => {
       expect.objectContaining({
         turnCount: 2,
         side: "system",
-        summary: "Player turn 2 started.",
+        summary: "我方第 2 回合开始。",
       }),
     ]);
   });
@@ -977,9 +977,9 @@ describe("battleStore", () => {
     expect(
       store.activeBattle?.battleLog?.map((entry) => entry.summary),
     ).toEqual([
-      expect.stringContaining("used"),
+      expect.stringContaining("使用"),
       expect.stringMatching(/loop-shadow使用攻击：造成 \d+ 点伤害/),
-      expect.stringContaining("down"),
+      expect.stringContaining("全员倒下"),
     ]);
   });
 });

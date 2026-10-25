@@ -62,7 +62,7 @@ describe("battleLogger", () => {
         side: "system",
         kind: "system",
         visibility: "both",
-        summary: "Player turn 2 started.",
+        summary: "我方第 2 回合开始。",
       },
     ]);
   });
@@ -96,7 +96,7 @@ describe("battleLogger", () => {
         primaryTargetId: "enemy-1", finalTargetId: "enemy-1", hpDelta: -1,
       }],
       verboseLog: ["enemy-1 took 1 damage"],
-      summaryLog: ["Attack hit"],
+      summaryLog: ["使用攻击"],
     };
     const enemy: BattleParticipant = {
       id: "enemy-1",
@@ -133,7 +133,7 @@ describe("battleLogger", () => {
       actorId: "player-heroine-1",
       actionId: "attack",
       targetIds: ["enemy-1"],
-      summary: "Attack hit：造成 1 点伤害 · 弱点 · 暴击",
+      summary: "使用攻击：造成 1 点伤害 · 弱点 · 暴击",
       details: ["loop-shadow受到 1 点伤害（HP 1/1）【弱点】【暴击】"],
     });
     expect(createEnemyAttackLogEntry(1, enemy, target, 1)).toEqual({
@@ -144,15 +144,15 @@ describe("battleLogger", () => {
       actorId: "enemy-1",
       actionId: "enemy_attack",
       targetIds: ["player-heroine-1"],
-      summary: "loop-shadow attacked 鹿目真昼 for 1 damage.",
-      details: ["鹿目真昼 took 1 damage."],
+      summary: "loop-shadow攻击鹿目真昼，造成 1 点伤害。",
+      details: ["鹿目真昼受到 1 点伤害。"],
     });
     expect(createBattleResultLogEntry(battleResult)).toEqual({
       turnCount: 2,
       side: "system",
       kind: "result",
       visibility: "both",
-      summary: "Victory: all enemies are down.",
+      summary: "胜利：敌方全员倒下。",
     });
     expect(createMechanicLogDraft(2, "DPS检测失败")).toEqual({
       turnCount: 2,
@@ -178,13 +178,13 @@ describe("battleLogger", () => {
         { type: "absorb", tags: [], actorId: "hero", finalTargetId: "enemy", preventedBy: "absorb" },
         { type: "hit", tags: [], actorId: "hero", finalTargetId: "enemy", appliedStatusEffects: [{ effectId: "defense_down", duration: 3 }] },
       ],
-      verboseLog: [], summaryLog: ["破甲击 used"],
+      verboseLog: [], summaryLog: ["使用破甲击"],
     };
 
     expect(createPlayerActionLogEntry(resolution, 2, participants)).toMatchObject({
-      summary: "破甲击 used：Miss · 无效 · 反弹 · 吸收 · 状态变化",
+      summary: "使用破甲击：未命中 · 无效 · 反弹 · 吸收 · 状态变化",
       details: [
-        "测试敌人：Miss",
+        "测试敌人：未命中",
         "测试敌人：无效",
         "测试敌人：反弹",
         "测试敌人：吸收",

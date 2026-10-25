@@ -777,8 +777,8 @@ describe("MainGameView battle overlay entrypoint", () => {
       ai_visible: false,
       finalized: true,
     });
-    expect(screen.getByText(/Victory/)).toBeInTheDocument();
-    expect(screen.queryByText("outcome: victory")).not.toBeInTheDocument();
+    expect(screen.getByText(/胜利/)).toBeInTheDocument();
+    expect(screen.queryByText("结果：胜利")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "继续剧情" }),
     ).toBeInTheDocument();
@@ -858,7 +858,7 @@ describe("MainGameView battle overlay entrypoint", () => {
     await waitFor(() => {
       expect(sessionStore.snapshot.sessionState).toBe("POST_COMBAT_READY");
     });
-    expect(screen.getByText(/Victory/)).toBeInTheDocument();
+    expect(screen.getByText(/胜利/)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "继续剧情" }),
     ).toBeInTheDocument();
@@ -918,13 +918,13 @@ describe("MainGameView battle overlay entrypoint", () => {
         survivingParticipantIds: ["player-heroine-1"],
         downParticipantIds: ["enemy-1"],
       },
-      resultSummary: "Victory",
+      resultSummary: "胜利",
       battleLog: [
         {
           id: "turn-1-result-victory",
           turnCount: 1,
           side: "system",
-          summary: "Victory: all enemies are down.",
+          summary: "胜利：敌方全员倒下。",
         },
       ],
     };

@@ -289,7 +289,7 @@ describe("battleResolver", () => {
 
     expect(resolved.lifecycleState).toBe("RESOLVED");
     expect(resolved.phase).toBe("RESULT");
-    expect(resolved.resultSummary).toBe("Victory");
+    expect(resolved.resultSummary).toBe("胜利");
     expect(resolved.battleResult).toMatchObject({
       outcome: "victory",
       winningSide: "player",
@@ -342,7 +342,7 @@ describe("battleResolver", () => {
 
     expect(resolved.lifecycleState).toBe("RESOLVED");
     expect(resolved.phase).toBe("RESULT");
-    expect(resolved.resultSummary).toBe("Defeat");
+    expect(resolved.resultSummary).toBe("失败");
     expect(resolved.battleResult).toMatchObject({
       outcome: "defeat",
       winningSide: "enemy",
@@ -560,7 +560,7 @@ describe("battleResolver", () => {
     const resolved = resolveNextEnemyAction(snapshot);
     const enemyActions = resolved.battleLog?.filter((entry) => entry.side === "enemy") ?? [];
     expect(enemyActions).toHaveLength(1);
-    expect(enemyActions[0]?.summary).toContain("Miss");
+    expect(enemyActions[0]?.summary).toContain("未命中");
     vi.restoreAllMocks();
   });
 
@@ -617,7 +617,7 @@ describe("battleResolver", () => {
 
     expect(resolved.lifecycleState).toBe("RESOLVED");
     expect(resolved.phase).toBe("RESULT");
-    expect(resolved.resultSummary).toBe("Defeat");
+    expect(resolved.resultSummary).toBe("失败");
     expect(resolved.battleResult).toMatchObject({
       outcome: "defeat",
       winningSide: "enemy",
@@ -1576,7 +1576,7 @@ describe("battleResolver", () => {
 
     expect(resolved.lifecycleState).toBe("RESOLVED");
     expect(resolved.phase).toBe("RESULT");
-    expect(resolved.resultSummary).toBe("Victory");
+    expect(resolved.resultSummary).toBe("胜利");
     expect(resolved.battleResult).toMatchObject({
       outcome: "victory",
       endReason: "all_enemies_down",
