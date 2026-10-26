@@ -62,7 +62,7 @@ const skillContentSchema = z.object({
   statusEffects: z.array(statusEffectPayloadSchema).optional(),
   healPercent: z.number().int().min(0).max(100).optional(),
   revives: z.boolean().optional(),
-  cleanses: z.array(z.enum(["buff", "debuff", "dot", "ailment"])).optional(),
+  cleanses: z.array(z.enum(["buff", "debuff", "dot", "ailment", "shield"])).optional(),
   hpDrainPercent: z.number().min(0).max(100).optional(),
   mpDrainAmount: z.number().int().min(0).optional(),
   passiveEffects: z
