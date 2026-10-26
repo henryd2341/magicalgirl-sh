@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 
-const evidence = ".trellis/tasks/10-26-battle-presentation-effects/evidence/implementation";
+const evidence = ".trellis/tasks/10-26-battle-elemental-textures/evidence/implementation";
 async function open(page: Page, mode = "standard", theme = "e-girl") {
   await page.goto(`/tests/e2e/fixtures/battle-presentation-live.html?shell=1&effects=0&vfx=${mode}&theme=${theme}`);
   await expect(page.getByText("纹理就绪", { exact: true })).toBeVisible();
@@ -10,6 +10,94 @@ async function launch(page: Page, scenario: string) {
   await page.locator(`[data-scenario="${scenario}"]`).click();
 }
 async function idle(page: Page) { await expect(page.locator(".battle-presentation-cue")).toHaveCount(0); }
+
+for (const theme of ["e-girl", "kidcore", "pastel-brutalism"]) test(`${theme}: twelve actual elemental mains, item routes and cross-category skills retain texture and recipient`, async ({ page }) => {
+  test.setTimeout(90000); await page.setViewportSize({ width: 1440, height: 900 }); await open(page, "standard", theme);
+  const cases = [
+    ["1", "slash_02", "Physical"], ["19", "trace_01", "Gun"], ["36", "flame_05", "Fire"], ["43", "icewater.svg", "Ice"],
+    ["57", "spark_05", "Electric"], ["50", "twirl_02", "Wind"], ["64", "dirt_01", "Earth"], ["71", "star_04", "Light"],
+    ["78", "dark.svg", "Dark"], ["177", "almighty.svg", "Almighty"], ["85", "symbol_01", "Heal"], ["103", "ailment.svg", "Ailment"],
+    ["162", "flame_05", "Fire"], ["169", "twirl_02", "Wind"], ["175", "dark.svg", "Dark"],
+    ["item-27", "flame_05", "Fire"], ["item-28", "icewater.svg", "Ice"], ["item-29", "spark_05", "Electric"],
+  ];
+  const diagnostics = [];
+  for (const [id, texture, element] of cases) {
+    await page.evaluate(() => {
+      const original = Element.prototype.animate; const marks: any[] = []; const paused: Animation[] = [];
+      Object.assign(window, { elementalMarks: marks, elementalPaused: paused, restoreElemental: () => { Element.prototype.animate = original; paused.forEach(a => a.play()); } });
+      Element.prototype.animate = function (frames, options) {
+        const animation = original.call(this, frames, options);
+        if (this.classList.contains("battle-effect-texture") && typeof options === "object" && typeof options.duration === "number" && options.duration <= 300 && options.duration !== 180) {
+          const node = this as HTMLElement;
+          marks.push({ mask: node.style.maskImage, color: node.style.backgroundColor, x: parseFloat(node.style.left), y: parseFloat(node.style.top) });
+          animation.pause(); animation.currentTime = Number(options.duration) * .155; paused.push(animation);
+        }
+        return animation;
+      };
+    });
+    await page.evaluate(scenario => (window as any).presentationFixture.launch(scenario), id!.startsWith("item-") ? id! : `element-${id}`);
+    await page.waitForFunction(() => (window as any).elementalPaused.length > 0);
+    const result = await page.evaluate(async () => {
+      const { participantAnchor } = await import("/src/ui/battle/battleEffectsRenderer.ts");
+      const { effectProfile } = await import("/src/ui/battle/battleEffectRecipes.ts");
+      const action = (window as any).hudBattle.latestActionReceipt;
+      const profile = effectProfile(action);
+      const swatch = document.createElement("i"); swatch.style.backgroundColor = profile.color;
+      const target = action.outcomes.find((o: any) => o.hpDelta != null || o.appliedStatusEffects?.length)?.finalTargetId;
+      const root = document.querySelector<HTMLElement>("#battle-overlay")!;
+      return { action, marks: (window as any).elementalMarks, color: swatch.style.backgroundColor,
+        anchor: participantAnchor(root, root.querySelector<HTMLElement>(".battle-effects-layer")!, target, action.category === "heal" ? "player" : "enemy") };
+    });
+    expect(result.marks.some((m: any) => m.mask.includes(texture) && m.color === result.color)).toBe(true);
+    if (!["177", "175"].includes(id!)) expect(result.marks.some((m: any) => m.mask.includes(texture) && Math.abs(m.x - result.anchor.x) < .01 && Math.abs(m.y - result.anchor.y) < .01)).toBe(true);
+    if (id === "103") expect(result.action.outcomes.some((o: any) => o.hpDelta < 0)).toBe(false);
+    if (!id!.startsWith("item-") && Number(id) < 162 || id === "177") await page.screenshot({ path: `${evidence}/element-${theme}-${element}.png`, animations: "allow" });
+    diagnostics.push({ id, texture, element, ...result });
+    await page.evaluate(() => (window as any).restoreElemental()); await idle(page);
+  }
+  await writeFile(`${evidence}/element-diagnostics-${theme}.json`, JSON.stringify(diagnostics, null, 2));
+});
+
+test("one missing Ice image degrades Ice without disabling Fire Standard", async ({ page }) => {
+  await page.route("**/icewater.svg*", route => route.request().resourceType() === "image" ? route.abort() : route.continue());
+  await page.goto("/tests/e2e/fixtures/battle-presentation-live.html?shell=1&effects=0&vfx=standard");
+  await expect(page.getByText("纹理不可用 · 精简反馈", { exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    const original = Element.prototype.animate; (window as any).textureMarks = [];
+    Element.prototype.animate = function (frames, options) {
+      if (this.classList.contains("battle-effect-texture")) (window as any).textureMarks.push((this as HTMLElement).style.maskImage);
+      return original.call(this, frames, options);
+    };
+  });
+  await page.evaluate(() => (window as any).presentationFixture.launch("element-43")); await idle(page);
+  expect(await page.evaluate(() => (window as any).textureMarks)).toEqual([]);
+  await page.evaluate(() => (window as any).presentationFixture.launch("element-36")); await idle(page);
+  expect(await page.evaluate(() => (window as any).textureMarks.some((mask: string) => mask.includes("flame_05")))).toBe(true);
+});
+
+test("complete decoded resource inventory and actual alpha-mask sheet", async ({ page }) => {
+  await open(page);
+  const inventory = await page.evaluate(async () => {
+    const { EFFECT_TEXTURES } = await import("/src/ui/battle/battleEffectsRenderer.ts");
+    return Promise.all(Object.entries(EFFECT_TEXTURES).map(async ([key, url]) => {
+      const image = new Image(); image.src = url; await image.decode();
+      const canvas = document.createElement("canvas"); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d")!; context.drawImage(image, 0, 0);
+      const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      let minimum = 255; let maximum = 0;
+      for (let i = 3; i < data.length; i += 4) { minimum = Math.min(minimum, data[i]!); maximum = Math.max(maximum, data[i]!); }
+      return { key, url, width: canvas.width, height: canvas.height, alpha: [minimum, maximum], bytes: (await (await fetch(url)).arrayBuffer()).byteLength, decodedBaseBytes: canvas.width * canvas.height * 4 };
+    }));
+  });
+  expect(inventory).toHaveLength(16);
+  for (const file of inventory) { expect(file.width).toBeLessThanOrEqual(512); expect(file.height).toBeLessThanOrEqual(512); expect(file.alpha[0]).toBe(0); expect(file.alpha[1]).toBeGreaterThan(0); }
+  expect(inventory.reduce((sum, f) => sum + f.bytes, 0)).toBeLessThanOrEqual(2 * 1024 * 1024);
+  expect(inventory.reduce((sum, f) => sum + f.decodedBaseBytes, 0)).toBeLessThanOrEqual(16 * 1024 * 1024);
+  await writeFile(`${evidence}/assets.json`, JSON.stringify(inventory, null, 2));
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto(`/${evidence}/contact-sheet.html`);
+  await page.screenshot({ path: `${evidence}/contact-sheet.png`, fullPage: true });
+});
 
 test("one canonical settlement, final-only fifteen-hit HP/log reveal, input guard and cleanup", async ({ page }) => {
   await open(page);
@@ -130,11 +218,11 @@ test("real group shields render recovery, interception and reflected damage at t
       expect(point.visible).toBe(true);
       expect(impacts.some(mark => mark.mask.includes(texture) && mark.color === color && Math.abs(mark.x - point.x) < .01 && Math.abs(mark.y - point.y) < .01)).toBe(true);
     };
-    if (result.scenario === "absorb" || result.scenario === "mixed") at(result.scenario === "absorb" ? "enemy-1" : "extra-1", "magic_01", "rgb(86, 239, 189)");
-    if (result.scenario === "reflect" || result.scenario === "mixed") { at(result.scenario === "reflect" ? "enemy-1" : "extra-2", "magic_01", "rgb(230, 199, 103)"); at("ally-0", "flame_01", "rgb(255, 147, 111)"); }
-    if (result.scenario === "mixed") at("enemy-1", "flame_01", "rgb(255, 147, 111)");
-    expect(impacts.filter(mark => mark.mask.includes("flame_01"))).toHaveLength(result.scenario === "absorb" ? 0 : result.scenario === "mixed" ? 2 : 1);
-    if (result.scenario === "ordinary") expect(result.maximum).toBe(12);
+    if (result.scenario === "absorb" || result.scenario === "mixed") at(result.scenario === "absorb" ? "enemy-1" : "extra-1", "symbol_01", "rgb(86, 239, 189)");
+    if (result.scenario === "reflect" || result.scenario === "mixed") { at(result.scenario === "reflect" ? "enemy-1" : "extra-2", "magic_01", "rgb(230, 199, 103)"); at("ally-0", "flame_05", "rgb(255, 147, 111)"); }
+    if (result.scenario === "mixed") at("enemy-1", "flame_05", "rgb(255, 147, 111)");
+    expect(impacts.filter(mark => mark.mask.includes("flame_05"))).toHaveLength(result.scenario === "absorb" ? 0 : result.scenario === "mixed" ? 2 : 1);
+    if (result.scenario === "ordinary") expect(result.maximum).toBe(10);
     expect(result.maximum).toBeLessThanOrEqual(48); expect(result.duration).toBeLessThan(2000);
     expect(result.reveals).toBe(1); expect(result.remaining).toBe(0); expect(result.animations).toBe(0);
   }
@@ -168,7 +256,7 @@ for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 
         Element.prototype.animate = function (frames, options) {
           const animation = original.call(this, frames, options);
           if (this.classList.contains("battle-effect-texture") && typeof options === "object" && options.duration === 300) {
-            animation.pause(); animation.currentTime = 45; paused.push(animation);
+            animation.pause(); animation.currentTime = 46.5; paused.push(animation);
           }
           return animation;
         };
@@ -243,11 +331,13 @@ for (const width of [1440, 390]) test(`${width}: warmed Standard/Off 30-second f
   test.setTimeout(120000); await page.setViewportSize({ width, height: width === 1440 ? 900 : 844 }); await open(page);
   const results: Record<string, unknown> = { browser: browser.version(), viewport: page.viewportSize() };
   const client = await page.context().newCDPSession(page);
+  const scenarios = ["element-36", "element-43", "element-57", "element-50", "element-64", "element-71", "element-78", "element-177", "element-103", "heal", "element-19", "slash"];
   for (const mode of ["off", "standard"]) {
     await page.getByLabel("演出模式").selectOption(mode);
-    await launch(page, "area"); await idle(page); await page.waitForTimeout(1500);
+    for (const scenario of scenarios) { await page.evaluate(s => (window as any).presentationFixture.launch(s), scenario); await idle(page); }
+    await page.waitForTimeout(1500);
     await client.send("Tracing.start", { categories: "devtools.timeline,disabled-by-default-devtools.timeline,v8,blink.user_timing", transferMode: "ReturnAsStream" });
-    results[mode] = await page.evaluate(async () => {
+    results[mode] = await page.evaluate(async scenarios => {
       const fixture = (window as any).presentationFixture;
       const frames: number[] = []; const longTasks: { start: number; duration: number }[] = [];
       const observer = new PerformanceObserver(list => { for (const entry of list.getEntries()) longTasks.push({ start: entry.startTime, duration: entry.duration }); });
@@ -256,11 +346,11 @@ for (const width of [1440, 390]) test(`${width}: warmed Standard/Off 30-second f
       const loop = (time: number) => { frames.push(time - last); last = time; maximum = Math.max(maximum, document.querySelectorAll(".battle-effects-layer > *").length); frame = requestAnimationFrame(loop); };
       frame = requestAnimationFrame(loop);
       const start = performance.now(); const actions: number[] = [];
-      while (performance.now() - start < 30000) { actions.push(performance.now()); await fixture.launch("area"); await new Promise(resolve => setTimeout(resolve, 1000)); }
+      while (performance.now() - start < 30000) { actions.push(performance.now()); await fixture.launch(scenarios[(actions.length - 1) % scenarios.length]); await new Promise(resolve => setTimeout(resolve, 1000)); }
       cancelAnimationFrame(frame); observer.disconnect();
       const sorted = frames.slice(2).sort((a, b) => a - b);
-      return { p95: sorted[Math.floor(sorted.length * .95)], frames, longTasks, actions, maximum, duration: performance.now() - start };
-    });
+      return { p95: sorted[Math.floor(sorted.length * .95)], frames, longTasks, actions, scenarios, maximum, duration: performance.now() - start };
+    }, scenarios);
     const completed = new Promise<{ stream: string }>(resolve => client.once("Tracing.tracingComplete", resolve));
     await client.send("Tracing.end");
     const { stream } = await completed;

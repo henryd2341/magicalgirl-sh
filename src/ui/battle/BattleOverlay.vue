@@ -657,10 +657,10 @@ function selectRosterTarget(id: string) {
         <h2 class="battle-overlay__title">
           {{ activeBattle?.phase === "RESULT" ? "战斗结束" : "战斗进行中" }}
         </h2>
-        <!-- <div v-if="busy" class="battle-presentation-cue">
+        <div v-if="busy" class="battle-presentation-cue">
           <span class="battle-presentation-cue__text" role="status">{{ actionText }}<small>{{ feedback }}</small></span>
           <button type="button" class="battle-overlay__phase-action" @click="presentation.skip">跳过演出</button>
-        </div> -->
+        </div>
         <!-- <p class="battle-overlay__encounter">
           <span>{{ activeBattle?.encounterId }}</span>
           <span>{{ activeBattle?.phase }}</span>

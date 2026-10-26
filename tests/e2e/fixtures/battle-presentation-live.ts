@@ -3,7 +3,7 @@ import { battle, hudMounted } from "./battle-hud";
 import { cloneBattlePresentationData } from "@/stores/battlePresentationData";
 import { setBattleEffects, type BattleEffectsMode } from "@/composables/useBattleEffects";
 import { loadEffectTextures } from "@/ui/battle/battleEffectsRenderer";
-import { getSkill } from "@/content/contentRegistry";
+import { getItem, getSkill } from "@/content/contentRegistry";
 
 const baseline = cloneBattlePresentationData(battle.activeBattle!);
 for (const p of baseline.participants) {
@@ -33,13 +33,15 @@ export async function launch(scenario: string) {
   if (root().querySelector(".battle-presentation-cue")) return;
   const state = cloneBattlePresentationData(baseline);
   const player = state.participants[0]!; const enemy = state.participants.find(p => p.side === "enemy")!;
-  const skill = ({ slash: "1", magic: "36", area: "83", multi: "174", heal: "85", support: "130", miss: "1", reflect: "1", absorb: "1", final: "1", hidden: "88" } as Record<string, string>)[scenario] ?? "1";
-  if (["area", "multi", "overflow"].includes(scenario)) state.participants.push(...Array.from({ length: scenario === "overflow" ? 7 : 2 }, (_, index) => index + 1).map(i => ({ ...cloneBattlePresentationData(state).participants.find(p => p.side === "enemy")!, id: `extra-${i}`, displayName: `影兽 ${i + 1}` })));
+  const skill = scenario.startsWith("element-") ? scenario.slice(8) : scenario.startsWith("item-") ? scenario.slice(5) : ({ slash: "1", magic: "36", area: "83", multi: "174", heal: "85", support: "130", miss: "1", reflect: "1", absorb: "1", final: "1", hidden: "88" } as Record<string, string>)[scenario] ?? "1";
+  const content = scenario.startsWith("item-") ? getItem(skill) : getSkill(skill);
+  if (scenario.startsWith("item-")) battle.setBattleItems({ [skill]: 3 });
+  if (["area", "multi", "overflow"].includes(scenario) || content.targetType === "all_enemies") state.participants.push(...Array.from({ length: scenario === "overflow" ? 7 : 2 }, (_, index) => index + 1).map(i => ({ ...cloneBattlePresentationData(state).participants.find(p => p.side === "enemy")!, id: `extra-${i}`, displayName: `影兽 ${i + 1}` })));
   if (scenario === "reflect") enemy.statusEffects = [{ effectId: "physical_reflect", remainingDuration: 2, stacks: 1 }];
   if (scenario === "absorb") { enemy.statusEffects = [{ effectId: "physical_absorb", remainingDuration: 2, stacks: 1 }]; enemy.hp.current = 5000; }
   if (scenario === "final") enemy.hp.current = 1;
-  if (scenario === "heal" || scenario === "hidden") for (const p of state.participants.filter(p => p.side === "player")) p.hp.current = 5000;
-  state.actionMenu = [{ id: "fixture-action", label: "执行样例", description: getSkill(skill).description, kind: "action", actionId: "basic-skill", contentId: skill }];
+  if (scenario === "heal" || scenario === "hidden" || ("category" in content && content.category === "heal")) for (const p of state.participants.filter(p => p.side === "player")) p.hp.current = 5000;
+  state.actionMenu = [{ id: "fixture-action", label: "执行样例", description: content.description, kind: "action", actionId: scenario.startsWith("item-") ? "basic-item" : "basic-skill", contentId: skill }];
   state.currentActorId = player.id;
   battle.restoreBattleSnapshot({ activeBattle: state });
   // Restoration rebuilds normal menus; this fixture keeps a single genuine command.
@@ -55,7 +57,7 @@ export async function launch(scenario: string) {
   try {
     [...root().querySelectorAll<HTMLButtonElement>(".battle-command-menu__button")].find(b => b.textContent?.trim() === "执行样例")!.click();
     if (battle.activeBattle?.selectedActionId) {
-      const target = getSkill(skill).targetType === "single_ally" ? ".battle-party-slot--front .battle-party-card" : ".battle-enemy-card";
+      const target = content.targetType === "single_ally" ? ".battle-party-slot--front .battle-party-card" : ".battle-enemy-card";
       // Existing targetability updates on Vue's next tick.
       await nextTick();
       (root().querySelector<HTMLButtonElement>(target) ?? root().querySelector<HTMLButtonElement>(".battle-party-card"))!.click();
@@ -65,6 +67,12 @@ export async function launch(scenario: string) {
 for (const [scenario, label] of [["slash", "斩击"], ["magic", "魔弹"], ["area", "群体"], ["multi", "十五连击"], ["heal", "治疗"], ["support", "护盾"], ["miss", "未命中"], ["reflect", "反射"], ["absorb", "吸收"], ["final", "最后一击"], ["hidden", "隐藏队友治疗"]]) {
   const button = document.createElement("button"); button.textContent = label!; button.dataset.scenario = scenario; button.onclick = () => { void launch(scenario!); }; toolbar.append(button);
 }
+const elements = document.createElement("select"); elements.setAttribute("aria-label", "属性样例");
+for (const [id, name] of [["1", "物理"], ["19", "飞行"], ["36", "火炎"], ["43", "冰水"], ["57", "电击"], ["50", "疾风"], ["64", "大地"], ["71", "光明"], ["78", "黑暗"], ["177", "万能"], ["85", "治疗"], ["103", "异常"]]) {
+  const option = document.createElement("option"); option.value = id!; option.textContent = name!; elements.append(option);
+}
+toolbar.append(elements);
+const elemental = document.createElement("button"); elemental.textContent = "施放属性"; elemental.onclick = () => { void launch(`element-${elements.value}`); }; toolbar.append(elemental);
 const reset = document.createElement("button"); reset.textContent = "同 ID 恢复"; reset.onclick = () => battle.restoreBattleSnapshot({ activeBattle: cloneBattlePresentationData(baseline) }); toolbar.append(reset);
 const skip = document.createElement("button"); skip.textContent = "跳过"; skip.onclick = () => root().querySelector<HTMLButtonElement>(".battle-presentation-cue button")?.click(); toolbar.append(skip);
 toolbar.append(status);

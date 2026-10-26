@@ -741,7 +741,10 @@ export function resolveSelectedBattleAction(
       actorId: resolution.actorId, actionId: resolution.actionId, contentId: resolution.contentId,
       name: content?.name ?? getBattleActionDefinition(resolution.actionId).label,
       ...(content && "category" in content ? { category: content.category } : {}),
-      ...(content && "element" in content && typeof content.element === "number" ? { element: content.element } : {}),
+      ...(content && "element" in content && content.element != null ? {
+        element: typeof content.element === "number" ? content.element
+          : BATTLE_ELEMENTS[content.element as keyof typeof BATTLE_ELEMENTS] ?? BATTLE_ELEMENTS.None,
+      } : {}),
       targetType: content?.targetType,
       outcomes: resolution.outcomes,
     };

@@ -87,12 +87,26 @@ Selected unchanged alpha PNGs from **Kenney Vleugels, Particle Pack 1.1**:
 [download](https://kenney.nl/media/pages/assets/particle-pack/f8fe0f8cb8-1677578741/kenney_particle-pack.zip).
 License: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); the package license is retained in `battle-effects/License.txt`.
 
-- `slash_02.png`: crescent slash
-- `light_01.png`: textured light/projectile core
-- `spark_05.png`: branching energy strike
-- `magic_01.png`: five-point magical seal
-- `star_04.png`: healing and impact motes
-- `circle_03.png`: barrier/burst rim
-- `flame_01.png`: area-burst wisps
+- `slash_02.png`: Physical curved cutting trace
+- `trace_01.png`: Gun / flying-projectile penetrating streak
+- `flame_05.png`: Fire tongue
+- `spark_05.png`: Electric branching strike
+- `twirl_02.png`: Wind bands
+- `dirt_01.png`: Earth fragments
+- `star_04.png`: Light rays
+- `symbol_01.png`: Heal heart
+- Shared accents: `light_01.png` (glow), `magic_01.png` (seal / neutral protection), `circle_03.png` (rim), `flame_01.png` (Fire wisps)
 
-All are from `PNG (Transparent)/`, 512 × 512, no file transformations. Runtime alpha masks tint/scale/rotate them. Seven RGBA base images total 7 MiB decoded (not total GPU/browser memory); bundled bytes are recorded in implementation evidence. Filter-template contributors credited by the package: Indigo Ray, Craig Nisbet, Zoltan Erdokovy, Heliagon, ThreeDee, Killst4r and Tim2501.
+These twelve PNGs are unchanged `PNG (Transparent)/` entries, 512 × 512.
+Filter-template contributors credited by the package: Indigo Ray, Craig Nisbet,
+Zoltan Erdokovy, Heliagon, ThreeDee, Killst4r and Tim2501.
+
+Four original project-authored, self-contained 512 × 512 SVG alpha masks (not
+Kenney artwork): `icewater.svg` (drop, ice facets and ripple), `dark.svg` (eclipse
+with hooked shadow edge), `almighty.svg` (multi-axis energy crystal), and
+`ailment.svg` (broken offset curse). Gradients and cutouts are encoded in alpha;
+there are no external fonts, images or animated filters.
+
+Runtime alpha masks tint, scale and rotate all sixteen images. Nominal decoded
+base RGBA is 16 MiB (16 × 512 × 512 × 4), not total GPU/browser memory. The complete
+file-size and browser-decode inventory is recorded in V2 implementation evidence.

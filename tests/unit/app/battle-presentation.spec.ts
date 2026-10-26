@@ -4,14 +4,15 @@ import { defineComponent, h, inject, nextTick, toRaw } from "vue";
 import { render } from "@testing-library/vue";
 import { useBattleStore } from "@/stores/battleStore";
 import { resolveNextEnemyAction, resolveSelectedBattleAction } from "@/engine/battle/battleResolver";
-import { type BattleActionTrace, type BattleSnapshot, type BattleTraceCollector } from "@/types/battle";
+import { BATTLE_ELEMENTS, type BattleActionTrace, type BattleSnapshot, type BattleTraceCollector } from "@/types/battle";
 import { cloneBattlePresentationData } from "@/stores/battlePresentationData";
-import { impactBeats, effectFamily, outcomeLabel } from "@/ui/battle/battleEffectRecipes";
+import { impactBeats, effectFamily, effectProfile, ELEMENT_PROFILES, outcomeLabel } from "@/ui/battle/battleEffectRecipes";
 import { battleInspectionKey, useBattlePresentation } from "@/ui/battle/useBattlePresentation";
 import { setBattleEffects, normalizeBattleEffects, useBattleEffects } from "@/composables/useBattleEffects";
 import { createBattleEffectsRenderer, loadEffectTextures, MAX_EFFECT_ELEMENTS } from "@/ui/battle/battleEffectsRenderer";
 import type { EffectPlayback } from "@/ui/battle/battleEffectsRenderer";
 import { getSkill } from "@/content/contentRegistry";
+import * as enemyUtility from "@/engine/battle/enemyUtility";
 
 function battle(): BattleSnapshot {
   return {
@@ -40,6 +41,60 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("authoritative detached receipts", () => {
+  it.each(["1", "19", "36", "43", "57", "50", "64", "71", "78", "177", "85", "103"])("carries real enemy skill %s through the same elemental profile", id => {
+    const state = battle(); state.phase = "ENEMY_TURN"; state.currentActorId = "e";
+    state.pressTurn.ownerSide = "enemy"; state.pressTurnAllocation!.participantIds = ["e"];
+    state.participants[1]!.hp.current = 5000;
+    const action = enemyUtility.buildEnemySkillAction(id)!;
+    vi.spyOn(enemyUtility, "selectEnemyAction").mockReturnValue({ action, target: state.participants[id === "85" ? 1 : 0]!, score: 1 });
+    const random = vi.mocked(Math.random); random.mockClear();
+    const expected = resolveNextEnemyAction(structuredClone(state)); const calls = random.mock.calls.length;
+    random.mockClear(); const trace: BattleTraceCollector = {};
+    expect(resolveNextEnemyAction(structuredClone(state), trace)).toEqual(expected);
+    expect(random).toHaveBeenCalledTimes(calls); expect(trace.action?.element).toBe(action.element);
+    expect(effectProfile(trace.action!)).toEqual(ELEMENT_PROFILES[action.element as keyof typeof ELEMENT_PROFILES]);
+  });
+  it.each([
+    ["1", "slash"], ["19", "projectile"], ["36", "fire"], ["43", "icewater"],
+    ["57", "bolt"], ["50", "wind"], ["64", "earth"], ["71", "star"],
+    ["78", "dark"], ["177", "almighty"], ["85", "heart"], ["103", "ailment"],
+    ["162", "fire"], ["169", "wind"], ["174", "almighty"], ["175", "dark"],
+  ])("preserves real skill %s identity, settlement and RNG", (id, texture) => {
+    const state = battle(); const content = getSkill(id);
+    state.selectedActionId = "basic-skill"; state.selectedContentId = id;
+    state.selectedTargetId = content.targetType === "single_ally" ? "p" : "e";
+    state.participants[0]!.hp.current = 5000;
+    const random = vi.mocked(Math.random); random.mockClear();
+    const expected = resolveSelectedBattleAction(structuredClone(state)); const calls = random.mock.calls.length;
+    random.mockClear(); const trace: BattleTraceCollector = {};
+    expect(resolveSelectedBattleAction(structuredClone(state), trace)).toEqual(expected);
+    expect(random).toHaveBeenCalledTimes(calls);
+    expect(trace.action?.element).toBe(content.element);
+    expect(effectProfile(trace.action!).texture).toBe(texture);
+    if (id === "103") expect(trace.action!.outcomes.some(o => (o.hpDelta ?? 0) < 0)).toBe(false);
+  });
+  it.each([["27", BATTLE_ELEMENTS.Fire, "fire"], ["28", BATTLE_ELEMENTS.Ice, "icewater"], ["29", BATTLE_ELEMENTS.Electric, "bolt"], ["30", BATTLE_ELEMENTS.Physical, "slash"]] as const)("carries item %s element without changing consumption or RNG", (id, element, texture) => {
+    const state = battle(); state.selectedActionId = "basic-item"; state.selectedContentId = id;
+    const random = vi.mocked(Math.random); random.mockClear();
+    const expected = resolveSelectedBattleAction(structuredClone(state)); const calls = random.mock.calls.length;
+    random.mockClear(); const trace: BattleTraceCollector = {};
+    expect(resolveSelectedBattleAction(structuredClone(state), trace)).toEqual(expected);
+    expect(random).toHaveBeenCalledTimes(calls); expect(trace.action?.element).toBe(element);
+    expect(effectProfile(trace.action!).texture).toBe(texture);
+    const store = useBattleStore(); store.activeBattle = state; const consumed = vi.fn(); store.onItemConsumed = consumed;
+    store.confirmSelectedAction(); expect(consumed).toHaveBeenCalledExactlyOnceWith(id);
+  });
+  it("has twelve independent main shapes and keeps categories subordinate to explicit elements", () => {
+    expect(new Set(Object.values(ELEMENT_PROFILES).map(p => p.texture)).size).toBe(12);
+    expect(effectProfile(attack).texture).toBe("slash");
+    expect(effectProfile({ ...attack, actionId: "basic-item", category: undefined, outcomes: [{ type: "hit", tags: [], hpDelta: 10 }] }).texture).toBe("heart");
+    expect(effectProfile({ ...attack, actionId: "basic-item", category: undefined, outcomes: [{ type: "hit", tags: [], appliedStatusEffects: [{ effectId: "attack_up", stacks: 1, remainingDuration: 3 }] }] }).texture).toBe("magic");
+    expect(effectProfile({ ...attack, element: BATTLE_ELEMENTS.None, actionId: "basic-skill", category: "support" }).texture).toBe("magic");
+    for (const category of ["physical", "magic", "support"] as const) for (const element of Object.values(BATTLE_ELEMENTS)) {
+      if (!element) continue;
+      expect(effectProfile({ ...attack, category, element })).toEqual(ELEMENT_PROFILES[element as keyof typeof ELEMENT_PROFILES]);
+    }
+  });
   it.each(["player", "enemy"])("does not change %s result or consume extra RNG", side => {
     const state = battle();
     if (side === "enemy") { state.phase = "ENEMY_TURN"; state.currentActorId = "e"; state.pressTurn.ownerSide = "enemy"; state.pressTurnAllocation!.participantIds = ["e"]; }
@@ -210,12 +265,12 @@ describe("recipes, preference and renderer bounds", () => {
     await renderer.play({ action: trace.action!, before, mode: "standard", reveal, feedback: vi.fn() });
     const impacts = marks.filter(mark => mark.duration === 300);
     const at = (id: string, texture: string, color: string) => expect(impacts).toContainEqual(expect.objectContaining({ mask: expect.stringContaining(texture), color, x: positions[id]![0] + 40, y: positions[id]![1] + 40 }));
-    if (scenario === "absorb" || scenario === "mixed") at(scenario === "absorb" ? "e" : "e2", "magic_01", "rgb(86, 239, 189)");
-    if (scenario === "reflect" || scenario === "mixed") { at(scenario === "reflect" ? "e" : "e3", "magic_01", "rgb(230, 199, 103)"); at("p", "flame_01", "rgb(255, 147, 111)"); }
-    const flames = impacts.filter(mark => mark.mask.includes("flame_01"));
+    if (scenario === "absorb" || scenario === "mixed") at(scenario === "absorb" ? "e" : "e2", "symbol_01", "rgb(86, 239, 189)");
+    if (scenario === "reflect" || scenario === "mixed") { at(scenario === "reflect" ? "e" : "e3", "magic_01", "rgb(230, 199, 103)"); at("p", "flame_05", "rgb(255, 147, 111)"); }
+    const flames = impacts.filter(mark => mark.mask.includes("flame_05"));
     expect(flames).toHaveLength(scenario === "absorb" ? 0 : scenario === "mixed" ? 2 : 1);
-    if (scenario === "mixed") at("e", "flame_01", "rgb(255, 147, 111)");
-    if (scenario === "ordinary") { at("e2", "flame_01", "rgb(255, 147, 111)"); expect(maximum).toBe(12); }
+    if (scenario === "mixed") at("e", "flame_05", "rgb(255, 147, 111)");
+    if (scenario === "ordinary") { at("e2", "flame_05", "rgb(255, 147, 111)"); expect(maximum).toBe(10); }
     expect(maximum).toBeLessThanOrEqual(MAX_EFFECT_ELEMENTS); expect(host.childElementCount).toBe(0); expect(reveal).toHaveBeenCalledTimes(1);
     renderer.dispose(); root.remove();
   });

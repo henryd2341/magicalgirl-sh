@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="curse" x1="0" y1="0" x2="1" y2="1"><stop stop-color="white" stop-opacity=".08"/><stop offset=".4" stop-color="white" stop-opacity=".85"/><stop offset="1" stop-color="white" stop-opacity=".1"/></linearGradient>
+    <radialGradient id="haze"><stop stop-color="white" stop-opacity=".22"/><stop offset="1" stop-color="white" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="256" cy="268" rx="173" ry="204" fill="url(#haze)"/>
+  <g fill="url(#curse)">
+    <path d="M113 107L236 146L218 181L145 164L157 229L117 215Z"/>
+    <path d="M292 124L399 90L385 214L347 232L359 148L306 164Z"/>
+    <path d="M145 276L186 288L178 350L241 333L232 374L128 404Z"/>
+    <path d="M327 276L372 263L391 394L285 367L281 330L347 347Z"/>
+    <path d="M229 192L266 176L280 226L306 238L269 262L283 304L245 321L237 277L210 261L246 238Z"/>
+  </g>
+  <path d="M95 249L154 262M362 245L423 229M252 85L260 121M265 399L270 447" stroke="white" stroke-opacity=".46" stroke-width="5"/>
+  <path d="M192 88L208 106L194 119L182 100ZM402 305L419 320L409 341L396 324ZM82 350L97 361L85 383L75 369Z" fill="white" opacity=".4"/>
+</svg>

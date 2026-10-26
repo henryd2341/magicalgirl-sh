@@ -4,12 +4,43 @@ export type EffectFamily = "slash" | "magic" | "area" | "heal" | "support" | "ne
 export interface BattleEffectBeat {
   outcomes: BattleActionOutcome[];
 }
+export const ELEMENT_PROFILES = {
+  [BATTLE_ELEMENTS.Physical]: { texture: "slash", color: "#ed9bdf" },
+  [BATTLE_ELEMENTS.Gun]: { texture: "projectile", color: "#e5ba9a" },
+  [BATTLE_ELEMENTS.Fire]: { texture: "fire", color: "#ff936f" },
+  [BATTLE_ELEMENTS.Ice]: { texture: "icewater", color: "#85e7ff" },
+  [BATTLE_ELEMENTS.Electric]: { texture: "bolt", color: "#ffe388" },
+  [BATTLE_ELEMENTS.Wind]: { texture: "wind", color: "#83edb2" },
+  [BATTLE_ELEMENTS.Earth]: { texture: "earth", color: "#d5ac7d" },
+  [BATTLE_ELEMENTS.Light]: { texture: "star", color: "#c28a19" },
+  [BATTLE_ELEMENTS.Dark]: { texture: "dark", color: "#c09aff" },
+  [BATTLE_ELEMENTS.Almighty]: { texture: "almighty", color: "#e0bfff" },
+  [BATTLE_ELEMENTS.Heal]: { texture: "heart", color: "#56efbd" },
+  [BATTLE_ELEMENTS.Ailment]: { texture: "ailment", color: "#d6a2e9" },
+} as const;
+const protection = { texture: "magic", color: "#e6c767" } as const;
+const neutral = { texture: null, color: "#ed9bdf" };
+export type ElementProfile = typeof ELEMENT_PROFILES[keyof typeof ELEMENT_PROFILES] | typeof protection | typeof neutral;
+
+export function effectProfile(action: BattleActionTrace, outcome?: BattleActionOutcome): ElementProfile {
+  if (outcome?.type === "absorb" || (outcome?.hpDelta ?? 0) > 0) return ELEMENT_PROFILES[BATTLE_ELEMENTS.Heal];
+  if (outcome?.type === "reflect" && (outcome.hpDelta ?? 0) >= 0) return protection;
+  const element = action.element ?? (action.actionId === "attack" ? BATTLE_ELEMENTS.Physical : BATTLE_ELEMENTS.None);
+  if (element !== BATTLE_ELEMENTS.None && element in ELEMENT_PROFILES) return ELEMENT_PROFILES[element as keyof typeof ELEMENT_PROFILES];
+  if (action.category === "heal" || action.outcomes.some(o => (o.hpDelta ?? 0) > 0)) return ELEMENT_PROFILES[BATTLE_ELEMENTS.Heal];
+  if (action.category === "support" || action.actionId === "guard" || outcome?.appliedStatusEffects?.length || action.outcomes.some(o => o.appliedStatusEffects?.length)) return protection;
+  return neutral;
+}
 export function effectFamily(action: BattleActionTrace): EffectFamily {
   if (action.category === "heal") return "heal";
   if (action.category === "support" || action.actionId === "guard") return "support";
   if (action.targetType === "all_enemies") return "area";
   if (action.category === "physical" || action.actionId === "attack") return "slash";
   if (action.category === "magic") return "magic";
+  if (action.element === BATTLE_ELEMENTS.Physical || action.element === BATTLE_ELEMENTS.Gun) return "slash";
+  if (action.element === BATTLE_ELEMENTS.Heal) return "heal";
+  if (action.element === BATTLE_ELEMENTS.Ailment) return "support";
+  if (action.element != null && action.element in ELEMENT_PROFILES) return "magic";
   if (action.outcomes.some(o => (o.hpDelta ?? 0) > 0)) return "heal";
   if (action.outcomes.some(o => o.appliedStatusEffects?.length)) return "support";
   return "neutral";
@@ -45,15 +76,5 @@ export function outcomeLabel(outcome: BattleActionOutcome): string {
 }
 
 export function effectColor(action: BattleActionTrace): string {
-  if (effectFamily(action) === "heal") return "#56efbd";
-  if (effectFamily(action) === "support") return "#e6c767";
-  switch (action.element) {
-    case BATTLE_ELEMENTS.Fire: return "#ff936f";
-    case BATTLE_ELEMENTS.Ice: return "#85e7ff";
-    case BATTLE_ELEMENTS.Electric: return "#ffe388";
-    case BATTLE_ELEMENTS.Wind: return "#83edb2";
-    case BATTLE_ELEMENTS.Dark: return "#c09aff";
-    case BATTLE_ELEMENTS.Light: return "#ffe7ae";
-    default: return "#ed9bdf";
-  }
+  return effectProfile(action).color;
 }

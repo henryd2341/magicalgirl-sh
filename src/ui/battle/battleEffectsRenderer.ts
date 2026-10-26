@@ -1,6 +1,6 @@
 import type { BattleEffectsMode } from "@/composables/useBattleEffects";
 import type { BattleActionTrace, BattleSnapshot } from "@/types/battle";
-import { effectColor, effectFamily, impactBeats, outcomeLabel, type EffectFamily } from "./battleEffectRecipes";
+import { effectColor, effectFamily, effectProfile, impactBeats, outcomeLabel, type ElementProfile } from "./battleEffectRecipes";
 import slash from "@/assets/battle-effects/slash_02.png";
 import glow from "@/assets/battle-effects/light_01.png";
 import bolt from "@/assets/battle-effects/spark_05.png";
@@ -8,19 +8,37 @@ import magic from "@/assets/battle-effects/magic_01.png";
 import star from "@/assets/battle-effects/star_04.png";
 import ring from "@/assets/battle-effects/circle_03.png";
 import flame from "@/assets/battle-effects/flame_01.png";
+import projectile from "@/assets/battle-effects/trace_01.png";
+import fire from "@/assets/battle-effects/flame_05.png";
+import wind from "@/assets/battle-effects/twirl_02.png";
+import earth from "@/assets/battle-effects/dirt_01.png";
+import heart from "@/assets/battle-effects/symbol_01.png";
+import icewater from "@/assets/battle-effects/icewater.svg?no-inline";
+import dark from "@/assets/battle-effects/dark.svg?no-inline";
+import almighty from "@/assets/battle-effects/almighty.svg?no-inline";
+import ailment from "@/assets/battle-effects/ailment.svg?no-inline";
 
-export const EFFECT_TEXTURES = { slash, glow, bolt, magic, star, ring, flame };
+export const EFFECT_TEXTURES = { slash, glow, bolt, magic, star, ring, flame, projectile, fire, wind, earth, heart, icewater, dark, almighty, ailment };
+type Texture = keyof typeof EFFECT_TEXTURES;
 export const MAX_EFFECT_ELEMENTS = 48;
 export const EFFECT_WATCHDOG_MS = 3000;
-let texturesReady = false;
+const readyTextures = new Set<Texture>();
 let loading: Promise<boolean> | undefined;
 export function loadEffectTextures(): Promise<boolean> {
-  return loading ??= Promise.all(Object.values(EFFECT_TEXTURES).map(async url => {
-    const image = new Image();
-    image.src = url;
-    await image.decode();
-    return image.naturalWidth > 0;
-  })).then(results => (texturesReady = results.every(Boolean)), () => false);
+  return loading ??= Promise.all((Object.entries(EFFECT_TEXTURES) as [Texture, string][]).map(async ([key, url]) => {
+    try {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      if (image.naturalWidth > 0) { readyTextures.add(key); return true; }
+    } catch { /* Only recipes requiring this texture use Reduced feedback. */ }
+    return false;
+  })).then(results => results.every(Boolean));
+}
+
+function burstTextures(profile: ElementProfile): Texture[] {
+  if (!profile.texture) return [];
+  return [profile.texture, "glow", ...(profile.texture === "magic" || profile.texture === "heart" ? ["ring" as const] : []), ...(profile.texture === "fire" ? ["flame" as const] : [])];
 }
 
 interface Point { x: number; y: number }
@@ -105,39 +123,34 @@ export function createBattleEffectsRenderer(host: HTMLElement, root: HTMLElement
   function pulse(texture: keyof typeof EFFECT_TEXTURES | null, point: Point, size: number, color: string, duration: number, rotation = 0) {
     return decorate(texture, point, size, color, [
       { transform: `translate(-50%,-50%) rotate(${rotation - 18}deg) scale(.3)`, opacity: 0 },
-      { transform: `translate(-50%,-50%) rotate(${rotation}deg) scale(.85)`, opacity: .85, offset: .35 },
+      { transform: `translate(-50%,-50%) rotate(${rotation}deg) scale(.85)`, opacity: texture === "fire" ? .55 : .85, offset: .35 },
       { transform: `translate(-50%,-50%) rotate(${rotation + 20}deg) scale(1.15)`, opacity: 0 },
     ], duration);
   }
-  function burst(family: EffectFamily, point: Point, color: string, duration: number, ordinal: number) {
-    const jobs: Promise<void>[] = [];
-    if (family === "slash") {
-      jobs.push(pulse("slash", point, 220, color, duration, ordinal % 2 ? 25 : -45));
-      jobs.push(pulse("slash", point, 160, "#fff1e8", duration, ordinal % 2 ? 210 : 135));
-    } else if (family === "magic") {
-      jobs.push(pulse("bolt", point, 210, color, duration, 35));
-      jobs.push(pulse("glow", point, 140, color, duration));
-    } else if (family === "area") {
-      jobs.push(pulse("magic", point, 280, color, duration));
-      jobs.push(pulse("flame", point, 220, color, duration, 20));
-      jobs.push(pulse("ring", point, 260, color, duration));
-    } else if (family === "heal") {
-      jobs.push(pulse("magic", point, 150, color, duration));
-      for (let i = 0; i < 5; i++) jobs.push(decorate("star", { x: point.x + (i - 2) * 22, y: point.y + 20 }, 46, i % 2 ? "#dcfff0" : color, [
+  function burst(profile: ElementProfile, point: Point, duration: number, ordinal: number, group: boolean) {
+    const { texture, color } = profile;
+    if (!texture) return pulse(null, point, 52, color, duration);
+    const size = group ? 280 : 220;
+    const rotation = texture === "slash" ? (ordinal % 2 ? 25 : -45) : texture === "projectile" ? -45 : 0;
+    const faint = ["slash", "projectile", "star", "wind"].includes(texture);
+    const mainSize = texture === "projectile" || texture === "star" ? 320 : Math.max(size, 260);
+    const jobs = [pulse("glow", point, size * .65, color, duration), faint
+      // Sparse PNG alpha needs a readable crest over portraits, within the same beat.
+      ? decorate(texture, point, mainSize, color, [
+        { transform: `translate(-50%,-50%) rotate(${rotation - 18}deg) scale(.5) scaleX(${texture === "projectile" ? 3 : 1})`, opacity: 0 },
+        { transform: `translate(-50%,-50%) rotate(${rotation}deg) scale(.95) scaleX(${texture === "projectile" ? 3 : 1})`, opacity: 1, offset: .35 },
+        { transform: `translate(-50%,-50%) rotate(${rotation + 10}deg) scale(1.05) scaleX(${texture === "projectile" ? 3 : 1})`, opacity: .9, offset: .7 },
+        { transform: `translate(-50%,-50%) rotate(${rotation + 20}deg) scale(1.15) scaleX(${texture === "projectile" ? 3 : 1})`, opacity: 0 },
+      ], duration)
+      : pulse(texture, point, size, color, duration, rotation)];
+    if (texture === "magic" || texture === "heart") jobs.push(pulse("ring", point, size * .85, color, duration));
+    if (texture === "fire") jobs.push(pulse("flame", point, size * .75, color, duration, 20));
+    for (let i = 0; i < 4; i++) {
+      const angle = i * Math.PI / 2;
+      jobs.push(decorate("glow", point, 22, color, [
         { transform: "translate(-50%,-50%) scale(.3)", opacity: 0 },
-        { opacity: .9, offset: .3 },
-        { transform: `translate(-50%,${-90 - i * 18}%) scale(1)`, opacity: 0 },
-      ], duration));
-    } else if (family === "support") {
-      jobs.push(pulse("magic", point, 215, color, duration));
-      jobs.push(pulse("ring", point, 180, "#fbe9bd", duration));
-    } else jobs.push(pulse(null, point, 52, color, duration));
-    if (family !== "neutral" && family !== "heal") for (let i = 0; i < 6; i++) {
-      const angle = i * Math.PI / 3;
-      jobs.push(decorate("star", point, 34, color, [
-        { transform: "translate(-50%,-50%) scale(.3)", opacity: 0 },
-        { opacity: .8, offset: .25 },
-        { transform: `translate(calc(-50% + ${Math.cos(angle) * 95}px),calc(-50% + ${Math.sin(angle) * 75}px)) scale(.7)`, opacity: 0 },
+        { opacity: .65, offset: .25 },
+        { transform: `translate(calc(-50% + ${Math.cos(angle) * 85}px),calc(-50% + ${Math.sin(angle) * 65}px)) scale(.7)`, opacity: 0 },
       ], duration));
     }
     return Promise.all(jobs);
@@ -159,7 +172,14 @@ export function createBattleEffectsRenderer(host: HTMLElement, root: HTMLElement
     const color = effectColor(input.action);
     const family = effectFamily(input.action);
     const beats = impactBeats(input.action);
-    const reduced = input.mode === "reduced" || !texturesReady;
+    const required = new Set<Texture>();
+    if (family !== "neutral") required.add("magic");
+    if (family === "magic") required.add("glow");
+    for (const beat of beats) for (const outcome of beat.outcomes) {
+      if (["miss", "block", "status_no_effect"].includes(outcome.type)) continue;
+      for (const texture of burstTextures(effectProfile(input.action, outcome))) required.add(texture);
+    }
+    const reduced = input.mode === "reduced" || [...required].some(texture => !readyTextures.has(texture));
     const run = async () => {
       if (!reduced && family !== "neutral") {
         const source = anchor(input.action.actorId);
@@ -183,13 +203,13 @@ export function createBattleEffectsRenderer(host: HTMLElement, root: HTMLElement
         const jobs: Promise<unknown>[] = [];
         const visuals = beat.outcomes.map(outcome => {
           const target = outcome.finalTargetId ?? outcome.primaryTargetId;
-          const recovery = outcome.type === "absorb" || (outcome.hpDelta ?? 0) > 0;
-          const interception = outcome.type === "reflect" && (outcome.hpDelta ?? 0) >= 0;
           return {
             point: anchor(target),
             side: input.before.participants.find(p => p.id === target)?.side,
-            family: recovery ? "heal" as const : interception ? "support" as const : family,
-            color: recovery ? "#56efbd" : interception ? "#e6c767" : color,
+            profile: effectProfile(input.action, outcome),
+            role: outcome.type === "absorb" || (outcome.hpDelta ?? 0) > 0 ? "recovery"
+              : outcome.type === "reflect" && (outcome.hpDelta ?? 0) >= 0 ? "interception"
+              : (outcome.hpDelta ?? 0) < 0 ? "damage" : "status",
             active: outcome.type !== "miss" && outcome.type !== "status_no_effect" && outcome.type !== "block",
           };
         });
@@ -198,18 +218,18 @@ export function createBattleEffectsRenderer(host: HTMLElement, root: HTMLElement
         const first = visible[0];
         // Mixed roles or opposing sides need their own real anchors, not a midpoint burst.
         const shared = !reduced && group && first && visible.every(v =>
-          v.side === first.side && v.family === first.family && v.color === first.color);
+          v.side === first.side && v.role === first.role && v.profile.texture === first.profile.texture && v.profile.color === first.profile.color);
         if (shared) {
           const center = {
             x: (Math.min(...visible.map(v => v.point.x)) + Math.max(...visible.map(v => v.point.x))) / 2,
             y: (Math.min(...visible.map(v => v.point.y)) + Math.max(...visible.map(v => v.point.y))) / 2,
           };
-          jobs.push(burst(first.family, center, first.color, duration, index));
+          jobs.push(burst(first.profile, center, duration, index, true));
         }
         for (const visual of visuals) {
           if (!visual.point.visible) continue;
-          if (reduced || !visual.active || shared) jobs.push(pulse(null, visual.point, 46, visual.color, duration));
-          else jobs.push(burst(visual.family, visual.point, visual.color, duration, index));
+          if (reduced || !visual.active || shared) jobs.push(pulse(null, visual.point, 46, visual.profile.color, duration));
+          else jobs.push(burst(visual.profile, visual.point, duration, index, false));
         }
         if (!jobs.length) {
           // Hidden recipients use the named strip, never another participant's card.
