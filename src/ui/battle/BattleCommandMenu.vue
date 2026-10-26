@@ -85,7 +85,8 @@ function onLeaveAction() {
         v-if="isResultPhase"
         type="button"
         class="battle-command-menu__button battle-command-menu__button--primary"
-        @click="emit('completeBattle')"
+        :disabled="isLocked"
+        @click="!isLocked && emit('completeBattle')"
       >
         完成战斗
       </button>

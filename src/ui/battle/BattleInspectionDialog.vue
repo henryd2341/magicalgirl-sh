@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { inject, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { battleInspectionKey } from "./useBattlePresentation";
 
 defineProps<{ title: string }>();
 defineOptions({ inheritAttrs: false });
@@ -7,6 +8,7 @@ const emit = defineEmits<{ close: [] }>();
 const dialog = ref<HTMLDialogElement | null>(null);
 const closeButton = ref<HTMLButtonElement | null>(null);
 const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+const finishInspection = inject(battleInspectionKey, null)?.open();
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key !== "Tab" || !dialog.value) return;
@@ -28,6 +30,7 @@ onMounted(async () => {
   closeButton.value?.focus();
 });
 onBeforeUnmount(() => {
+  finishInspection?.();
   dialog.value?.close();
   if (trigger?.isConnected) trigger.focus();
 });

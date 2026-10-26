@@ -25,6 +25,8 @@ import BattleStatusEffects from "@/ui/battle/BattleStatusEffects.vue";
 import BattleInspectionDialog from "@/ui/battle/BattleInspectionDialog.vue";
 import { findNextEligibleActorId } from "@/engine/battle/battleTurnQueue";
 import BattleStatusPanel from "@/ui/battle/BattleStatusPanel.vue";
+import BattleEffectsLayer from "@/ui/battle/BattleEffectsLayer.vue";
+import { useBattlePresentation } from "@/ui/battle/useBattlePresentation";
 import { useProgressiveEnemyTurn } from "@/ui/battle/useProgressiveEnemyTurn";
 import { useFormationStore } from "@/stores/formationStore";
 import { buildPlayerPartyFromFormation } from "@/engine/battle/battleSetup";
@@ -34,10 +36,16 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 const battleStore = useBattleStore();
 const sessionStore = useSessionStore();
 const { confirm } = useGameDialog();
-const { pendingBattle, activeBattle } = storeToRefs(battleStore);
+const { pendingBattle, activeBattle: canonicalBattle } = storeToRefs(battleStore);
+const effectsLayer = ref<InstanceType<typeof BattleEffectsLayer> | null>(null);
+const presentation = useBattlePresentation(battleStore, () => effectsLayer.value);
+const { displayedBattle: activeBattle, busy, actionText, feedback } = presentation;
 useProgressiveEnemyTurn({
-  battle: activeBattle,
-  advance: () => battleStore.resolveNextEnemyAction(),
+  battle: canonicalBattle,
+  battleGeneration: () => battleStore.battleGeneration,
+  delayMs: 150,
+  waitUntilReady: presentation.waitUntilReady,
+  advance: () => presentation.run(() => battleStore.resolveNextEnemyAction()),
 });
 const transformedAvatars = import.meta.glob(
   "../../assets/avatars/transformed/*.png",
@@ -264,7 +272,7 @@ function onHoverCommandDescription(desc: string | null) {
 }
 
 const isCommandMenuLocked = computed(() => {
-  return activeBattle.value?.phase === "ENEMY_TURN";
+  return busy.value || activeBattle.value?.phase === "ENEMY_TURN";
 });
 
 // ── Target selection helpers ──
@@ -274,6 +282,7 @@ const targetTypeHint = computed(() => {
 });
 
 const canSelectAlly = computed(() => {
+  if (busy.value) return false;
   if (!activeBattle.value) return false;
   // During swap phases, use swap handlers, not target selection
   if (activeBattle.value.swapPhase !== "idle") return false;
@@ -281,6 +290,7 @@ const canSelectAlly = computed(() => {
 });
 
 const canSelectEnemy = computed(() => {
+  if (busy.value) return false;
   if (!activeBattle.value) return true;
   // During swap phases, enemies are not clickable
   if (activeBattle.value.swapPhase !== "idle") return false;
@@ -337,14 +347,15 @@ const reservePlayers = computed(() => {
 // ── Swap actions ──
 
 function selectSwapOut(participantId: string) {
-  battleStore.selectSwapOut(participantId);
+  void presentation.run(() => battleStore.selectSwapOut(participantId));
 }
 
 function selectSwapIn(participantId: string | null) {
-  battleStore.selectSwapIn(participantId);
+  void presentation.run(() => battleStore.selectSwapIn(participantId));
 }
 
 function cancelSwap() {
+  if (busy.value) return;
   battleStore.cancelSwap();
 }
 
@@ -361,14 +372,15 @@ const overlayMode = computed(() => {
 });
 
 function selectTarget(targetId: string) {
-  battleStore.selectTarget(targetId);
+  void presentation.run(() => battleStore.selectTarget(targetId));
 }
 
 function selectMenuNode(nodeId: string) {
-  battleStore.selectMenuNode(nodeId);
+  void presentation.run(() => battleStore.selectMenuNode(nodeId));
 }
 
 function returnToRootMenu() {
+  if (busy.value) return;
   battleStore.returnToRootMenu();
 }
 
@@ -414,6 +426,7 @@ const canExitTraining = computed(() =>
 );
 
 async function completeBattle() {
+  if (busy.value) return;
   if (isTrainingBattle.value) {
     await sessionStore.completeTrainingBattle();
     return;
@@ -554,9 +567,9 @@ function canTargetAlly(player: BattleParticipant): boolean {
 function selectRosterTarget(id: string) {
   const player = activePlayers.value.find(player => player.id === id);
   if (!player || !canTargetAlly(player)) return;
-  const logSequence = activeBattle.value?.battleLog?.at(-1)?.sequence ?? 0;
+  const logSequence = canonicalBattle.value?.battleLog?.at(-1)?.sequence ?? 0;
   selectTarget(id);
-  if ((activeBattle.value?.battleLog?.at(-1)?.sequence ?? 0) > logSequence) rosterOpen.value = false;
+  if ((canonicalBattle.value?.battleLog?.at(-1)?.sequence ?? 0) > logSequence) rosterOpen.value = false;
 }
 </script>
 
@@ -568,6 +581,7 @@ function selectRosterTarget(id: string) {
     aria-modal="true"
     aria-label="战斗进行中遮罩"
   >
+    <BattleEffectsLayer ref="effectsLayer" />
     <div v-if="overlayMode === 'pending'" class="battle-hud battle-hud--pending">
       <div class="battle-hud__top">
         <section class="battle-status-panel__enemy" aria-label="敌人状态栏">
@@ -643,6 +657,10 @@ function selectRosterTarget(id: string) {
         <h2 class="battle-overlay__title">
           {{ activeBattle?.phase === "RESULT" ? "战斗结束" : "战斗进行中" }}
         </h2>
+        <!-- <div v-if="busy" class="battle-presentation-cue">
+          <span class="battle-presentation-cue__text" role="status">{{ actionText }}<small>{{ feedback }}</small></span>
+          <button type="button" class="battle-overlay__phase-action" @click="presentation.skip">跳过演出</button>
+        </div> -->
         <!-- <p class="battle-overlay__encounter">
           <span>{{ activeBattle?.encounterId }}</span>
           <span>{{ activeBattle?.phase }}</span>
@@ -659,7 +677,7 @@ function selectRosterTarget(id: string) {
       </div>
 
       <section class="battle-hud__enemy-row" aria-label="敌人区域">
-        <div v-for="enemy in activeEnemies" :key="enemy.id" class="battle-enemy-slot">
+        <div v-for="enemy in activeEnemies" :key="enemy.id" class="battle-enemy-slot" :data-participant-id="enemy.id">
           <button
             type="button"
             class="battle-enemy-card"
@@ -726,7 +744,7 @@ function selectRosterTarget(id: string) {
             class="battle-party-stack-trigger"
             aria-label="查看队伍"
             aria-haspopup="dialog"
-            @click="rosterOpen = true"
+            @click="presentation.skip(); rosterOpen = true"
           >
             <span>查看队伍 <span aria-hidden="true">↗</span></span>
             <small v-if="nextAlly">顺位 · {{ nextAlly.displayName }}</small>

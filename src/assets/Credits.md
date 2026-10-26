@@ -79,3 +79,20 @@
 
 - TwilighT  - Scatter flower #`scene/023`
 - PaRang - Follow Your Own Way #`battle/011`
+
+## Battle presentation textures
+
+Selected unchanged alpha PNGs from **Kenney Vleugels, Particle Pack 1.1**:
+[official source](https://kenney.nl/assets/particle-pack),
+[download](https://kenney.nl/media/pages/assets/particle-pack/f8fe0f8cb8-1677578741/kenney_particle-pack.zip).
+License: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); the package license is retained in `battle-effects/License.txt`.
+
+- `slash_02.png`: crescent slash
+- `light_01.png`: textured light/projectile core
+- `spark_05.png`: branching energy strike
+- `magic_01.png`: five-point magical seal
+- `star_04.png`: healing and impact motes
+- `circle_03.png`: barrier/burst rim
+- `flame_01.png`: area-burst wisps
+
+All are from `PNG (Transparent)/`, 512 × 512, no file transformations. Runtime alpha masks tint/scale/rotate them. Seven RGBA base images total 7 MiB decoded (not total GPU/browser memory); bundled bytes are recorded in implementation evidence. Filter-template contributors credited by the package: Indigo Ray, Craig Nisbet, Zoltan Erdokovy, Heliagon, ThreeDee, Killst4r and Tim2501.

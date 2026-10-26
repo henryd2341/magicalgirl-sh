@@ -1,82 +1,60 @@
 import type { BattleSnapshot } from "@/types/battle";
-import {
-  nextTick,
-  onScopeDispose,
-  watch,
-  type Ref,
-} from "vue";
+import { nextTick, onScopeDispose, watch, type Ref } from "vue";
 
 export interface ProgressiveEnemyTurnOptions {
   battle: Readonly<Ref<BattleSnapshot | null>>;
-  advance: () => void;
+  advance: () => void | Promise<void>;
   delayMs?: number;
+  waitUntilReady?: () => Promise<void>;
+  battleGeneration?: () => number;
 }
 
-function wait(delayMs: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, delayMs);
-  });
-}
-
-export function useProgressiveEnemyTurn(
-  options: ProgressiveEnemyTurnOptions,
-): { cancel: () => void } {
+export function useProgressiveEnemyTurn(options: ProgressiveEnemyTurnOptions): { cancel: () => void } {
   const delayMs = options.delayMs ?? 1000;
   let running = false;
   let generation = 0;
-
-  const cancel = (): void => {
-    generation += 1;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let releaseDelay: (() => void) | undefined;
+  const cancel = () => {
+    generation++;
     running = false;
+    clearTimeout(timer);
+    timer = undefined;
+    releaseDelay?.();
+    releaseDelay = undefined;
   };
-
-  const start = (): void => {
-    if (running || options.battle.value?.phase !== "ENEMY_TURN") {
-      return;
-    }
-
+  const start = () => {
+    if (running || document.hidden || options.battle.value?.phase !== "ENEMY_TURN") return;
     running = true;
-    const currentGeneration = ++generation;
-
+    const token = ++generation;
+    const encounter = options.battle.value.encounterId;
+    const battleGeneration = options.battleGeneration?.();
+    const valid = () => generation === token && !document.hidden &&
+      options.battle.value?.phase === "ENEMY_TURN" && options.battle.value.encounterId === encounter &&
+      options.battleGeneration?.() === battleGeneration;
     void (async () => {
       try {
-        while (
-          generation === currentGeneration
-          && options.battle.value?.phase === "ENEMY_TURN"
-        ) {
+        while (valid()) {
           await nextTick();
-          await wait(delayMs);
-
-          if (
-            generation !== currentGeneration
-            || options.battle.value?.phase !== "ENEMY_TURN"
-          ) {
-            return;
-          }
-
-          options.advance();
+          if (!valid()) return;
+          if (options.waitUntilReady) await options.waitUntilReady();
+          if (!valid()) return;
+          await new Promise<void>(resolve => {
+            releaseDelay = resolve;
+            timer = setTimeout(() => { timer = undefined; releaseDelay = undefined; resolve(); }, delayMs);
+          });
+          if (!valid()) return;
+          await options.advance();
+          if (!valid()) return;
         }
-      } finally {
-        if (generation === currentGeneration) {
-          running = false;
-        }
-      }
+      } finally { if (generation === token) running = false; }
     })();
   };
-
-  watch(
-    () => options.battle.value?.phase,
-    (phase) => {
-      if (phase === "ENEMY_TURN") {
-        start();
-      } else {
-        cancel();
-      }
-    },
-    { immediate: true },
-  );
-
-  onScopeDispose(cancel);
-
+  watch([() => options.battle.value?.phase, () => options.battle.value?.encounterId, () => options.battleGeneration?.()], () => {
+    cancel(); start();
+  }, { immediate: true });
+  const visibility = () => { cancel(); if (!document.hidden) start(); };
+  document.addEventListener("visibilitychange", visibility);
+  onScopeDispose(() => { cancel(); document.removeEventListener("visibilitychange", visibility); });
   return { cancel };
 }

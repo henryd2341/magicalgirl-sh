@@ -44,8 +44,9 @@ function inspect() {
 </script>
 
 <template>
-  <div v-if="entries.length" class="battle-status-effects">
+  <div v-if="entries.length || inspecting" class="battle-status-effects">
     <button
+      v-if="entries.length"
       type="button"
       class="battle-status-effects__inspect"
       :aria-label="`查看${ownerName}的状态`"

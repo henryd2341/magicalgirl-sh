@@ -4,6 +4,7 @@ import { useBattleStore } from "@/stores/battleStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useGameDialog } from "@/composables/useGameDialog";
+import { setBattleEffects } from "@/composables/useBattleEffects";
 import {
   fireEvent,
   render,
@@ -34,6 +35,7 @@ async function waitForActiveBattleOverlay() {
 
 describe("MainGameView battle overlay entrypoint", () => {
   beforeEach(() => {
+    setBattleEffects("off");
     vi.stubGlobal("matchMedia", vi.fn((query: string) => ({
       matches: false,
       media: query,
@@ -619,19 +621,23 @@ describe("MainGameView battle overlay entrypoint", () => {
       screen.queryByRole("button", { name: "结算敌方回合" }),
     ).not.toBeInTheDocument();
 
-    await vi.advanceTimersByTimeAsync(600);
+    await vi.advanceTimersByTimeAsync(149);
+    expect(advance).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
     await nextTick();
 
     expect(advance).toHaveBeenCalledTimes(1);
     expect(battleStore.activeBattle.phase).toBe("ENEMY_TURN");
 
-    await vi.advanceTimersByTimeAsync(600);
+    await vi.advanceTimersByTimeAsync(149);
+    expect(advance).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
     await nextTick();
 
     expect(advance).toHaveBeenCalledTimes(2);
     expect(battleStore.activeBattle.phase).toBe("PLAYER_COMMAND");
 
-    await vi.advanceTimersByTimeAsync(600);
+    await vi.advanceTimersByTimeAsync(150);
     expect(advance).toHaveBeenCalledTimes(2);
   });
 

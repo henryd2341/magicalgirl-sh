@@ -350,6 +350,26 @@ export interface BattleActionResolution {
   summaryLog: string[];
 }
 
+/** Transient facts from one resolution; never part of a saved battle snapshot. */
+export interface BattleActionTrace {
+  actorId?: string;
+  actionId: string;
+  contentId?: string;
+  name: string;
+  category?: import("@/types/content").SkillCategory;
+  element?: BattleElement;
+  targetType?: import("@/types/content").SkillTargetType;
+  outcomes: BattleActionOutcome[];
+}
+
+export interface BattleTraceCollector {
+  action?: BattleActionTrace;
+}
+
+export interface BattleActionReceipt extends BattleActionTrace {
+  serial: number;
+}
+
 export interface PendingBattleSnapshot {
   lifecycleState: "PENDING";
   encounterId: string;
@@ -398,5 +418,4 @@ export interface CreateBattleSnapshotFromPendingBattleInput {
   pendingBattle: PendingBattleSnapshot;
   playerParty: BattleParticipant[];
 }
-
 

@@ -80,6 +80,7 @@ import type {
   AppliedStatusEffectPayload,
   BattleActionOutcome,
   BattleActionResolution,
+  BattleTraceCollector,
   BattleLogDraft,
   BattleParticipant,
   BattleResult,
@@ -696,7 +697,9 @@ export function advanceEmptyPlayerPhase(snapshot: BattleSnapshot): BattleSnapsho
 
 export function resolveSelectedBattleAction(
   snapshot: BattleSnapshot,
+  trace?: BattleTraceCollector,
 ): BattleSnapshot {
+  if (trace) trace.action = undefined;
   if (snapshot.phase !== "PLAYER_COMMAND") return snapshot;
   if (snapshot.selectedActionId == null) return snapshot;
   snapshot = refreshBattleStatus(snapshot);
@@ -729,6 +732,19 @@ export function resolveSelectedBattleAction(
 
   if (resolution.outcomes.length === 0 && resolution.pressTurnResult == null) {
     return normalizedSnapshot;
+  }
+
+  if (trace) {
+    const content = resolution.contentId == null ? null
+      : resolution.actionId === "basic-item" ? getItem(resolution.contentId) : getSkill(resolution.contentId);
+    trace.action = {
+      actorId: resolution.actorId, actionId: resolution.actionId, contentId: resolution.contentId,
+      name: content?.name ?? getBattleActionDefinition(resolution.actionId).label,
+      ...(content && "category" in content ? { category: content.category } : {}),
+      ...(content && "element" in content && typeof content.element === "number" ? { element: content.element } : {}),
+      targetType: content?.targetType,
+      outcomes: resolution.outcomes,
+    };
   }
 
   let participants =
@@ -1252,7 +1268,9 @@ function settleEnemyPass(
 
 export function resolveNextEnemyAction(
   snapshot: BattleSnapshot,
+  trace?: BattleTraceCollector,
 ): BattleSnapshot {
+  if (trace) trace.action = undefined;
   if (snapshot.phase !== "ENEMY_TURN") return snapshot;
 
   let working = refreshBattleStatus(ensureEnemyTurnInitialized(snapshot));
@@ -1432,6 +1450,11 @@ export function resolveNextEnemyAction(
     });
   }
 
+  if (trace) trace.action = {
+    actorId: actor.id, actionId: "basic-skill", contentId: action.skillId,
+    name: action.name, category: action.category, element: action.element,
+    targetType: action.targetType, outcomes: actionOutcomes,
+  };
   const actionLog = createEnemySkillLogEntry(
     working.turnCount ?? 1,
     actor,

@@ -9,6 +9,7 @@ import type { BattleParticipant } from "@/types/battle";
 import BattlePartyCard from "@/ui/battle/BattlePartyCard.vue";
 import BattleOverlay from "@/ui/battle/BattleOverlay.vue";
 import { statusEffectIcon } from "@/ui/battle/statusEffectIcons";
+import { setBattleEffects } from "@/composables/useBattleEffects";
 
 function ally(id = "a"): BattleParticipant {
   return {
@@ -24,6 +25,7 @@ function ally(id = "a"): BattleParticipant {
 }
 
 beforeEach(() => {
+  setBattleEffects("off");
   vi.stubGlobal(
     "matchMedia",
     vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })),

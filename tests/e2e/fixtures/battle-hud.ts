@@ -1,12 +1,15 @@
-import { createApp } from "vue";
+import { createApp, h, ref } from "vue";
 import { createPinia } from "pinia";
 import BattleOverlay from "@/ui/battle/BattleOverlay.vue";
 import { useBattleStore } from "@/stores/battleStore";
 import { getStatusEffectMap } from "@/content/contentRegistry";
 import "@/styles/index.scss";
 import "@/styles/tailwind.css";
+import { setBattleEffects } from "@/composables/useBattleEffects";
+import AppShell from "@/app/AppShell.vue";
 
 const params = new URLSearchParams(location.search);
+setBattleEffects(params.get("vfx") ?? "off");
 document.documentElement.dataset.theme = params.get("theme") ?? "e-girl";
 // This standalone fixture never initializes persistence, providers or the game session.
 localStorage.setItem(
@@ -22,7 +25,7 @@ localStorage.setItem(
   }),
 );
 const pinia = createPinia();
-const battle = useBattleStore(pinia);
+export const battle = useBattleStore(pinia);
 battle.stagePendingEncounter({
   encounterId: "hud-layout-fixture",
   narrativeReason: "HUD fixture",
@@ -63,4 +66,8 @@ enemy.statusEffects = [
 battle.setBattleItems({ "1": 3, "11": 1 });
 battle.rebuildActionMenuForActor("ally-0");
 Object.assign(window, { hudBattle: battle, hudEffects: getStatusEffectMap() });
-createApp(BattleOverlay).use(pinia).mount("#app");
+export const hudMounted = ref(true);
+createApp({ render: () => params.get("shell") === "1"
+  ? h(AppShell, null, { default: () => hudMounted.value ? h(BattleOverlay) : h("div") })
+  : hudMounted.value ? h(BattleOverlay) : null,
+}).use(pinia).mount("#app");

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { fontSize, applyFontSize } from "@/composables/useFontSize";
 import { sceneVolume, battleVolume, masterVolume } from "@/composables/useAudio";
+import { setBattleEffects, useBattleEffects } from "@/composables/useBattleEffects";
+const { preference, effectiveMode } = useBattleEffects();
 
 function onFontSizeChange(e: Event) {
   const val = parseInt((e.target as HTMLInputElement).value, 10);
@@ -25,6 +27,15 @@ function onMasterVolChange(e: Event) {
 
 <template>
   <div class="mg-system-settings-panel">
+    <div class="mg-sys-section">
+      <h3 class="mg-sys-section__title"><label for="battle-effects-mode">战斗演出</label></h3>
+      <select id="battle-effects-mode" :value="preference" @change="setBattleEffects(($event.target as HTMLSelectElement).value)">
+        <option value="standard">标准 · 魔法特效</option>
+        <option value="reduced">精简 · 局部反馈</option>
+        <option value="off">关闭 · 即时结果</option>
+      </select>
+      <p v-if="preference === 'standard' && effectiveMode === 'reduced'">已遵循系统的减少动态效果设置。</p>
+    </div>
     <!-- Font Size -->
     <div class="mg-sys-section">
       <h3 class="mg-sys-section__title">

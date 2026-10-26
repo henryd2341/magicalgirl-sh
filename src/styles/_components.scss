@@ -3139,3 +3139,36 @@
   justify-content: center;
   margin-top: var(--mg-space-sm);
 }
+
+// Transient battle decoration sits outside roster/enemy scroll clipping.
+.battle-effects-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  overflow: hidden;
+  contain: strict;
+}
+.battle-effect-texture, .battle-effect-local {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  transform: translate(-50%, -50%);
+}
+.battle-effect-local { border-radius: 50%; opacity: .35; }
+.battle-presentation-cue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--mg-text);
+  font-size: .9rem;
+  line-height: 1.4;
+}
+.battle-presentation-cue__text { min-width: 0; overflow-wrap: anywhere; }
+.battle-presentation-cue small { display: block; font-size: .85rem; }
+.battle-presentation-cue button { flex-shrink: 0; }

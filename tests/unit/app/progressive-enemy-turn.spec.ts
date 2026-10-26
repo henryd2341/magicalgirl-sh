@@ -39,7 +39,7 @@ describe("useProgressiveEnemyTurn", () => {
     return scope;
   }
 
-  it("resumes an existing enemy turn and advances after the default 600ms delay", async () => {
+  it("resumes an existing enemy turn and advances after the default 1000ms delay", async () => {
     const battle = shallowRef<BattleSnapshot | null>(snapshot("ENEMY_TURN"));
     const advance = vi.fn(() => {
       battle.value = snapshot("PLAYER_COMMAND");
@@ -49,7 +49,7 @@ describe("useProgressiveEnemyTurn", () => {
       useProgressiveEnemyTurn({ battle, advance });
     });
 
-    await vi.advanceTimersByTimeAsync(599);
+    await vi.advanceTimersByTimeAsync(999);
     expect(advance).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1);
@@ -125,5 +125,32 @@ describe("useProgressiveEnemyTurn", () => {
     await vi.advanceTimersByTimeAsync(300);
 
     expect(advance).not.toHaveBeenCalled();
+  });
+
+  it("waits for presentation readiness and each async action without overlapping", async () => {
+    const battle = shallowRef<BattleSnapshot | null>(snapshot("ENEMY_TURN"));
+    let ready = () => {}; let finish = () => {};
+    const readiness = new Promise<void>(resolve => { ready = resolve; });
+    const advance = vi.fn(() => new Promise<void>(resolve => { finish = resolve; }));
+    createScope().run(() => useProgressiveEnemyTurn({ battle, advance, delayMs: 150, waitUntilReady: () => readiness }));
+    await vi.advanceTimersByTimeAsync(2000); expect(advance).not.toHaveBeenCalled();
+    ready(); await vi.advanceTimersByTimeAsync(150); expect(advance).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(2000); expect(advance).toHaveBeenCalledTimes(1);
+    battle.value = snapshot("PLAYER_COMMAND"); finish(); await nextTick();
+  });
+
+  it("invalidates readiness on same-ID replacement and pauses while hidden", async () => {
+    const battle = shallowRef<BattleSnapshot | null>(snapshot("ENEMY_TURN"));
+    const identity = shallowRef(0);
+    const advance = vi.fn(() => { battle.value = snapshot("PLAYER_COMMAND"); });
+    createScope().run(() => useProgressiveEnemyTurn({ battle, advance, delayMs: 150, battleGeneration: () => identity.value }));
+    await vi.advanceTimersByTimeAsync(100); identity.value++; await nextTick();
+    await vi.advanceTimersByTimeAsync(50); expect(advance).not.toHaveBeenCalled();
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+    document.dispatchEvent(new Event("visibilitychange"));
+    await vi.advanceTimersByTimeAsync(3000); expect(advance).not.toHaveBeenCalled();
+    hidden.mockReturnValue(false); document.dispatchEvent(new Event("visibilitychange"));
+    await vi.advanceTimersByTimeAsync(150); expect(advance).toHaveBeenCalledTimes(1);
+    hidden.mockRestore();
   });
 });

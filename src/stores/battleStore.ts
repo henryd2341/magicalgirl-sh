@@ -23,11 +23,14 @@ import {
   type BattleActionMenuNode,
   type BattleParticipant,
   type BattleSnapshot,
+  type BattleActionReceipt,
+  type BattleTraceCollector,
   type CreatePendingBattleSnapshotInput,
   type PendingBattleSnapshot,
 } from "@/types/battle";
 import type { SkillTargetType } from "@/types/content";
 import { defineStore } from "pinia";
+import { cloneBattlePresentationData } from "@/stores/battlePresentationData";
 
 export type StagePendingEncounterInput = CreatePendingBattleSnapshotInput;
 
@@ -41,6 +44,9 @@ export const useBattleStore = defineStore("battle", {
   state: () => ({
     pendingBattle: null as PendingBattleSnapshot | null,
     activeBattle: null as BattleSnapshot | null,
+    latestActionReceipt: null as BattleActionReceipt | null,
+    actionSerial: 0,
+    battleGeneration: 0,
     onItemConsumed: null as ((itemId: string) => void) | null,
     _currentBattleItems: null as Record<string, number> | null,
   }),
@@ -54,6 +60,8 @@ export const useBattleStore = defineStore("battle", {
       this.pendingBattle = null;
     },
     clearActiveBattle() {
+      this.battleGeneration++;
+      this.latestActionReceipt = null;
       this.activeBattle = null;
       this.onItemConsumed = null;
       this._currentBattleItems = null;
@@ -69,6 +77,9 @@ export const useBattleStore = defineStore("battle", {
       );
 
       const allParticipants = [...playerParty, ...enemyParticipants];
+
+      this.battleGeneration++;
+      this.latestActionReceipt = null;
 
       this.activeBattle = createBattleSnapshotFromPendingBattle({
         pendingBattle: this.pendingBattle,
@@ -401,7 +412,10 @@ export const useBattleStore = defineStore("battle", {
         return;
       }
 
-      this.activeBattle = resolveSelectedBattleAction(this.activeBattle);
+      const previous = this.activeBattle;
+      const trace: BattleTraceCollector = {};
+      this.activeBattle = resolveSelectedBattleAction(previous, trace);
+      this.recordActionReceipt(previous, trace);
 
       // Handle item consumption
       if (this.activeBattle.consumedItemId && this.onItemConsumed) {
@@ -419,7 +433,10 @@ export const useBattleStore = defineStore("battle", {
         return;
       }
 
-      this.activeBattle = resolveNextEnemyAction(this.activeBattle);
+      const previous = this.activeBattle;
+      const trace: BattleTraceCollector = {};
+      this.activeBattle = resolveNextEnemyAction(previous, trace);
+      this.recordActionReceipt(previous, trace);
 
       // Rebuild menu only after control returns to a player actor.
       if (
@@ -429,10 +446,22 @@ export const useBattleStore = defineStore("battle", {
         this.rebuildActionMenuForActor(this.activeBattle.currentActorId);
       }
     },
+    recordActionReceipt(previous: BattleSnapshot, trace: BattleTraceCollector) {
+      const current = this.activeBattle;
+      const changed = current && (current.phase !== previous.phase ||
+        (current.battleLog?.at(-1)?.sequence ?? 0) !== (previous.battleLog?.at(-1)?.sequence ?? 0));
+      if (!trace.action && !changed) return;
+      this.latestActionReceipt = {
+        ...cloneBattlePresentationData(trace.action ?? { actionId: "state-change", name: "战况变化", outcomes: [] }),
+        serial: ++this.actionSerial,
+      };
+    },
     restoreBattleSnapshot(input: {
       pendingBattle?: PendingBattleSnapshot;
       activeBattle?: BattleSnapshot;
     }) {
+      this.battleGeneration++;
+      this.latestActionReceipt = null;
       this.pendingBattle = input.pendingBattle ?? null;
       this.activeBattle = input.activeBattle == null ? null : refreshBattleStatus(input.activeBattle);
       if (this.activeBattle?.phase === "PLAYER_COMMAND") {
