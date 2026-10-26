@@ -1,3 +1,5 @@
+import { getChaosDollPressTurnIconCount } from "@/engine/battle/boss/profiles/chaosDollProfile";
+import type { BossBattleRuntimeState } from "@/engine/battle/boss/bossTypes";
 import type {
   BattleActionOutcomeTag,
   BattleActionOutcomeType,
@@ -64,10 +66,17 @@ export function allocatePressTurnIcons(
 export function createPressTurnStateForSide(
   participants: BattleParticipant[],
   side: CombatantSide,
+  bossRuntime?: BossBattleRuntimeState,
 ): PressTurnState {
   return allocatePressTurnIcons(
     side,
-    getActingParticipantIdsForSide(participants, side),
+    getActingParticipantIdsForSide(participants, side).flatMap((id) => {
+      const participant = participants.find((entry) => entry.id === id)!;
+      const count = side === "enemy" && participant.enemyId === "106"
+        ? getChaosDollPressTurnIconCount(bossRuntime)
+        : 1;
+      return Array.from({ length: count }, () => id);
+    }),
   );
 }
 

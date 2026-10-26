@@ -564,16 +564,17 @@ function initializeTurnForSide(
   });
   participants = refreshed.participants;
   const eligibleIds = getActingParticipantIdsForSide(participants, side);
+  const pressTurn = createPressTurnStateForSide(participants, side, refreshed.bossRuntime);
   const participantIds = participants.filter((participant) =>
     participant.side === side && participant.isActive && !participant.isDown &&
     (participant.canAct !== false || participant.canActBeforeStatus != null)).map((participant) => participant.id);
   return {
     ...refreshed,
     participants,
-    pressTurn: createPressTurnStateForSide(participants, side),
+    pressTurn,
     pressTurnAllocation: {
       participantIds,
-      initialIconCount: eligibleIds.length,
+      initialIconCount: pressTurn.icons.length,
     },
     currentActorId: eligibleIds[0] ?? null,
   };

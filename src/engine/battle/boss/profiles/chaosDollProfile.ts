@@ -1,11 +1,15 @@
 import { getStatusEffectMap } from "@/content/contentRegistry";
 import type { BossProfile, BossIntentPriority } from "@/engine/battle/boss/bossRegistry";
-import type { BossActionIntent, BossContext, BossEffect, BossUtilityCandidate } from "@/engine/battle/boss/bossTypes";
+import type { BossActionIntent, BossBattleRuntimeState, BossContext, BossEffect, BossUtilityCandidate } from "@/engine/battle/boss/bossTypes";
 interface Integrity { blade: number; eye: number; core: number }
 const INITIAL: Integrity = { blade: 1000, eye: 1000, core: 1000 };
 const ORDER: Array<keyof Integrity> = ["blade", "eye", "core"];
 function doll(context: BossContext) { return context.snapshot.participants.find((p) => p.enemyId === "106"); }
-function current(context: BossContext): Integrity { return { ...INITIAL, ...((context.runtime.mechanicState["doll:integrity"] as Partial<Integrity> | undefined) ?? {}) }; }
+function current(runtime: BossBattleRuntimeState | undefined): Integrity { return { ...INITIAL, ...((runtime?.mechanicState["doll:integrity"] as Partial<Integrity> | undefined) ?? {}) }; }
+export function getChaosDollPressTurnIconCount(runtime?: BossBattleRuntimeState): number {
+  const integrity = current(runtime);
+  return 1 + ORDER.filter((part) => integrity[part] > 0).length;
+}
 function lowest(value: Integrity): keyof Integrity { return ORDER.reduce((best, part) => value[part] < value[best] ? part : best, "blade"); }
 function players(context: BossContext) { return context.snapshot.participants.filter((p) => p.side === "player" && p.isActive && !p.isDown).map((p) => p.id); }
 function intent(context: BossContext, skillId: string): BossActionIntent | null { const actor = doll(context); return actor == null ? null : { type: "use_skill", actorId: actor.id, skillId, targetIds: players(context), reason: "拼凑体阶段动作" }; }
@@ -23,7 +27,7 @@ export const chaosDollProfile: BossProfile = {
       return effects;
     }
     if (event.type === "damage_applied" && event.targetId === actor.id) {
-      const integrity = current(context); const amount = Math.max(1, Math.ceil(event.amount / actor.hp.max * 1000));
+      const integrity = current(context.runtime); const amount = Math.max(1, Math.ceil(event.amount / actor.hp.max * 1000));
       if (event.actionCategory === "physical") integrity.blade = Math.max(0, integrity.blade - amount);
       if (event.actionCategory === "magic") integrity.eye = Math.max(0, integrity.eye - amount);
       const effects: BossEffect[] = [{ type: "set_mechanic_state", key: "doll:integrity", value: integrity }];
@@ -34,7 +38,7 @@ export const chaosDollProfile: BossProfile = {
       return effects;
     }
     if (event.type === "status_applied" && event.targetId === actor.id && getStatusEffectMap().get(event.effectId)?.type === "debuff") {
-      const integrity = current(context); integrity.core = Math.max(0, integrity.core - 200); return [{ type: "set_mechanic_state", key: "doll:integrity", value: integrity }, { type: "append_mechanic_log", summary: "缝合核受损", details: [`缝合核 ${integrity.core}`] }];
+      const integrity = current(context.runtime); integrity.core = Math.max(0, integrity.core - 200); return [{ type: "set_mechanic_state", key: "doll:integrity", value: integrity }, { type: "append_mechanic_log", summary: "缝合核受损", details: [`缝合核 ${integrity.core}`] }];
     }
     return [];
   },
