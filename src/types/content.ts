@@ -38,7 +38,7 @@ export interface StatusEffectPayload {
   chance: number; // 0–200
 }
 
-export type CleansableStatusEffectType = "buff" | "debuff" | "dot" | "ailment";
+export type CleansableStatusEffectType = "buff" | "debuff" | "dot" | "ailment" | "shield";
 
 export interface SkillContent {
   id: string;
