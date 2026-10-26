@@ -72,3 +72,7 @@
 {"id": "67", "name": "守护之香", "description": "使一名角色的防御永久提升1点，永久面板属性上限为99。", "type": "consumable", "tier": "legendary", "price": 20000, "usableInBattle": false, "permanentStatBonus": {"stat": "defense", "amount": 1}}
 {"id": "68", "name": "疾风之香", "description": "使一名角色的敏捷永久提升1点，永久面板属性上限为99。", "type": "consumable", "tier": "legendary", "price": 20000, "usableInBattle": false, "permanentStatBonus": {"stat": "agility", "amount": 1}}
 {"id": "69", "name": "智慧之香", "description": "使一名角色的智力永久提升1点，永久面板属性上限为99。", "type": "consumable", "tier": "legendary", "price": 20000, "usableInBattle": false, "permanentStatBonus": {"stat": "intelligence", "amount": 1}}
+{"id": "70", "name": "眼药水", "description": "让视线重新变得清晰的药水。", "type": "consumable", "tier": "common", "price": 80, "usableInBattle": true, "targetType": "single_ally", "removeStatus": ["blind"]}
+{"id": "71", "name": "灭火喷雾", "description": "气雾型灭火喷罐。", "type": "consumable", "tier": "common", "price": 80, "usableInBattle": true, "targetType": "single_ally", "removeStatus": ["burn"]}
+{"id": "72", "name": "自热贴", "description": "能快速释放热量的贴片。", "type": "consumable", "tier": "common", "price": 80, "usableInBattle": true, "targetType": "single_ally", "removeStatus": ["freeze"]}
+{"id": "73", "name": "活骨按摩棒", "description": "能让麻痹的肢体放松的按摩棒，就是质量不太好。", "type": "consumable", "tier": "common", "price": 80, "usableInBattle": true, "targetType": "single_ally", "removeStatus": ["paralyze"]}

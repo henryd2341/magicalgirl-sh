@@ -64,7 +64,7 @@ const buyableItems = computed(() => {
   for (const item of allItems.values()) {
     if (item.price > 0) result.push(item);
   }
-  return result;
+  return result.sort((a, b) => a.price - b.price);
 });
 
 const sellableItems = computed(() => {
@@ -78,7 +78,7 @@ const sellableItems = computed(() => {
     if (item.tier === 'legendary') continue;
     result.push({ item, owned: count, sellPrice: computeSellPrice(item.price) });
   }
-  return result;
+  return result.sort((a, b) => a.sellPrice - b.sellPrice);
 });
 
 const maxQuantity = computed(() => {
